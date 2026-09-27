@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "count": 48210,
+    "db_response_time_ms": 146,
+    "page": null,
+    "per_page": 25,
+    "next_cursor": "IlsxMDAuMCwgJ1czMTc3ODI4OTA5J10i",
+    "cost_usd": 0.001
+  },
+  "results": [
+    {
+      "id": "https://openalex.org/W2626778328",
+      "doi": "https://doi.org/10.48550/arXiv.1706.03762",
+      "display_name": "Attention Is All You Need",
+      "publication_year": 2017,
+      "primary_location": {
+        "is_oa": true,
+        "pdf_url": "https://arxiv.org/pdf/1706.03762",
+        "source": { "id": "https://openalex.org/S4306420609", "display_name": "Neural Information Processing Systems", "type": "conference" }
+      },
+      "authorships": [
+        { "author_position": "first", "author": { "id": "https://openalex.org/A5103024730", "display_name": "Ashish Vaswani" } },
+        { "author_position": "middle", "author": { "id": "https://openalex.org/A5021878400", "display_name": "Noam Shazeer" } },
+        { "author_position": "last", "author": { "id": null, "display_name": "Illia Polosukhin" } }
+      ],
+      "cited_by_count": 128412,
+      "open_access": { "is_oa": true, "oa_status": "green", "oa_url": "https://arxiv.org/pdf/1706.03762" },
+      "best_oa_location": { "is_oa": true, "pdf_url": "https://arxiv.org/pdf/1706.03762", "source": null },
+      "abstract_inverted_index": { "The": [0], "dominant": [1], "sequence": [2], "transduction": [3], "models": [4], "are": [5], "based": [6], "on": [7], "attention.": [8] }
+    },
+    {
+      "id": "https://openalex.org/W4385245566",
+      "doi": null,
+      "display_name": null,
+      "publication_year": null,
+      "primary_location": { "is_oa": false, "pdf_url": null, "source": null },
+      "authorships": [],
+      "cited_by_count": null,
+      "open_access": { "is_oa": false, "oa_status": "closed", "oa_url": null },
+      "best_oa_location": null,
+      "abstract_inverted_index": null
+    }
+  ]
+}

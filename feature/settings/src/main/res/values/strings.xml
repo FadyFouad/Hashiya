@@ -1,0 +1,16 @@
+<resources>
+    <string name="settings_title">Settings</string>
+    <string name="settings_back">Back</string>
+    <string name="settings_api_key_section">OpenAlex API key</string>
+    <string name="settings_api_key_label">API key</string>
+    <string name="settings_api_key_using_built_in">Using built-in key</string>
+    <string name="settings_api_key_using_yours">Using your key</string>
+    <string name="settings_api_key_show">Show key</string>
+    <string name="settings_api_key_hide">Hide key</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_reset">Reset to built-in</string>
+    <string name="settings_language_section">Language</string>
+    <string name="settings_language_system">System default</string>
+    <string name="settings_language_english" translatable="false">English</string>
+    <string name="settings_language_arabic" translatable="false">العربية</string>
+</resources>

@@ -30,7 +30,17 @@ class FakeSearchRepository : SearchRepository {
                 )
             )
         } else {
-            PagingData.from(papers)
+            // Explicit LoadStates (rather than the no-args overload) so Paging dispatches a real
+            // "not loading" state; without it, androidx.paging.testing's asSnapshot() never sees the
+            // load settle and hangs.
+            PagingData.from(
+                papers,
+                sourceLoadStates = LoadStates(
+                    refresh = LoadState.NotLoading(endOfPaginationReached = false),
+                    prepend = LoadState.NotLoading(endOfPaginationReached = true),
+                    append = LoadState.NotLoading(endOfPaginationReached = true)
+                )
+            )
         }
         return SearchResults(papers = flowOf(data), totalCount = MutableStateFlow(totalCount))
     }

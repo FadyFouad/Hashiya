@@ -20,10 +20,11 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxDefaults
+import androidx.compose.material3.SwipeToDismissBoxState
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -158,7 +159,10 @@ private fun PaperList(papers: List<Paper>, onPaperClick: (Paper) -> Unit, onRemo
 
 @Composable
 private fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit) {
-    val state = rememberSwipeToDismissBoxState()
+    // Deliberately not rememberSwipeToDismissBoxState(): that one is saveable, so when Undo brings the same key
+    // back, the lazy list restores its dismissed value and SwipeToDismissBox removes the paper again.
+    val positionalThreshold = SwipeToDismissBoxDefaults.positionalThreshold
+    val state = remember { SwipeToDismissBoxState(SwipeToDismissBoxValue.Settled, positionalThreshold) }
     SwipeToDismissBox(
         state = state,
         enableDismissFromStartToEnd = false,

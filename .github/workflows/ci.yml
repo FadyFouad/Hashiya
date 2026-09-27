@@ -21,7 +21,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
       - name: Check, build and test (screenshots verified against the Linux baselines)
         run: >-
-          ./gradlew spotlessCheck assembleDebug testDebugUnitTest lintDebug
+          ./gradlew spotlessCheck assembleDebug testDebugUnitTest :core:model:test lintDebug
           -Proborazzi.test.verify=true --continue
       - name: Upload screenshot diffs
         if: failure()

@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Hashiya"
 include(":app")
+include(":core:model")

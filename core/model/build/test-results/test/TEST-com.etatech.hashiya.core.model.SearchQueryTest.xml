@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.etatech.hashiya.core.model.SearchQueryTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-09-27T14:58:28.730Z" hostname="WSC-MacBook-Pro.local" time="0.006">
+  <properties/>
+  <testcase name="betweenAcceptsSingleYear" classname="com.etatech.hashiya.core.model.SearchQueryTest" time="0.0"/>
+  <testcase name="sortIsNotAFilter" classname="com.etatech.hashiya.core.model.SearchQueryTest" time="0.001"/>
+  <testcase name="betweenRejectsReversedRange" classname="com.etatech.hashiya.core.model.SearchQueryTest" time="0.004"/>
+  <testcase name="yearAndOpenAccessAreFilters" classname="com.etatech.hashiya.core.model.SearchQueryTest" time="0.001"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

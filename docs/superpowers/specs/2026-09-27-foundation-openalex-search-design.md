@@ -97,15 +97,15 @@ The shared preview sheet lives in `core/designsystem` as a stateless composable 
 | `hashiya.android.room` | Room + KSP, schema export directory |
 | `hashiya.hilt` | Hilt + KSP |
 | `hashiya.jvm.library` | Kotlin JVM library |
-| `hashiya.android.test.screenshot` | Robolectric + Roborazzi |
+| `hashiya.android.screenshot` | Robolectric + Roborazzi |
 
 All dependency versions live in `gradle/libs.versions.toml`. KSP is used everywhere; kapt is not allowed.
 
 ### 3.4 Platform and toolchain
 
-- AGP 9.2.1, Kotlin 2.2.10 (from the template). AGP 9 compiles Kotlin itself, so modules do not apply `org.jetbrains.kotlin.android`.
-- `compileSdk`/`targetSdk` 36, `minSdk` 24 (unchanged).
-- **To verify during planning:** the exact Hilt, KSP, Room and Roborazzi versions that work with AGP 9.2.1 and Kotlin 2.2.10. If one does not, the plan adjusts the Kotlin/AGP version rather than dropping the library.
+- AGP 9.2.1, Kotlin 2.4.20, KSP 2.3.12, Hilt 2.60.1, Room 2.8.5, Robolectric 4.17, Roborazzi 1.75.0 — verified together in a throwaway build during planning. AGP 9 compiles Kotlin itself, so modules do not apply `org.jetbrains.kotlin.android`.
+- `compileSdk` 37 (current AndroidX Navigation/Lifecycle/Hilt releases require it), `targetSdk` 36, `minSdk` 24. compileSdk does not change runtime behavior.
+- Robolectric tests run at SDK 35: Robolectric 4.17 fails on SDK 36 under JDK 21.
 
 ## 4. Data model
 
@@ -229,7 +229,7 @@ Response mapping (done in `core/data`):
 
 `core/network` defines `interface UserApiKeySource { val userKey: StateFlow<String?> }`. `core/data` implements it by collecting DataStore in an application-scoped coroutine, so the interceptor reads `userKey.value` without blocking. The interceptor uses the user key when present and `BuildConfig.OPENALEX_API_KEY` otherwise, appends it as `api_key`, and records which kind of key was used so error mapping can tell `InvalidUserKey` from `ServiceUnavailable`. Settings derives its status line from `userKey` alone (null → "Using built-in key").
 
-The built-in key is read in `core/network`'s build script from `local.properties` (`OPENALEX_API_KEY`) into `BuildConfig.OPENALEX_API_KEY`. If the property is missing, the build still succeeds with an empty key, and search shows `ServiceUnavailable` until the user sets a key.
+The built-in key is read in `core/network`'s build script from `local.properties` (`OPENALEX_API_KEY`) into `BuildConfig.OPENALEX_API_KEY`. If the property is missing, the build still succeeds and requests are sent without `api_key` (OpenAlex accepts keyless requests at lower limits; verified during planning).
 
 ### 5.3 Search pipeline (`SearchViewModel`)
 
@@ -271,7 +271,7 @@ Mockups: `.superpowers/brainstorm/48653-1790510759/content/screens.html` (local 
 
 ### 6.3 Preview sheet (`PaperPreviewSheet`)
 
-Modal bottom sheet: full title, all authors, venue · year · citations, open-access badge ("PDF available" when `openAccessPdfUrl != null`), scrollable abstract (or "No abstract available"), and two actions: **Open DOI ↗** (hidden when `doi == null`; opens `https://doi.org/{doi}` in a Custom Tab or browser) and **Save to library** / **Remove from library**.
+Modal bottom sheet: full title, all authors, venue · year · citations, open-access badge ("PDF available" when `openAccessPdfUrl != null`), scrollable abstract (or "No abstract available"), and two actions: **Open DOI ↗** (hidden when `doi == null`; opens `https://doi.org/{doi}` in the browser through `LocalUriHandler`) and **Save to library** / **Remove from library**.
 
 ### 6.4 Library and Settings
 
@@ -282,7 +282,7 @@ Modal bottom sheet: full title, all authors, venue · year · citations, open-ac
 
 ### 6.5 Localization and RTL
 
-- All UI strings in `res/values/strings.xml` with `res/values-ar/strings.xml` for every module that has UI. No hardcoded strings in composables (enforced by Lint).
+- All UI strings in `res/values/strings.xml` with `res/values-ar/strings.xml` for every module that has UI. Lint's `MissingTranslation` check enforces the Arabic pair; "no hardcoded strings in composables" is enforced in code review (Lint cannot see Compose string literals).
 - `app/src/main/res/xml/locales_config.xml` declares `en` and `ar`; `android:localeConfig` is set in the manifest so Android 13+ system settings list the app.
 - In-app language switching uses `AppCompatDelegate.setApplicationLocales`. This requires `MainActivity` to extend `AppCompatActivity`, an AppCompat-based window theme, and the `AppLocalesMetadataHolderService` entry with `autoStoreLocales=true` for API < 33.
 - Layout uses start/end only. Icons that imply direction (back arrow, "Open DOI ↗") use auto-mirrored variants.
@@ -292,9 +292,9 @@ Modal bottom sheet: full title, all authors, venue · year · citations, open-ac
 ### 6.6 Design system (`core/designsystem`)
 
 - Custom Material 3 `ColorScheme` for light and dark, derived from brand teal `#0B6E6E`. Dynamic color is off.
-- Fonts bundled in `res/font` (both OFL-licensed): Inter for Latin, IBM Plex Sans Arabic for Arabic; a `FontFamily` fallback chain covers mixed text.
-- Shared components: `HashiyaTheme`, `PaperCard`, `PaperPreviewSheet`, `FilterChipRow`, `StatusBadge`, `EmptyState`, `ErrorState`, `LoadingSkeleton`.
-- Every component has `@Preview`s for light/dark and LTR/RTL.
+- Fonts bundled in `res/font` (both OFL-licensed): Inter when the UI locale is English, IBM Plex Sans Arabic when it is Arabic (Plex also contains Latin glyphs, so mixed text renders in one family). Compose has no per-script font fallback chain, so the family is chosen by locale.
+- Shared components: `HashiyaTheme`, `PaperCard`, `PaperPreviewSheet`, `StatusBadge`, `EmptyState`, `ErrorState`, `LoadingSkeleton`. The search filter chips live in `feature/search`, since only Search uses them.
+- Every component and screen has Roborazzi screenshot tests in light/dark × English LTR/Arabic RTL; these replace hand-written `@Preview` matrices.
 
 ## 7. Error handling
 

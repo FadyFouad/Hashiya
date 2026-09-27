@@ -11,7 +11,7 @@ trap 'git push --quiet origin --delete "$branch" || true' EXIT
 
 run_id=""
 for _ in $(seq 1 60); do
-  run_id=$(gh run list --branch "$branch" --workflow ci.yml --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+  run_id=$(gh run list --branch "$branch" --workflow ci.yml --limit 1 --json databaseId --jq '.[0].databaseId // empty' || true)
   [ -n "$run_id" ] && break
   sleep 5
 done

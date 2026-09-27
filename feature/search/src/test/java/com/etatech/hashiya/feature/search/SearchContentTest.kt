@@ -1,5 +1,6 @@
 package com.etatech.hashiya.feature.search
 
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -8,7 +9,11 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.paging.LoadState
 import androidx.paging.LoadStates
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
 import androidx.paging.PagingData
+import androidx.paging.PagingSource
+import androidx.paging.PagingState
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.etatech.hashiya.core.data.repository.SearchException
 import com.etatech.hashiya.core.designsystem.component.LOADING_SKELETON_TAG
@@ -20,6 +25,11 @@ import com.etatech.hashiya.core.model.YearFilter
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.feature.search.components.SEARCH_FIELD_TAG
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -63,10 +73,44 @@ class SearchContentTest {
         }
     }
 
+    /**
+     * Shows results from real [Pager]s that can be swapped, like the ViewModel's flatMapLatest does for a new
+     * query. Unlike PagingData.from/empty, a new Pager's first-page state arrives while the old items are still held.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private fun showSwitching(pagers: MutableStateFlow<Flow<PagingData<Paper>>>) = composeRule.setContent {
+        HashiyaTheme {
+            SearchContent(
+                uiState = searching,
+                papers = remember { pagers.flatMapLatest { it } }.collectAsLazyPagingItems(),
+                savedIds = emptySet(),
+                selectedItem = null,
+                message = null,
+                actions = actions,
+                currentYear = 2026
+            )
+        }
+    }
+
+    private fun pager(load: suspend () -> PagingSource.LoadResult<Int, Paper>): Flow<PagingData<Paper>> =
+        Pager(PagingConfig(pageSize = 20)) {
+            object : PagingSource<Int, Paper>() {
+                override fun getRefreshKey(state: PagingState<Int, Paper>): Int? = null
+
+                override suspend fun load(params: LoadParams<Int>): LoadResult<Int, Paper> = load()
+            }
+        }.flow
+
+    private fun onePage(vararg papers: Paper) = pager { PagingSource.LoadResult.Page(papers.toList(), prevKey = null, nextKey = null) }
+
     private fun states(refresh: LoadState, append: LoadState = LoadState.NotLoading(endOfPaginationReached = true)) =
         LoadStates(refresh = refresh, prepend = LoadState.NotLoading(endOfPaginationReached = true), append = append)
 
-    private val results = PagingData.from(listOf(SamplePapers.attention, SamplePapers.bert))
+    // Explicit load states, as a real Pager dispatches them: without them the first page counts as still loading.
+    private val results = PagingData.from(
+        listOf(SamplePapers.attention, SamplePapers.bert),
+        states(refresh = LoadState.NotLoading(endOfPaginationReached = false))
+    )
     private val attentionSaved = setOf(SamplePapers.attention.openAlexId)
 
     @Test
@@ -163,5 +207,32 @@ class SearchContentTest {
     fun yearChipShowsActiveRange() {
         show(searching.copy(years = YearFilter.Between(2015, 2020)), results, savedIds = attentionSaved)
         composeRule.onNodeWithText("2015–2020").assertIsDisplayed()
+    }
+
+    @Test
+    fun newQueryFirstPageErrorReplacesPreviousResults() {
+        val pagers = MutableStateFlow(onePage(SamplePapers.attention))
+        showSwitching(pagers)
+        composeRule.onNodeWithText(SamplePapers.attention.title).assertIsDisplayed()
+
+        composeRule.runOnIdle { pagers.value = pager { PagingSource.LoadResult.Error(SearchException(SearchError.Offline)) } }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(SamplePapers.attention.title).assertDoesNotExist()
+        composeRule.onNodeWithText("Can't reach OpenAlex").assertIsDisplayed()
+        composeRule.onNodeWithText("Retry").assertIsDisplayed()
+    }
+
+    @Test
+    fun newQueryLoadingReplacesPreviousResults() {
+        val pagers = MutableStateFlow(onePage(SamplePapers.attention))
+        showSwitching(pagers)
+        composeRule.onNodeWithText(SamplePapers.attention.title).assertIsDisplayed()
+
+        composeRule.runOnIdle { pagers.value = pager { awaitCancellation() } }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText(SamplePapers.attention.title).assertDoesNotExist()
+        composeRule.onNodeWithTag(LOADING_SKELETON_TAG).assertIsDisplayed()
     }
 }

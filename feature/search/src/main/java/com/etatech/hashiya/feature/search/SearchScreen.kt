@@ -148,19 +148,21 @@ internal fun SearchContent(
 
 @Composable
 private fun SearchBody(uiState: SearchUiState, papers: LazyPagingItems<Paper>, savedIds: Set<String>, actions: SearchActions) {
+    // Branch on the first-page state before the item count: when a new query starts, the previous query's items
+    // stay in the list until the new first page arrives, so its loading or error state must replace them.
     val refresh = papers.loadState.refresh
     when {
         uiState.isIdle -> IdleState(actions.onSuggestion)
 
-        papers.itemCount == 0 && refresh is LoadState.Loading -> LoadingSkeleton()
-
-        papers.itemCount == 0 && refresh is LoadState.Error -> SearchErrorState(
+        refresh is LoadState.Error -> SearchErrorState(
             error = refresh.error.asSearchError(),
             onRetry = papers::retry,
             onOpenSettings = actions.onOpenSettings
         )
 
-        papers.itemCount == 0 && refresh is LoadState.NotLoading -> NoResultsState(
+        refresh is LoadState.Loading -> LoadingSkeleton()
+
+        papers.itemCount == 0 -> NoResultsState(
             showClearFilters = uiState.hasActiveFilters,
             onClearFilters = actions.onClearFilters
         )

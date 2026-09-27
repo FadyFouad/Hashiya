@@ -80,7 +80,11 @@ class SearchScreenshotTest(private val variant: ScreenshotVariant) {
     fun results() = capture(
         "search_results",
         searching,
-        PagingData.from(listOf(SamplePapers.attention, SamplePapers.bert, SamplePapers.vit)),
+        // Explicit load states, as a real Pager dispatches them: without them the first page counts as still loading.
+        PagingData.from(
+            listOf(SamplePapers.attention, SamplePapers.bert, SamplePapers.vit),
+            loadStates(LoadState.NotLoading(endOfPaginationReached = false))
+        ),
         arabicText = "في المكتبة",
         savedIds = setOf(SamplePapers.attention.openAlexId)
     )

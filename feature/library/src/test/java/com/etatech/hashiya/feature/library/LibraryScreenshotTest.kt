@@ -48,9 +48,11 @@ class LibraryScreenshotTest(private val variant: ScreenshotVariant) {
         "library_papers",
         LibraryUiState.Papers(listOf(SamplePapers.attention, SamplePapers.bert, SamplePapers.arabicTitled)),
         // "وآخرون" ("et al.") shows on both the attention and bert rows here (each has multiple
-        // authors), so it fails the single-match arabicText check; the Arabic-titled paper's own
-        // title is unique and is the row this variant is actually meant to verify renders RTL.
-        arabicText = SamplePapers.arabicTitled.title
+        // authors), so it fails the single-match arabicText check. The Arabic-titled paper's own
+        // title is paper CONTENT (always Arabic regardless of the UI locale), so it can't prove the
+        // app's own res/values-ar strings rendered. Use the top app bar title (library_title,
+        // "المكتبة"), a values-ar resource string that appears exactly once on this screen.
+        arabicText = "المكتبة"
     )
 
     companion object {

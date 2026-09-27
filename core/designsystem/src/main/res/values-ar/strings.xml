@@ -1,0 +1,15 @@
+<resources>
+    <string name="designsystem_untitled">بدون عنوان</string>
+    <string name="designsystem_open_access">وصول مفتوح</string>
+    <string name="designsystem_open_access_pdf">وصول مفتوح · ملف PDF متاح</string>
+    <string name="designsystem_in_library">في المكتبة</string>
+    <string name="designsystem_save">حفظ</string>
+    <string name="designsystem_cited_count">%1$s استشهاد</string>
+    <string name="designsystem_citations">%1$s استشهاد</string>
+    <string name="designsystem_authors_more">%1$s +%2$d</string>
+    <string name="designsystem_abstract">الملخص</string>
+    <string name="designsystem_no_abstract">لا يوجد ملخص</string>
+    <string name="designsystem_open_doi">فتح DOI</string>
+    <string name="designsystem_save_to_library">حفظ في المكتبة</string>
+    <string name="designsystem_remove_from_library">إزالة من المكتبة</string>
+</resources>

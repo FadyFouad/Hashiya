@@ -1,0 +1,15 @@
+<resources>
+    <string name="designsystem_untitled">Untitled</string>
+    <string name="designsystem_open_access">Open access</string>
+    <string name="designsystem_open_access_pdf">Open access · PDF available</string>
+    <string name="designsystem_in_library">In library</string>
+    <string name="designsystem_save">Save</string>
+    <string name="designsystem_cited_count">%1$s cited</string>
+    <string name="designsystem_citations">%1$s citations</string>
+    <string name="designsystem_authors_more">%1$s +%2$d</string>
+    <string name="designsystem_abstract">Abstract</string>
+    <string name="designsystem_no_abstract">No abstract available</string>
+    <string name="designsystem_open_doi">Open DOI</string>
+    <string name="designsystem_save_to_library">Save to library</string>
+    <string name="designsystem_remove_from_library">Remove from library</string>
+</resources>

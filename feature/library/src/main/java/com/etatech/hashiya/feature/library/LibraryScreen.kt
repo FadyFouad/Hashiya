@@ -64,7 +64,7 @@ internal fun LibraryScreen(onGoToSearch: () -> Unit, onOpenSettings: () -> Unit,
         onUndoDismissed = viewModel::onUndoDismissed,
         onGoToSearch = onGoToSearch,
         onOpenSettings = onOpenSettings,
-        onOpenDoi = { doi -> uriHandler.openUri("https://doi.org/$doi") }
+        onOpenDoi = { doi -> runCatching { uriHandler.openUri("https://doi.org/$doi") } }
     )
 }
 

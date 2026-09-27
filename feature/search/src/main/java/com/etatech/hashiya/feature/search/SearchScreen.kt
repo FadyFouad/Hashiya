@@ -76,7 +76,7 @@ internal fun SearchScreen(onOpenSettings: () -> Unit, viewModel: SearchViewModel
             onPaperClick = viewModel::onPaperClick,
             onToggleSave = viewModel::onToggleSave,
             onDismissPreview = viewModel::onDismissPreview,
-            onOpenDoi = { doi -> uriHandler.openUri("https://doi.org/$doi") },
+            onOpenDoi = { doi -> runCatching { uriHandler.openUri("https://doi.org/$doi") } },
             onOpenSettings = onOpenSettings,
             onMessageShown = viewModel::onMessageShown
         )

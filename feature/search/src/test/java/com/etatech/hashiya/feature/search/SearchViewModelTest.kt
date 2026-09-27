@@ -7,6 +7,7 @@ import com.etatech.hashiya.core.model.SearchSort
 import com.etatech.hashiya.core.model.YearFilter
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakeSearchRepository
+import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
 import kotlinx.coroutines.flow.collect
@@ -31,10 +32,11 @@ class SearchViewModelTest {
 
     private val searchRepository = FakeSearchRepository()
     private val libraryRepository = FakeLibraryRepository()
+    private val userPreferencesRepository = FakeUserPreferencesRepository()
     private val savedStateHandle = SavedStateHandle()
 
     private fun TestScope.viewModel(handle: SavedStateHandle = savedStateHandle): SearchViewModel {
-        val viewModel = SearchViewModel(handle, searchRepository, libraryRepository)
+        val viewModel = SearchViewModel(handle, searchRepository, libraryRepository, userPreferencesRepository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.selectedItem.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.savedIds.collect() }
@@ -138,6 +140,30 @@ class SearchViewModelTest {
         runCurrent()
 
         assertTrue(viewModel.uiState.value.isIdle)
+    }
+
+    @Test
+    fun changingTheApiKeyRerunsTheActiveSearch() = runTest {
+        val viewModel = viewModel()
+        viewModel.onSuggestion("bert")
+        runCurrent()
+        assertEquals(listOf(SearchQuery("bert")), searchRepository.queries)
+
+        userPreferencesRepository.setUserApiKey("fixed-key")
+        runCurrent()
+
+        assertEquals(listOf(SearchQuery("bert"), SearchQuery("bert")), searchRepository.queries)
+        assertEquals("bert", viewModel.uiState.value.text)
+    }
+
+    @Test
+    fun changingTheApiKeyWhileIdleDoesNotSearch() = runTest {
+        viewModel()
+
+        userPreferencesRepository.setUserApiKey("fixed-key")
+        runCurrent()
+
+        assertTrue(searchRepository.queries.isEmpty())
     }
 
     @Test

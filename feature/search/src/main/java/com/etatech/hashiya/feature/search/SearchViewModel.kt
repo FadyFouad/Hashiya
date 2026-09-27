@@ -8,6 +8,7 @@ import androidx.paging.cachedIn
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.SearchRepository
 import com.etatech.hashiya.core.data.repository.SearchResults
+import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.SearchQuery
 import com.etatech.hashiya.core.model.SearchSort
@@ -40,7 +41,8 @@ internal const val DEBOUNCE_MS = 300L
 class SearchViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val searchRepository: SearchRepository,
-    private val libraryRepository: LibraryRepository
+    private val libraryRepository: LibraryRepository,
+    userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
     /** What the user sees: the field's text as typed plus the chip selections. */
     private val draft = MutableStateFlow(savedStateHandle.readSearchQuery())
@@ -61,7 +63,11 @@ class SearchViewModel @Inject constructor(
         submitted.trim().takeIf { it.isNotEmpty() }?.let { current.copy(text = it) }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private val results: StateFlow<SearchResults?> = activeQuery
+    /** A new API key re-runs the active search, so fixing a rejected key in Settings takes effect right away. */
+    private val results: StateFlow<SearchResults?> = combine(
+        activeQuery,
+        userPreferencesRepository.userApiKey.distinctUntilChanged()
+    ) { query, _ -> query }
         .map { query -> query?.let(searchRepository::search) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 

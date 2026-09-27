@@ -16,6 +16,9 @@ class FakeLibraryRepository : LibraryRepository {
     /** When true, [save] throws like a failing disk would. */
     var failOnSave = false
 
+    /** When true, [remove] throws like a failing disk would. */
+    var failOnRemove = false
+
     override fun observeSavedPapers(): Flow<List<Paper>> = rows.map { list -> list.sortedByDescending { it.savedAt }.map { it.paper } }
 
     override fun observeSavedIds(): Flow<Set<String>> = rows.map { list -> list.map { it.paper.openAlexId }.toSet() }
@@ -27,6 +30,7 @@ class FakeLibraryRepository : LibraryRepository {
     }
 
     override suspend fun remove(openAlexId: String): RemovedPaper? {
+        if (failOnRemove) throw IOException("disk full")
         val row = rows.value.firstOrNull { it.paper.openAlexId == openAlexId } ?: return null
         rows.update { it - row }
         return row

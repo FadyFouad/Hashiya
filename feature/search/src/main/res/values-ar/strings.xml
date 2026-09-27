@@ -38,6 +38,7 @@
     <string name="search_open_settings">فتح الإعدادات</string>
     <string name="search_append_error">تعذّر تحميل المزيد من النتائج</string>
     <string name="search_save_failed">تعذّر حفظ الورقة</string>
+    <string name="search_remove_failed">تعذّرت إزالة الورقة</string>
     <string name="search_year_dialog_title">نطاق سنوات مخصص</string>
     <string name="search_year_from">من</string>
     <string name="search_year_to">إلى</string>

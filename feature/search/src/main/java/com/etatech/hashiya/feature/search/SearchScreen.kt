@@ -97,11 +97,15 @@ internal fun SearchContent(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailed = stringResource(R.string.search_save_failed)
+    val removeFailed = stringResource(R.string.search_remove_failed)
     LaunchedEffect(message) {
-        if (message == SearchMessage.SaveFailed) {
-            snackbarHostState.showSnackbar(saveFailed)
-            actions.onMessageShown()
+        val text = when (message) {
+            SearchMessage.SaveFailed -> saveFailed
+            SearchMessage.RemoveFailed -> removeFailed
+            null -> return@LaunchedEffect
         }
+        snackbarHostState.showSnackbar(text)
+        actions.onMessageShown()
     }
 
     Scaffold(

@@ -142,7 +142,7 @@ class SearchViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _message.value = SearchMessage.SaveFailed
+                _message.value = if (item.inLibrary) SearchMessage.RemoveFailed else SearchMessage.SaveFailed
             }
         }
     }

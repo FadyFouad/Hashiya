@@ -19,4 +19,4 @@ data class SearchUiState(
 
 data class PaperItem(val paper: Paper, val inLibrary: Boolean)
 
-enum class SearchMessage { SaveFailed }
+enum class SearchMessage { SaveFailed, RemoveFailed }

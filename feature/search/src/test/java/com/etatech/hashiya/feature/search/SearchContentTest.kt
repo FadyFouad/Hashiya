@@ -1,6 +1,9 @@
 package com.etatech.hashiya.feature.search
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -192,6 +195,28 @@ class SearchContentTest {
         composeRule.onNodeWithText(SamplePapers.bert.title).assertIsDisplayed()
         composeRule.onNodeWithText("Couldn't load more results").assertIsDisplayed()
         composeRule.onNodeWithText("Retry").assertIsDisplayed()
+    }
+
+    @Test
+    fun saveAndRemoveFailuresShowTheirOwnMessage() {
+        var message by mutableStateOf<SearchMessage?>(SearchMessage.RemoveFailed)
+        composeRule.setContent {
+            HashiyaTheme {
+                SearchContent(
+                    uiState = searching,
+                    papers = flowOf(results).collectAsLazyPagingItems(),
+                    savedIds = emptySet(),
+                    selectedItem = null,
+                    message = message,
+                    actions = actions,
+                    currentYear = 2026
+                )
+            }
+        }
+        composeRule.onNodeWithText("Couldn't remove the paper").assertIsDisplayed()
+
+        composeRule.runOnIdle { message = SearchMessage.SaveFailed }
+        composeRule.onNodeWithText("Couldn't save the paper").assertIsDisplayed()
     }
 
     @Test

@@ -219,6 +219,18 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun removeFailureShowsRemoveMessage() = runTest {
+        libraryRepository.save(SamplePapers.bert)
+        libraryRepository.failOnRemove = true
+        val viewModel = viewModel()
+
+        viewModel.onToggleSave(PaperItem(SamplePapers.bert, inLibrary = true))
+        runCurrent()
+
+        assertEquals(SearchMessage.RemoveFailed, viewModel.message.value)
+    }
+
+    @Test
     fun selectedItemFollowsLibraryState() = runTest {
         val viewModel = viewModel()
         viewModel.onPaperClick(SamplePapers.bert)

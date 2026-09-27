@@ -22,13 +22,15 @@
 - Layouts use start/end, never left/right. Paper content (titles, authors, abstracts, venues) uses `TextDirection.Content`. Direction-implying icons use `Icons.AutoMirrored`.
 - Tests use hand-written fakes. No mocking libraries.
 - Robolectric tests run at SDK 35: every module with Robolectric tests has `src/test/resources/robolectric.properties` containing `sdk=35` (SDK 36 fails under JDK 21 in Robolectric 4.17).
-- Screenshot baselines live in `<module>/src/test/screenshots/` and are committed.
+- Screenshot baselines live in `<module>/src/test/screenshots/` and are committed. **Linux is the source of truth:** baselines are recorded only by the CI `record-screenshots` job through `bash scripts/record-screenshots-on-linux.sh` (created in Task 10). Local `recordRoborazziDebug` output is for visual inspection and is never committed. Local `verifyRoborazziDebug` may report sub-pixel differences on macOS; CI's verify is the gate.
+- Screenshot tests set locale and night mode with Robolectric qualifiers (`ScreenshotVariantRule`, applied before the compose rule), and every Arabic variant asserts that a known Arabic string is displayed, so a baseline can never silently record English text.
+- Git: `origin` is the private repo `github.com/FadyFouad/Hashiya`. Work happens on branch `feat/foundation-openalex-search`; never commit to `main` directly.
 - The OpenAlex API key is never logged, never placed in exception messages, and never committed. It is read from `local.properties` key `OPENALEX_API_KEY`; a missing key means requests are sent without `api_key` (OpenAlex accepts keyless requests at lower limits).
 - Run `./gradlew spotlessApply` before every commit. Commit messages use a conventional prefix (`build:`, `feat:`, `test:`, `docs:`, `chore:`) and contain no AI attribution of any kind.
 
 ## Review Focus
 
-1. **The same work appearing on two pages** → Compose `LazyColumn` crashes on duplicate keys; a reasonable user expects each paper once. Pinned by `OpenAlexPagingSourceTest.dropsWorksAlreadyReturnedOnEarlierPages` (Task 8).
+1. **The same work appearing on two result pages** → search results are keyed by OpenAlex ID in the `LazyColumn` (for stable scroll position and item state), so a duplicate would give two items the same key and crash Compose; a reasonable user expects each paper once and no crash. The paging source drops works already returned. Pinned by `OpenAlexPagingSourceTest.dropsWorksAlreadyReturnedOnEarlierPages` (Task 8).
 2. **Search text with Arabic script, quotes, commas, colons and `%`** → must reach OpenAlex exactly as typed, not truncated or double-encoded. Pinned by `OpenAlexDataSourceTest.encodesArabicAndPunctuationInSearchText` (Task 4).
 3. **Custom year range typed with Arabic-Indic digits, out of range, or reversed** → Arabic digits are accepted; invalid ranges show an inline error and cannot be applied. Pinned by `YearRangeValidationTest` (Task 15).
 4. **Undo after the same paper was saved again from Search** → must not crash or duplicate the paper. Pinned by `RoomLibraryRepositoryTest.restoreAfterPaperWasSavedAgainIsNoOp` (Task 8).
@@ -629,8 +631,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
-  pull_request:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -638,6 +638,7 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ !startsWith(github.ref_name, 'record-screenshots/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -647,9 +648,39 @@ jobs:
           distribution: temurin
           java-version: 21
       - uses: gradle/actions/setup-gradle@v6
-      - name: Check, build and test
-        run: ./gradlew spotlessCheck assembleDebug testDebugUnitTest lintDebug --continue
+      - name: Check, build and test (screenshots verified against the Linux baselines)
+        run: >-
+          ./gradlew spotlessCheck assembleDebug testDebugUnitTest lintDebug
+          -Proborazzi.test.verify=true --continue
+      - name: Upload screenshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshot-diffs
+          path: "**/build/outputs/roborazzi"
+          if-no-files-found: ignore
+
+  # A push to record-screenshots/<anything> records the Roborazzi baselines on Linux, the source of truth.
+  # scripts/record-screenshots-on-linux.sh (Task 10) drives this job and copies the result into the checkout.
+  record-screenshots:
+    if: ${{ startsWith(github.ref_name, 'record-screenshots/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew recordRoborazziDebug
+      - uses: actions/upload-artifact@v7
+        with:
+          name: screenshot-baselines
+          path: "**/src/test/screenshots"
 ```
+
+The `-Proborazzi.test.verify=true` flag is harmless until the first screenshot tests exist (Task 10).
 
 - [ ] **Step 7: Verify the build**
 
@@ -870,9 +901,11 @@ Expected: `BUILD SUCCESSFUL`, 9 tests passed.
 
 - [ ] **Step 6: Run the JVM tests in CI**
 
-In `.github/workflows/ci.yml`, change the run line to:
+In `.github/workflows/ci.yml`, change the build job's run step to:
 ```yaml
-        run: ./gradlew spotlessCheck assembleDebug testDebugUnitTest :core:model:test lintDebug --continue
+        run: >-
+          ./gradlew spotlessCheck assembleDebug testDebugUnitTest :core:model:test lintDebug
+          -Proborazzi.test.verify=true --continue
 ```
 
 - [ ] **Step 7: Commit**
@@ -1678,6 +1711,7 @@ git commit -m "feat: add OpenAlex client with API key handling and error classif
   - `model.PaperEntity(id: String, openAlexId: String?, doi: String?, title: String, year: Int?, venue: String?, abstract: String?, citationCount: Int, isOpenAccess: Boolean, oaPdfUrl: String?, savedAt: Long)`
   - `model.PaperAuthorEntity(paperId: String, position: Int, name: String, openAlexAuthorId: String?)`
   - `model.PaperWithAuthors(paper: PaperEntity, authors: List<PaperAuthorEntity>)` — `authors` order is **not** guaranteed; callers sort by `position`.
+  - `papers.open_alex_id` is unique; `papers.doi` has a **non-unique** index (two works may share a DOI).
   - `dao.PaperDao`: `observeSavedPapers(): Flow<List<PaperWithAuthors>>` (newest first), `observeSavedOpenAlexIds(): Flow<List<String>>`, `suspend getByOpenAlexId(id): PaperWithAuthors?`, `suspend insertPaperWithAuthors(paper, authors): Boolean` (false = already saved, nothing written), `suspend deleteByOpenAlexId(id): PaperWithAuthors?` (returns what was deleted).
   - `HashiyaDatabase` with `paperDao()`; Hilt provides `HashiyaDatabase` and `PaperDao`.
 
@@ -1801,6 +1835,14 @@ class PaperDaoTest {
     }
 
     @Test
+    fun worksSharingADoiCanBothBeSaved() = runTest {
+        assertTrue(dao.insertPaperWithAuthors(paper("a", "W1", 100, doi = "10.1000/xyz"), emptyList()))
+        assertTrue(dao.insertPaperWithAuthors(paper("b", "W2", 200, doi = "10.1000/xyz"), emptyList()))
+
+        assertEquals(setOf("W1", "W2"), dao.observeSavedOpenAlexIds().first().toSet())
+    }
+
+    @Test
     fun deletingReturnsRowAndCascadesToAuthors() = runTest {
         dao.insertPaperWithAuthors(paper("a", "W1", 100), authors("a", "Ada", "Bo"))
 
@@ -1860,7 +1902,9 @@ import androidx.room.PrimaryKey
     tableName = "papers",
     indices = [
         Index(value = ["open_alex_id"], unique = true),
-        Index(value = ["doi"], unique = true),
+        // Not unique: OpenAlex sometimes has several works (preprint, published version) with one DOI,
+        // and each must be savable. Deduplication by DOI is a later sub-project's decision.
+        Index(value = ["doi"]),
     ],
 )
 data class PaperEntity(
@@ -2026,7 +2070,7 @@ internal object DatabaseModule {
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `./gradlew :core:database:testDebugUnitTest`
-Expected: `BUILD SUCCESSFUL`, 7 tests passed. `core/database/schemas/com.etatech.hashiya.core.database.HashiyaDatabase/1.json` now exists.
+Expected: `BUILD SUCCESSFUL`, 8 tests passed. `core/database/schemas/com.etatech.hashiya.core.database.HashiyaDatabase/1.json` now exists.
 
 - [ ] **Step 6: Commit**
 
@@ -2936,6 +2980,14 @@ class RoomLibraryRepositoryTest {
     fun removingUnknownPaperReturnsNull() = runTest {
         assertNull(repository.remove("missing"))
     }
+
+    @Test
+    fun worksSharingADoiAreBothSaved() = runTest {
+        repository.save(paper("W1").copy(doi = "10.1000/xyz"))
+        repository.save(paper("W2").copy(doi = "10.1000/xyz"))
+
+        assertEquals(setOf("W1", "W2"), repository.observeSavedIds().first())
+    }
 }
 ```
 
@@ -3264,7 +3316,7 @@ internal abstract class DataModule {
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `./gradlew :core:data:testDebugUnitTest`
-Expected: `BUILD SUCCESSFUL`, 32 tests passed (18 from Task 7 + 14 new).
+Expected: `BUILD SUCCESSFUL`, 33 tests passed (18 from Task 7 + 15 new).
 
 - [ ] **Step 6: Commit**
 
@@ -3595,7 +3647,8 @@ git commit -m "test: add shared fakes, sample papers and dispatcher rule"
 ### Task 10: `core/designsystem` — theme, fonts, icons, state components, screenshot testing
 
 **Files:**
-- Modify: `settings.gradle.kts` (add `include(":core:designsystem")`), `core/testing/build.gradle.kts`, `.github/workflows/ci.yml`
+- Modify: `settings.gradle.kts` (add `include(":core:designsystem")`), `core/testing/build.gradle.kts`
+- Create: `scripts/record-screenshots-on-linux.sh`
 - Create: `core/designsystem/build.gradle.kts`
 - Create: `core/designsystem/src/main/res/font/` (6 font files), `core/designsystem/licenses/` (2 license files)
 - Create in `core/designsystem/src/main/java/com/etatech/hashiya/core/designsystem/`: `theme/Color.kt`, `theme/Type.kt`, `theme/Theme.kt`, `icon/HashiyaIcons.kt`, `component/MessageStates.kt`, `component/LoadingSkeleton.kt`
@@ -3611,9 +3664,11 @@ git commit -m "test: add shared fakes, sample papers and dispatcher rule"
   - `component.ErrorState(title: String, message: String, actionLabel: String, onAction: () -> Unit, modifier: Modifier = Modifier)`
   - `component.LoadingSkeleton(modifier: Modifier = Modifier, rows: Int = 4)` with test tag `LOADING_SKELETON_TAG = "loading_skeleton"`
 - Produces (package `com.etatech.hashiya.core.testing`):
-  - `enum class ScreenshotVariant { EnglishLight, EnglishDark, ArabicLight, ArabicDark }` with `companion fun parameters(): List<Array<Any>>`
+  - `enum class ScreenshotVariant { EnglishLight, EnglishDark, ArabicLight, ArabicDark }` with `qualifiers`, `darkTheme`, `isArabic` and `companion fun parameters(): List<Array<Any>>`
+  - `class ScreenshotVariantRule(variant: ScreenshotVariant) : TestWatcher` — use as `@get:Rule(order = 0)`, with the compose rule at `order = 1`
   - `const val PHONE_QUALIFIERS = "w360dp-h780dp-xhdpi"`
-  - `fun ComposeContentTestRule.captureScreenshot(name: String, variant: ScreenshotVariant, content: @Composable () -> Unit)` — writes `src/test/screenshots/<name>-<variant>.png`.
+  - `fun ComposeContentTestRule.captureScreenshot(name: String, variant: ScreenshotVariant, arabicText: String, content: @Composable () -> Unit)` — asserts `arabicText` is shown in Arabic variants, then writes `src/test/screenshots/<name>-<variant>.png`.
+- Produces: `scripts/record-screenshots-on-linux.sh` — records every module's baselines on CI Linux for the current commit and copies them into the checkout.
 
 - [ ] **Step 1: Register the module and download the fonts**
 
@@ -3694,35 +3749,38 @@ dependencies {
 ```kotlin
 package com.etatech.hashiya.core.testing
 
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.LayoutDirection
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
-import java.util.Locale
+import org.junit.rules.TestWatcher
+import org.junit.runner.Description
+import org.robolectric.RuntimeEnvironment
 
 /** Default device for screen-level screenshots. Use with `@Config(qualifiers = PHONE_QUALIFIERS)`. */
 const val PHONE_QUALIFIERS = "w360dp-h780dp-xhdpi"
 
 private const val SCREENSHOT_TAG = "screenshot_root"
 
-enum class ScreenshotVariant(val languageTag: String, val darkTheme: Boolean) {
-    EnglishLight("en", darkTheme = false),
-    EnglishDark("en", darkTheme = true),
-    ArabicLight("ar", darkTheme = false),
-    ArabicDark("ar", darkTheme = true),
+/** [qualifiers] are Robolectric qualifiers added on top of the class's `@Config` ones. */
+enum class ScreenshotVariant(val qualifiers: String, val darkTheme: Boolean) {
+    EnglishLight("+en", darkTheme = false),
+    EnglishDark("+en-night", darkTheme = true),
+    ArabicLight("+ar", darkTheme = false),
+    ArabicDark("+ar-night", darkTheme = true),
     ;
+
+    val isArabic: Boolean get() = qualifiers.startsWith("+ar")
 
     companion object {
         /** For `@ParameterizedRobolectricTestRunner.Parameters`. */
@@ -3732,34 +3790,43 @@ enum class ScreenshotVariant(val languageTag: String, val darkTheme: Boolean) {
 }
 
 /**
- * Renders [content] in the Hashiya theme with the variant's language, direction and dark mode,
- * then records or verifies `src/test/screenshots/<name>-<variant>.png`.
+ * Applies the variant's locale and night mode as Robolectric qualifiers before the activity starts,
+ * so resources resolve exactly as on a device. Declare it first:
+ * `@get:Rule(order = 0) val variantRule = ScreenshotVariantRule(variant)` and the compose rule with `order = 1`.
+ */
+class ScreenshotVariantRule(private val variant: ScreenshotVariant) : TestWatcher() {
+    override fun starting(description: Description) {
+        RuntimeEnvironment.setQualifiers(variant.qualifiers)
+    }
+}
+
+/**
+ * Renders [content] in the Hashiya theme for [variant] and records or verifies
+ * `src/test/screenshots/<name>-<variant>.png`.
+ *
+ * In Arabic variants, [arabicText] (a string the content shows in Arabic) must be on screen; this fails the test
+ * instead of recording English text as an "Arabic" baseline.
  */
 fun ComposeContentTestRule.captureScreenshot(
     name: String,
     variant: ScreenshotVariant,
+    arabicText: String,
     content: @Composable () -> Unit,
 ) {
     setContent {
-        val baseContext = LocalContext.current
-        val configuration = Configuration(baseContext.resources.configuration).apply {
-            setLocale(Locale.forLanguageTag(variant.languageTag))
-            uiMode = (uiMode and Configuration.UI_MODE_NIGHT_MASK.inv()) or
-                if (variant.darkTheme) Configuration.UI_MODE_NIGHT_YES else Configuration.UI_MODE_NIGHT_NO
-        }
-        val localizedContext = baseContext.createConfigurationContext(configuration)
-        val direction = if (variant.languageTag == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr
-        CompositionLocalProvider(
-            LocalContext provides localizedContext,
-            LocalConfiguration provides configuration,
-            LocalLayoutDirection provides direction,
-        ) {
+        // Forced so the direction does not depend on the test manifest's android:supportsRtl.
+        val direction = if (variant.isArabic) LayoutDirection.Rtl else LayoutDirection.Ltr
+        CompositionLocalProvider(LocalLayoutDirection provides direction) {
             HashiyaTheme(darkTheme = variant.darkTheme) {
                 Box(Modifier.testTag(SCREENSHOT_TAG)) {
                     Surface { content() }
                 }
             }
         }
+    }
+    if (variant.isArabic) {
+        onNodeWithText(arabicText, substring = true, useUnmergedTree = true)
+            .assertExists("Arabic variant did not render \"$arabicText\"; check the locale qualifiers")
     }
     onNodeWithTag(SCREENSHOT_TAG).captureRoboImage(
         filePath = "src/test/screenshots/$name-${variant.name}.png",
@@ -3768,6 +3835,41 @@ fun ComposeContentTestRule.captureScreenshot(
         ),
     )
 }
+```
+
+- [ ] **Step 2b: Add the Linux recording script**
+
+`scripts/record-screenshots-on-linux.sh`:
+```bash
+#!/usr/bin/env bash
+# Records Roborazzi baselines on GitHub's Linux runners (the source of truth) for the current commit
+# and copies them into this checkout. Needs `gh` logged in and the `origin` remote.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+branch="record-screenshots/$(git rev-parse --short HEAD)"
+
+git push --force --quiet origin "HEAD:refs/heads/$branch"
+trap 'git push --quiet origin --delete "$branch" || true' EXIT
+
+run_id=""
+for _ in $(seq 1 60); do
+  run_id=$(gh run list --branch "$branch" --workflow ci.yml --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+  [ -n "$run_id" ] && break
+  sleep 5
+done
+[ -n "$run_id" ] || { echo "No CI run started for $branch" >&2; exit 1; }
+
+gh run watch "$run_id" --exit-status --interval 30 > /dev/null
+
+download_dir=$(mktemp -d)
+gh run download "$run_id" --name screenshot-baselines --dir "$download_dir"
+cp -R "$download_dir"/. .
+echo "Baselines copied from run $run_id"
+```
+
+```bash
+chmod +x scripts/record-screenshots-on-linux.sh
 ```
 
 - [ ] **Step 3: Write the failing tests**
@@ -3841,6 +3943,7 @@ import androidx.compose.ui.unit.dp
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.ScreenshotVariant
+import com.etatech.hashiya.core.testing.ScreenshotVariantRule
 import com.etatech.hashiya.core.testing.captureScreenshot
 import org.junit.Rule
 import org.junit.Test
@@ -3849,18 +3952,34 @@ import org.robolectric.ParameterizedRobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
+/** The state components take their text from callers, so this test passes text in the variant's language. */
 @RunWith(ParameterizedRobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = PHONE_QUALIFIERS)
 class StatesScreenshotTest(private val variant: ScreenshotVariant) {
-    @get:Rule
+    @get:Rule(order = 0)
+    val variantRule = ScreenshotVariantRule(variant)
+
+    @get:Rule(order = 1)
     val composeRule = createComposeRule()
 
+    private fun text(english: String, arabic: String) = if (variant.isArabic) arabic else english
+
     @Test
-    fun states() = composeRule.captureScreenshot("states", variant) {
+    fun states() = composeRule.captureScreenshot("states", variant, arabicText = "لا توجد أوراق محفوظة بعد") {
         Column(Modifier.width(360.dp)) {
-            EmptyState(HashiyaIcons.Library, "No saved papers yet", "Papers you save appear here", actionLabel = "Go to Search")
-            ErrorState("Can't reach OpenAlex", "Check your connection.", "Retry", onAction = {})
+            EmptyState(
+                HashiyaIcons.Library,
+                title = text("No saved papers yet", "لا توجد أوراق محفوظة بعد"),
+                message = text("Papers you save appear here", "ستظهر هنا الأوراق التي تحفظها"),
+                actionLabel = text("Go to Search", "الذهاب إلى البحث"),
+            )
+            ErrorState(
+                title = text("Can't reach OpenAlex", "تعذّر الوصول إلى OpenAlex"),
+                message = text("Check your connection.", "تحقق من اتصالك."),
+                actionLabel = text("Retry", "إعادة المحاولة"),
+                onAction = {},
+            )
             LoadingSkeleton(rows = 2)
         }
     }
@@ -4200,86 +4319,29 @@ private fun SkeletonLine(widthFraction: Float) {
 }
 ```
 
-- [ ] **Step 7: Record the screenshots and run the tests**
+- [ ] **Step 7: Run the tests and inspect the screenshots locally**
 
-Run: `./gradlew :core:designsystem:recordRoborazziDebug`
-Expected: `BUILD SUCCESSFUL`; four files `core/designsystem/src/test/screenshots/states-{EnglishLight,EnglishDark,ArabicLight,ArabicDark}.png`.
+Run: `./gradlew :core:designsystem:testDebugUnitTest`
+Expected: `BUILD SUCCESSFUL`, 7 tests passed (3 UI + 4 screenshot variants, including the Arabic-text assertions).
 
-Open each PNG and check: text is centered in every variant, Arabic variants render in IBM Plex Sans Arabic, dark variants have the `#0E1417` background, and the skeleton rows are visible in both themes. Fix and re-record until they look right.
+Run: `./gradlew :core:designsystem:recordRoborazziDebug` and open the four `core/designsystem/src/test/screenshots/states-*.png` files. Check: text is centered in every variant, Arabic variants show Arabic text in IBM Plex Sans Arabic, dark variants have the `#0E1417` background, and the skeleton rows are visible in both themes. Fix and re-run until they look right. These local images are for inspection only.
 
-Run: `./gradlew :core:designsystem:verifyRoborazziDebug`
-Expected: `BUILD SUCCESSFUL`, 7 tests passed (3 UI + 4 screenshot variants).
-
-- [ ] **Step 8: Verify screenshots in CI**
-
-Replace `.github/workflows/ci.yml` with:
-```yaml
-name: CI
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-  workflow_dispatch:
-    inputs:
-      record_screenshots:
-        description: Record screenshot baselines on Linux and upload them as an artifact
-        type: boolean
-        default: false
-
-concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
-
-jobs:
-  build:
-    if: ${{ !inputs.record_screenshots }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@v6
-      - name: Check, build and test (screenshots verified)
-        run: >-
-          ./gradlew spotlessCheck assembleDebug testDebugUnitTest :core:model:test lintDebug
-          -Proborazzi.test.verify=true --continue
-      - name: Upload screenshot diffs
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: screenshot-diffs
-          path: "**/build/outputs/roborazzi"
-
-  record-screenshots:
-    if: ${{ inputs.record_screenshots }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew recordRoborazziDebug
-      - uses: actions/upload-artifact@v7
-        with:
-          name: screenshot-baselines
-          path: "**/src/test/screenshots"
-```
-
-If CI later reports diffs caused only by macOS vs Linux font rasterization (identical layout, sub-pixel differences above 1 %), run the workflow manually with `record_screenshots` checked, download `screenshot-baselines`, copy the PNGs over the local ones, and commit them.
-
-- [ ] **Step 9: Commit**
+- [ ] **Step 8: Commit the code without the local screenshots**
 
 ```bash
 ./gradlew spotlessApply
-git add -A
+git add -A -- . ':(exclude,glob)**/src/test/screenshots/**'
 git commit -m "feat: add design system theme, fonts and state components with screenshot tests"
+```
+
+- [ ] **Step 9: Record the baselines on Linux and commit them**
+
+Run (takes 10–15 minutes; use a long timeout or run it in the background): `bash scripts/record-screenshots-on-linux.sh`
+Expected: ends with `Baselines copied from run <id>`; `git status` shows the four `states-*.png` files. Open `states-EnglishLight.png` and `states-ArabicDark.png` to confirm they match what you inspected in Step 7.
+
+```bash
+git add -- ':(glob)**/src/test/screenshots/**'
+git commit -m "test: record design system screenshot baselines on Linux"
 ```
 
 ---
@@ -4505,6 +4567,7 @@ import androidx.compose.ui.unit.dp
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.core.testing.ScreenshotVariant
+import com.etatech.hashiya.core.testing.ScreenshotVariantRule
 import com.etatech.hashiya.core.testing.captureScreenshot
 import org.junit.Rule
 import org.junit.Test
@@ -4517,11 +4580,14 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = PHONE_QUALIFIERS)
 class PaperScreenshotTest(private val variant: ScreenshotVariant) {
-    @get:Rule
+    @get:Rule(order = 0)
+    val variantRule = ScreenshotVariantRule(variant)
+
+    @get:Rule(order = 1)
     val composeRule = createComposeRule()
 
     @Test
-    fun cards() = composeRule.captureScreenshot("paper_cards", variant) {
+    fun cards() = composeRule.captureScreenshot("paper_cards", variant, arabicText = "في المكتبة") {
         Column(Modifier.width(360.dp).padding(vertical = 6.dp)) {
             PaperCard(SamplePapers.attention, inLibrary = true, onClick = {}, onSave = {})
             PaperCard(SamplePapers.bert, inLibrary = false, onClick = {}, onSave = {})
@@ -4530,7 +4596,7 @@ class PaperScreenshotTest(private val variant: ScreenshotVariant) {
     }
 
     @Test
-    fun preview() = composeRule.captureScreenshot("paper_preview", variant) {
+    fun preview() = composeRule.captureScreenshot("paper_preview", variant, arabicText = "الملخص") {
         PaperPreviewContent(SamplePapers.bert, inLibrary = false, onToggleSave = {}, onOpenDoi = {}, modifier = Modifier.width(360.dp))
     }
 
@@ -4868,22 +4934,29 @@ fun PaperPreviewContent(
 }
 ```
 
-- [ ] **Step 5: Record screenshots and run the tests**
+- [ ] **Step 5: Run the tests and inspect the screenshots locally**
 
-Run: `./gradlew :core:designsystem:recordRoborazziDebug`
-Expected: `BUILD SUCCESSFUL`; new files `paper_cards-*.png` and `paper_preview-*.png` (8 files) in `core/designsystem/src/test/screenshots/`.
-
-Open them and check: in Arabic variants the layout is mirrored (badges and Save on the opposite side) while the English titles stay left-to-right; the Arabic-titled card reads right-to-left in every variant; the "In library" card has no Save button.
-
-Run: `./gradlew :core:designsystem:verifyRoborazziDebug`
+Run: `./gradlew :core:designsystem:testDebugUnitTest`
 Expected: `BUILD SUCCESSFUL`, 30 tests passed (7 from Task 10 + 4 formatting + 5 card + 6 preview + 8 screenshot variants).
 
-- [ ] **Step 6: Commit**
+Run: `./gradlew :core:designsystem:recordRoborazziDebug` and open the new `paper_cards-*.png` and `paper_preview-*.png` files. Check: in Arabic variants the layout is mirrored (badges and Save on the opposite side) while English titles stay left-to-right; the Arabic-titled card reads right-to-left in every variant; the "In library" card has no Save button. These local images are for inspection only.
+
+- [ ] **Step 6: Commit the code without the local screenshots**
 
 ```bash
 ./gradlew spotlessApply
-git add -A
+git add -A -- . ':(exclude,glob)**/src/test/screenshots/**'
 git commit -m "feat: add paper card, status badge and preview sheet"
+```
+
+- [ ] **Step 7: Record the baselines on Linux and commit them**
+
+Run (takes 10–15 minutes; use a long timeout or run it in the background): `bash scripts/record-screenshots-on-linux.sh`
+Expected: ends with `Baselines copied from run <id>`; `git status` shows the new `paper_cards-*.png` and `paper_preview-*.png` files and no changes to earlier baselines. Open one English and one Arabic image to confirm they match what you inspected.
+
+```bash
+git add -- ':(glob)**/src/test/screenshots/**'
+git commit -m "test: record paper card and preview screenshot baselines on Linux"
 ```
 
 ---
@@ -5134,6 +5207,7 @@ package com.etatech.hashiya.feature.settings
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.ScreenshotVariant
+import com.etatech.hashiya.core.testing.ScreenshotVariantRule
 import com.etatech.hashiya.core.testing.captureScreenshot
 import org.junit.Rule
 import org.junit.Test
@@ -5146,11 +5220,14 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = PHONE_QUALIFIERS)
 class SettingsScreenshotTest(private val variant: ScreenshotVariant) {
-    @get:Rule
+    @get:Rule(order = 0)
+    val variantRule = ScreenshotVariantRule(variant)
+
+    @get:Rule(order = 1)
     val composeRule = createComposeRule()
 
     @Test
-    fun settings() = composeRule.captureScreenshot("settings", variant) {
+    fun settings() = composeRule.captureScreenshot("settings", variant, arabicText = "الإعدادات") {
         SettingsContent(
             uiState = SettingsUiState(usingUserKey = true, keyInput = "my-openalex-key", language = AppLanguage.System),
             onBack = {},
@@ -5503,20 +5580,29 @@ fun NavGraphBuilder.settingsScreen(onBack: () -> Unit) {
 }
 ```
 
-- [ ] **Step 6: Record screenshots and run the tests**
+- [ ] **Step 6: Run the tests and inspect the screenshots locally**
 
-Run: `./gradlew :feature:settings:recordRoborazziDebug`
-Expected: `BUILD SUCCESSFUL`; `feature/settings/src/test/screenshots/settings-*.png` (4 files). Check the Arabic variants: the back arrow points right, the radio buttons are on the right, and "English"/"العربية" appear in their own scripts.
-
-Run: `./gradlew :feature:settings:verifyRoborazziDebug`
+Run: `./gradlew :feature:settings:testDebugUnitTest`
 Expected: `BUILD SUCCESSFUL`, 18 tests passed (4 language + 6 ViewModel + 4 UI + 4 screenshot variants).
 
-- [ ] **Step 7: Commit**
+Run: `./gradlew :feature:settings:recordRoborazziDebug` and open the new `settings-*.png` files. Check the Arabic variants: the back arrow points right, the radio buttons are on the right, and "English"/"العربية" appear in their own scripts. These local images are for inspection only.
+
+- [ ] **Step 7: Commit the code without the local screenshots**
 
 ```bash
 ./gradlew spotlessApply
-git add -A
+git add -A -- . ':(exclude,glob)**/src/test/screenshots/**'
 git commit -m "feat: add settings screen for API key and app language"
+```
+
+- [ ] **Step 8: Record the baselines on Linux and commit them**
+
+Run (takes 10–15 minutes; use a long timeout or run it in the background): `bash scripts/record-screenshots-on-linux.sh`
+Expected: ends with `Baselines copied from run <id>`; `git status` shows the new `settings-*.png` files and no changes to earlier baselines. Open one English and one Arabic image to confirm they match what you inspected.
+
+```bash
+git add -- ':(glob)**/src/test/screenshots/**'
+git commit -m "test: record settings screenshot baselines on Linux"
 ```
 
 ---
@@ -5533,6 +5619,7 @@ git commit -m "feat: add settings screen for API key and app language"
 - Consumes: `LibraryRepository`, `RemovedPaper` (Task 8); `PaperPreviewSheet`, `EmptyState`, `paperTitle`, `HashiyaIcons` (Tasks 10–11); fakes (Task 9).
 - Produces (package `com.etatech.hashiya.feature.library`):
   - `sealed interface LibraryUiState { Loading; Empty; Papers(papers: List<Paper>) }`
+  - `internal fun LibraryContent(uiState, selectedPaper: Paper?, pendingUndo: RemovedPaper?, onPaperClick, onDismissPreview, onRemove, onUndo, onUndoDismissed, onGoToSearch, onOpenSettings, onOpenDoi, modifier)` — the undo snackbar is keyed on `pendingUndo`.
   - `navigation.LibraryRoute` (`@Serializable data object`), `fun NavController.navigateToLibrary(navOptions: NavOptions? = null)`, `fun NavGraphBuilder.libraryScreen(onGoToSearch: () -> Unit, onOpenSettings: () -> Unit)`
 
 - [ ] **Step 1: Register the module**
@@ -5640,6 +5727,20 @@ class LibraryViewModelTest {
     }
 
     @Test
+    fun twoQuickRemovalsKeepOnlyTheLatestForUndo() = runTest {
+        repository.save(SamplePapers.attention)
+        repository.save(SamplePapers.bert)
+        val viewModel = viewModel()
+
+        viewModel.onRemove(SamplePapers.attention)
+        viewModel.onRemove(SamplePapers.bert)
+        assertEquals(SamplePapers.bert, viewModel.pendingUndo.value?.paper)
+
+        viewModel.onUndoRemove()
+        assertEquals(listOf(SamplePapers.bert), repository.observeSavedPapers().first())
+    }
+
+    @Test
     fun dismissingUndoForgetsRemovedPaper() = runTest {
         repository.save(SamplePapers.bert)
         val viewModel = viewModel()
@@ -5657,14 +5758,19 @@ class LibraryViewModelTest {
 ```kotlin
 package com.etatech.hashiya.feature.library
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.testing.SamplePapers
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -5676,13 +5782,15 @@ class LibraryContentTest {
     val composeRule = createComposeRule()
 
     private val events = mutableListOf<String>()
+    private val removedBert = RemovedPaper(SamplePapers.bert, localId = "local-1", savedAt = 1)
+    private val removedVit = RemovedPaper(SamplePapers.vit, localId = "local-2", savedAt = 2)
 
-    private fun show(state: LibraryUiState, showUndo: Boolean = false) = composeRule.setContent {
+    private fun show(state: LibraryUiState, pendingUndo: () -> RemovedPaper? = { null }) = composeRule.setContent {
         HashiyaTheme {
             LibraryContent(
                 uiState = state,
                 selectedPaper = null,
-                showUndo = showUndo,
+                pendingUndo = pendingUndo(),
                 onPaperClick = { events += "open:${it.openAlexId}" },
                 onDismissPreview = {},
                 onRemove = { paper: Paper -> events += "remove:${paper.openAlexId}" },
@@ -5723,11 +5831,30 @@ class LibraryContentTest {
 
     @Test
     fun undoSnackbarActionInvokesUndo() {
-        show(LibraryUiState.Empty, showUndo = true)
+        show(LibraryUiState.Empty, pendingUndo = { removedBert })
 
         composeRule.onNodeWithText("Removed from library").assertIsDisplayed()
         composeRule.onNodeWithText("Undo").performClick()
         composeRule.waitForIdle()
+        assertEquals(listOf("undo"), events)
+    }
+
+    /** A second removal must get its own full snackbar, not the remainder of the first one's timeout. */
+    @Test
+    fun secondRemovalRestartsTheUndoSnackbar() {
+        composeRule.mainClock.autoAdvance = false
+        var pending by mutableStateOf<RemovedPaper?>(removedBert)
+        show(LibraryUiState.Empty, pendingUndo = { pending })
+
+        composeRule.mainClock.advanceTimeBy(3_000)
+        composeRule.runOnIdle { pending = removedVit }
+        // The first snackbar (4 s, short duration) would have timed out by now.
+        composeRule.mainClock.advanceTimeBy(2_000)
+
+        composeRule.onNodeWithText("Removed from library").assertExists()
+        assertFalse("undoDismissed" in events)
+        composeRule.onNodeWithText("Undo").performClick()
+        composeRule.mainClock.advanceTimeBy(1_000)
         assertEquals(listOf("undo"), events)
     }
 }
@@ -5741,6 +5868,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.core.testing.ScreenshotVariant
+import com.etatech.hashiya.core.testing.ScreenshotVariantRule
 import com.etatech.hashiya.core.testing.captureScreenshot
 import org.junit.Rule
 import org.junit.Test
@@ -5753,14 +5881,18 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = PHONE_QUALIFIERS)
 class LibraryScreenshotTest(private val variant: ScreenshotVariant) {
-    @get:Rule
+    @get:Rule(order = 0)
+    val variantRule = ScreenshotVariantRule(variant)
+
+    @get:Rule(order = 1)
     val composeRule = createComposeRule()
 
-    private fun capture(name: String, state: LibraryUiState) = composeRule.captureScreenshot(name, variant) {
+    private fun capture(name: String, state: LibraryUiState, arabicText: String) =
+        composeRule.captureScreenshot(name, variant, arabicText) {
         LibraryContent(
             uiState = state,
             selectedPaper = null,
-            showUndo = false,
+            pendingUndo = null,
             onPaperClick = {},
             onDismissPreview = {},
             onRemove = {},
@@ -5773,12 +5905,13 @@ class LibraryScreenshotTest(private val variant: ScreenshotVariant) {
     }
 
     @Test
-    fun empty() = capture("library_empty", LibraryUiState.Empty)
+    fun empty() = capture("library_empty", LibraryUiState.Empty, arabicText = "لا توجد أوراق محفوظة بعد")
 
     @Test
     fun papers() = capture(
         "library_papers",
         LibraryUiState.Papers(listOf(SamplePapers.attention, SamplePapers.bert, SamplePapers.arabicTitled)),
+        arabicText = "وآخرون",
     )
 
     companion object {
@@ -5955,6 +6088,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.designsystem.component.EmptyState
 import com.etatech.hashiya.core.designsystem.component.LoadingSkeleton
 import com.etatech.hashiya.core.designsystem.component.PaperPreviewSheet
@@ -5975,7 +6109,7 @@ internal fun LibraryScreen(
     LibraryContent(
         uiState = uiState,
         selectedPaper = selectedPaper,
-        showUndo = pendingUndo != null,
+        pendingUndo = pendingUndo,
         onPaperClick = viewModel::onPaperClick,
         onDismissPreview = viewModel::onDismissPreview,
         onRemove = viewModel::onRemove,
@@ -5992,7 +6126,7 @@ internal fun LibraryScreen(
 internal fun LibraryContent(
     uiState: LibraryUiState,
     selectedPaper: Paper?,
-    showUndo: Boolean,
+    pendingUndo: RemovedPaper?,
     onPaperClick: (Paper) -> Unit,
     onDismissPreview: () -> Unit,
     onRemove: (Paper) -> Unit,
@@ -6006,8 +6140,9 @@ internal fun LibraryContent(
     val snackbarHostState = remember { SnackbarHostState() }
     val removedMessage = stringResource(R.string.library_removed)
     val undoLabel = stringResource(R.string.library_undo)
-    LaunchedEffect(showUndo) {
-        if (showUndo) {
+    // Keyed on the removed paper: each removal restarts the snackbar with its own full timeout.
+    LaunchedEffect(pendingUndo) {
+        if (pendingUndo != null) {
             val result = snackbarHostState.showSnackbar(removedMessage, undoLabel, duration = SnackbarDuration.Short)
             if (result == SnackbarResult.ActionPerformed) onUndo() else onUndoDismissed()
         }
@@ -6151,20 +6286,29 @@ fun NavGraphBuilder.libraryScreen(onGoToSearch: () -> Unit, onOpenSettings: () -
 }
 ```
 
-- [ ] **Step 6: Record screenshots and run the tests**
+- [ ] **Step 6: Run the tests and inspect the screenshots locally**
 
-Run: `./gradlew :feature:library:recordRoborazziDebug`
-Expected: `BUILD SUCCESSFUL`; `library_empty-*.png` and `library_papers-*.png` (8 files). Check that the Arabic variants show "٣ أوراق" or "3 أوراق" (depending on the locale's digits), the gear icon sits at the left edge, and the Arabic-titled row reads right-to-left in every variant.
+Run: `./gradlew :feature:library:testDebugUnitTest`
+Expected: `BUILD SUCCESSFUL`, 20 tests passed (7 ViewModel + 5 UI + 8 screenshot variants).
 
-Run: `./gradlew :feature:library:verifyRoborazziDebug`
-Expected: `BUILD SUCCESSFUL`, 18 tests passed (6 ViewModel + 4 UI + 8 screenshot variants).
+Run: `./gradlew :feature:library:recordRoborazziDebug` and open the new `library_empty-*.png` and `library_papers-*.png` files. Check that the Arabic variants show "٣ أوراق" or "3 أوراق" (depending on the locale's digits), the gear icon sits at the left edge, and the Arabic-titled row reads right-to-left in every variant. These local images are for inspection only.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Commit the code without the local screenshots**
 
 ```bash
 ./gradlew spotlessApply
-git add -A
+git add -A -- . ':(exclude,glob)**/src/test/screenshots/**'
 git commit -m "feat: add library screen with preview, swipe to remove and undo"
+```
+
+- [ ] **Step 8: Record the baselines on Linux and commit them**
+
+Run (takes 10–15 minutes; use a long timeout or run it in the background): `bash scripts/record-screenshots-on-linux.sh`
+Expected: ends with `Baselines copied from run <id>`; `git status` shows the new `library_empty-*.png` and `library_papers-*.png` files and no changes to earlier baselines. Open one English and one Arabic image to confirm they match what you inspected.
+
+```bash
+git add -- ':(glob)**/src/test/screenshots/**'
+git commit -m "test: record library screenshot baselines on Linux"
 ```
 
 ---
@@ -6183,7 +6327,7 @@ git commit -m "feat: add library screen with preview, swipe to remove and undo"
   - `data class PaperItem(paper: Paper, inLibrary: Boolean)`
   - `enum class SearchMessage { SaveFailed }`
   - `internal const val DEBOUNCE_MS = 300L`
-  - `SearchViewModel` with: `uiState: StateFlow<SearchUiState>`, `papers: Flow<PagingData<PaperItem>>`, `selectedItem: StateFlow<PaperItem?>`, `message: StateFlow<SearchMessage?>`, and actions `onTextChange(String)`, `onSearchAction()`, `onSuggestion(String)`, `onSortChange(SearchSort)`, `onYearFilterChange(YearFilter)`, `onOpenAccessToggle()`, `onClearFilters()`, `onPaperClick(Paper)`, `onDismissPreview()`, `onToggleSave(PaperItem)`, `onMessageShown()`
+  - `SearchViewModel` with: `uiState: StateFlow<SearchUiState>`, `papers: Flow<PagingData<Paper>>` (cached, never re-mapped after `cachedIn`), `savedIds: StateFlow<Set<String>>` (the UI resolves "In library" per item), `selectedItem: StateFlow<PaperItem?>`, `message: StateFlow<SearchMessage?>`, and actions `onTextChange(String)`, `onSearchAction()`, `onSuggestion(String)`, `onSortChange(SearchSort)`, `onYearFilterChange(YearFilter)`, `onOpenAccessToggle()`, `onClearFilters()`, `onPaperClick(Paper)`, `onDismissPreview()`, `onToggleSave(PaperItem)`, `onMessageShown()`
 
 - [ ] **Step 1: Register the module**
 
@@ -6252,6 +6396,7 @@ class SearchViewModelTest {
         val viewModel = SearchViewModel(handle, searchRepository, libraryRepository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.selectedItem.collect() }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.savedIds.collect() }
         runCurrent()
         return viewModel
     }
@@ -6355,17 +6500,29 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun marksSavedPapersAsInLibrary() = runTest {
+    fun exposesPapersAndSavedIdsSeparately() = runTest {
         searchRepository.papers = listOf(SamplePapers.attention, SamplePapers.bert)
         libraryRepository.save(SamplePapers.attention)
         val viewModel = viewModel()
         viewModel.onSuggestion("transformers")
         runCurrent()
 
-        assertEquals(
-            listOf(PaperItem(SamplePapers.attention, inLibrary = true), PaperItem(SamplePapers.bert, inLibrary = false)),
-            viewModel.papers.asSnapshot(),
-        )
+        assertEquals(listOf(SamplePapers.attention, SamplePapers.bert), viewModel.papers.asSnapshot())
+        assertEquals(setOf(SamplePapers.attention.openAlexId), viewModel.savedIds.value)
+    }
+
+    @Test
+    fun savingUpdatesSavedIdsWithoutNewSearch() = runTest {
+        searchRepository.papers = listOf(SamplePapers.bert)
+        val viewModel = viewModel()
+        viewModel.onSuggestion("bert")
+        runCurrent()
+
+        viewModel.onToggleSave(PaperItem(SamplePapers.bert, inLibrary = false))
+        runCurrent()
+
+        assertEquals(setOf(SamplePapers.bert.openAlexId), viewModel.savedIds.value)
+        assertEquals(1, searchRepository.queries.size)
     }
 
     @Test
@@ -6560,7 +6717,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
-import androidx.paging.map
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.SearchRepository
 import com.etatech.hashiya.core.data.repository.SearchResults
@@ -6621,12 +6777,14 @@ class SearchViewModel @Inject constructor(
         .map { query -> query?.let(searchRepository::search) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private val savedIds = libraryRepository.observeSavedIds()
-
-    val papers: Flow<PagingData<PaperItem>> = results
+    /** Cached per query. Library state is kept out of the paging stream so saving never re-maps cached pages. */
+    val papers: Flow<PagingData<Paper>> = results
         .flatMapLatest { it?.papers ?: flowOf(PagingData.empty()) }
         .cachedIn(viewModelScope)
-        .combine(savedIds) { data, ids -> data.map { PaperItem(it, it.openAlexId in ids) } }
+
+    /** OpenAlex IDs in the library; the UI combines this with each result to show "In library". */
+    val savedIds: StateFlow<Set<String>> = libraryRepository.observeSavedIds()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     val uiState: StateFlow<SearchUiState> = combine(
         draft,
@@ -6713,7 +6871,7 @@ class SearchViewModel @Inject constructor(
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run: `./gradlew :feature:search:testDebugUnitTest`
-Expected: `BUILD SUCCESSFUL`, 14 tests passed.
+Expected: `BUILD SUCCESSFUL`, 15 tests passed.
 
 - [ ] **Step 6: Commit**
 
@@ -6736,7 +6894,7 @@ git commit -m "feat: add search view model with debounce, filters and saved stat
 - Produces (package `com.etatech.hashiya.feature.search`):
   - `internal sealed interface YearRangeValidation { Valid(range: YearFilter.Between); NotANumber; OutOfRange; FromAfterTo }`, `internal fun validateYearRange(from: String, to: String, currentYear: Int): YearRangeValidation`, `internal const val MIN_YEAR = 1900`
   - `internal data class SearchActions(...)` — one no-op-defaulted lambda per user action
-  - `internal fun SearchContent(uiState, papers: LazyPagingItems<PaperItem>, selectedItem, message, actions, currentYear, modifier)`
+  - `internal fun SearchContent(uiState, papers: LazyPagingItems<Paper>, savedIds: Set<String>, selectedItem, message, actions, modifier, currentYear)` — result items are keyed by OpenAlex ID; "In library" is `paper.openAlexId in savedIds`.
   - `navigation.SearchRoute` (`@Serializable data object`), `fun NavController.navigateToSearch(navOptions: NavOptions? = null)`, `fun NavGraphBuilder.searchScreen(onOpenSettings: () -> Unit)`
 
 - [ ] **Step 1: Write the failing tests**
@@ -6804,6 +6962,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import com.etatech.hashiya.core.data.repository.SearchException
 import com.etatech.hashiya.core.designsystem.component.LOADING_SKELETON_TAG
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
+import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.core.model.SearchSort
 import com.etatech.hashiya.core.model.YearFilter
@@ -6833,11 +6992,12 @@ class SearchContentTest {
 
     private val searching = SearchUiState(text = "transformers", isIdle = false, totalCount = 48210)
 
-    private fun show(uiState: SearchUiState, data: PagingData<PaperItem>) = composeRule.setContent {
+    private fun show(uiState: SearchUiState, data: PagingData<Paper>, savedIds: Set<String> = emptySet()) = composeRule.setContent {
         HashiyaTheme {
             SearchContent(
                 uiState = uiState,
                 papers = flowOf(data).collectAsLazyPagingItems(),
+                savedIds = savedIds,
                 selectedItem = null,
                 message = null,
                 actions = actions,
@@ -6849,9 +7009,8 @@ class SearchContentTest {
     private fun states(refresh: LoadState, append: LoadState = LoadState.NotLoading(endOfPaginationReached = true)) =
         LoadStates(refresh = refresh, prepend = LoadState.NotLoading(endOfPaginationReached = true), append = append)
 
-    private val results = PagingData.from(
-        listOf(PaperItem(SamplePapers.attention, inLibrary = true), PaperItem(SamplePapers.bert, inLibrary = false)),
-    )
+    private val results = PagingData.from(listOf(SamplePapers.attention, SamplePapers.bert))
+    private val attentionSaved = setOf(SamplePapers.attention.openAlexId)
 
     @Test
     fun idleShowsSuggestions() {
@@ -6872,7 +7031,7 @@ class SearchContentTest {
 
     @Test
     fun resultsShowCountAndCards() {
-        show(searching, results)
+        show(searching, results, savedIds = attentionSaved)
 
         composeRule.onNodeWithText("About 48,210 results").assertIsDisplayed()
         composeRule.onNodeWithText(SamplePapers.attention.title).assertIsDisplayed()
@@ -6921,7 +7080,7 @@ class SearchContentTest {
     @Test
     fun appendErrorShowsRetryFooterAndKeepsResults() {
         val data = PagingData.from(
-            listOf(PaperItem(SamplePapers.bert, inLibrary = false)),
+            listOf(SamplePapers.bert),
             states(
                 refresh = LoadState.NotLoading(endOfPaginationReached = false),
                 append = LoadState.Error(SearchException(SearchError.Offline)),
@@ -6936,7 +7095,7 @@ class SearchContentTest {
 
     @Test
     fun choosingSortFromMenu() {
-        show(searching, results)
+        show(searching, results, savedIds = attentionSaved)
 
         composeRule.onNodeWithText("Relevance").performClick()
         composeRule.onNodeWithText("Most cited").performClick()
@@ -6945,7 +7104,7 @@ class SearchContentTest {
 
     @Test
     fun yearChipShowsActiveRange() {
-        show(searching.copy(years = YearFilter.Between(2015, 2020)), results)
+        show(searching.copy(years = YearFilter.Between(2015, 2020)), results, savedIds = attentionSaved)
         composeRule.onNodeWithText("2015–2020").assertIsDisplayed()
     }
 }
@@ -6961,12 +7120,14 @@ import androidx.paging.LoadStates
 import androidx.paging.PagingData
 import androidx.paging.compose.collectAsLazyPagingItems
 import com.etatech.hashiya.core.data.repository.SearchException
+import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.core.model.SearchSort
 import com.etatech.hashiya.core.model.YearFilter
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.core.testing.ScreenshotVariant
+import com.etatech.hashiya.core.testing.ScreenshotVariantRule
 import com.etatech.hashiya.core.testing.captureScreenshot
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
@@ -6980,7 +7141,10 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = PHONE_QUALIFIERS)
 class SearchScreenshotTest(private val variant: ScreenshotVariant) {
-    @get:Rule
+    @get:Rule(order = 0)
+    val variantRule = ScreenshotVariantRule(variant)
+
+    @get:Rule(order = 1)
     val composeRule = createComposeRule()
 
     private val searching = SearchUiState(
@@ -6997,11 +7161,17 @@ class SearchScreenshotTest(private val variant: ScreenshotVariant) {
         append = LoadState.NotLoading(endOfPaginationReached = true),
     )
 
-    private fun capture(name: String, uiState: SearchUiState, data: PagingData<PaperItem>) =
-        composeRule.captureScreenshot(name, variant) {
+    private fun capture(
+        name: String,
+        uiState: SearchUiState,
+        data: PagingData<Paper>,
+        arabicText: String,
+        savedIds: Set<String> = emptySet(),
+    ) = composeRule.captureScreenshot(name, variant, arabicText) {
             SearchContent(
                 uiState = uiState,
                 papers = flowOf(data).collectAsLazyPagingItems(),
+                savedIds = savedIds,
                 selectedItem = null,
                 message = null,
                 actions = SearchActions(),
@@ -7010,22 +7180,23 @@ class SearchScreenshotTest(private val variant: ScreenshotVariant) {
         }
 
     @Test
-    fun idle() = capture("search_idle", SearchUiState(), PagingData.empty())
+    fun idle() = capture("search_idle", SearchUiState(), PagingData.empty(), arabicText = "ابحث في OpenAlex")
 
     @Test
-    fun loading() = capture("search_loading", searching, PagingData.empty(loadStates(LoadState.Loading)))
+    fun loading() = capture(
+        "search_loading",
+        searching,
+        PagingData.empty(loadStates(LoadState.Loading)),
+        arabicText = "الأكثر استشهادًا",
+    )
 
     @Test
     fun results() = capture(
         "search_results",
         searching,
-        PagingData.from(
-            listOf(
-                PaperItem(SamplePapers.attention, inLibrary = true),
-                PaperItem(SamplePapers.bert, inLibrary = false),
-                PaperItem(SamplePapers.vit, inLibrary = false),
-            ),
-        ),
+        PagingData.from(listOf(SamplePapers.attention, SamplePapers.bert, SamplePapers.vit)),
+        arabicText = "في المكتبة",
+        savedIds = setOf(SamplePapers.attention.openAlexId),
     )
 
     @Test
@@ -7033,6 +7204,7 @@ class SearchScreenshotTest(private val variant: ScreenshotVariant) {
         "search_empty",
         searching.copy(openAccessOnly = true),
         PagingData.empty(loadStates(LoadState.NotLoading(endOfPaginationReached = false))),
+        arabicText = "لا توجد أوراق مطابقة",
     )
 
     @Test
@@ -7040,6 +7212,7 @@ class SearchScreenshotTest(private val variant: ScreenshotVariant) {
         "search_offline",
         searching,
         PagingData.empty(loadStates(LoadState.Error(SearchException(SearchError.Offline)))),
+        arabicText = "تعذّر الوصول إلى OpenAlex",
     )
 
     companion object {
@@ -7642,11 +7815,13 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.etatech.hashiya.core.data.repository.SearchException
 import com.etatech.hashiya.core.designsystem.component.LoadingSkeleton
 import com.etatech.hashiya.core.designsystem.component.PaperCard
 import com.etatech.hashiya.core.designsystem.component.PaperPreviewSheet
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
+import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.feature.search.components.FilterChipRow
 import com.etatech.hashiya.feature.search.components.IdleState
@@ -7661,11 +7836,13 @@ internal fun SearchScreen(onOpenSettings: () -> Unit, viewModel: SearchViewModel
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedItem by viewModel.selectedItem.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val savedIds by viewModel.savedIds.collectAsStateWithLifecycle()
     val papers = viewModel.papers.collectAsLazyPagingItems()
     val uriHandler = LocalUriHandler.current
     SearchContent(
         uiState = uiState,
         papers = papers,
+        savedIds = savedIds,
         selectedItem = selectedItem,
         message = message,
         actions = SearchActions(
@@ -7690,7 +7867,8 @@ internal fun SearchScreen(onOpenSettings: () -> Unit, viewModel: SearchViewModel
 @Composable
 internal fun SearchContent(
     uiState: SearchUiState,
-    papers: LazyPagingItems<PaperItem>,
+    papers: LazyPagingItems<Paper>,
+    savedIds: Set<String>,
     selectedItem: PaperItem?,
     message: SearchMessage?,
     actions: SearchActions,
@@ -7732,7 +7910,7 @@ internal fun SearchContent(
                 onOpenAccessToggle = actions.onOpenAccessToggle,
             )
             Box(Modifier.fillMaxSize()) {
-                SearchBody(uiState, papers, actions)
+                SearchBody(uiState, papers, savedIds, actions)
             }
         }
     }
@@ -7749,7 +7927,7 @@ internal fun SearchContent(
 }
 
 @Composable
-private fun SearchBody(uiState: SearchUiState, papers: LazyPagingItems<PaperItem>, actions: SearchActions) {
+private fun SearchBody(uiState: SearchUiState, papers: LazyPagingItems<Paper>, savedIds: Set<String>, actions: SearchActions) {
     val refresh = papers.loadState.refresh
     when {
         uiState.isIdle -> IdleState(actions.onSuggestion)
@@ -7763,12 +7941,17 @@ private fun SearchBody(uiState: SearchUiState, papers: LazyPagingItems<PaperItem
             showClearFilters = uiState.hasActiveFilters,
             onClearFilters = actions.onClearFilters,
         )
-        else -> ResultsList(uiState.totalCount, papers, actions)
+        else -> ResultsList(uiState.totalCount, papers, savedIds, actions)
     }
 }
 
 @Composable
-private fun ResultsList(totalCount: Long?, papers: LazyPagingItems<PaperItem>, actions: SearchActions) {
+private fun ResultsList(
+    totalCount: Long?,
+    papers: LazyPagingItems<Paper>,
+    savedIds: Set<String>,
+    actions: SearchActions,
+) {
     val locale = LocalConfiguration.current.locales[0]
     LazyColumn(Modifier.fillMaxSize()) {
         if (totalCount != null) {
@@ -7785,12 +7968,14 @@ private fun ResultsList(totalCount: Long?, papers: LazyPagingItems<PaperItem>, a
                 )
             }
         }
-        items(count = papers.itemCount) { index ->
-            papers[index]?.let { item ->
+        // Keys must be unique: the paging source drops works OpenAlex returns on more than one page.
+        items(count = papers.itemCount, key = papers.itemKey { it.openAlexId }) { index ->
+            papers[index]?.let { paper ->
+                val item = PaperItem(paper, inLibrary = paper.openAlexId in savedIds)
                 PaperCard(
-                    paper = item.paper,
+                    paper = paper,
                     inLibrary = item.inLibrary,
-                    onClick = { actions.onPaperClick(item.paper) },
+                    onClick = { actions.onPaperClick(paper) },
                     onSave = { actions.onToggleSave(item) },
                 )
             }
@@ -7840,20 +8025,29 @@ fun NavGraphBuilder.searchScreen(onOpenSettings: () -> Unit) {
 }
 ```
 
-- [ ] **Step 7: Record screenshots and run the tests**
+- [ ] **Step 7: Run the tests and inspect the screenshots locally**
 
-Run: `./gradlew :feature:search:recordRoborazziDebug`
-Expected: `BUILD SUCCESSFUL`; 20 files `search_{idle,loading,results,empty,offline}-*.png`. Check the Arabic variants: chips run right-to-left, the chip labels read "الأكثر استشهادًا" and "منذ 2015", and English paper titles stay left-to-right.
+Run: `./gradlew :feature:search:testDebugUnitTest`
+Expected: `BUILD SUCCESSFUL`, 51 tests passed (15 ViewModel + 5 validation + 11 UI + 20 screenshot variants).
 
-Run: `./gradlew :feature:search:verifyRoborazziDebug`
-Expected: `BUILD SUCCESSFUL`, 50 tests passed (14 ViewModel + 5 validation + 11 UI + 20 screenshot variants).
+Run: `./gradlew :feature:search:recordRoborazziDebug` and open the new `search_{idle,loading,results,empty,offline}-*.png` files. Check the Arabic variants: chips run right-to-left, the chip labels read "الأكثر استشهادًا" and "منذ 2015" (or with Arabic-Indic digits), and English paper titles stay left-to-right. These local images are for inspection only.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 8: Commit the code without the local screenshots**
 
 ```bash
 ./gradlew spotlessApply
-git add -A
+git add -A -- . ':(exclude,glob)**/src/test/screenshots/**'
 git commit -m "feat: add search screen with filters, year range dialog and result states"
+```
+
+- [ ] **Step 9: Record the baselines on Linux and commit them**
+
+Run (takes 10–15 minutes; use a long timeout or run it in the background): `bash scripts/record-screenshots-on-linux.sh`
+Expected: ends with `Baselines copied from run <id>`; `git status` shows the new `search_{idle,loading,results,empty,offline}-*.png` files and no changes to earlier baselines. Open one English and one Arabic image to confirm they match what you inspected.
+
+```bash
+git add -- ':(glob)**/src/test/screenshots/**'
+git commit -m "test: record search screenshot baselines on Linux"
 ```
 
 ---
@@ -8306,12 +8500,11 @@ Kotlin · Jetpack Compose · Material 3 · Navigation (type-safe) · Hilt · Roo
 
 ```bash
 ./gradlew testDebugUnitTest :core:model:test   # unit, Robolectric UI and screenshot tests
-./gradlew recordRoborazziDebug                  # re-record screenshot baselines after an intended UI change
-./gradlew verifyRoborazziDebug                  # fail on any unintended visual change
 ./gradlew spotlessCheck lintDebug               # formatting and lint
+bash scripts/record-screenshots-on-linux.sh     # re-record screenshot baselines after an intended UI change
 ```
 
-CI runs all of the above on every push and pull request.
+Screenshot baselines are recorded on CI's Linux runners, which are the source of truth; CI verifies every push against them.
 
 ## Roadmap
 
@@ -8325,8 +8518,16 @@ CI runs all of the above on every push and pull request.
 
 - [ ] **Step 2: Run the full verification**
 
-Run: `./gradlew spotlessCheck assembleDebug testDebugUnitTest :core:model:test lintDebug -Proborazzi.test.verify=true`
+Run: `./gradlew spotlessCheck assembleDebug testDebugUnitTest :core:model:test lintDebug`
 Expected: `BUILD SUCCESSFUL`. Lint reports no `MissingTranslation` errors.
+
+Then let CI verify the screenshots against the Linux baselines:
+```bash
+git push -u origin feat/foundation-openalex-search
+run_id=$(gh run list --branch feat/foundation-openalex-search --workflow ci.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+gh run watch "$run_id" --exit-status
+```
+Expected: the `build` job succeeds. If it fails only on screenshot diffs, download the `screenshot-diffs` artifact, fix the cause, and re-record with `bash scripts/record-screenshots-on-linux.sh` only when the change is intended.
 
 - [ ] **Step 3: Acceptance walkthrough on a device or emulator**
 
@@ -8339,7 +8540,7 @@ Install with `./gradlew :app:installDebug` and check each spec acceptance criter
 6. In airplane mode, a new search shows "Can't reach OpenAlex" with **Retry**.
 7. Entering a key in Settings shows "Using your key"; an invalid key makes Search show **Open Settings**; **Reset to built-in** reverts.
 8. Switching to العربية mirrors the whole UI; English paper titles stay left-to-right.
-9. The CI run for the pushed branch is green.
+9. The CI run for the pushed branch is green (Step 2).
 10. The README renders with screenshots and the module graph on GitHub.
 
 - [ ] **Step 4: Commit**

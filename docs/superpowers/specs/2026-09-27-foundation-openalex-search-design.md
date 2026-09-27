@@ -163,7 +163,7 @@ Database `HashiyaDatabase`, version 1, schemas exported to `core/database/schema
 |---|---|---|
 | `id` | TEXT PK | UUID generated locally (keeps the door open for manual entries and sync) |
 | `open_alex_id` | TEXT NULL | unique index |
-| `doi` | TEXT NULL | unique index, normalized |
+| `doi` | TEXT NULL | non-unique index, normalized (OpenAlex can have several works with one DOI; each must be savable) |
 | `title` | TEXT NOT NULL | |
 | `year` | INTEGER NULL | |
 | `venue` | TEXT NULL | |
@@ -236,7 +236,7 @@ The built-in key is read in `core/network`'s build script from `local.properties
 1. `query: MutableStateFlow<SearchQuery>`, persisted to and restored from `SavedStateHandle`.
 2. Text changes are debounced by 300 ms; chip changes apply immediately. A blank query produces the Idle state and makes no request.
 3. `distinctUntilChanged()` → `flatMapLatest { searchRepository.search(it) }` → `cachedIn(viewModelScope)`. Paging uses a `PagingSource` over the cursor API, with no `RemoteMediator` (search results are not stored).
-4. The paged flow is combined with `libraryRepository.observeSavedIds(): Flow<Set<String>>`. Each item becomes `PaperItem(paper, inLibrary)`.
+4. `libraryRepository.observeSavedIds()` is exposed separately as `savedIds: StateFlow<Set<String>>`; the UI resolves `inLibrary = paper.openAlexId in savedIds` per item. Library state is never mapped into `PagingData` after `cachedIn`. Result items are keyed by OpenAlex ID.
 5. The UI collects with `collectAsLazyPagingItems()`; screen state (Idle / Loading / Results / Empty / Error) is derived from `LoadState.refresh` and the item count.
 
 ### 5.4 Save and remove
@@ -325,7 +325,7 @@ Approach: test-first for all production code; **fakes, no mocking library**. `co
 | `core/data` | `SearchQuery` → request parameters for every combination; DTO → model mapping incl. missing fields and DOI normalization; `NetworkFailure` → `SearchError`; `UserApiKeySource` implementation; `PagingSource` pages, end of results, errors | JUnit, `paging-testing` (`TestPager`) |
 | `feature/*` ViewModels | Debounce with virtual time, IME immediate search, chip changes, `inLibrary` combination, `SavedStateHandle` restore, error → state, remove + Undo, settings save/reset | `kotlinx-coroutines-test`, Turbine, `asSnapshot()` |
 | `feature/*` screens | Each state renders; tapping a result opens the sheet; Save toggles to Remove; Retry and Clear filters invoke callbacks | Compose UI tests on Robolectric |
-| Screenshots | Every screen and state × light/dark × English LTR/Arabic RTL | Roborazzi; baselines committed |
+| Screenshots | Every screen and state × light/dark × English LTR/Arabic RTL; locale and night mode set with Robolectric qualifiers, and each Arabic variant asserts a known Arabic string | Roborazzi; baselines recorded on CI Linux (the source of truth) and committed |
 
 ### CI
 

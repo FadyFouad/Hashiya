@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
+import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
@@ -35,6 +36,9 @@ class LibraryContentTest {
     private val events = mutableListOf<String>()
     private val removedBert = RemovedPaper(SamplePapers.bert, localId = "local-1", savedAt = 1, status = ReadingStatus.ToRead)
     private val removedVit = RemovedPaper(SamplePapers.vit, localId = "local-2", savedAt = 2, status = ReadingStatus.ToRead)
+
+    private fun papersState(papers: List<Paper>) =
+        LibraryUiState.Papers(papers.map { LibraryPaper(it, ReadingStatus.ToRead) }, LibraryFilter())
 
     private fun show(state: LibraryUiState, pendingUndo: () -> RemovedPaper? = { null }) = composeRule.setContent {
         HashiyaTheme {
@@ -66,7 +70,7 @@ class LibraryContentTest {
 
     @Test
     fun listShowsCountTitlesAndShortAuthorLine() {
-        show(LibraryUiState.Papers(listOf(SamplePapers.attention, SamplePapers.vit)))
+        show(papersState(listOf(SamplePapers.attention, SamplePapers.vit)))
 
         composeRule.onNodeWithText("2 papers").assertIsDisplayed()
         composeRule.onNodeWithText("Attention Is All You Need").assertIsDisplayed()
@@ -75,7 +79,7 @@ class LibraryContentTest {
 
     @Test
     fun tappingRowOpensPreview() {
-        show(LibraryUiState.Papers(listOf(SamplePapers.bert)))
+        show(papersState(listOf(SamplePapers.bert)))
 
         composeRule.onNodeWithText(SamplePapers.bert.title).performClick()
         assertEquals(listOf("open:${SamplePapers.bert.openAlexId}"), events)
@@ -128,7 +132,7 @@ class LibraryContentTest {
 
     @Test
     fun addPaperButtonWithPapers() {
-        show(LibraryUiState.Papers(listOf(SamplePapers.bert)))
+        show(papersState(listOf(SamplePapers.bert)))
 
         composeRule.onNodeWithText("Add paper", useUnmergedTree = true).performClick()
         assertEquals(listOf("addPaper"), events)
@@ -139,7 +143,7 @@ class LibraryContentTest {
     @Test
     fun lastPaperStaysClearOfTheAddPaperButton() {
         val manyPapers = (1..20).map { SamplePapers.bert.copy(openAlexId = "paper-$it", title = "Paper $it") }
-        show(LibraryUiState.Papers(manyPapers))
+        show(papersState(manyPapers))
 
         composeRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Paper 20"))
 

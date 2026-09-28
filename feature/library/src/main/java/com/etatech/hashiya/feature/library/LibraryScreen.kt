@@ -62,7 +62,7 @@ internal fun LibraryScreen(
     val uriHandler = LocalUriHandler.current
     LibraryContent(
         uiState = uiState,
-        selectedPaper = selectedPaper,
+        selectedPaper = selectedPaper?.paper,
         pendingUndo = pendingUndo,
         onPaperClick = viewModel::onPaperClick,
         onDismissPreview = viewModel::onDismissPreview,
@@ -137,7 +137,9 @@ internal fun LibraryContent(
                     onAction = onGoToSearch
                 )
 
-                is LibraryUiState.Papers -> PaperList(uiState.papers, onPaperClick, onRemove)
+                is LibraryUiState.NoMatches -> Unit
+
+                is LibraryUiState.Papers -> PaperList(uiState.papers.map { it.paper }, onPaperClick, onRemove)
             }
         }
     }

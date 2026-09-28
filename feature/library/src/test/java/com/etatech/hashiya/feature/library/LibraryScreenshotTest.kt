@@ -1,6 +1,8 @@
 package com.etatech.hashiya.feature.library
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import com.etatech.hashiya.core.model.LibraryPaper
+import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.core.testing.ScreenshotVariant
@@ -46,7 +48,10 @@ class LibraryScreenshotTest(private val variant: ScreenshotVariant) {
     @Test
     fun papers() = capture(
         "library_papers",
-        LibraryUiState.Papers(listOf(SamplePapers.attention, SamplePapers.bert, SamplePapers.arabicTitled)),
+        LibraryUiState.Papers(
+            listOf(SamplePapers.attention, SamplePapers.bert, SamplePapers.arabicTitled).map { LibraryPaper(it, ReadingStatus.ToRead) },
+            LibraryFilter()
+        ),
         // "وآخرون" ("et al.") shows on both the attention and bert rows here (each has multiple
         // authors), so it fails the single-match arabicText check. The Arabic-titled paper's own
         // title is paper CONTENT (always Arabic regardless of the UI locale), so it can't prove the

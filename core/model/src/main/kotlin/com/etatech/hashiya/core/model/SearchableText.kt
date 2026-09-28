@@ -29,7 +29,7 @@ private fun String.withAsciiDigits(): String = buildString(length) {
 }
 
 // Arabic diacritics (tashkeel, Quranic marks): U+0610–U+061A, U+064B–U+065F, U+0670, U+06D6–U+06DC, U+06DF–U+06E4, U+06E7–U+06E8, U+06EA–U+06ED.
-private val ARABIC_MARKS = Regex("[ؐ-ًؚ-ٰٟۖ-ۜ۟-ۤۧ-۪ۨ-ۭ]")
+private val ARABIC_MARKS = Regex("[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06DC\u06DF-\u06E4\u06E7\u06E8\u06EA-\u06ED]")
 
 /** [text] without Arabic diacritics (tashkeel, Quranic marks) and tatweel; everything else is kept as typed. */
 fun withoutArabicMarks(text: String): String = text

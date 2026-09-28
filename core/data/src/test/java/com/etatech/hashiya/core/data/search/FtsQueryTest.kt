@@ -16,6 +16,7 @@ class FtsQueryTest {
         assertEquals("\"schrodinger*\"", ftsMatch("Schrödinger"))
         assertEquals("\"التعلم*\"", ftsMatch("التَّعلُّم"))
         assertEquals("\"احمد*\"", ftsMatch("أحمد"))
+        assertEquals("\"19*\"", ftsMatch("١٩"))
     }
 
     @Test

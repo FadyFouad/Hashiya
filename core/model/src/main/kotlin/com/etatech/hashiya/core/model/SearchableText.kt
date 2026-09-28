@@ -14,10 +14,16 @@ private const val ALEF = "ا"
 private const val ALEF_MAKSURA = 'ى'
 private const val YAA = 'ي'
 
-/** Lowercased text with accents and marks removed and Arabic letter variants unified, for full-text search. */
+/** Lowercased text with accents and marks removed, Arabic letter variants unified and digits in ASCII, for full-text search. */
 fun searchableText(text: String): String = Normalizer.normalize(text, Normalizer.Form.NFKD)
     .replace(COMBINING_MARKS, "")
     .replace(TATWEEL, "")
     .replace(ALEF_VARIANTS, ALEF)
     .replace(ALEF_MAKSURA, YAA)
+    .withAsciiDigits()
     .lowercase(Locale.ROOT)
+
+// Every decimal digit (Arabic-Indic ١٩, Persian ۱۹, ...) as its ASCII digit, so "١٩" and "19" find each other.
+private fun String.withAsciiDigits(): String = buildString(length) {
+    for (char in this@withAsciiDigits) append(if (char.isDigit()) '0' + char.digitToInt() else char)
+}

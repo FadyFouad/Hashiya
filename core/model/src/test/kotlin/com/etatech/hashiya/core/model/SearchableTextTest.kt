@@ -48,6 +48,13 @@ class SearchableTextTest {
     }
 
     @Test
+    fun foldsArabicIndicAndOtherDecimalDigitsToAscii() {
+        assertEquals("1984", searchableText("١٩٨٤"))
+        assertEquals("1984", searchableText("۱۹۸۴"))
+        assertEquals("كوفيد-19", searchableText("كوفيد-١٩"))
+    }
+
+    @Test
     fun keepsEmptyAndPunctuationOnlyInputHarmless() {
         assertEquals("", searchableText(""))
         assertEquals("-- !? ()", searchableText("-- !? ()"))

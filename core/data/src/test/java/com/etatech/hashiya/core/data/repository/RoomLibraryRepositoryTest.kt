@@ -160,6 +160,16 @@ class RoomLibraryRepositoryTest {
         assertEquals(listOf("W3"), ids("الاحصاء"))
     }
 
+    @Test
+    fun searchMatchesArabicIndicAndAsciiDigitsEitherWay() = runTest {
+        repository.save(paper("W1", title = "COVID-19 outcomes"))
+        repository.save(paper("W2", title = "جائحة كوفيد-١٩"))
+
+        assertEquals(listOf("W2", "W1"), ids("١٩"))
+        assertEquals(listOf("W2", "W1"), ids("19"))
+        assertEquals(listOf("W2"), ids("كوفيد ۱۹"))
+    }
+
     /** Whatever the user types, the query reaches SQLite as plain words: never a syntax error. */
     @Test
     fun searchTextWithFtsSyntaxNeverFails() = runTest {

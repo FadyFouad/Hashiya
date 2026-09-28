@@ -206,11 +206,11 @@ class SearchViewModelTest {
 
         viewModel.onToggleSave(PaperItem(SamplePapers.bert, inLibrary = false))
         runCurrent()
-        assertEquals(listOf(SamplePapers.bert), libraryRepository.observeSavedPapers().first())
+        assertEquals(listOf(SamplePapers.bert), libraryRepository.observeLibrary("", null).first().map { it.paper })
 
         viewModel.onToggleSave(PaperItem(SamplePapers.bert, inLibrary = true))
         runCurrent()
-        assertTrue(libraryRepository.observeSavedPapers().first().isEmpty())
+        assertTrue(libraryRepository.observeLibrary("", null).first().isEmpty())
     }
 
     @Test

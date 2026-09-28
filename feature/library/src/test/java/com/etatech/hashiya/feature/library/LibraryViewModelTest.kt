@@ -74,7 +74,10 @@ class LibraryViewModelTest {
         viewModel.onRemove(SamplePapers.bert)
         viewModel.onUndoRemove()
 
-        assertEquals(listOf(SamplePapers.vit, SamplePapers.bert, SamplePapers.attention), repository.observeSavedPapers().first())
+        assertEquals(
+            listOf(SamplePapers.vit, SamplePapers.bert, SamplePapers.attention),
+            repository.observeLibrary("", null).first().map { it.paper }
+        )
         assertNull(viewModel.pendingUndo.value)
     }
 
@@ -89,7 +92,7 @@ class LibraryViewModelTest {
         assertEquals(SamplePapers.bert, viewModel.pendingUndo.value?.paper)
 
         viewModel.onUndoRemove()
-        assertEquals(listOf(SamplePapers.bert), repository.observeSavedPapers().first())
+        assertEquals(listOf(SamplePapers.bert), repository.observeLibrary("", null).first().map { it.paper })
     }
 
     @Test

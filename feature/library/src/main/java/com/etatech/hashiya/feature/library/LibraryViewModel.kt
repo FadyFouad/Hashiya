@@ -24,7 +24,7 @@ sealed interface LibraryUiState {
 
 @HiltViewModel
 class LibraryViewModel @Inject constructor(private val libraryRepository: LibraryRepository) : ViewModel() {
-    private val savedPapers = libraryRepository.observeSavedPapers()
+    private val savedPapers = libraryRepository.observeLibrary(query = "", status = null).map { list -> list.map { it.paper } }
 
     val uiState: StateFlow<LibraryUiState> = savedPapers
         .map { papers -> if (papers.isEmpty()) LibraryUiState.Empty else LibraryUiState.Papers(papers) }

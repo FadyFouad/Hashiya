@@ -15,6 +15,7 @@ import androidx.compose.ui.test.performScrollToNode
 import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import org.junit.Assert.assertEquals
@@ -32,8 +33,8 @@ class LibraryContentTest {
     val composeRule = createComposeRule()
 
     private val events = mutableListOf<String>()
-    private val removedBert = RemovedPaper(SamplePapers.bert, localId = "local-1", savedAt = 1)
-    private val removedVit = RemovedPaper(SamplePapers.vit, localId = "local-2", savedAt = 2)
+    private val removedBert = RemovedPaper(SamplePapers.bert, localId = "local-1", savedAt = 1, status = ReadingStatus.ToRead)
+    private val removedVit = RemovedPaper(SamplePapers.vit, localId = "local-2", savedAt = 2, status = ReadingStatus.ToRead)
 
     private fun show(state: LibraryUiState, pendingUndo: () -> RemovedPaper? = { null }) = composeRule.setContent {
         HashiyaTheme {

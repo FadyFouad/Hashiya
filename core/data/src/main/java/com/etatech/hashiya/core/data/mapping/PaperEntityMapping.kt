@@ -7,10 +7,11 @@ import com.etatech.hashiya.core.database.model.PaperWithAuthors
 import com.etatech.hashiya.core.database.model.searchEntityFor
 import com.etatech.hashiya.core.model.Author
 import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.model.ReadingStatus
 
 internal data class PaperEntities(val paper: PaperEntity, val authors: List<PaperAuthorEntity>, val search: PaperSearchEntity)
 
-internal fun Paper.asEntities(localId: String, savedAt: Long): PaperEntities = PaperEntities(
+internal fun Paper.asEntities(localId: String, savedAt: Long, status: ReadingStatus): PaperEntities = PaperEntities(
     paper = PaperEntity(
         id = localId,
         openAlexId = openAlexId,
@@ -23,7 +24,7 @@ internal fun Paper.asEntities(localId: String, savedAt: Long): PaperEntities = P
         isOpenAccess = isOpenAccess,
         oaPdfUrl = openAccessPdfUrl,
         savedAt = savedAt,
-        readingStatus = "to_read"
+        readingStatus = status.storedValue
     ),
     authors = authors.mapIndexed { index, author ->
         PaperAuthorEntity(paperId = localId, position = index, name = author.name, openAlexAuthorId = author.openAlexId)

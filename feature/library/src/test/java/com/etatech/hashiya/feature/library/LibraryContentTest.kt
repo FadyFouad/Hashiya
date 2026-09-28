@@ -5,19 +5,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
 class LibraryContentTest {
@@ -124,5 +131,22 @@ class LibraryContentTest {
 
         composeRule.onNodeWithText("Add paper", useUnmergedTree = true).performClick()
         assertEquals(listOf("addPaper"), events)
+    }
+
+    /** With enough papers to overflow the screen, the FAB must not cover the last, scrolled-to row. */
+    @Config(qualifiers = PHONE_QUALIFIERS)
+    @Test
+    fun lastPaperStaysClearOfTheAddPaperButton() {
+        val manyPapers = (1..20).map { SamplePapers.bert.copy(openAlexId = "paper-$it", title = "Paper $it") }
+        show(LibraryUiState.Papers(manyPapers))
+
+        composeRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Paper 20"))
+
+        val lastRowBounds = composeRule.onNodeWithText("Paper 20").getUnclippedBoundsInRoot()
+        val fabBounds = composeRule.onNodeWithText("Add paper", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertTrue(
+            "last row bottom (${lastRowBounds.bottom}) must be above the FAB top (${fabBounds.top})",
+            lastRowBounds.bottom <= fabBounds.top
+        )
     }
 }

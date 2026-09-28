@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -152,9 +153,13 @@ internal fun LibraryContent(
     }
 }
 
+// Scaffold's floatingActionButton doesn't reserve content padding for the FAB, so the list must
+// leave room itself: the extended FAB is 56dp tall with a 16dp margin, plus a little breathing room.
+private val FAB_CLEARANCE = PaddingValues(bottom = 88.dp)
+
 @Composable
 private fun PaperList(papers: List<Paper>, onPaperClick: (Paper) -> Unit, onRemove: (Paper) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = FAB_CLEARANCE) {
         item {
             Text(
                 pluralStringResource(R.plurals.library_paper_count, papers.size, papers.size),

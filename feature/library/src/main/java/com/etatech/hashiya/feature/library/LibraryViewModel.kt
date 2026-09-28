@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -64,17 +65,26 @@ class LibraryViewModel @Inject constructor(
     private val libraryIsEmpty = libraryRepository.observeStatusCounts("").map { counts -> counts.values.sum() == 0 }.distinctUntilChanged()
 
     private val results = combine(appliedQuery, status, ::Pair).flatMapLatest { (applied, selected) ->
-        combine(libraryRepository.observeLibrary(applied, selected), libraryRepository.observeStatusCounts(applied), ::Pair)
+        combine(libraryRepository.observeLibrary(applied, selected), libraryRepository.observeStatusCounts(applied)) { papers, counts ->
+            Results(applied, selected, papers, counts)
+        }
     }
 
-    val uiState: StateFlow<LibraryUiState> = combine(libraryIsEmpty, results, query, status) { empty, (papers, counts), typed, selected ->
-        val filter = LibraryFilter(query = typed, status = selected, counts = counts)
+    val uiState: StateFlow<LibraryUiState> = combine(libraryIsEmpty, results, query, status) { empty, results, typed, selected ->
+        val filter = LibraryFilter(query = typed, status = selected, counts = results.counts)
+        val counted = results.status?.let { results.counts[it] ?: 0 } ?: results.counts.values.sum()
         when {
-            empty -> LibraryUiState.Empty
-            papers.isEmpty() -> LibraryUiState.NoMatches(filter)
-            else -> LibraryUiState.Papers(papers, filter)
+            // With no search and no chip, an empty list is an empty library, even before the emptiness query answers.
+            empty || (results.papers.isEmpty() && results.status == null && results.applied.isBlank()) -> LibraryUiState.Empty
+
+            results.papers.isNotEmpty() -> LibraryUiState.Papers(results.papers, filter)
+
+            counted == 0 -> LibraryUiState.NoMatches(filter)
+
+            // The list and the counts are separate queries: an empty list the counts disagree with is stale, so keep the last state.
+            else -> null
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState.Loading)
+    }.filterNotNull().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState.Loading)
 
     private val selectedId = MutableStateFlow<String?>(null)
 
@@ -160,3 +170,11 @@ class LibraryViewModel @Inject constructor(
         _pendingUndo.value = null
     }
 }
+
+/** The papers and counts for one applied search and chip, kept together so the state is decided from one emission. */
+private data class Results(
+    val applied: String,
+    val status: ReadingStatus?,
+    val papers: List<LibraryPaper>,
+    val counts: Map<ReadingStatus, Int>
+)

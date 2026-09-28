@@ -1,20 +1,27 @@
 package com.etatech.hashiya.feature.library
 
 import androidx.lifecycle.SavedStateHandle
+import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -244,6 +251,54 @@ class LibraryViewModelTest {
         viewModel.onRemove(SamplePapers.bert)
 
         assertEquals(LibraryUiState.Empty, viewModel.uiState.value)
+    }
+
+    /** Room re-runs each query on its own after a write, so the list and the counts can answer in either order. */
+    private class LaggingLibraryRepository(
+        private val delegate: FakeLibraryRepository,
+        private val listLags: Boolean,
+        private val countsLag: Boolean
+    ) : LibraryRepository by delegate {
+        override fun observeLibrary(query: String, status: ReadingStatus?): Flow<List<LibraryPaper>> =
+            delegate.observeLibrary(query, status).onEach { if (listLags) delay(1) }
+
+        override fun observeStatusCounts(query: String): Flow<Map<ReadingStatus, Int>> =
+            delegate.observeStatusCounts(query).onEach { if (countsLag) delay(1) }
+    }
+
+    /** Removes the only paper, then undoes it, and returns every state shown along the way. */
+    private suspend fun TestScope.statesWhileRemovingAndRestoringTheOnlyPaper(listLags: Boolean, countsLag: Boolean): List<LibraryUiState> {
+        repository.save(SamplePapers.bert)
+        val viewModel = LibraryViewModel(SavedStateHandle(), LaggingLibraryRepository(repository, listLags, countsLag))
+        val states = mutableListOf<LibraryUiState>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.toList(states) }
+        advanceUntilIdle()
+
+        viewModel.onRemove(SamplePapers.bert)
+        advanceUntilIdle()
+        assertEquals(LibraryUiState.Empty, states.last())
+        viewModel.onUndoRemove()
+        advanceUntilIdle()
+
+        assertEquals(
+            LibraryUiState.Papers(listOf(LibraryPaper(SamplePapers.bert, ReadingStatus.ToRead)), LibraryFilter("", null, counts(1, 0, 0))),
+            states.last()
+        )
+        return states
+    }
+
+    @Test
+    fun listAnsweringAfterTheCountsNeverFlashesNoMatches() = runTest {
+        val states = statesWhileRemovingAndRestoringTheOnlyPaper(listLags = true, countsLag = false)
+
+        assertTrue("$states", states.none { it is LibraryUiState.NoMatches })
+    }
+
+    @Test
+    fun countsAnsweringAfterTheListNeverFlashNoMatches() = runTest {
+        val states = statesWhileRemovingAndRestoringTheOnlyPaper(listLags = false, countsLag = true)
+
+        assertTrue("$states", states.none { it is LibraryUiState.NoMatches })
     }
 
     @Test

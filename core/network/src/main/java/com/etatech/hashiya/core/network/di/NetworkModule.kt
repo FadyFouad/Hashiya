@@ -1,13 +1,17 @@
 package com.etatech.hashiya.core.network.di
 
+import com.etatech.hashiya.core.network.ARXIV_BASE_URL
+import com.etatech.hashiya.core.network.ArxivDataSource
 import com.etatech.hashiya.core.network.BuildConfig
 import com.etatech.hashiya.core.network.OPENALEX_BASE_URL
+import com.etatech.hashiya.core.network.OkHttpArxivDataSource
 import com.etatech.hashiya.core.network.OpenAlexApi
 import com.etatech.hashiya.core.network.OpenAlexDataSource
 import com.etatech.hashiya.core.network.OpenAlexLookupDataSource
 import com.etatech.hashiya.core.network.RetrofitOpenAlexDataSource
 import com.etatech.hashiya.core.network.RetrofitOpenAlexLookupDataSource
 import com.etatech.hashiya.core.network.UserApiKeySource
+import com.etatech.hashiya.core.network.buildArxivOkHttpClient
 import com.etatech.hashiya.core.network.buildOpenAlexApi
 import com.etatech.hashiya.core.network.buildOpenAlexOkHttpClient
 import dagger.Binds
@@ -34,6 +38,10 @@ internal object NetworkModule {
     @Provides
     @Singleton
     fun provideOpenAlexApi(client: OkHttpClient): OpenAlexApi = buildOpenAlexApi(OPENALEX_BASE_URL.toHttpUrl(), client)
+
+    @Provides
+    @Singleton
+    fun provideArxivDataSource(): ArxivDataSource = OkHttpArxivDataSource(buildArxivOkHttpClient(), ARXIV_BASE_URL.toHttpUrl())
 }
 
 @Module

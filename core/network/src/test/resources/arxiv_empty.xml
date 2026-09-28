@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">
+  <id>https://arxiv.org/api/d4e5f6</id>
+  <title>arXiv Query: search_query=&amp;id_list=2401.99999&amp;start=0&amp;max_results=10</title>
+  <updated>2026-09-28T00:00:00Z</updated>
+  <opensearch:totalResults>0</opensearch:totalResults>
+</feed>

@@ -37,6 +37,8 @@ private val SPACE_AFTER_PREFIX = Regex("""(?i)\b(arxiv:|doi:)\s+""")
 private val WHITESPACE = Regex("""\s+""")
 private val URL_START = Regex("""(?i)(https?://|www\.|(?:export\.)?arxiv\.org/|(?:dx\.)?doi\.org/)""")
 private val DOI_HOSTS = setOf("doi.org", "dx.doi.org", "www.doi.org")
+private val NATURE_HOSTS = setOf("nature.com", "www.nature.com")
+private val NATURE_ARTICLE = Regex("""articles/([A-Za-z0-9][A-Za-z0-9.-]*)""", RegexOption.IGNORE_CASE)
 private const val TRAILING_JUNK = ".,;:!?\"'>]"
 private const val LEADING_JUNK = "([\"'<"
 
@@ -82,8 +84,18 @@ private fun parseUrl(url: String): PaperIdentifier? {
     val withoutScheme = withoutQuery.substringAfter("://")
     val host = withoutScheme.substringBefore('/').lowercase()
     val path = percentDecode(withoutScheme.substringAfter('/', missingDelimiterValue = ""))
-    val doiPart = if (host in DOI_HOSTS) path else DOI_IN_PATH.find(path)?.value?.let(::dropPublisherSuffix)
+    val doiPart = when {
+        host in DOI_HOSTS -> path
+        host in NATURE_HOSTS -> natureDoi(path)
+        else -> DOI_IN_PATH.find(path)?.value?.let(::dropPublisherSuffix)
+    }
     return doiPart?.let(::doiIdentifier)
+}
+
+/** Nature Portfolio article pages map straight to a DOI: "articles/nature14539" -> "10.1038/nature14539". */
+private fun natureDoi(path: String): String? {
+    val article = path.trimEnd('/').replace(PDF_SUFFIX, "")
+    return NATURE_ARTICLE.matchEntire(article)?.let { "10.1038/${it.groupValues[1]}" }
 }
 
 /**

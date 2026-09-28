@@ -87,11 +87,22 @@ class PaperIdentifierTest {
         "a study of 10.1038/nature14539" to null,
         "https://example.com/2401.00001" to null,
         "https://arxiv.org/list/cs.LG/recent" to null,
-        "https://www.nature.com/articles/nature14539" to null,
         "10.1038" to null,
         "2401.001" to null,
         "2023.12345" to null,
         "1234" to null
+    )
+
+    @Test
+    fun strictRecognizesNatureArticleLinksAsDois() = strict(
+        "https://www.nature.com/articles/d41586-026-02937-z" to Doi("10.1038/d41586-026-02937-z"),
+        "https://www.nature.com/articles/nature14539.pdf" to Doi("10.1038/nature14539"),
+        "https://www.nature.com/articles/nature14539" to Doi("10.1038/nature14539"),
+        // Bare "nature.com/…" isn't treated as a URL today (see isUrl), so this is scheme-qualified.
+        "https://nature.com/articles/s41598-021-81234-5?error=cookies_not_supported" to
+            Doi("10.1038/s41598-021-81234-5"),
+        "https://www.nature.com/nature/volumes/620" to null,
+        "https://www.nature.com/subjects/physics" to null
     )
 
     @Test
@@ -123,8 +134,12 @@ class PaperIdentifierTest {
     )
 
     @Test
+    fun lenientRecognizesNatureArticleLinks() = lenient(
+        "Read this https://www.nature.com/articles/nature14539 now" to Doi("10.1038/nature14539")
+    )
+
+    @Test
     fun lenientRejectsTextWithoutIds() = lenient(
-        "Deep learning https://www.nature.com/articles/nature14539" to null,
         "https://example.com/2401.00001" to null,
         "[x](https://example.com/2401.00001)" to null,
         "nothing to see here" to null,

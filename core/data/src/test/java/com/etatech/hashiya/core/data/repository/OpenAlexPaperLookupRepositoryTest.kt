@@ -112,11 +112,11 @@ class OpenAlexPaperLookupRepositoryTest {
     }
 
     @Test
-    fun crossCheckWhileArxivIsOfflineOffersRetry() = runTest {
+    fun crossCheckWhileArxivIsUnreachableIsUnavailable() = runTest {
         openAlex.found = listOf(work("W1", bertTitle))
         arxiv.failure = NetworkFailure.Connectivity
 
-        assertEquals(LookupResult.Failed(SearchError.Offline), repository.lookup(bert))
+        assertEquals(LookupResult.Failed(SearchError.ServiceUnavailable), repository.lookup(bert))
     }
 
     @Test

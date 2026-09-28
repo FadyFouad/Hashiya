@@ -9,7 +9,6 @@ import com.etatech.hashiya.core.model.PaperIdentifier
 import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.core.network.ArxivDataSource
 import com.etatech.hashiya.core.network.NetworkException
-import com.etatech.hashiya.core.network.NetworkFailure
 import com.etatech.hashiya.core.network.OpenAlexLookupDataSource
 import com.etatech.hashiya.core.network.model.NetworkWork
 import javax.inject.Inject
@@ -38,7 +37,8 @@ internal class OpenAlexPaperLookupRepository @Inject constructor(
         val arxivTitle = try {
             arxiv.title(id)
         } catch (e: NetworkException) {
-            return LookupResult.Failed(e.failure.asCrossCheckError())
+            // OpenAlex just answered, so any arXiv trouble is the service being unavailable, not the user offline.
+            return LookupResult.Failed(SearchError.ServiceUnavailable)
         } ?: return LookupResult.NotFound(arxivTitle = null)
         val paper = matches.single().asPaper()
         return if (titlesMatch(paper.title, arxivTitle)) LookupResult.Found(paper) else LookupResult.NotFound(arxivTitle)
@@ -54,6 +54,3 @@ internal class OpenAlexPaperLookupRepository @Inject constructor(
     private fun NetworkWork?.toLookupResult(): LookupResult =
         this?.let { LookupResult.Found(it.asPaper()) } ?: LookupResult.NotFound(arxivTitle = null)
 }
-
-private fun NetworkFailure.asCrossCheckError(): SearchError =
-    if (this == NetworkFailure.Connectivity) SearchError.Offline else SearchError.ServiceUnavailable

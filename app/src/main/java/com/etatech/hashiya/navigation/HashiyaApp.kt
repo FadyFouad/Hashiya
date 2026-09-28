@@ -8,6 +8,7 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffo
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -38,7 +39,11 @@ enum class TopLevelDestination(val icon: ImageVector, @StringRes val labelRes: I
 }
 
 @Composable
-fun HashiyaApp(navController: NavHostController = rememberNavController()) {
+fun HashiyaApp(
+    navController: NavHostController = rememberNavController(),
+    pendingSearch: SearchRoute? = null,
+    onPendingSearchHandled: () -> Unit = {}
+) {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
     val currentTopLevel = TopLevelDestination.entries.firstOrNull { topLevel ->
@@ -71,6 +76,13 @@ fun HashiyaApp(navController: NavHostController = rememberNavController()) {
             )
             searchScreen(onOpenSettings = { navController.navigateToSettings() })
             settingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        LaunchedEffect(pendingSearch) {
+            pendingSearch?.let { route ->
+                navController.openSearch(route)
+                onPendingSearchHandled()
+            }
         }
     }
 }

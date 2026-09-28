@@ -23,8 +23,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        // After a rotation the intent is still the share; it was handled before the activity was recreated.
-        if (savedInstanceState == null) pendingSearch = intent.sharedSearchRoute()
+        if (isFreshLaunch(savedInstanceState)) pendingSearch = intent.sharedSearchRoute()
         setContent {
             HashiyaTheme {
                 HashiyaApp(pendingSearch = pendingSearch, onPendingSearchHandled = { pendingSearch = null })
@@ -37,6 +36,13 @@ class MainActivity : AppCompatActivity() {
         setIntent(intent)
         intent.sharedSearchRoute()?.let { pendingSearch = it }
     }
+
+    /**
+     * After a rotation the intent is still the share, and reopening from Recents re-delivers the old
+     * share; either way it was handled already.
+     */
+    private fun isFreshLaunch(savedInstanceState: Bundle?): Boolean = savedInstanceState == null &&
+        (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0
 
     private fun Intent.sharedSearchRoute(): SearchRoute? {
         if (action != Intent.ACTION_SEND || type?.startsWith("text/") != true) return null

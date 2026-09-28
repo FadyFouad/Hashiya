@@ -99,4 +99,14 @@ class ShareNavigationTest {
             composeRule.onNodeWithText("arXiv:1706.03762").assertIsDisplayed()
         }
     }
+
+    @Test
+    fun aShareReopenedFromRecentsIsNotReplayed() {
+        val fromRecents = shareIntent("just some words").addFlags(Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY)
+        ActivityScenario.launch<MainActivity>(fromRecents).use {
+            waitForText("No saved papers yet")
+            composeRule.onNodeWithText("No saved papers yet").assertIsDisplayed()
+            composeRule.onNodeWithText(nothingNote).assertDoesNotExist()
+        }
+    }
 }

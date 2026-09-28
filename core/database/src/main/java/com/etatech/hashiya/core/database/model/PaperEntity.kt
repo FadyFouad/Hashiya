@@ -25,5 +25,7 @@ data class PaperEntity(
     @ColumnInfo(name = "citation_count") val citationCount: Int,
     @ColumnInfo(name = "is_open_access") val isOpenAccess: Boolean,
     @ColumnInfo(name = "oa_pdf_url") val oaPdfUrl: String?,
-    @ColumnInfo(name = "saved_at") val savedAt: Long
+    @ColumnInfo(name = "saved_at") val savedAt: Long,
+    /** One of "to_read", "reading", "read"; core/data maps it to ReadingStatus. */
+    @ColumnInfo(name = "reading_status", defaultValue = "'to_read'") val readingStatus: String
 )

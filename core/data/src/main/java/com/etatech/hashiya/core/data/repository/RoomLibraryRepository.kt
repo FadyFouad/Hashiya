@@ -14,13 +14,15 @@ internal class RoomLibraryRepository(private val paperDao: PaperDao, private val
     @Inject
     constructor(paperDao: PaperDao) : this(paperDao, System::currentTimeMillis, { UUID.randomUUID().toString() })
 
-    override fun observeSavedPapers(): Flow<List<Paper>> = paperDao.observeSavedPapers().map { rows -> rows.map { it.asPaper() } }
+    override fun observeSavedPapers(): Flow<List<Paper>> = paperDao.observeLibrary(match = null, status = null).map { rows ->
+        rows.map { it.asPaper() }
+    }
 
     override fun observeSavedIds(): Flow<Set<String>> = paperDao.observeSavedOpenAlexIds().map { it.toSet() }
 
     override suspend fun save(paper: Paper) {
         val entities = paper.asEntities(localId = newId(), savedAt = now())
-        paperDao.insertPaperWithAuthors(entities.paper, entities.authors)
+        paperDao.insertPaperWithAuthors(entities.paper, entities.authors, entities.search)
     }
 
     override suspend fun remove(openAlexId: String): RemovedPaper? = paperDao.deleteByOpenAlexId(openAlexId)?.let { row ->
@@ -29,6 +31,6 @@ internal class RoomLibraryRepository(private val paperDao: PaperDao, private val
 
     override suspend fun restore(removed: RemovedPaper) {
         val entities = removed.paper.asEntities(localId = removed.localId, savedAt = removed.savedAt)
-        paperDao.insertPaperWithAuthors(entities.paper, entities.authors)
+        paperDao.insertPaperWithAuthors(entities.paper, entities.authors, entities.search)
     }
 }

@@ -119,7 +119,7 @@ sealed interface LookupResult {
   3. Zero results → `NotFound(arxivTitle)`; more than one distinct work → `NotFound(arxivTitle)`.
   4. Exactly one result → fetch `ArxivDataSource.title(id)` and compare with the OpenAlex title after normalization (lowercase, letters and digits only, collapsed spaces). Equal → `Found`; different → `NotFound(arxivTitle)`; arXiv says the ID doesn't exist → `NotFound(null)`.
   5. Where the arXiv title is needed for `NotFound` in steps 3 (zero or several results), it is fetched too; if that fetch fails, `NotFound(null)`.
-- Any `NetworkException` from OpenAlex → `Failed(failure.asSearchError())`. An `ArxivDataSource` failure during the step-4 cross-check → `Failed(SearchError.Offline)` for connectivity, otherwise `Failed(SearchError.ServiceUnavailable)`.
+- Any `NetworkException` from OpenAlex → `Failed(failure.asSearchError())`. Any `ArxivDataSource` failure during the step-4 cross-check → `Failed(SearchError.ServiceUnavailable)` (OpenAlex has just answered, so the device is online and "Can't reach OpenAlex" would be wrong).
 - Mapping to `Paper` reuses `NetworkWork.asPaper()`.
 
 ## 5. Search screen in ID mode (`feature/search`)
@@ -173,7 +173,7 @@ data class SearchRoute(
 |---|---|---|
 | OpenAlex 404 / 400 for a well-formed ID | `NotFound` | "No paper found…" (+ title button when available) |
 | OpenAlex offline / 429 / 5xx / bad key / unreadable | `Failed` via existing mapping | Existing error state with Retry or Open Settings |
-| arXiv API unreachable or unreadable during the cross-check | `Failed(Offline / ServiceUnavailable)` | Error state with Retry |
+| arXiv API unreachable or unreadable during the cross-check | `Failed(ServiceUnavailable)` | Error state with Retry |
 | arXiv says the ID doesn't exist | `NotFound(null)` | "No paper found for this arXiv ID" |
 | Share without text | `NothingInShare` note | "Couldn't find a paper in what you shared" |
 

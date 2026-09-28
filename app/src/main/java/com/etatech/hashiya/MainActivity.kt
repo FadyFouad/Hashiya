@@ -40,7 +40,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun Intent.sharedSearchRoute(): SearchRoute? {
         if (action != Intent.ACTION_SEND || type?.startsWith("text/") != true) return null
-        val subject = getStringExtra(Intent.EXTRA_SUBJECT) ?: getStringExtra(Intent.EXTRA_TITLE)
-        return shareToSearchRoute(getStringExtra(Intent.EXTRA_TEXT), subject)
+        // These extras may be styled (Spanned), which getStringExtra would return as null.
+        val subject = getCharSequenceExtra(Intent.EXTRA_SUBJECT)?.toString()
+            ?: getCharSequenceExtra(Intent.EXTRA_TITLE)?.toString()
+        return shareToSearchRoute(getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString(), subject)
     }
 }

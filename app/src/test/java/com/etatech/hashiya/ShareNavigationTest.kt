@@ -1,6 +1,10 @@
 package com.etatech.hashiya
 
 import android.content.Intent
+import android.graphics.Typeface
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.StyleSpan
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -36,7 +40,7 @@ class ShareNavigationTest {
 
     private val nothingNote = "Couldn't find a paper in what you shared."
 
-    private fun shareIntent(text: String) = Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
+    private fun shareIntent(text: CharSequence) = Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
         .setAction(Intent.ACTION_SEND)
         .setType("text/plain")
         .putExtra(Intent.EXTRA_TEXT, text)
@@ -81,6 +85,18 @@ class ShareNavigationTest {
             waitForText("arXiv:1706.03762")
             composeRule.onNodeWithText("arXiv:1706.03762").assertIsDisplayed()
             composeRule.onNodeWithText(nothingNote).assertDoesNotExist()
+        }
+    }
+
+    @Test
+    fun aStyledShareIsRead() {
+        val link = "https://arxiv.org/abs/1706.03762"
+        val styled = SpannableString(link).apply {
+            setSpan(StyleSpan(Typeface.BOLD), 0, link.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        ActivityScenario.launch<MainActivity>(shareIntent(styled)).use {
+            waitForText("arXiv:1706.03762")
+            composeRule.onNodeWithText("arXiv:1706.03762").assertIsDisplayed()
         }
     }
 }

@@ -150,7 +150,7 @@ interface LibraryRepository {
 **Query builder** (`search/FtsQuery.kt`): `fun ftsMatch(query: String): String?`
 
 - Normalizes with `searchableText`, then keeps only letters and digits (everything else becomes a space), so FTS syntax (`" * - ( ) :`, `AND`/`OR`/`NOT`/`NEAR` as operators) can't reach `MATCH`.
-- Splits into words; each word becomes a quoted prefix term: `"transf"*`. Terms are joined with spaces, so every word must match.
+- Splits into words; each word becomes a quoted prefix term with the star inside the quotes: `"transf*"` (FTS4 treats `"transf"*` as the exact word). Terms are joined with spaces, so every word must match.
 - Returns `null` when no word remains, meaning "no search".
 
 ## 7. Library screen (`feature/library`)
@@ -161,7 +161,7 @@ Top to bottom:
 
 1. The top bar (unchanged).
 2. A search field, hint "Search your library", with a clear (✕) button. It uses `TextDirection.Content`, like Search's field. Typing applies after a 300 ms pause. The keyboard's Search key applies at once and hides the keyboard.
-3. A single-select row of filter chips: **All · To read · Reading · Read**, each with its count (e.g. "Reading · 3"). All is the default. The row scrolls sideways. Counts use the app's number formatting, so Arabic shows Arabic-Indic digits.
+3. A single-select row of filter chips: **All · To read · Reading · Read**, each with its count (e.g. "Reading · 3"; in Arabic "قيد القراءة (٣)"). All is the default. The row scrolls sideways. Counts use the app's number formatting, so Arabic shows Arabic-Indic digits.
 4. The list, as today, with a status badge at the end of each row. The "Add paper" button, swipe-to-remove and Undo are unchanged.
 
 ### 7.2 Status badge and menu
@@ -178,7 +178,7 @@ Top to bottom:
 ### 7.4 Empty states
 
 - **Empty library:** unchanged ("No saved papers yet" + Go to Search); the search field and chips are hidden.
-- **No matches** (the library has papers, but the search and chip match none): "No papers match" with a **Clear search and filters** button that resets both.
+- **No matches** (the library has papers, but the search and chip match none): "No papers match" with a **Clear search and filters** button that resets both. The search field and chips stay visible. Empty vs No matches is decided from the whole library's counts, and `EmptyState`'s message line becomes optional.
 
 ### 7.5 ViewModel
 
@@ -193,8 +193,9 @@ Top to bottom:
 | Key | English | Arabic |
 |---|---|---|
 | `library_search_hint` | Search your library | ابحث في مكتبتك |
+| `library_search_clear` | Clear search | مسح البحث |
 | `library_filter_all` | All | الكل |
-| `library_filter_count` | %1$s · %2$s (label · formatted count) | %1$s · %2$s |
+| `library_filter_count` | %1$s · %2$s (label · formatted count) | %1$s (%2$s) — a "·" beside Arabic-Indic digits reads like "٠" |
 | `library_status_badge_description` | Status: %1$s. Change status | الحالة: %1$s. تغيير الحالة |
 | `library_no_matches_title` | No papers match | لا توجد أوراق مطابقة |
 | `library_no_matches_action` | Clear search and filters | مسح البحث والفلاتر |

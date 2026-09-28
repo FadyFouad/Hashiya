@@ -1,0 +1,8 @@
+root = true
+
+[*.{kt,kts}]
+ktlint_code_style = android_studio
+max_line_length = 140
+ktlint_function_naming_ignore_when_annotated_with = Composable
+# Compose code uses PascalCase for icon, color and font vals (e.g. HashiyaIcons.Search).
+ktlint_standard_property-naming = disabled

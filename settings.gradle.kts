@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("build-logic")
     repositories {
         google {
             content {
@@ -24,3 +25,13 @@ dependencyResolutionManagement {
 
 rootProject.name = "Hashiya"
 include(":app")
+include(":core:model")
+include(":core:network")
+include(":core:database")
+include(":core:datastore")
+include(":core:data")
+include(":core:testing")
+include(":core:designsystem")
+include(":feature:settings")
+include(":feature:library")
+include(":feature:search")

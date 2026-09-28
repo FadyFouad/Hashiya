@@ -1,0 +1,19 @@
+<resources>
+    <string name="library_title">المكتبة</string>
+    <string name="library_settings">الإعدادات</string>
+    <plurals name="library_paper_count">
+        <item quantity="zero">لا توجد أوراق</item>
+        <item quantity="one">ورقة واحدة</item>
+        <item quantity="two">ورقتان</item>
+        <item quantity="few">%1$d أوراق</item>
+        <item quantity="many">%1$d ورقة</item>
+        <item quantity="other">%1$d ورقة</item>
+    </plurals>
+    <string name="library_empty_title">لا توجد أوراق محفوظة بعد</string>
+    <string name="library_empty_message">ستظهر هنا الأوراق التي تحفظها من البحث</string>
+    <string name="library_go_to_search">الذهاب إلى البحث</string>
+    <string name="library_removed">تمت الإزالة من المكتبة</string>
+    <string name="library_undo">تراجع</string>
+    <string name="library_remove">إزالة</string>
+    <string name="library_et_al">%1$s وآخرون</string>
+</resources>

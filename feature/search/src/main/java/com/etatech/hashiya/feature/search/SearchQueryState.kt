@@ -32,6 +32,35 @@ internal fun SavedStateHandle.readSearchQuery(): SearchQuery {
     )
 }
 
+private const val KEY_ROUTE_APPLIED = "search_route_applied"
+private const val KEY_PAGE_TITLE = "search_page_title"
+
+// Names of SearchRoute's properties: navigation stores route arguments in the SavedStateHandle under these keys.
+private const val ARG_QUERY = "query"
+private const val ARG_PAGE_TITLE = "pageTitle"
+private const val ARG_FOCUS_SEARCH = "focusSearch"
+private const val ARG_NOTE = "note"
+
+internal data class SearchRouteArgs(val query: String?, val pageTitle: String?, val focusSearch: Boolean, val note: SearchNote?)
+
+/** The navigation arguments the first time this screen's state is created; null afterwards, including after process death. */
+internal fun SavedStateHandle.consumeRouteArgs(): SearchRouteArgs? {
+    if (get<Boolean>(KEY_ROUTE_APPLIED) == true || contains(KEY_TEXT)) return null
+    this[KEY_ROUTE_APPLIED] = true
+    return SearchRouteArgs(
+        query = get<String>(ARG_QUERY)?.takeIf { it.isNotBlank() },
+        pageTitle = get<String>(ARG_PAGE_TITLE)?.takeIf { it.isNotBlank() },
+        focusSearch = get<Boolean>(ARG_FOCUS_SEARCH) ?: false,
+        note = get<String>(ARG_NOTE)?.let { name -> SearchNote.entries.firstOrNull { it.name == name } }
+    )
+}
+
+internal var SavedStateHandle.savedPageTitle: String?
+    get() = get(KEY_PAGE_TITLE)
+    set(value) {
+        this[KEY_PAGE_TITLE] = value
+    }
+
 internal fun SavedStateHandle.writeSearchQuery(query: SearchQuery) {
     this[KEY_TEXT] = query.text
     this[KEY_SORT] = query.sort.name

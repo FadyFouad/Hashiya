@@ -42,7 +42,15 @@ class ShareToSearchRouteTest {
     fun pageWithoutIdSearchesItsTitle() {
         assertEquals(
             SearchRoute(query = "Deep learning", note = SearchNote.NoIdInShare.name),
-            shareToSearchRoute("https://www.nature.com/articles/nature14539", " Deep learning ")
+            shareToSearchRoute("https://ieeexplore.ieee.org/document/1234567", " Deep learning ")
+        )
+    }
+
+    @Test
+    fun natureArticleLinkOpensTheDoiLookup() {
+        assertEquals(
+            SearchRoute(query = "10.1038/nature14539", pageTitle = "Deep learning | Nature"),
+            shareToSearchRoute("https://www.nature.com/articles/nature14539", "Deep learning | Nature")
         )
     }
 

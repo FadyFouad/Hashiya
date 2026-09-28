@@ -99,6 +99,34 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun tatweelOnlyQueryIsIdleAndDoesNotSearch() = runTest {
+        val viewModel = viewModel()
+        viewModel.onTextChange("ـــ")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.isIdle)
+        assertTrue(searchRepository.queries.isEmpty())
+
+        viewModel.onTextChange("التَّعلُّم")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertEquals(listOf(SearchQuery("التَّعلُّم")), searchRepository.queries)
+    }
+
+    @Test
+    fun tashkeelOnlyQueryIsIdleAndDoesNotSearch() = runTest {
+        val viewModel = viewModel()
+        viewModel.onTextChange("\u064E")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.isIdle)
+        assertTrue(searchRepository.queries.isEmpty())
+    }
+
+    @Test
     fun filterChangesApplyImmediately() = runTest {
         val viewModel = viewModel()
         viewModel.onSuggestion("bert")
@@ -206,11 +234,11 @@ class SearchViewModelTest {
 
         viewModel.onToggleSave(PaperItem(SamplePapers.bert, inLibrary = false))
         runCurrent()
-        assertEquals(listOf(SamplePapers.bert), libraryRepository.observeSavedPapers().first())
+        assertEquals(listOf(SamplePapers.bert), libraryRepository.observeLibrary("", null).first().map { it.paper })
 
         viewModel.onToggleSave(PaperItem(SamplePapers.bert, inLibrary = true))
         runCurrent()
-        assertTrue(libraryRepository.observeSavedPapers().first().isEmpty())
+        assertTrue(libraryRepository.observeLibrary("", null).first().isEmpty())
     }
 
     @Test

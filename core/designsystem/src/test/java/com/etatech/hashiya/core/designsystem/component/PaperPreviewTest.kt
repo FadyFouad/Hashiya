@@ -1,11 +1,14 @@
 package com.etatech.hashiya.core.designsystem.component
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.SamplePapers
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -70,5 +73,37 @@ class PaperPreviewTest {
     fun missingAbstractIsExplained() {
         show(SamplePapers.vit, inLibrary = false)
         composeRule.onNodeWithText("No abstract available").assertIsDisplayed()
+    }
+
+    @Test
+    fun statusSelectorShowsTheStatusAndChangesIt() {
+        val changes = mutableListOf<ReadingStatus>()
+        composeRule.setContent {
+            HashiyaTheme {
+                PaperPreviewContent(
+                    SamplePapers.bert,
+                    inLibrary = true,
+                    onToggleSave = {},
+                    onOpenDoi = {},
+                    status = ReadingStatus.Reading,
+                    onStatusChange = { changes += it }
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Reading").assertIsSelected()
+        composeRule.onNodeWithText("To read").assertIsNotSelected()
+        composeRule.onNodeWithText("Reading").performClick()
+        composeRule.onNodeWithText("Read").performClick()
+        assertEquals(listOf(ReadingStatus.Read), changes)
+    }
+
+    /** Search passes no status, so its preview looks the same as before. */
+    @Test
+    fun noStatusSelectorWithoutAStatus() {
+        show(SamplePapers.bert, inLibrary = false)
+
+        composeRule.onNodeWithText("To read").assertDoesNotExist()
+        composeRule.onNodeWithText("Reading").assertDoesNotExist()
     }
 }

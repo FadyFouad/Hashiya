@@ -12,4 +12,7 @@
     <string name="designsystem_open_doi">فتح DOI</string>
     <string name="designsystem_save_to_library">حفظ في المكتبة</string>
     <string name="designsystem_remove_from_library">إزالة من المكتبة</string>
+    <string name="status_to_read">للقراءة</string>
+    <string name="status_reading">قيد القراءة</string>
+    <string name="status_read">مقروءة</string>
 </resources>

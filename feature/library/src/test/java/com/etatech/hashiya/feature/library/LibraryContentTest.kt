@@ -5,18 +5,31 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
-import androidx.compose.ui.test.hasScrollToNodeAction
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasScrollToIndexAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
+import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performTextInput
 import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
+import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
+import com.etatech.hashiya.feature.library.components.LIBRARY_SEARCH_FIELD_TAG
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -27,45 +40,74 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
+@Config(qualifiers = PHONE_QUALIFIERS)
 class LibraryContentTest {
     @get:Rule
     val composeRule = createComposeRule()
 
     private val events = mutableListOf<String>()
-    private val removedBert = RemovedPaper(SamplePapers.bert, localId = "local-1", savedAt = 1)
-    private val removedVit = RemovedPaper(SamplePapers.vit, localId = "local-2", savedAt = 2)
+    private val removedBert = RemovedPaper(SamplePapers.bert, localId = "local-1", savedAt = 1, status = ReadingStatus.ToRead)
+    private val removedVit = RemovedPaper(SamplePapers.vit, localId = "local-2", savedAt = 2, status = ReadingStatus.ToRead)
 
-    private fun show(state: LibraryUiState, pendingUndo: () -> RemovedPaper? = { null }) = composeRule.setContent {
+    private val actions = LibraryActions(
+        onQueryChange = { events += "query:$it" },
+        onSearch = { events += "search" },
+        onClearQuery = { events += "clearQuery" },
+        onStatusFilterChange = { events += "filter:$it" },
+        onClearSearchAndFilters = { events += "clearAll" },
+        onPaperClick = { events += "open:${it.openAlexId}" },
+        onStatusChange = { paper, status -> events += "status:${paper.openAlexId}:$status" },
+        onRemove = { paper: Paper -> events += "remove:${paper.openAlexId}" },
+        onUndo = { events += "undo" },
+        onUndoDismissed = { events += "undoDismissed" },
+        onMessageShown = { events += "messageShown" },
+        onGoToSearch = { events += "search-tab" },
+        onAddPaper = { events += "addPaper" },
+        onOpenSettings = { events += "settings" }
+    )
+
+    private fun counts(toRead: Int, reading: Int, read: Int) =
+        mapOf(ReadingStatus.ToRead to toRead, ReadingStatus.Reading to reading, ReadingStatus.Read to read)
+
+    private fun papersState(vararg papers: Pair<Paper, ReadingStatus>, filter: LibraryFilter = LibraryFilter()) =
+        LibraryUiState.Papers(papers.map { (paper, status) -> LibraryPaper(paper, status) }, filter)
+
+    private fun toRead(vararg papers: Paper) = papersState(*papers.map { it to ReadingStatus.ToRead }.toTypedArray())
+
+    private fun show(
+        state: () -> LibraryUiState,
+        pendingUndo: () -> RemovedPaper? = { null },
+        selectedPaper: LibraryPaper? = null,
+        message: LibraryMessage? = null,
+        actions: LibraryActions = this.actions
+    ) = composeRule.setContent {
         HashiyaTheme {
             LibraryContent(
-                uiState = state,
-                selectedPaper = null,
+                uiState = state(),
+                selectedPaper = selectedPaper,
                 pendingUndo = pendingUndo(),
-                onPaperClick = { events += "open:${it.openAlexId}" },
-                onDismissPreview = {},
-                onRemove = { paper: Paper -> events += "remove:${paper.openAlexId}" },
-                onUndo = { events += "undo" },
-                onUndoDismissed = { events += "undoDismissed" },
-                onGoToSearch = { events += "search" },
-                onOpenSettings = { events += "settings" },
-                onOpenDoi = {},
-                onAddPaper = { events += "addPaper" }
+                actions = actions,
+                message = message
             )
         }
     }
 
+    private fun show(state: LibraryUiState, pendingUndo: () -> RemovedPaper? = { null }) = show({ state }, pendingUndo)
+
     @Test
-    fun emptyStateLeadsToSearch() {
+    fun emptyStateLeadsToSearchWithoutSearchFieldOrChips() {
         show(LibraryUiState.Empty)
 
         composeRule.onNodeWithText("No saved papers yet").assertIsDisplayed()
+        composeRule.onNodeWithText("Search your library").assertDoesNotExist()
+        composeRule.onNodeWithText("All", substring = true).assertDoesNotExist()
         composeRule.onNodeWithText("Go to Search").performClick()
-        assertEquals(listOf("search"), events)
+        assertEquals(listOf("search-tab"), events)
     }
 
     @Test
     fun listShowsCountTitlesAndShortAuthorLine() {
-        show(LibraryUiState.Papers(listOf(SamplePapers.attention, SamplePapers.vit)))
+        show(toRead(SamplePapers.attention, SamplePapers.vit))
 
         composeRule.onNodeWithText("2 papers").assertIsDisplayed()
         composeRule.onNodeWithText("Attention Is All You Need").assertIsDisplayed()
@@ -74,10 +116,116 @@ class LibraryContentTest {
 
     @Test
     fun tappingRowOpensPreview() {
-        show(LibraryUiState.Papers(listOf(SamplePapers.bert)))
+        show(toRead(SamplePapers.bert))
 
         composeRule.onNodeWithText(SamplePapers.bert.title).performClick()
         assertEquals(listOf("open:${SamplePapers.bert.openAlexId}"), events)
+    }
+
+    @Test
+    fun typingAndTheSearchKeyReachTheViewModel() {
+        var query by mutableStateOf("")
+        show(
+            state = { papersState(SamplePapers.bert to ReadingStatus.ToRead, filter = LibraryFilter(query = query)) },
+            actions = actions.copy(
+                onQueryChange = {
+                    query = it
+                    events += "query:$it"
+                }
+            )
+        )
+
+        composeRule.onNodeWithText("Search your library").assertIsDisplayed()
+        composeRule.onNodeWithTag(LIBRARY_SEARCH_FIELD_TAG).performTextInput("bert")
+        composeRule.onNodeWithTag(LIBRARY_SEARCH_FIELD_TAG).performImeAction()
+
+        assertEquals(listOf("query:bert", "search"), events)
+    }
+
+    @Test
+    fun clearButtonClearsTheSearch() {
+        show(papersState(SamplePapers.bert to ReadingStatus.ToRead, filter = LibraryFilter(query = "bert")))
+
+        composeRule.onNodeWithContentDescription("Clear search").performClick()
+        assertEquals(listOf("clearQuery"), events)
+    }
+
+    @Test
+    fun chipsShowCountsAndSelectAStatus() {
+        show(
+            papersState(
+                SamplePapers.bert to ReadingStatus.Reading,
+                filter = LibraryFilter(status = ReadingStatus.Reading, counts = counts(toRead = 2, reading = 1, read = 0))
+            )
+        )
+
+        composeRule.onNodeWithText("All · 3").assertIsNotSelected()
+        composeRule.onNodeWithText("To read · 2").assertIsDisplayed()
+        composeRule.onNodeWithText("Reading · 1").assertIsSelected()
+        composeRule.onNodeWithText("Read · 0").performClick()
+        composeRule.onNodeWithText("All · 3").performClick()
+        assertEquals(listOf("filter:Read", "filter:null"), events)
+    }
+
+    @Test
+    fun badgeShowsTheStatusAndItsMenuChangesIt() {
+        show(papersState(SamplePapers.bert to ReadingStatus.ToRead))
+
+        composeRule.onNodeWithContentDescription("Status: To read. Change status").performClick()
+        composeRule.onNode(hasText("To read") and hasAnyAncestor(isPopup())).assertIsSelected()
+        composeRule.onNode(hasText("Reading") and hasAnyAncestor(isPopup())).assertIsNotSelected()
+        composeRule.onNode(hasText("Reading") and hasAnyAncestor(isPopup())).performClick()
+
+        assertEquals(listOf("status:${SamplePapers.bert.openAlexId}:Reading"), events)
+        composeRule.onNode(hasAnyAncestor(isPopup())).assertDoesNotExist()
+    }
+
+    @Test
+    fun readBadgeSaysReadNotJustAColour() {
+        show(papersState(SamplePapers.bert to ReadingStatus.Read))
+
+        composeRule.onNodeWithContentDescription("Status: Read. Change status").assertIsDisplayed()
+    }
+
+    @Test
+    fun noMatchesOffersToClearSearchAndFilters() {
+        show(LibraryUiState.NoMatches(LibraryFilter(query = "zebra", counts = counts(0, 0, 0))))
+
+        composeRule.onNodeWithText("No papers match").assertIsDisplayed()
+        composeRule.onNodeWithText("All · 0").assertIsDisplayed()
+        composeRule.onNodeWithText("Clear search and filters").performClick()
+        assertEquals(listOf("clearAll"), events)
+    }
+
+    /** Typing a word that matches nothing swaps the list for "No papers match"; the field must keep focus and the keyboard. */
+    @Test
+    fun searchFieldKeepsFocusWhenNothingMatches() {
+        var state by mutableStateOf<LibraryUiState>(toRead(SamplePapers.bert))
+        show({ state })
+        composeRule.onNodeWithTag(LIBRARY_SEARCH_FIELD_TAG).performClick()
+        composeRule.onNodeWithTag(LIBRARY_SEARCH_FIELD_TAG).assertIsFocused()
+
+        composeRule.runOnIdle { state = LibraryUiState.NoMatches(LibraryFilter(query = "zebra")) }
+
+        composeRule.onNodeWithText("No papers match").assertIsDisplayed()
+        composeRule.onNodeWithTag(LIBRARY_SEARCH_FIELD_TAG).assertIsFocused()
+    }
+
+    @Test
+    fun previewHasTheStatusSelector() {
+        show({ toRead(SamplePapers.bert) }, selectedPaper = LibraryPaper(SamplePapers.bert, ReadingStatus.Reading))
+
+        // The sheet is a dialog window.
+        composeRule.onNode(hasText("Reading") and hasAnyAncestor(isDialog())).assertIsSelected()
+        composeRule.onNode(hasText("Read") and hasAnyAncestor(isDialog())).performClick()
+        assertEquals(listOf("status:${SamplePapers.bert.openAlexId}:Read"), events)
+    }
+
+    @Test
+    fun statusUpdateFailureShowsASnackbar() {
+        show({ toRead(SamplePapers.bert) }, message = LibraryMessage.StatusUpdateFailed)
+
+        composeRule.onNodeWithText("Couldn't update the status").assertIsDisplayed()
     }
 
     @Test
@@ -127,20 +275,20 @@ class LibraryContentTest {
 
     @Test
     fun addPaperButtonWithPapers() {
-        show(LibraryUiState.Papers(listOf(SamplePapers.bert)))
+        show(toRead(SamplePapers.bert))
 
         composeRule.onNodeWithText("Add paper", useUnmergedTree = true).performClick()
         assertEquals(listOf("addPaper"), events)
     }
 
     /** With enough papers to overflow the screen, the FAB must not cover the last, scrolled-to row. */
-    @Config(qualifiers = PHONE_QUALIFIERS)
     @Test
     fun lastPaperStaysClearOfTheAddPaperButton() {
         val manyPapers = (1..20).map { SamplePapers.bert.copy(openAlexId = "paper-$it", title = "Paper $it") }
-        show(LibraryUiState.Papers(manyPapers))
+        show(toRead(*manyPapers.toTypedArray()))
 
-        composeRule.onNode(hasScrollToNodeAction()).performScrollToNode(hasText("Paper 20"))
+        // The list, not the sideways-scrolling chips.
+        composeRule.onNode(hasScrollToIndexAction()).performScrollToNode(hasText("Paper 20"))
 
         val lastRowBounds = composeRule.onNodeWithText("Paper 20").getUnclippedBoundsInRoot()
         val fabBounds = composeRule.onNodeWithText("Add paper", useUnmergedTree = true).getUnclippedBoundsInRoot()

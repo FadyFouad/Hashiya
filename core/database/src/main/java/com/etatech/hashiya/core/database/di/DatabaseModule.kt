@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.etatech.hashiya.core.database.HashiyaDatabase
 import com.etatech.hashiya.core.database.dao.PaperDao
+import com.etatech.hashiya.core.database.migration.MIGRATION_1_2
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -14,10 +15,13 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 internal object DatabaseModule {
+    // No destructive fallback: a failing migration must never delete the user's library.
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): HashiyaDatabase =
-        Room.databaseBuilder(context, HashiyaDatabase::class.java, "hashiya.db").build()
+        Room.databaseBuilder(context, HashiyaDatabase::class.java, "hashiya.db")
+            .addMigrations(MIGRATION_1_2)
+            .build()
 
     @Provides
     fun providePaperDao(database: HashiyaDatabase): PaperDao = database.paperDao()

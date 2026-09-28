@@ -4,6 +4,7 @@ import com.etatech.hashiya.core.database.model.PaperAuthorEntity
 import com.etatech.hashiya.core.database.model.PaperWithAuthors
 import com.etatech.hashiya.core.model.Author
 import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.model.ReadingStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -23,17 +24,18 @@ class PaperEntityMappingTest {
 
     @Test
     fun roundTripsThroughEntities() {
-        val entities = paper.asEntities(localId = "local-1", savedAt = 42L)
+        val entities = paper.asEntities(localId = "local-1", savedAt = 42L, status = ReadingStatus.Reading)
 
         assertEquals("local-1", entities.paper.id)
         assertEquals(42L, entities.paper.savedAt)
+        assertEquals("reading", entities.paper.readingStatus)
         assertEquals(listOf(0, 1), entities.authors.map { it.position })
         assertEquals(paper, PaperWithAuthors(entities.paper, entities.authors).asPaper())
     }
 
     @Test
     fun sortsAuthorsByPositionWhenReading() {
-        val entities = paper.asEntities(localId = "local-1", savedAt = 42L)
+        val entities = paper.asEntities(localId = "local-1", savedAt = 42L, status = ReadingStatus.ToRead)
         val shuffled = PaperWithAuthors(entities.paper, entities.authors.reversed())
 
         assertEquals(listOf("First", "Second"), shuffled.asPaper().authors.map { it.name })
@@ -41,7 +43,20 @@ class PaperEntityMappingTest {
 
     @Test
     fun authorEntitiesPointAtThePaper() {
-        val authors: List<PaperAuthorEntity> = paper.asEntities(localId = "local-1", savedAt = 0).authors
+        val authors: List<PaperAuthorEntity> = paper.asEntities(localId = "local-1", savedAt = 0, status = ReadingStatus.ToRead).authors
         assertEquals(setOf("local-1"), authors.map { it.paperId }.toSet())
+    }
+
+    @Test
+    fun searchRowHoldsNormalizedTextForThePaper() {
+        val search = paper.copy(title = "Schrödinger", abstract = null, venue = null)
+            .asEntities(localId = "local-1", savedAt = 0, status = ReadingStatus.ToRead)
+            .search
+
+        assertEquals("local-1", search.paperId)
+        assertEquals("schrodinger", search.title)
+        assertEquals("first second", search.authors)
+        assertEquals("", search.abstract)
+        assertEquals("", search.venue)
     }
 }

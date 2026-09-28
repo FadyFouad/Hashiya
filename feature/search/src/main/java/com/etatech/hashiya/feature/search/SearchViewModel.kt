@@ -18,6 +18,7 @@ import com.etatech.hashiya.core.model.SearchSort
 import com.etatech.hashiya.core.model.YearFilter
 import com.etatech.hashiya.core.model.looksLikeLink
 import com.etatech.hashiya.core.model.parsePaperIdentifier
+import com.etatech.hashiya.core.model.withoutArabicMarks
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -88,7 +89,12 @@ class SearchViewModel @Inject constructor(
     /** The keyword query; null when the submitted text is blank, is a DOI / arXiv ID (ID mode), or is an unrecognized link. */
     private val activeQuery: StateFlow<SearchQuery?> = combine(draft, submittedText) { current, submitted ->
         submitted.trim()
-            .takeIf { it.isNotEmpty() && parsePaperIdentifier(it) == null && !looksLikeLink(it) }
+            .takeIf {
+                it.isNotEmpty() &&
+                    withoutArabicMarks(it).trim().isNotEmpty() &&
+                    parsePaperIdentifier(it) == null &&
+                    !looksLikeLink(it)
+            }
             ?.let { current.copy(text = it) }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, null)
 

@@ -99,6 +99,34 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun tatweelOnlyQueryIsIdleAndDoesNotSearch() = runTest {
+        val viewModel = viewModel()
+        viewModel.onTextChange("ـــ")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.isIdle)
+        assertTrue(searchRepository.queries.isEmpty())
+
+        viewModel.onTextChange("التَّعلُّم")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertEquals(listOf(SearchQuery("التَّعلُّم")), searchRepository.queries)
+    }
+
+    @Test
+    fun tashkeelOnlyQueryIsIdleAndDoesNotSearch() = runTest {
+        val viewModel = viewModel()
+        viewModel.onTextChange("َ")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertTrue(viewModel.uiState.value.isIdle)
+        assertTrue(searchRepository.queries.isEmpty())
+    }
+
+    @Test
     fun filterChangesApplyImmediately() = runTest {
         val viewModel = viewModel()
         viewModel.onSuggestion("bert")

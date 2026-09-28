@@ -161,7 +161,7 @@ data class SearchRoute(
 - A pure function `shareToSearchRoute(text: String?, subject: String?): SearchRoute`:
   1. `extractPaperIdentifier(text)` finds an ID → `SearchRoute(query = canonical, pageTitle = subject)` where canonical is the bare DOI or `arXiv:<id>`.
   2. No ID, non-blank subject → `SearchRoute(query = subject, note = NoIdInShare)`: keyword search with the note "No DOI or arXiv ID in the shared link — searching by page title."
-  3. No ID, no subject → `SearchRoute(note = NothingInShare)`: "Couldn't find a paper in what you shared."
+  3. No ID, no subject → `SearchRoute(note = NothingInShare)`: "Couldn't find a paper in what you shared." A subject that is only a link (browsers send the URL when a page has no title) counts as no subject.
 - Hashiya opens over the browser (standard share-target behavior); Back returns through the Library to the browser.
 
 ### 6.3 Add paper button (`feature/library`)

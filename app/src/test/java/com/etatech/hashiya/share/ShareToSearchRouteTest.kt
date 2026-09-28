@@ -69,6 +69,13 @@ class ShareToSearchRouteTest {
     }
 
     @Test
+    fun titleThatIsOnlyALinkIsNotSearched() {
+        val link = "https://ieeexplore.ieee.org/document/9999999"
+
+        assertEquals(SearchRoute(note = SearchNote.NothingInShare.name), shareToSearchRoute(link, link))
+    }
+
+    @Test
     fun veryLongSharedTitleIsShortened() {
         val longTitle = "A".repeat(400)
         val shortenedTitle = "A".repeat(300)

@@ -4,7 +4,9 @@ import com.etatech.hashiya.core.network.BuildConfig
 import com.etatech.hashiya.core.network.OPENALEX_BASE_URL
 import com.etatech.hashiya.core.network.OpenAlexApi
 import com.etatech.hashiya.core.network.OpenAlexDataSource
+import com.etatech.hashiya.core.network.OpenAlexLookupDataSource
 import com.etatech.hashiya.core.network.RetrofitOpenAlexDataSource
+import com.etatech.hashiya.core.network.RetrofitOpenAlexLookupDataSource
 import com.etatech.hashiya.core.network.UserApiKeySource
 import com.etatech.hashiya.core.network.buildOpenAlexApi
 import com.etatech.hashiya.core.network.buildOpenAlexOkHttpClient
@@ -39,4 +41,7 @@ internal object NetworkModule {
 internal abstract class NetworkBindingsModule {
     @Binds
     abstract fun bindOpenAlexDataSource(impl: RetrofitOpenAlexDataSource): OpenAlexDataSource
+
+    @Binds
+    abstract fun bindOpenAlexLookupDataSource(impl: RetrofitOpenAlexLookupDataSource): OpenAlexLookupDataSource
 }

@@ -110,7 +110,7 @@ class SearchLookupContentTest {
 
         // First-strong isolates (U+2068/U+2069) keep the Latin title left-to-right inside the Arabic label,
         // wherever it is rendered — a plain substring match would pass even if they were dropped by mistake.
-        composeRule.onNodeWithText("⁨${shortTitle(bertTitle)}⁩", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("\u2068${shortTitle(bertTitle)}\u2069", substring = true).assertIsDisplayed()
     }
 
     @Test

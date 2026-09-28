@@ -345,6 +345,26 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun pastedLinkWithoutAnIdSaysSoInsteadOfSearching() = runTest {
+        val viewModel = viewModel()
+
+        viewModel.onTextChange("https://example.com/some/article")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertEquals(LookupUiState.NoIdInLink, viewModel.lookupState.value)
+        assertTrue(searchRepository.queries.isEmpty())
+        assertTrue(lookupRepository.lookups.isEmpty())
+
+        viewModel.onTextChange("graph neural networks")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertEquals(listOf(SearchQuery("graph neural networks")), searchRepository.queries)
+        assertNull(viewModel.lookupState.value)
+    }
+
+    @Test
     fun newerLookupReplacesOlderOne() = runTest {
         val first = PaperIdentifier.Doi("10.1000/first")
         val second = PaperIdentifier.Doi("10.1000/second")

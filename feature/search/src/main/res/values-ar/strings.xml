@@ -55,4 +55,6 @@
     <string name="search_lookup_search_title">ابحث عن «%1$s»</string>
     <string name="search_note_no_id">لا يوجد DOI أو معرّف arXiv في الرابط المشارك — يتم البحث بعنوان الصفحة.</string>
     <string name="search_note_nothing">تعذّر العثور على ورقة فيما شاركته.</string>
+    <string name="search_link_no_id_title">لا يوجد DOI أو معرّف arXiv في هذا الرابط</string>
+    <string name="search_link_no_id_message">الصق DOI الورقة أو معرّف arXiv، أو ابحث بعنوانها.</string>
 </resources>

@@ -122,6 +122,15 @@ class SearchLookupContentTest {
     }
 
     @Test
+    fun noIdInLinkHasNoButton() {
+        show(text = "https://example.com/some/article", lookupState = LookupUiState.NoIdInLink)
+
+        composeRule.onNodeWithText("No DOI or arXiv ID in this link").assertIsDisplayed()
+        composeRule.onNodeWithText("Paste the paper's DOI or arXiv ID, or search by its title.").assertIsDisplayed()
+        composeRule.onNodeWithText("Search for", substring = true).assertDoesNotExist()
+    }
+
+    @Test
     fun failedLookupRetries() {
         show(lookupState = LookupUiState.Failed(SearchError.Offline))
 

@@ -16,6 +16,7 @@ import com.etatech.hashiya.core.model.PaperIdentifier
 import com.etatech.hashiya.core.model.SearchQuery
 import com.etatech.hashiya.core.model.SearchSort
 import com.etatech.hashiya.core.model.YearFilter
+import com.etatech.hashiya.core.model.looksLikeLink
 import com.etatech.hashiya.core.model.parsePaperIdentifier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -84,9 +85,11 @@ class SearchViewModel @Inject constructor(
 
     private val apiKey = userPreferencesRepository.userApiKey.distinctUntilChanged()
 
-    /** The keyword query; null when the submitted text is blank or is a DOI / arXiv ID (ID mode). */
+    /** The keyword query; null when the submitted text is blank, is a DOI / arXiv ID (ID mode), or is an unrecognized link. */
     private val activeQuery: StateFlow<SearchQuery?> = combine(draft, submittedText) { current, submitted ->
-        submitted.trim().takeIf { it.isNotEmpty() && parsePaperIdentifier(it) == null }?.let { current.copy(text = it) }
+        submitted.trim()
+            .takeIf { it.isNotEmpty() && parsePaperIdentifier(it) == null && !looksLikeLink(it) }
+            ?.let { current.copy(text = it) }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** A new API key re-runs the active search, so fixing a rejected key in Settings takes effect right away. */
@@ -138,8 +141,14 @@ class SearchViewModel @Inject constructor(
             }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val lookupState: StateFlow<LookupUiState?> = combine(lookup, pageTitle) { current, title ->
-        current?.let { (id, result) -> result.toUiState(id, title) }
+    /** The submitted text is a link with no DOI or arXiv ID in it; [lookup] stays null for it, so this fills in the state. */
+    private val isLinkWithoutId: StateFlow<Boolean> = submittedText
+        .map { looksLikeLink(it) && parsePaperIdentifier(it) == null }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    val lookupState: StateFlow<LookupUiState?> = combine(lookup, pageTitle, isLinkWithoutId) { current, title, isLink ->
+        current?.let { (id, result) -> result.toUiState(id, title) } ?: LookupUiState.NoIdInLink.takeIf { isLink }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     private val selectedPaper = MutableStateFlow<Paper?>(null)

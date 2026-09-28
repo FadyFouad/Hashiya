@@ -147,6 +147,15 @@ class PaperIdentifierTest {
     )
 
     @Test
+    fun looksLikeLinkRecognizesSingleUrlTokens() {
+        assertEquals(true, looksLikeLink("https://example.com/some/article"))
+        assertEquals(true, looksLikeLink("  www.example.com  "))
+        assertEquals(false, looksLikeLink("10.1038/x"))
+        assertEquals(false, looksLikeLink("hello world"))
+        assertEquals(false, looksLikeLink("https://a.b c"))
+    }
+
+    @Test
     fun lenientIgnoresTextBeyondTwoThousandCharacters() {
         val longText = "x".repeat(2_000) + " 10.1038/nature14539"
         assertEquals(null, extractPaperIdentifier(longText))

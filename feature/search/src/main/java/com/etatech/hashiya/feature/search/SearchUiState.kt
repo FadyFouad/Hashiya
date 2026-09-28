@@ -33,4 +33,7 @@ sealed interface LookupUiState {
     data class NotFound(val identifier: PaperIdentifier, val searchTitle: String?) : LookupUiState
 
     data class Failed(val error: SearchError) : LookupUiState
+
+    /** The submitted text is a single link with no DOI or arXiv ID in it; no search or lookup runs. */
+    data object NoIdInLink : LookupUiState
 }

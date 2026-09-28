@@ -58,6 +58,12 @@ fun extractPaperIdentifier(text: String): PaperIdentifier? {
         ?: tokens.firstNotNullOfOrNull { token -> if (isUrl(token)) null else parseToken(token) }
 }
 
+/** True when the trimmed [text] is a single link-shaped token: no whitespace, and a URL by [isUrl]'s rules. */
+fun looksLikeLink(text: String): Boolean {
+    val trimmed = text.trim()
+    return trimmed.isNotEmpty() && trimmed.none { it.isWhitespace() } && isUrl(trimmed)
+}
+
 private fun parseToken(rawToken: String): PaperIdentifier? {
     val token = trimTrailingJunk(rawToken.trimStart { it in LEADING_JUNK })
     if (token.isEmpty()) return null

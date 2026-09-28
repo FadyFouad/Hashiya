@@ -70,6 +70,13 @@ internal fun LookupBody(
         )
 
         is LookupUiState.Failed -> SearchErrorState(state.error, onRetry, onOpenSettings, modifier)
+
+        LookupUiState.NoIdInLink -> EmptyState(
+            icon = HashiyaIcons.SearchOff,
+            title = stringResource(R.string.search_link_no_id_title),
+            message = stringResource(R.string.search_link_no_id_message),
+            modifier = modifier
+        )
     }
 }
 

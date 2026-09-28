@@ -54,4 +54,6 @@
     <string name="search_lookup_search_title">Search for “%1$s”</string>
     <string name="search_note_no_id">No DOI or arXiv ID in the shared link — searching by page title.</string>
     <string name="search_note_nothing">Couldn\'t find a paper in what you shared.</string>
+    <string name="search_link_no_id_title">No DOI or arXiv ID in this link</string>
+    <string name="search_link_no_id_message">Paste the paper\'s DOI or arXiv ID, or search by its title.</string>
 </resources>

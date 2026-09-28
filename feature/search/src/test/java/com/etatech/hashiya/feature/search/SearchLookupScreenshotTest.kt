@@ -79,6 +79,14 @@ class SearchLookupScreenshotTest(private val variant: ScreenshotVariant) {
     )
 
     @Test
+    fun noIdInLink() = capture(
+        "search_link_no_id",
+        text = "https://example.com/some/article",
+        arabicText = "لا يوجد DOI أو معرّف arXiv في هذا الرابط",
+        lookupState = LookupUiState.NoIdInLink
+    )
+
+    @Test
     fun error() = capture(
         "search_lookup_error",
         text = "10.1038/nature14539",

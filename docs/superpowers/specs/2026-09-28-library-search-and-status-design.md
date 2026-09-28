@@ -64,7 +64,8 @@ It applies, in order:
 1. Unicode NFKD, then removes every combining mark (`\p{M}`), which covers Latin accents and Arabic tashkeel.
 2. Removes tatweel (`ـ`, U+0640).
 3. Unifies Arabic letters: `أ إ آ ٱ` → `ا`; `ى` → `ي`.
-4. Lowercases (locale-independent, `Locale.ROOT`).
+4. Folds every decimal digit (Unicode Nd, e.g. Arabic-Indic `١٩`) to its ASCII digit, so `١٩` and `19` match.
+5. Lowercases (locale-independent, `Locale.ROOT`).
 
 It lives in `core/model` (`SearchableText.kt`), a pure-Kotlin module, because both `core/data` (indexing, queries) and `core/database` (the migration, §5.4) need it. `core/database` gains `implementation(project(":core:model"))` for this. The existing `normalizedTitle` in `core/data/lookup` has a different purpose (comparing whole titles) and stays separate.
 

@@ -118,7 +118,7 @@ class SearchViewModelTest {
     @Test
     fun tashkeelOnlyQueryIsIdleAndDoesNotSearch() = runTest {
         val viewModel = viewModel()
-        viewModel.onTextChange("َ")
+        viewModel.onTextChange("\u064E")
         advanceTimeBy(DEBOUNCE_MS + 1)
         runCurrent()
 

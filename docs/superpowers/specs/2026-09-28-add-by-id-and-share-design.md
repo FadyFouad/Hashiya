@@ -47,7 +47,7 @@ The same standards as sub-project 1 apply: modular architecture and dependency r
 
 - Adding papers that OpenAlex does not have (manual entry).
 - Using the arXiv API as a metadata source (it is used only to check titles).
-- Resolving publisher pages without an ID in the address (e.g. nature.com articles) other than through the page-title search.
+- Resolving publisher pages without an ID in the address (e.g. an IEEE Xplore `ieeexplore.ieee.org/document/<n>` page) other than through the page-title search.
 - PDFs, notes, collections, library full-text search (later sub-projects).
 - Sharing files or images into Hashiya; only `text/plain` shares.
 
@@ -77,6 +77,7 @@ fun extractPaperIdentifier(text: String): PaperIdentifier?
 - **DOI**
   - `doi.org/<doi>` and `dx.doi.org/<doi>` links, and a `doi:` prefix.
   - Publisher URLs whose path contains a DOI (e.g. `/doi/10.xxxx/…`, `/doi/full/10.xxxx/…`, `/article/10.xxxx/…`): query and fragment removed, percent-decoding applied.
+  - Nature Portfolio article links: `nature.com/articles/<id>` (with or without `www.`, and an optional `.pdf` suffix) → `10.1038/<id>` — covers Nature (`nature14539`), Scientific Reports (`s41598-…`), Nature Communications (`s41467-…`) and Nature news (`d41586-…`).
   - A bare `10.NNNN/…` DOI: as the whole input (strict) or anywhere in the text (lenient).
   - Every DOI is passed through `normalizeDoi()`.
 - **Cleanup**
@@ -89,6 +90,7 @@ fun extractPaperIdentifier(text: String): PaperIdentifier?
 - Typed text that merely contains a DOI stays a normal search: `a study of 10.1038/nature14539` → `parsePaperIdentifier` returns null, `extractPaperIdentifier` returns the DOI.
 - Shared text like `Paper title https://arxiv.org/abs/1706.03762` → the extractor finds the link.
 - Only the first 2,000 characters of shared text are examined; with several IDs, the first link wins, then the first bare ID.
+- Pasting a single link with no DOI or arXiv ID in it into Search runs no keyword search and no lookup; it shows "No DOI or arXiv ID in this link" instead. Shares are unaffected: a shared page with no ID still falls back to a keyword search for the page title.
 
 ## 4. Lookup
 
@@ -199,11 +201,12 @@ TDD with hand-written fakes, as in sub-project 1.
 3. Pasting `1810.04805` shows "No paper found for this arXiv ID" with **Search for "BERT: …"**, which runs a keyword search.
 4. Typing `a study of 10.1038/nature14539` runs a normal keyword search.
 5. Sharing from Chrome an arXiv `abs` page, an arXiv `pdf`, a `doi.org` link and a Wiley or ACM article opens Hashiya on the right preview.
-6. Sharing a nature.com article (no ID in the address) opens a keyword search for the page title with the explanatory note.
+6. Sharing a nature.com article opens the paper's preview; sharing an IEEE Xplore article (no ID in the address) opens a keyword search for the page title with the explanatory note.
 7. In airplane mode, a lookup shows the offline error with Retry; Retry after reconnecting finds the paper.
 8. The Library's Add paper button opens Search with the keyboard up and the new hint.
-9. Everything above works in Arabic with RTL; English titles stay left-to-right.
-10. CI is green, with new screenshot baselines recorded on Linux.
+9. Pasting a link with no DOI or arXiv ID into Search shows "No DOI or arXiv ID in this link" instead of searching the URL as text.
+10. Everything above works in Arabic with RTL; English titles stay left-to-right.
+11. CI is green, with new screenshot baselines recorded on Linux.
 
 ## 10. Risks
 

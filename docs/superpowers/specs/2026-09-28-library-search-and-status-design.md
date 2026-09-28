@@ -69,6 +69,8 @@ It applies, in order:
 
 It lives in `core/model` (`SearchableText.kt`), a pure-Kotlin module, because both `core/data` (indexing, queries) and `core/database` (the migration, §5.4) need it. `core/database` gains `implementation(project(":core:model"))` for this. The existing `normalizedTitle` in `core/data/lookup` has a different purpose (comparing whole titles) and stays separate.
 
+The Search tab's OpenAlex query drops only Arabic tashkeel and tatweel (`withoutArabicMarks`), so a word typed with or without marks returns the same results; letters, accents, digits and case are sent as typed.
+
 ## 5. Database (`core/database`), schema version 2
 
 ### 5.1 Reading status

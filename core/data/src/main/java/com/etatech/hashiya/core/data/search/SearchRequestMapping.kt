@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.data.search
 import com.etatech.hashiya.core.model.SearchQuery
 import com.etatech.hashiya.core.model.SearchSort
 import com.etatech.hashiya.core.model.YearFilter
+import com.etatech.hashiya.core.model.withoutArabicMarks
 import com.etatech.hashiya.core.network.WorksSearchRequest
 
 internal const val PAGE_SIZE = 25
@@ -18,7 +19,7 @@ internal fun SearchQuery.toWorksSearchRequest(cursor: String): WorksSearchReques
         if (openAccessOnly) add("is_oa:true")
     }
     return WorksSearchRequest(
-        search = text.trim(),
+        search = withoutArabicMarks(text).trim(),
         filter = filters.joinToString(",").ifEmpty { null },
         sort = when (sort) {
             SearchSort.Relevance -> null

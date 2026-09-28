@@ -71,4 +71,20 @@ class SearchableTextTest {
             Locale.setDefault(original)
         }
     }
+
+    @Test
+    fun withoutArabicMarksRemovesTashkeelAndTatweel() {
+        assertEquals("التعلم", withoutArabicMarks("التَّعلُّم"))
+        assertEquals("التعلم", withoutArabicMarks("التّعلمُ"))
+        assertEquals("التعلم", withoutArabicMarks("ـالتعلمـ"))
+    }
+
+    @Test
+    fun withoutArabicMarksKeepsEverythingElseAsTyped() {
+        assertEquals("Schrödinger", withoutArabicMarks("Schrödinger"))
+        assertEquals("أإآ", withoutArabicMarks("أإآ"))
+        assertEquals("Deep Learning", withoutArabicMarks("Deep Learning"))
+        assertEquals("١٩", withoutArabicMarks("١٩"))
+        assertEquals("", withoutArabicMarks(""))
+    }
 }

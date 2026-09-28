@@ -52,4 +52,20 @@ class SearchRequestMappingTest {
     fun passesCursorThrough() {
         assertEquals("abc", SearchQuery("x").toWorksSearchRequest("abc").cursor)
     }
+
+    @Test
+    fun stripsArabicTashkeelFromSearchText() {
+        assertEquals(
+            "التعلم",
+            SearchQuery(" التَّعلُّم ").toWorksSearchRequest(FIRST_CURSOR).search
+        )
+    }
+
+    @Test
+    fun keepsLatinAccentsInSearchText() {
+        assertEquals(
+            "Schrödinger",
+            SearchQuery("Schrödinger").toWorksSearchRequest(FIRST_CURSOR).search
+        )
+    }
 }

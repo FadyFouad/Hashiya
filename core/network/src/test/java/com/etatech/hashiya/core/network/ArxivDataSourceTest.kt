@@ -1,11 +1,21 @@
 package com.etatech.hashiya.core.network
 
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeout
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import okhttp3.Call
+import okhttp3.EventListener
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
@@ -88,6 +98,24 @@ class ArxivDataSourceTest {
     fun notAFeedIsMalformed() = runTest {
         enqueue(200, "<html><body>maintenance</body></html>")
         assertEquals(NetworkFailure.MalformedResponse, failureOf { dataSource().title("1810.04805") })
+    }
+
+    @Test
+    fun cancellingTheLookupCancelsTheRequest() = runBlocking {
+        server.enqueue(MockResponse.Builder().body(readFixture("arxiv_bert.xml")).headersDelay(10, TimeUnit.SECONDS).build())
+        val canceled = CountDownLatch(1)
+        val client = buildArxivOkHttpClient().newBuilder()
+            .eventListener(object : EventListener() {
+                override fun canceled(call: Call) = canceled.countDown()
+            })
+            .build()
+        val dataSource = OkHttpArxivDataSource(client, server.url("/"))
+
+        val lookup = launch(Dispatchers.Default) { dataSource.title("1810.04805") }
+        server.takeRequest()
+        withTimeout(2_000) { lookup.cancelAndJoin() }
+
+        assertTrue("the OkHttp call was canceled", canceled.await(2, TimeUnit.SECONDS))
     }
 
     @Test

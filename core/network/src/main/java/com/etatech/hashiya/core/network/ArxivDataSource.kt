@@ -2,11 +2,17 @@ package com.etatech.hashiya.core.network
 
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import okhttp3.Call
+import okhttp3.Callback
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 
 internal const val ARXIV_BASE_URL = "https://export.arxiv.org/"
 internal const val ARXIV_USER_AGENT = "Hashiya-Android (https://github.com/FadyFouad/Hashiya)"
@@ -33,20 +39,37 @@ internal class OkHttpArxivDataSource(private val client: OkHttpClient, private v
             .addQueryParameter("id_list", id)
             .build()
         val request = Request.Builder().url(url).header("User-Agent", ARXIV_USER_AGENT).build()
-        val body = withContext(Dispatchers.IO) {
-            try {
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        throw NetworkException(NetworkFailure.Http(code = response.code, usedUserKey = false))
+        val body = client.newCall(request).awaitBody()
+        return withContext(Dispatchers.Default) { parseArxivTitle(body) }
+    }
+}
+
+/** The response body; cancelling the coroutine cancels the call, so a dropped lookup stops reaching arXiv. */
+private suspend fun Call.awaitBody(): String = suspendCancellableCoroutine { continuation ->
+    continuation.invokeOnCancellation { cancel() }
+    enqueue(
+        object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                continuation.resumeWithException(NetworkException(NetworkFailure.Connectivity, e))
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                try {
+                    val body = response.use {
+                        if (!it.isSuccessful) {
+                            throw NetworkException(NetworkFailure.Http(code = it.code, usedUserKey = false))
+                        }
+                        it.body.string()
                     }
-                    response.body.string()
+                    continuation.resume(body)
+                } catch (e: IOException) {
+                    continuation.resumeWithException(NetworkException(NetworkFailure.Connectivity, e))
+                } catch (e: NetworkException) {
+                    continuation.resumeWithException(e)
                 }
-            } catch (e: IOException) {
-                throw NetworkException(NetworkFailure.Connectivity, e)
             }
         }
-        return parseArxivTitle(body)
-    }
+    )
 }
 
 private val FEED = Regex("""<feed[\s>]""")

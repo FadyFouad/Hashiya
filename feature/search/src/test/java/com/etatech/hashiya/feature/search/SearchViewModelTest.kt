@@ -2,10 +2,14 @@ package com.etatech.hashiya.feature.search
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.paging.testing.asSnapshot
+import com.etatech.hashiya.core.data.repository.LookupResult
+import com.etatech.hashiya.core.model.PaperIdentifier
+import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.core.model.SearchQuery
 import com.etatech.hashiya.core.model.SearchSort
 import com.etatech.hashiya.core.model.YearFilter
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
+import com.etatech.hashiya.core.testing.FakePaperLookupRepository
 import com.etatech.hashiya.core.testing.FakeSearchRepository
 import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
@@ -33,13 +37,17 @@ class SearchViewModelTest {
     private val searchRepository = FakeSearchRepository()
     private val libraryRepository = FakeLibraryRepository()
     private val userPreferencesRepository = FakeUserPreferencesRepository()
+    private val lookupRepository = FakePaperLookupRepository()
     private val savedStateHandle = SavedStateHandle()
 
+    private val bertTitle = "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"
+
     private fun TestScope.viewModel(handle: SavedStateHandle = savedStateHandle): SearchViewModel {
-        val viewModel = SearchViewModel(handle, searchRepository, libraryRepository, userPreferencesRepository)
+        val viewModel = SearchViewModel(handle, searchRepository, libraryRepository, userPreferencesRepository, lookupRepository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.selectedItem.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.savedIds.collect() }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.lookupState.collect() }
         runCurrent()
         return viewModel
     }
@@ -290,5 +298,209 @@ class SearchViewModelTest {
         assertEquals(2015, savedStateHandle.get<Int>("search_year_from"))
         assertEquals(2020, savedStateHandle.get<Int>("search_year_to"))
         assertEquals(true, savedStateHandle.get<Boolean>("search_oa"))
+    }
+
+    @Test
+    fun pastedDoiIsLookedUpInsteadOfSearched() = runTest {
+        val doi = PaperIdentifier.Doi("10.1038/nature14539")
+        lookupRepository.results[doi] = LookupResult.Found(SamplePapers.attention)
+        val viewModel = viewModel()
+
+        viewModel.onTextChange("https://doi.org/10.1038/nature14539")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertEquals(listOf(doi), lookupRepository.lookups)
+        assertTrue(searchRepository.queries.isEmpty())
+        assertEquals(LookupUiState.Found(SamplePapers.attention), viewModel.lookupState.value)
+    }
+
+    @Test
+    fun lookupShowsLookingUntilItFinishes() = runTest {
+        val arxiv = PaperIdentifier.Arxiv("1706.03762")
+        lookupRepository.results[arxiv] = LookupResult.Found(SamplePapers.attention)
+        lookupRepository.holdLookups()
+        val viewModel = viewModel()
+
+        viewModel.onSuggestion("1706.03762")
+        runCurrent()
+        assertEquals(LookupUiState.Looking(arxiv), viewModel.lookupState.value)
+
+        lookupRepository.releaseLookups()
+        runCurrent()
+        assertEquals(LookupUiState.Found(SamplePapers.attention), viewModel.lookupState.value)
+    }
+
+    @Test
+    fun textContainingADoiIsAKeywordSearch() = runTest {
+        val viewModel = viewModel()
+
+        viewModel.onTextChange("a study of 10.1038/nature14539")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertEquals(listOf(SearchQuery("a study of 10.1038/nature14539")), searchRepository.queries)
+        assertTrue(lookupRepository.lookups.isEmpty())
+        assertNull(viewModel.lookupState.value)
+    }
+
+    @Test
+    fun pastedLinkWithoutAnIdSaysSoInsteadOfSearching() = runTest {
+        val viewModel = viewModel()
+
+        viewModel.onTextChange("https://example.com/some/article")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertEquals(LookupUiState.NoIdInLink, viewModel.lookupState.value)
+        assertTrue(searchRepository.queries.isEmpty())
+        assertTrue(lookupRepository.lookups.isEmpty())
+
+        viewModel.onTextChange("graph neural networks")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertEquals(listOf(SearchQuery("graph neural networks")), searchRepository.queries)
+        assertNull(viewModel.lookupState.value)
+    }
+
+    @Test
+    fun newerLookupReplacesOlderOne() = runTest {
+        val first = PaperIdentifier.Doi("10.1000/first")
+        val second = PaperIdentifier.Doi("10.1000/second")
+        lookupRepository.results[first] = LookupResult.Found(SamplePapers.attention)
+        lookupRepository.results[second] = LookupResult.Found(SamplePapers.bert)
+        lookupRepository.holdLookups()
+        val viewModel = viewModel()
+
+        viewModel.onSuggestion("10.1000/first")
+        runCurrent()
+        viewModel.onSuggestion("10.1000/second")
+        runCurrent()
+        lookupRepository.releaseLookups()
+        runCurrent()
+
+        assertEquals(listOf(first, second), lookupRepository.lookups)
+        assertEquals(LookupUiState.Found(SamplePapers.bert), viewModel.lookupState.value)
+    }
+
+    @Test
+    fun retryRerunsTheLookup() = runTest {
+        val doi = PaperIdentifier.Doi("10.1038/nature14539")
+        lookupRepository.results[doi] = LookupResult.Failed(SearchError.Offline)
+        val viewModel = viewModel()
+        viewModel.onSuggestion("10.1038/nature14539")
+        runCurrent()
+        assertEquals(LookupUiState.Failed(SearchError.Offline), viewModel.lookupState.value)
+
+        lookupRepository.results[doi] = LookupResult.Found(SamplePapers.attention)
+        viewModel.onRetryLookup()
+        runCurrent()
+
+        assertEquals(listOf(doi, doi), lookupRepository.lookups)
+        assertEquals(LookupUiState.Found(SamplePapers.attention), viewModel.lookupState.value)
+    }
+
+    @Test
+    fun changingTheApiKeyRerunsTheLookup() = runTest {
+        val viewModel = viewModel()
+        viewModel.onSuggestion("1706.03762")
+        runCurrent()
+
+        userPreferencesRepository.setUserApiKey("new-key")
+        runCurrent()
+
+        assertEquals(2, lookupRepository.lookups.size)
+    }
+
+    @Test
+    fun notFoundOffersTheArxivTitle() = runTest {
+        val bert = PaperIdentifier.Arxiv("1810.04805")
+        lookupRepository.results[bert] = LookupResult.NotFound(arxivTitle = bertTitle)
+        val viewModel = viewModel()
+
+        viewModel.onSuggestion("1810.04805")
+        runCurrent()
+
+        assertEquals(LookupUiState.NotFound(bert, searchTitle = bertTitle), viewModel.lookupState.value)
+    }
+
+    @Test
+    fun routeQueryIsSubmittedImmediately() = runTest {
+        val handle = SavedStateHandle(mapOf("query" to "arXiv:1706.03762", "pageTitle" to "Attention Is All You Need"))
+
+        val viewModel = viewModel(handle)
+
+        assertEquals(listOf(PaperIdentifier.Arxiv("1706.03762")), lookupRepository.lookups)
+        assertEquals("arXiv:1706.03762", viewModel.uiState.value.text)
+    }
+
+    @Test
+    fun notFoundFallsBackToTheSharedPageTitle() = runTest {
+        val handle = SavedStateHandle(mapOf("query" to "10.1038/nature14539", "pageTitle" to "Deep learning"))
+
+        val viewModel = viewModel(handle)
+
+        assertEquals(
+            LookupUiState.NotFound(PaperIdentifier.Doi("10.1038/nature14539"), searchTitle = "Deep learning"),
+            viewModel.lookupState.value
+        )
+    }
+
+    @Test
+    fun editingTheTextForgetsThePageTitle() = runTest {
+        val viewModel = viewModel(SavedStateHandle(mapOf("query" to "10.1038/nature14539", "pageTitle" to "Deep learning")))
+
+        viewModel.onTextChange("1810.04805")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        assertEquals(LookupUiState.NotFound(PaperIdentifier.Arxiv("1810.04805"), searchTitle = null), viewModel.lookupState.value)
+    }
+
+    @Test
+    fun routeArgsNotReappliedOverRestoredText() = runTest {
+        val handle = SavedStateHandle(mapOf("query" to "10.1038/nature14539", "search_text" to "bert"))
+
+        val viewModel = viewModel(handle)
+
+        assertEquals("bert", viewModel.uiState.value.text)
+        assertTrue(lookupRepository.lookups.isEmpty())
+        assertEquals(listOf(SearchQuery("bert")), searchRepository.queries)
+    }
+
+    @Test
+    fun routeArgsAppliedOnlyOnce() = runTest {
+        val handle = SavedStateHandle(mapOf("query" to "10.1038/nature14539", "focusSearch" to true))
+        val first = viewModel(handle)
+        first.onTextChange("gpt")
+        advanceTimeBy(DEBOUNCE_MS + 1)
+        runCurrent()
+
+        val recreated = viewModel(handle)
+
+        assertEquals("gpt", recreated.uiState.value.text)
+        assertFalse(recreated.focusSearch.value)
+        assertEquals(1, lookupRepository.lookups.size)
+    }
+
+    @Test
+    fun routeNoteShowsUntilTheTextChanges() = runTest {
+        val viewModel = viewModel(SavedStateHandle(mapOf("query" to "Deep learning", "note" to SearchNote.NoIdInShare.name)))
+        assertEquals(SearchNote.NoIdInShare, viewModel.note.value)
+
+        viewModel.onTextChange("Deep learning review")
+
+        assertNull(viewModel.note.value)
+    }
+
+    @Test
+    fun focusIsRequestedOnce() = runTest {
+        val viewModel = viewModel(SavedStateHandle(mapOf("focusSearch" to true)))
+        assertTrue(viewModel.focusSearch.value)
+
+        viewModel.onFocusHandled()
+
+        assertFalse(viewModel.focusSearch.value)
     }
 }

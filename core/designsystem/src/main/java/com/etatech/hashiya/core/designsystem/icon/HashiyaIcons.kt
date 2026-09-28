@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
@@ -31,4 +32,5 @@ object HashiyaIcons {
     val VisibilityOff: ImageVector = Icons.Outlined.VisibilityOff
     val Check: ImageVector = Icons.Outlined.Check
     val ArrowDropDown: ImageVector = Icons.Outlined.ArrowDropDown
+    val Add: ImageVector = Icons.Outlined.Add
 }

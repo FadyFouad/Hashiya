@@ -34,7 +34,9 @@ fun PaperCard(paper: Paper, inLibrary: Boolean, onClick: () -> Unit, onSave: () 
                 text = paperTitle(paper),
                 style = MaterialTheme.typography.titleSmall.copy(textDirection = TextDirection.Content),
                 maxLines = 3,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                // Full width so the text aligns by its own direction, even on one line.
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(4.dp))
             Text(
@@ -46,7 +48,8 @@ fun PaperCard(paper: Paper, inLibrary: Boolean, onClick: () -> Unit, onSave: () 
                 style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

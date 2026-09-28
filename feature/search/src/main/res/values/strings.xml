@@ -1,7 +1,7 @@
 <resources>
     <string name="search_title">Search</string>
     <string name="search_settings">Settings</string>
-    <string name="search_placeholder">Search papers</string>
+    <string name="search_placeholder">Search, or paste a DOI, arXiv ID or link</string>
     <string name="search_clear">Clear</string>
     <string name="search_sort_relevance">Relevance</string>
     <string name="search_sort_most_cited">Most cited</string>
@@ -46,4 +46,14 @@
     <string name="search_year_error_order">The start year must not be after the end year</string>
     <string name="search_apply">Apply</string>
     <string name="search_cancel">Cancel</string>
+    <string name="search_lookup_looking_doi">Looking up DOI %1$s…</string>
+    <string name="search_lookup_looking_arxiv">Looking up arXiv %1$s…</string>
+    <string name="search_lookup_not_found_doi">No paper found for this DOI</string>
+    <string name="search_lookup_not_found_arxiv">No paper found for this arXiv ID</string>
+    <string name="search_lookup_not_found_message">Check the ID, or search by the paper\'s title.</string>
+    <string name="search_lookup_search_title">Search for “%1$s”</string>
+    <string name="search_note_no_id">No DOI or arXiv ID in the shared link — searching by page title.</string>
+    <string name="search_note_nothing">Couldn\'t find a paper in what you shared.</string>
+    <string name="search_link_no_id_title">No DOI or arXiv ID in this link</string>
+    <string name="search_link_no_id_message">Paste the paper\'s DOI or arXiv ID, or search by its title.</string>
 </resources>

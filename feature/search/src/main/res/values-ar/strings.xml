@@ -1,7 +1,7 @@
 <resources>
     <string name="search_title">البحث</string>
     <string name="search_settings">الإعدادات</string>
-    <string name="search_placeholder">ابحث عن أوراق</string>
+    <string name="search_placeholder">ابحث، أو الصق DOI أو معرّف arXiv أو رابطًا</string>
     <string name="search_clear">مسح</string>
     <string name="search_sort_relevance">الأكثر صلة</string>
     <string name="search_sort_most_cited">الأكثر استشهادًا</string>
@@ -47,4 +47,14 @@
     <string name="search_year_error_order">يجب ألا تكون سنة البداية بعد سنة النهاية</string>
     <string name="search_apply">تطبيق</string>
     <string name="search_cancel">إلغاء</string>
+    <string name="search_lookup_looking_doi">جارٍ البحث عن DOI %1$s…</string>
+    <string name="search_lookup_looking_arxiv">جارٍ البحث عن arXiv %1$s…</string>
+    <string name="search_lookup_not_found_doi">لم يتم العثور على ورقة بهذا الـ DOI</string>
+    <string name="search_lookup_not_found_arxiv">لم يتم العثور على ورقة بمعرّف arXiv هذا</string>
+    <string name="search_lookup_not_found_message">تحقّق من المعرّف، أو ابحث بعنوان الورقة.</string>
+    <string name="search_lookup_search_title">ابحث عن «%1$s»</string>
+    <string name="search_note_no_id">لا يوجد DOI أو معرّف arXiv في الرابط المشارك — يتم البحث بعنوان الصفحة.</string>
+    <string name="search_note_nothing">تعذّر العثور على ورقة فيما شاركته.</string>
+    <string name="search_link_no_id_title">لا يوجد DOI أو معرّف arXiv في هذا الرابط</string>
+    <string name="search_link_no_id_message">الصق DOI الورقة أو معرّف arXiv، أو ابحث بعنوانها.</string>
 </resources>

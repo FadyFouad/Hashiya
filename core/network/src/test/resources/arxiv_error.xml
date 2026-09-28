@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/">
+  <id>https://arxiv.org/api/g7h8i9</id>
+  <title>arXiv Query: search_query=&amp;id_list=notanid&amp;start=0&amp;max_results=10</title>
+  <updated>2026-09-28T00:00:00Z</updated>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <entry>
+    <id>https://arxiv.org/api/errors#incorrect_id_format_for_notanid</id>
+    <title>Error</title>
+    <summary>incorrect id format for notanid</summary>
+  </entry>
+</feed>

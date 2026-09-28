@@ -4,12 +4,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,7 +50,12 @@ import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.model.Paper
 
 @Composable
-internal fun LibraryScreen(onGoToSearch: () -> Unit, onOpenSettings: () -> Unit, viewModel: LibraryViewModel = hiltViewModel()) {
+internal fun LibraryScreen(
+    onGoToSearch: () -> Unit,
+    onAddPaper: () -> Unit,
+    onOpenSettings: () -> Unit,
+    viewModel: LibraryViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedPaper by viewModel.selectedPaper.collectAsStateWithLifecycle()
     val pendingUndo by viewModel.pendingUndo.collectAsStateWithLifecycle()
@@ -64,7 +71,8 @@ internal fun LibraryScreen(onGoToSearch: () -> Unit, onOpenSettings: () -> Unit,
         onUndoDismissed = viewModel::onUndoDismissed,
         onGoToSearch = onGoToSearch,
         onOpenSettings = onOpenSettings,
-        onOpenDoi = { doi -> runCatching { uriHandler.openUri("https://doi.org/$doi") } }
+        onOpenDoi = { doi -> runCatching { uriHandler.openUri("https://doi.org/$doi") } },
+        onAddPaper = onAddPaper
     )
 }
 
@@ -82,6 +90,7 @@ internal fun LibraryContent(
     onGoToSearch: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDoi: (String) -> Unit,
+    onAddPaper: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -107,7 +116,14 @@ internal fun LibraryContent(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onAddPaper,
+                icon = { Icon(HashiyaIcons.Add, contentDescription = null) },
+                text = { Text(stringResource(R.string.library_add_paper)) }
+            )
+        }
     ) { padding ->
         Box(Modifier.padding(padding)) {
             when (uiState) {
@@ -137,9 +153,13 @@ internal fun LibraryContent(
     }
 }
 
+// Scaffold's floatingActionButton doesn't reserve content padding for the FAB, so the list must
+// leave room itself: the extended FAB is 56dp tall with a 16dp margin, plus a little breathing room.
+private val FAB_CLEARANCE = PaddingValues(bottom = 88.dp)
+
 @Composable
 private fun PaperList(papers: List<Paper>, onPaperClick: (Paper) -> Unit, onRemove: (Paper) -> Unit) {
-    LazyColumn(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = FAB_CLEARANCE) {
         item {
             Text(
                 pluralStringResource(R.plurals.library_paper_count, papers.size, papers.size),
@@ -204,14 +224,17 @@ private fun LibraryRow(paper: Paper, onClick: () -> Unit) {
             paperTitle(paper),
             style = MaterialTheme.typography.titleSmall.copy(textDirection = TextDirection.Content),
             maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            // Full width so the text aligns by its own direction, even on one line.
+            modifier = Modifier.fillMaxWidth()
         )
         Text(
             listOfNotNull(authorText, paper.year?.toString(), paper.venue).joinToString(" · "),
             style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }

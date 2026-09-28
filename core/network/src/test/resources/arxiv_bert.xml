@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:opensearch="http://a9.com/-/spec/opensearch/1.1/" xmlns:arxiv="http://arxiv.org/schemas/atom">
+  <id>https://arxiv.org/api/a1b2c3</id>
+  <title>arXiv Query: search_query=&amp;id_list=1810.04805&amp;start=0&amp;max_results=10</title>
+  <updated>2026-09-28T00:00:00Z</updated>
+  <opensearch:totalResults>1</opensearch:totalResults>
+  <entry>
+    <id>http://arxiv.org/abs/1810.04805v2</id>
+    <title>BERT: Pre-training of Deep Bidirectional Transformers for
+  Language Understanding</title>
+    <summary>We introduce a new language representation model called BERT.</summary>
+    <author><name>Jacob Devlin</name></author>
+  </entry>
+</feed>

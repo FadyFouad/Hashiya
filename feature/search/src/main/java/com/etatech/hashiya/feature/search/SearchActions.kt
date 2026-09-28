@@ -18,5 +18,7 @@ internal data class SearchActions(
     val onDismissPreview: () -> Unit = {},
     val onOpenDoi: (String) -> Unit = {},
     val onOpenSettings: () -> Unit = {},
-    val onMessageShown: () -> Unit = {}
+    val onMessageShown: () -> Unit = {},
+    val onRetryLookup: () -> Unit = {},
+    val onFocusHandled: () -> Unit = {}
 )

@@ -6,13 +6,18 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.etatech.hashiya.core.data.repository.LibraryRepository
+import com.etatech.hashiya.core.data.repository.LookupResult
+import com.etatech.hashiya.core.data.repository.PaperLookupRepository
 import com.etatech.hashiya.core.data.repository.SearchRepository
 import com.etatech.hashiya.core.data.repository.SearchResults
 import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
 import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.model.PaperIdentifier
 import com.etatech.hashiya.core.model.SearchQuery
 import com.etatech.hashiya.core.model.SearchSort
 import com.etatech.hashiya.core.model.YearFilter
+import com.etatech.hashiya.core.model.looksLikeLink
+import com.etatech.hashiya.core.model.parsePaperIdentifier
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -28,6 +33,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -42,13 +48,28 @@ class SearchViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val searchRepository: SearchRepository,
     private val libraryRepository: LibraryRepository,
-    userPreferencesRepository: UserPreferencesRepository
+    userPreferencesRepository: UserPreferencesRepository,
+    private val paperLookupRepository: PaperLookupRepository
 ) : ViewModel() {
-    /** What the user sees: the field's text as typed plus the chip selections. */
-    private val draft = MutableStateFlow(savedStateHandle.readSearchQuery())
+    /** Arguments from Share or "Add paper": applied once, never over text restored after process death. */
+    private val routeArgs = savedStateHandle.consumeRouteArgs()
 
-    /** The text actually searched: set after the debounce, or immediately on IME search / suggestion / clear. */
+    /** What the user sees: the field's text as typed plus the chip selections. */
+    private val draft = MutableStateFlow(
+        savedStateHandle.readSearchQuery().let { restored -> routeArgs?.query?.let { restored.copy(text = it) } ?: restored }
+    )
+
+    /** The text actually searched: set after the debounce, or immediately on IME search / suggestion / clear / route query. */
     private val submittedText = MutableStateFlow(draft.value.text)
+
+    /** A shared page's title, offered as a title search if its ID isn't found; forgotten once the text is edited. */
+    private val pageTitle = MutableStateFlow(routeArgs?.pageTitle ?: savedStateHandle.savedPageTitle)
+
+    private val _note = MutableStateFlow(routeArgs?.note)
+    val note: StateFlow<SearchNote?> = _note.asStateFlow()
+
+    private val _focusSearch = MutableStateFlow(routeArgs?.focusSearch == true)
+    val focusSearch: StateFlow<Boolean> = _focusSearch.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -57,17 +78,22 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             draft.collect { savedStateHandle.writeSearchQuery(it) }
         }
+        viewModelScope.launch {
+            pageTitle.collect { savedStateHandle.savedPageTitle = it }
+        }
     }
 
+    private val apiKey = userPreferencesRepository.userApiKey.distinctUntilChanged()
+
+    /** The keyword query; null when the submitted text is blank, is a DOI / arXiv ID (ID mode), or is an unrecognized link. */
     private val activeQuery: StateFlow<SearchQuery?> = combine(draft, submittedText) { current, submitted ->
-        submitted.trim().takeIf { it.isNotEmpty() }?.let { current.copy(text = it) }
+        submitted.trim()
+            .takeIf { it.isNotEmpty() && parsePaperIdentifier(it) == null && !looksLikeLink(it) }
+            ?.let { current.copy(text = it) }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     /** A new API key re-runs the active search, so fixing a rejected key in Settings takes effect right away. */
-    private val results: StateFlow<SearchResults?> = combine(
-        activeQuery,
-        userPreferencesRepository.userApiKey.distinctUntilChanged()
-    ) { query, _ -> query }
+    private val results: StateFlow<SearchResults?> = combine(activeQuery, apiKey) { query, _ -> query }
         .map { query -> query?.let(searchRepository::search) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
@@ -92,6 +118,39 @@ class SearchViewModel @Inject constructor(
         draft.value.toUiState(isIdle = draft.value.text.isBlank(), totalCount = null)
     )
 
+    /** The DOI or arXiv ID in the submitted text, or null for a keyword search. */
+    private val identifier: StateFlow<PaperIdentifier?> = submittedText
+        .map { parsePaperIdentifier(it) }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, parsePaperIdentifier(submittedText.value))
+
+    private val lookupRetries = MutableStateFlow(0)
+
+    /** The latest lookup (a null result means "still looking"); a newer identifier, a retry or a key change cancels it. */
+    private val lookup: StateFlow<Pair<PaperIdentifier, LookupResult?>?> =
+        combine(identifier, lookupRetries, apiKey) { id, _, _ -> id }
+            .flatMapLatest { id ->
+                if (id == null) {
+                    flowOf<Pair<PaperIdentifier, LookupResult?>?>(null)
+                } else {
+                    flow<Pair<PaperIdentifier, LookupResult?>?> {
+                        emit(id to null)
+                        emit(id to paperLookupRepository.lookup(id))
+                    }
+                }
+            }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    /** The submitted text is a link with no DOI or arXiv ID in it; [lookup] stays null for it, so this fills in the state. */
+    private val isLinkWithoutId: StateFlow<Boolean> = submittedText
+        .map { looksLikeLink(it) && parsePaperIdentifier(it) == null }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    val lookupState: StateFlow<LookupUiState?> = combine(lookup, pageTitle, isLinkWithoutId) { current, title, isLink ->
+        current?.let { (id, result) -> result.toUiState(id, title) } ?: LookupUiState.NoIdInLink.takeIf { isLink }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
     private val selectedPaper = MutableStateFlow<Paper?>(null)
 
     val selectedItem: StateFlow<PaperItem?> = combine(selectedPaper, savedIds) { paper, ids ->
@@ -102,6 +161,7 @@ class SearchViewModel @Inject constructor(
     val message: StateFlow<SearchMessage?> = _message.asStateFlow()
 
     fun onTextChange(text: String) {
+        if (text != draft.value.text) forgetShareContext()
         draft.update { it.copy(text = text) }
         if (text.isBlank()) submittedText.value = ""
     }
@@ -111,6 +171,7 @@ class SearchViewModel @Inject constructor(
     }
 
     fun onSuggestion(text: String) {
+        forgetShareContext()
         draft.update { it.copy(text = text) }
         submittedText.value = text
     }
@@ -122,6 +183,12 @@ class SearchViewModel @Inject constructor(
     fun onOpenAccessToggle() = draft.update { it.copy(openAccessOnly = !it.openAccessOnly) }
 
     fun onClearFilters() = draft.update { it.copy(years = YearFilter.AnyTime, openAccessOnly = false) }
+
+    fun onRetryLookup() = lookupRetries.update { it + 1 }
+
+    fun onFocusHandled() {
+        _focusSearch.value = false
+    }
 
     fun onPaperClick(paper: Paper) {
         selectedPaper.value = paper
@@ -151,6 +218,11 @@ class SearchViewModel @Inject constructor(
         _message.value = null
     }
 
+    private fun forgetShareContext() {
+        pageTitle.value = null
+        _note.value = null
+    }
+
     private fun SearchQuery.toUiState(isIdle: Boolean, totalCount: Long?) = SearchUiState(
         text = text,
         sort = sort,
@@ -159,4 +231,11 @@ class SearchViewModel @Inject constructor(
         isIdle = isIdle,
         totalCount = totalCount
     )
+
+    private fun LookupResult?.toUiState(identifier: PaperIdentifier, pageTitle: String?): LookupUiState = when (this) {
+        null -> LookupUiState.Looking(identifier)
+        is LookupResult.Found -> LookupUiState.Found(paper)
+        is LookupResult.NotFound -> LookupUiState.NotFound(identifier, searchTitle = arxivTitle ?: pageTitle)
+        is LookupResult.Failed -> LookupUiState.Failed(error)
+    }
 }

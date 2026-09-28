@@ -1,0 +1,16 @@
+{
+  "id": "https://openalex.org/W2919115771",
+  "doi": "https://doi.org/10.1038/nature14539",
+  "display_name": "Deep learning",
+  "publication_year": 2015,
+  "primary_location": { "is_oa": false, "pdf_url": null, "source": { "id": "https://openalex.org/S137773608", "display_name": "Nature" } },
+  "authorships": [
+    { "author_position": "first", "author": { "id": "https://openalex.org/A5001", "display_name": "Yann LeCun" } },
+    { "author_position": "middle", "author": { "id": "https://openalex.org/A5002", "display_name": "Yoshua Bengio" } },
+    { "author_position": "last", "author": { "id": "https://openalex.org/A5003", "display_name": "Geoffrey Hinton" } }
+  ],
+  "cited_by_count": 72000,
+  "open_access": { "is_oa": false, "oa_status": "closed", "oa_url": null },
+  "best_oa_location": null,
+  "abstract_inverted_index": { "Deep": [0], "learning": [1], "allows": [2] }
+}

@@ -16,4 +16,5 @@
     <string name="library_undo">تراجع</string>
     <string name="library_remove">إزالة</string>
     <string name="library_et_al">%1$s وآخرون</string>
+    <string name="library_add_paper">إضافة ورقة</string>
 </resources>

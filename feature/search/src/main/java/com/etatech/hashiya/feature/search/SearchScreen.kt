@@ -23,9 +23,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -45,9 +49,11 @@ import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.feature.search.components.FilterChipRow
 import com.etatech.hashiya.feature.search.components.IdleState
+import com.etatech.hashiya.feature.search.components.LookupBody
 import com.etatech.hashiya.feature.search.components.NoResultsState
 import com.etatech.hashiya.feature.search.components.SearchErrorState
 import com.etatech.hashiya.feature.search.components.SearchField
+import com.etatech.hashiya.feature.search.components.SearchNoteBanner
 import java.text.NumberFormat
 import java.util.Calendar
 
@@ -57,6 +63,9 @@ internal fun SearchScreen(onOpenSettings: () -> Unit, viewModel: SearchViewModel
     val selectedItem by viewModel.selectedItem.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val savedIds by viewModel.savedIds.collectAsStateWithLifecycle()
+    val lookupState by viewModel.lookupState.collectAsStateWithLifecycle()
+    val note by viewModel.note.collectAsStateWithLifecycle()
+    val focusSearch by viewModel.focusSearch.collectAsStateWithLifecycle()
     val papers = viewModel.papers.collectAsLazyPagingItems()
     val uriHandler = LocalUriHandler.current
     SearchContent(
@@ -65,6 +74,9 @@ internal fun SearchScreen(onOpenSettings: () -> Unit, viewModel: SearchViewModel
         savedIds = savedIds,
         selectedItem = selectedItem,
         message = message,
+        lookupState = lookupState,
+        note = note,
+        focusSearch = focusSearch,
         actions = SearchActions(
             onTextChange = viewModel::onTextChange,
             onSearchAction = viewModel::onSearchAction,
@@ -78,7 +90,9 @@ internal fun SearchScreen(onOpenSettings: () -> Unit, viewModel: SearchViewModel
             onDismissPreview = viewModel::onDismissPreview,
             onOpenDoi = { doi -> runCatching { uriHandler.openUri("https://doi.org/$doi") } },
             onOpenSettings = onOpenSettings,
-            onMessageShown = viewModel::onMessageShown
+            onMessageShown = viewModel::onMessageShown,
+            onRetryLookup = viewModel::onRetryLookup,
+            onFocusHandled = viewModel::onFocusHandled
         )
     )
 }
@@ -93,8 +107,22 @@ internal fun SearchContent(
     message: SearchMessage?,
     actions: SearchActions,
     modifier: Modifier = Modifier,
+    lookupState: LookupUiState? = null,
+    note: SearchNote? = null,
+    focusSearch: Boolean = false,
     currentYear: Int = Calendar.getInstance().get(Calendar.YEAR)
 ) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(focusSearch) {
+        if (focusSearch) {
+            // Wait for the first frame so the field is attached and can take focus.
+            withFrameNanos { }
+            focusRequester.requestFocus()
+            keyboard?.show()
+            actions.onFocusHandled()
+        }
+    }
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailed = stringResource(R.string.search_save_failed)
     val removeFailed = stringResource(R.string.search_remove_failed)
@@ -123,18 +151,33 @@ internal fun SearchContent(
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         Column(Modifier.padding(padding)) {
-            SearchField(uiState.text, actions.onTextChange, actions.onSearchAction)
-            FilterChipRow(
-                sort = uiState.sort,
-                years = uiState.years,
-                openAccessOnly = uiState.openAccessOnly,
-                currentYear = currentYear,
-                onSortChange = actions.onSortChange,
-                onYearFilterChange = actions.onYearFilterChange,
-                onOpenAccessToggle = actions.onOpenAccessToggle
-            )
+            SearchField(uiState.text, actions.onTextChange, actions.onSearchAction, Modifier.focusRequester(focusRequester))
+            note?.let { SearchNoteBanner(it) }
+            if (lookupState == null) {
+                FilterChipRow(
+                    sort = uiState.sort,
+                    years = uiState.years,
+                    openAccessOnly = uiState.openAccessOnly,
+                    currentYear = currentYear,
+                    onSortChange = actions.onSortChange,
+                    onYearFilterChange = actions.onYearFilterChange,
+                    onOpenAccessToggle = actions.onOpenAccessToggle
+                )
+            }
             Box(Modifier.fillMaxSize()) {
-                SearchBody(uiState, papers, savedIds, actions)
+                if (lookupState != null) {
+                    LookupBody(
+                        state = lookupState,
+                        savedIds = savedIds,
+                        onToggleSave = actions.onToggleSave,
+                        onOpenDoi = actions.onOpenDoi,
+                        onSearchTitle = actions.onSuggestion,
+                        onRetry = actions.onRetryLookup,
+                        onOpenSettings = actions.onOpenSettings
+                    )
+                } else {
+                    SearchBody(uiState, papers, savedIds, actions)
+                }
             }
         }
     }

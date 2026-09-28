@@ -16,6 +16,7 @@ These images are the app's screenshot-test baselines, so they always match the c
 ## Features
 
 - Search the [OpenAlex](https://openalex.org) catalog of scholarly works with sort (relevance, most cited, newest), year and open-access filters.
+- Add a specific paper by pasting a DOI, arXiv ID or link into Search, with the "Add paper" button, or by sharing a page from the browser; the paper's preview opens before you save it.
 - Preview a paper's abstract, authors and citations, then save it to an offline library.
 - Swipe to remove from the library, with Undo.
 - Full English and Arabic support, including right-to-left layouts and per-app language.
@@ -60,7 +61,7 @@ Screenshot baselines are recorded on CI's Linux runners, which are the source of
 ## Roadmap
 
 1. ✅ Foundation + OpenAlex search
-2. Add by DOI / arXiv ID and Android Share
+2. ✅ Add by DOI / arXiv ID and Android Share
 3. Library: full-text search and reading status
 4. Paper details and structured notes
 5. Collections and BibTeX export

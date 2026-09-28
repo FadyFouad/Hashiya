@@ -58,6 +58,7 @@ class PaperIdentifierTest {
         "arXiv: 2401.00001" to Arxiv("2401.00001"),
         "https://arxiv.org/abs/1706.03762v5" to Arxiv("1706.03762"),
         "arxiv.org/pdf/2401.00001v2.pdf" to Arxiv("2401.00001"),
+        "https://arxiv.org/html/2401.00001v2" to Arxiv("2401.00001"),
         "https://www.arxiv.org/abs/2310.06825" to Arxiv("2310.06825"),
         "http://export.arxiv.org/abs/hep-th/9901001v2" to Arxiv("hep-th/9901001"),
         "hep-th/9901001" to Arxiv("hep-th/9901001"),

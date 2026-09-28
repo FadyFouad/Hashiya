@@ -22,7 +22,7 @@ private const val OLD_ARXIV = """[a-z]+(?:-[a-z]+)?(?:\.[a-z]{2})?/\d{7}(?:v\d+)
 private const val ANY_ARXIV = "(?:$NEW_ARXIV|$OLD_ARXIV)"
 
 private val ARXIV_URL = Regex(
-    """(?:https?://)?(?:www\.|export\.)?arxiv\.org/(?:abs|pdf)/($ANY_ARXIV)(?:\.pdf)?/?""",
+    """(?:https?://)?(?:www\.|export\.)?arxiv\.org/(?:abs|pdf|html)/($ANY_ARXIV)(?:\.pdf)?/?""",
     RegexOption.IGNORE_CASE
 )
 private val ARXIV_PREFIXED = Regex("""arxiv:($ANY_ARXIV)""", RegexOption.IGNORE_CASE)

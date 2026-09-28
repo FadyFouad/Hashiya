@@ -56,7 +56,7 @@ The same standards as sub-project 1 apply: modular architecture and dependency r
 ```kotlin
 sealed interface PaperIdentifier {
     data class Doi(val value: String) : PaperIdentifier   // normalized via normalizeDoi(), e.g. "10.1038/nature14539"
-    data class Arxiv(val id: String) : PaperIdentifier    // no version, e.g. "1706.03762", "hep-th/9901001", "math.GT/0309136"
+    data class Arxiv(val id: String) : PaperIdentifier    // no version, no subject class: "1706.03762", "hep-th/9901001", "math/0309136"
 }
 
 /** Strict, for the Search box: matches only when the whole trimmed input is an ID or a supported link. */
@@ -72,7 +72,7 @@ fun extractPaperIdentifier(text: String): PaperIdentifier?
   - `arxiv.org/abs/<id>` and `arxiv.org/pdf/<id>`, with or without scheme, `www.`, a `vN` suffix, or `.pdf`.
   - `arXiv:<id>`, case-insensitive.
   - A bare new-style ID (`YYMM.NNNN` or `YYMM.NNNNN`, optional `vN`) — only as the whole input (strict) or as a standalone token delimited by whitespace or string boundaries (lenient). Never inside a URL or a DOI.
-  - An old-style ID `archive[.SUBJ]/YYMMNNN` (e.g. `hep-th/9901001`, `math.GT/0309136`), optional `vN`, under the same token rule.
+  - An old-style ID `archive[.SUBJ]/YYMMNNN` (e.g. `hep-th/9901001`, `math.GT/0309136`), optional `vN`, under the same token rule. The subject class is dropped (`math.GT/0309136` → `math/0309136`): arXiv and OpenAlex resolve only the form without it (verified 2026-09-28).
   - The arXiv DOI `10.48550/arXiv.<id>`, case-insensitive, in any DOI form below. It becomes `Arxiv(id)` so it gets the arXiv fallback.
 - **DOI**
   - `doi.org/<doi>` and `dx.doi.org/<doi>` links, and a `doi:` prefix.
@@ -145,12 +145,12 @@ data class SearchRoute(
     val query: String? = null,       // submitted immediately, skipping the delay
     val pageTitle: String? = null,   // shared page title, for the not-found fallback button
     val focusSearch: Boolean = false,
-    val note: SearchNote? = null,    // e.g. NoIdInShare, NothingInShare
+    val note: String? = null,        // a SearchNote name (NoIdInShare, NothingInShare); plain strings keep navigation arguments simple
 )
 ```
 
 - `SearchViewModel` applies the arguments once, and only when there is no restored search text.
-- Share and Add paper always open a **fresh** Search with their arguments; tapping the Search tab keeps today's behavior of restoring the previous search.
+- Share and Add paper always open a **fresh** Search with their arguments; tapping the Search tab keeps today's behavior of restoring the previous search. The navigation that opens it pops back to the Library with `saveState = true`, as the tab navigation does; without it the Library tab stops responding afterwards (found while verifying the plan).
 
 ### 6.2 Receiving shares (`app`)
 

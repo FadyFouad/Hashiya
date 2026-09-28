@@ -32,9 +32,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Public (ComponentActivity's is protected) so tests can call it directly to simulate a share
-    // arriving while the activity is already running.
-    public override fun onNewIntent(intent: Intent) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         intent.sharedSearchRoute()?.let { pendingSearch = it }

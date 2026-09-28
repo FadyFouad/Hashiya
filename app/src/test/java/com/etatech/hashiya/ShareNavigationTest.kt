@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
@@ -68,7 +69,10 @@ class ShareNavigationTest {
         ActivityScenario.launch<MainActivity>(shareIntent("just some words")).use { scenario ->
             waitForText(nothingNote)
 
-            scenario.onActivity { it.onNewIntent(shareIntent("https://arxiv.org/abs/1706.03762")) }
+            scenario.onActivity { activity ->
+                InstrumentationRegistry.getInstrumentation()
+                    .callActivityOnNewIntent(activity, shareIntent("https://arxiv.org/abs/1706.03762"))
+            }
 
             waitForText("Looking up arXiv 1706.03762…")
             composeRule.onNodeWithText("Looking up arXiv 1706.03762…").assertIsDisplayed()

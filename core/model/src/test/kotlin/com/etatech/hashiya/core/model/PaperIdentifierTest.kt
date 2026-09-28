@@ -65,7 +65,8 @@ class PaperIdentifierTest {
     @Test
     fun strictHandlesParentheses() = strict(
         "10.1000/abc(1)" to Doi("10.1000/abc(1)"),
-        "(10.1000/abc)" to Doi("10.1000/abc")
+        "(10.1000/abc)" to Doi("10.1000/abc"),
+        "<https://arxiv.org/abs/1706.03762>" to Arxiv("1706.03762")
     )
 
     @Test
@@ -77,7 +78,10 @@ class PaperIdentifierTest {
         "SICI $sici is old" to Doi(sici),
         "see 2401.00001, it is good" to Arxiv("2401.00001"),
         "check https://example.com/page and 10.1000/xyz" to Doi("10.1000/xyz"),
-        "Check this out: https://arxiv.org/abs/2401.00001v2" to Arxiv("2401.00001")
+        "Check this out: https://arxiv.org/abs/2401.00001v2" to Arxiv("2401.00001"),
+        "Check this out: [Attention Is All You Need](https://arxiv.org/abs/1706.03762)" to Arxiv("1706.03762"),
+        "[Deep learning](https://doi.org/10.1038/nature14539)" to Doi("10.1038/nature14539"),
+        "Link:https://arxiv.org/abs/2401.00001" to Arxiv("2401.00001")
     )
 
     @Test
@@ -90,6 +94,7 @@ class PaperIdentifierTest {
     fun lenientRejectsTextWithoutIds() = lenient(
         "Deep learning https://www.nature.com/articles/nature14539" to null,
         "https://example.com/2401.00001" to null,
+        "[x](https://example.com/2401.00001)" to null,
         "nothing to see here" to null,
         "" to null
     )

@@ -29,6 +29,7 @@ private val BARE_DOI = Regex("""10\.\d{4,9}/\S+""")
 private val DOI_IN_PATH = Regex("""10\.\d{4,9}/.+""")
 private val SPACE_AFTER_PREFIX = Regex("""(?i)\b(arxiv:|doi:)\s+""")
 private val WHITESPACE = Regex("""\s+""")
+private val URL_START = Regex("""(?i)(https?://|www\.|(?:export\.)?arxiv\.org/|(?:dx\.)?doi\.org/)""")
 private val DOI_HOSTS = setOf("doi.org", "dx.doi.org", "www.doi.org")
 private const val TRAILING_JUNK = ".,;:!?\"'>]"
 private const val LEADING_JUNK = "([\"'<"
@@ -52,7 +53,11 @@ fun extractPaperIdentifier(text: String): PaperIdentifier? {
 private fun parseToken(rawToken: String): PaperIdentifier? {
     val token = trimTrailingJunk(rawToken.trimStart { it in LEADING_JUNK })
     if (token.isEmpty()) return null
-    if (isUrl(token)) return parseUrl(token)
+    if (isUrl(token)) {
+        val urlStart = URL_START.find(token)
+        val urlToken = if (urlStart != null) trimTrailingJunk(token.substring(urlStart.range.first)) else token
+        return parseUrl(urlToken)
+    }
     ARXIV_PREFIXED.matchEntire(token)?.let { return PaperIdentifier.Arxiv(canonicalArxiv(it.groupValues[1])) }
     BARE_ARXIV.matchEntire(token)?.let { return PaperIdentifier.Arxiv(canonicalArxiv(it.value)) }
     val doi = if (token.startsWith("doi:", ignoreCase = true)) token.substring(4) else token

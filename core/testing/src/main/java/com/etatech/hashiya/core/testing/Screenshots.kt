@@ -73,7 +73,7 @@ fun ComposeContentTestRule.captureScreenshot(
     content: @Composable () -> Unit
 ) {
     setContent {
-        // Forced so the direction does not depend on the test manifest's android:supportsRtl.
+        // Forced for the content; menus and dialogs are other windows and follow core:testing's manifest (supportsRtl).
         val direction = if (variant.isArabic) LayoutDirection.Rtl else LayoutDirection.Ltr
         CompositionLocalProvider(LocalLayoutDirection provides direction) {
             HashiyaTheme(darkTheme = variant.darkTheme) {

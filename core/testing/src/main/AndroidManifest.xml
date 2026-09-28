@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Merged into every unit-test app that uses core:testing. Like the app, declare RTL support, so windows the
+     composition doesn't reach (menus, dialogs) lay out right-to-left in Arabic screenshots too. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:supportsRtl="true" />
+</manifest>

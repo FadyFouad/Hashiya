@@ -1,6 +1,10 @@
 package com.etatech.hashiya.feature.library
 
+import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.performClick
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
@@ -8,6 +12,7 @@ import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.core.testing.ScreenshotVariant
 import com.etatech.hashiya.core.testing.ScreenshotVariantRule
 import com.etatech.hashiya.core.testing.captureScreenshot
+import com.etatech.hashiya.feature.library.components.READING_STATUS_BADGE_TAG
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,40 +30,59 @@ class LibraryScreenshotTest(private val variant: ScreenshotVariant) {
     @get:Rule(order = 1)
     val composeRule = createComposeRule()
 
-    private fun capture(name: String, state: LibraryUiState, arabicText: String) =
-        composeRule.captureScreenshot(name, variant, arabicText) {
-            LibraryContent(
-                uiState = state,
-                selectedPaper = null,
-                pendingUndo = null,
-                onPaperClick = {},
-                onDismissPreview = {},
-                onRemove = {},
-                onUndo = {},
-                onUndoDismissed = {},
-                onGoToSearch = {},
-                onOpenSettings = {},
-                onOpenDoi = {}
-            )
-        }
+    /** One paper of each status, so every badge style shows. */
+    private val library = LibraryUiState.Papers(
+        listOf(
+            LibraryPaper(SamplePapers.attention, ReadingStatus.Reading),
+            LibraryPaper(SamplePapers.bert, ReadingStatus.Read),
+            LibraryPaper(SamplePapers.arabicTitled, ReadingStatus.ToRead)
+        ),
+        LibraryFilter(counts = mapOf(ReadingStatus.ToRead to 1, ReadingStatus.Reading to 1, ReadingStatus.Read to 1))
+    )
+
+    private fun capture(
+        name: String,
+        state: LibraryUiState,
+        arabicText: String,
+        wholeScreen: Boolean = false,
+        beforeCapture: ComposeContentTestRule.() -> Unit = {}
+    ) = composeRule.captureScreenshot(name, variant, arabicText, wholeScreen, beforeCapture) {
+        LibraryContent(uiState = state, selectedPaper = null, pendingUndo = null, actions = LibraryActions())
+    }
 
     @Test
     fun empty() = capture("library_empty", LibraryUiState.Empty, arabicText = "لا توجد أوراق محفوظة بعد")
 
+    // The top app bar title (library_title) is a values-ar string that appears exactly once on these screens;
+    // status labels appear on both a chip and a badge, and paper titles are content, not app strings.
     @Test
-    fun papers() = capture(
-        "library_papers",
+    fun papers() = capture("library_papers", library, arabicText = "المكتبة")
+
+    @Test
+    fun filteredSearch() = capture(
+        "library_search",
         LibraryUiState.Papers(
-            listOf(SamplePapers.attention, SamplePapers.bert, SamplePapers.arabicTitled).map { LibraryPaper(it, ReadingStatus.ToRead) },
-            LibraryFilter()
+            listOf(LibraryPaper(SamplePapers.attention, ReadingStatus.Reading)),
+            LibraryFilter(
+                query = "transformer",
+                status = ReadingStatus.Reading,
+                counts = mapOf(ReadingStatus.ToRead to 2, ReadingStatus.Reading to 1, ReadingStatus.Read to 0)
+            )
         ),
-        // "وآخرون" ("et al.") shows on both the attention and bert rows here (each has multiple
-        // authors), so it fails the single-match arabicText check. The Arabic-titled paper's own
-        // title is paper CONTENT (always Arabic regardless of the UI locale), so it can't prove the
-        // app's own res/values-ar strings rendered. Use the top app bar title (library_title,
-        // "المكتبة"), a values-ar resource string that appears exactly once on this screen.
-        arabicText = "المكتبة"
+        arabicText = "الكل"
     )
+
+    @Test
+    fun noMatches() = capture(
+        "library_no_matches",
+        LibraryUiState.NoMatches(LibraryFilter(query = "zebra", status = ReadingStatus.Read)),
+        arabicText = "لا توجد أوراق مطابقة"
+    )
+
+    @Test
+    fun statusMenu() = capture("library_status_menu", library, arabicText = "المكتبة", wholeScreen = true) {
+        onAllNodesWithTag(READING_STATUS_BADGE_TAG).onFirst().performClick()
+    }
 
     companion object {
         @JvmStatic

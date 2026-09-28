@@ -95,6 +95,15 @@ class SearchLookupContentTest {
         assertEquals(listOf("toggle:${SamplePapers.attention.openAlexId}:true"), events)
     }
 
+    /** Reading status belongs to the Library; Search's preview has no status selector, even for a saved paper. */
+    @Test
+    fun foundPreviewHasNoStatusSelector() {
+        show(lookupState = LookupUiState.Found(SamplePapers.attention), savedIds = setOf(SamplePapers.attention.openAlexId))
+
+        composeRule.onNodeWithText("To read").assertDoesNotExist()
+        composeRule.onNodeWithText("Reading").assertDoesNotExist()
+    }
+
     @Test
     fun notFoundOffersATitleSearch() {
         show(text = "1810.04805", lookupState = LookupUiState.NotFound(PaperIdentifier.Arxiv("1810.04805"), bertTitle))

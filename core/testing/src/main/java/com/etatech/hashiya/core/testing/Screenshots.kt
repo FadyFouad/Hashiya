@@ -12,8 +12,10 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.unit.LayoutDirection
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
+import com.github.takahirom.roborazzi.ExperimentalRoborazziApi
 import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
+import com.github.takahirom.roborazzi.captureScreenRoboImage
 import org.junit.rules.TestWatcher
 import org.junit.runner.Description
 import org.robolectric.RuntimeEnvironment
@@ -57,11 +59,17 @@ class ScreenshotVariantRule(private val variant: ScreenshotVariant) : TestWatche
  *
  * In Arabic variants, [arabicText] (a string the content shows in Arabic) must be on screen; this fails the test
  * instead of recording English text as an "Arabic" baseline.
+ *
+ * [beforeCapture] runs once the content is shown, e.g. to open a menu. Menus and dialogs are separate windows, so
+ * capturing one needs [wholeScreen], which records every window instead of the content alone.
  */
+@OptIn(ExperimentalRoborazziApi::class)
 fun ComposeContentTestRule.captureScreenshot(
     name: String,
     variant: ScreenshotVariant,
     arabicText: String,
+    wholeScreen: Boolean = false,
+    beforeCapture: ComposeContentTestRule.() -> Unit = {},
     content: @Composable () -> Unit
 ) {
     setContent {
@@ -75,14 +83,17 @@ fun ComposeContentTestRule.captureScreenshot(
             }
         }
     }
+    beforeCapture()
     if (variant.isArabic) {
         onNodeWithText(arabicText, substring = true, useUnmergedTree = true)
             .assertExists("Arabic variant did not render \"$arabicText\"; check the locale qualifiers")
     }
-    onNodeWithTag(SCREENSHOT_TAG).captureRoboImage(
-        filePath = "src/test/screenshots/$name-${variant.name}.png",
-        roborazziOptions = RoborazziOptions(
-            compareOptions = RoborazziOptions.CompareOptions(changeThreshold = 0.01f)
-        )
-    )
+    val filePath = "src/test/screenshots/$name-${variant.name}.png"
+    val options = RoborazziOptions(compareOptions = RoborazziOptions.CompareOptions(changeThreshold = 0.01f))
+    if (wholeScreen) {
+        waitForIdle()
+        captureScreenRoboImage(filePath, options)
+    } else {
+        onNodeWithTag(SCREENSHOT_TAG).captureRoboImage(filePath = filePath, roborazziOptions = options)
+    }
 }

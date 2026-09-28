@@ -13,4 +13,12 @@
     <string name="library_remove">Remove</string>
     <string name="library_et_al">%1$s et al.</string>
     <string name="library_add_paper">Add paper</string>
+    <string name="library_search_hint">Search your library</string>
+    <string name="library_search_clear">Clear search</string>
+    <string name="library_filter_all">All</string>
+    <string name="library_filter_count">%1$s · %2$s</string>
+    <string name="library_status_badge_description">Status: %1$s. Change status</string>
+    <string name="library_no_matches_title">No papers match</string>
+    <string name="library_no_matches_action">Clear search and filters</string>
+    <string name="library_status_update_failed">Couldn\'t update the status</string>
 </resources>

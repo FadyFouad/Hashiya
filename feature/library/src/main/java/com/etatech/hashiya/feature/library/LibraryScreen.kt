@@ -5,9 +5,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -47,7 +50,11 @@ import com.etatech.hashiya.core.designsystem.component.LoadingSkeleton
 import com.etatech.hashiya.core.designsystem.component.PaperPreviewSheet
 import com.etatech.hashiya.core.designsystem.component.paperTitle
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
-import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.model.LibraryPaper
+import com.etatech.hashiya.core.model.ReadingStatus
+import com.etatech.hashiya.feature.library.components.LibrarySearchField
+import com.etatech.hashiya.feature.library.components.ReadingStatusBadge
+import com.etatech.hashiya.feature.library.components.StatusFilterChips
 
 @Composable
 internal fun LibraryScreen(
@@ -59,20 +66,31 @@ internal fun LibraryScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedPaper by viewModel.selectedPaper.collectAsStateWithLifecycle()
     val pendingUndo by viewModel.pendingUndo.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
     LibraryContent(
         uiState = uiState,
-        selectedPaper = selectedPaper?.paper,
+        selectedPaper = selectedPaper,
         pendingUndo = pendingUndo,
-        onPaperClick = viewModel::onPaperClick,
-        onDismissPreview = viewModel::onDismissPreview,
-        onRemove = viewModel::onRemove,
-        onUndo = viewModel::onUndoRemove,
-        onUndoDismissed = viewModel::onUndoDismissed,
-        onGoToSearch = onGoToSearch,
-        onOpenSettings = onOpenSettings,
-        onOpenDoi = { doi -> runCatching { uriHandler.openUri("https://doi.org/$doi") } },
-        onAddPaper = onAddPaper
+        message = message,
+        actions = LibraryActions(
+            onQueryChange = viewModel::onQueryChange,
+            onSearch = viewModel::onSearch,
+            onClearQuery = viewModel::onClearQuery,
+            onStatusFilterChange = viewModel::onStatusFilterChange,
+            onClearSearchAndFilters = viewModel::onClearSearchAndFilters,
+            onPaperClick = viewModel::onPaperClick,
+            onStatusChange = viewModel::onStatusChange,
+            onDismissPreview = viewModel::onDismissPreview,
+            onRemove = viewModel::onRemove,
+            onUndo = viewModel::onUndoRemove,
+            onUndoDismissed = viewModel::onUndoDismissed,
+            onMessageShown = viewModel::onMessageShown,
+            onGoToSearch = onGoToSearch,
+            onAddPaper = onAddPaper,
+            onOpenSettings = onOpenSettings,
+            onOpenDoi = { doi -> runCatching { uriHandler.openUri("https://doi.org/$doi") } }
+        )
     )
 }
 
@@ -80,18 +98,11 @@ internal fun LibraryScreen(
 @Composable
 internal fun LibraryContent(
     uiState: LibraryUiState,
-    selectedPaper: Paper?,
+    selectedPaper: LibraryPaper?,
     pendingUndo: RemovedPaper?,
-    onPaperClick: (Paper) -> Unit,
-    onDismissPreview: () -> Unit,
-    onRemove: (Paper) -> Unit,
-    onUndo: () -> Unit,
-    onUndoDismissed: () -> Unit,
-    onGoToSearch: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenDoi: (String) -> Unit,
-    onAddPaper: () -> Unit = {},
-    modifier: Modifier = Modifier
+    actions: LibraryActions,
+    modifier: Modifier = Modifier,
+    message: LibraryMessage? = null
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val removedMessage = stringResource(R.string.library_removed)
@@ -100,7 +111,18 @@ internal fun LibraryContent(
     LaunchedEffect(pendingUndo) {
         if (pendingUndo != null) {
             val result = snackbarHostState.showSnackbar(removedMessage, undoLabel, duration = SnackbarDuration.Short)
-            if (result == SnackbarResult.ActionPerformed) onUndo() else onUndoDismissed()
+            if (result == SnackbarResult.ActionPerformed) actions.onUndo() else actions.onUndoDismissed()
+        }
+    }
+    val statusUpdateFailed = stringResource(R.string.library_status_update_failed)
+    LaunchedEffect(message) {
+        when (message) {
+            LibraryMessage.StatusUpdateFailed -> {
+                snackbarHostState.showSnackbar(statusUpdateFailed)
+                actions.onMessageShown()
+            }
+
+            null -> Unit
         }
     }
 
@@ -110,7 +132,7 @@ internal fun LibraryContent(
             TopAppBar(
                 title = { Text(stringResource(R.string.library_title)) },
                 actions = {
-                    IconButton(onClick = onOpenSettings) {
+                    IconButton(onClick = actions.onOpenSettings) {
                         Icon(HashiyaIcons.Settings, contentDescription = stringResource(R.string.library_settings))
                     }
                 }
@@ -119,38 +141,58 @@ internal fun LibraryContent(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = onAddPaper,
+                onClick = actions.onAddPaper,
                 icon = { Icon(HashiyaIcons.Add, contentDescription = null) },
                 text = { Text(stringResource(R.string.library_add_paper)) }
             )
         }
     ) { padding ->
-        Box(Modifier.padding(padding)) {
-            when (uiState) {
-                LibraryUiState.Loading -> LoadingSkeleton()
+        Column(Modifier.padding(padding)) {
+            val filter = when (uiState) {
+                is LibraryUiState.Papers -> uiState.filter
+                is LibraryUiState.NoMatches -> uiState.filter
+                LibraryUiState.Loading, LibraryUiState.Empty -> null
+            }
+            // The same place in the tree for Papers and NoMatches, so the field keeps focus when nothing matches.
+            if (filter != null) {
+                LibrarySearchField(filter.query, actions.onQueryChange, actions.onSearch, actions.onClearQuery)
+                StatusFilterChips(filter, actions.onStatusFilterChange)
+            }
+            Box(Modifier.fillMaxSize()) {
+                when (uiState) {
+                    LibraryUiState.Loading -> LoadingSkeleton()
 
-                LibraryUiState.Empty -> EmptyState(
-                    icon = HashiyaIcons.Library,
-                    title = stringResource(R.string.library_empty_title),
-                    message = stringResource(R.string.library_empty_message),
-                    actionLabel = stringResource(R.string.library_go_to_search),
-                    onAction = onGoToSearch
-                )
+                    LibraryUiState.Empty -> EmptyState(
+                        icon = HashiyaIcons.Library,
+                        title = stringResource(R.string.library_empty_title),
+                        message = stringResource(R.string.library_empty_message),
+                        actionLabel = stringResource(R.string.library_go_to_search),
+                        onAction = actions.onGoToSearch
+                    )
 
-                is LibraryUiState.NoMatches -> Unit
+                    is LibraryUiState.NoMatches -> EmptyState(
+                        icon = HashiyaIcons.SearchOff,
+                        title = stringResource(R.string.library_no_matches_title),
+                        message = null,
+                        actionLabel = stringResource(R.string.library_no_matches_action),
+                        onAction = actions.onClearSearchAndFilters
+                    )
 
-                is LibraryUiState.Papers -> PaperList(uiState.papers.map { it.paper }, onPaperClick, onRemove)
+                    is LibraryUiState.Papers -> PaperList(uiState.papers, actions)
+                }
             }
         }
     }
 
-    selectedPaper?.let { paper ->
+    selectedPaper?.let { selected ->
         PaperPreviewSheet(
-            paper = paper,
+            paper = selected.paper,
             inLibrary = true,
-            onDismiss = onDismissPreview,
-            onToggleSave = { onRemove(paper) },
-            onOpenDoi = onOpenDoi
+            onDismiss = actions.onDismissPreview,
+            onToggleSave = { actions.onRemove(selected.paper) },
+            onOpenDoi = actions.onOpenDoi,
+            status = selected.status,
+            onStatusChange = { status -> actions.onStatusChange(selected.paper, status) }
         )
     }
 }
@@ -160,7 +202,7 @@ internal fun LibraryContent(
 private val FAB_CLEARANCE = PaddingValues(bottom = 88.dp)
 
 @Composable
-private fun PaperList(papers: List<Paper>, onPaperClick: (Paper) -> Unit, onRemove: (Paper) -> Unit) {
+private fun PaperList(papers: List<LibraryPaper>, actions: LibraryActions) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = FAB_CLEARANCE) {
         item {
             Text(
@@ -170,9 +212,13 @@ private fun PaperList(papers: List<Paper>, onPaperClick: (Paper) -> Unit, onRemo
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
             )
         }
-        items(papers, key = { it.openAlexId }) { paper ->
-            SwipeToRemove(onRemove = { onRemove(paper) }) {
-                LibraryRow(paper, onClick = { onPaperClick(paper) })
+        items(papers, key = { it.paper.openAlexId }) { item ->
+            SwipeToRemove(onRemove = { actions.onRemove(item.paper) }) {
+                LibraryRow(
+                    item = item,
+                    onClick = { actions.onPaperClick(item.paper) },
+                    onStatusChange = { status -> actions.onStatusChange(item.paper, status) }
+                )
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
@@ -208,35 +254,41 @@ private fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit)
 }
 
 @Composable
-private fun LibraryRow(paper: Paper, onClick: () -> Unit) {
+private fun LibraryRow(item: LibraryPaper, onClick: () -> Unit, onStatusChange: (ReadingStatus) -> Unit) {
+    val paper = item.paper
     val firstAuthor = paper.authors.firstOrNull()?.name
     val authorText = when {
         firstAuthor == null -> null
         paper.authors.size == 1 -> firstAuthor
         else -> stringResource(R.string.library_et_al, firstAuthor)
     }
-    Column(
+    Row(
         Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            paperTitle(paper),
-            style = MaterialTheme.typography.titleSmall.copy(textDirection = TextDirection.Content),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            // Full width so the text aligns by its own direction, even on one line.
-            modifier = Modifier.fillMaxWidth()
-        )
-        Text(
-            listOfNotNull(authorText, paper.year?.toString(), paper.venue).joinToString(" · "),
-            style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.fillMaxWidth()
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                paperTitle(paper),
+                style = MaterialTheme.typography.titleSmall.copy(textDirection = TextDirection.Content),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                // Full width so the text aligns by its own direction, even on one line.
+                modifier = Modifier.fillMaxWidth()
+            )
+            Text(
+                listOfNotNull(authorText, paper.year?.toString(), paper.venue).joinToString(" · "),
+                style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+        Spacer(Modifier.width(12.dp))
+        ReadingStatusBadge(item.status, onStatusChange)
     }
 }

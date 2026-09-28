@@ -17,4 +17,12 @@
     <string name="library_remove">إزالة</string>
     <string name="library_et_al">%1$s وآخرون</string>
     <string name="library_add_paper">إضافة ورقة</string>
+    <string name="library_search_hint">ابحث في مكتبتك</string>
+    <string name="library_search_clear">مسح البحث</string>
+    <string name="library_filter_all">الكل</string>
+    <string name="library_filter_count">%1$s (%2$s)</string>
+    <string name="library_status_badge_description">الحالة: %1$s. تغيير الحالة</string>
+    <string name="library_no_matches_title">لا توجد أوراق مطابقة</string>
+    <string name="library_no_matches_action">مسح البحث والفلاتر</string>
+    <string name="library_status_update_failed">تعذّر تحديث الحالة</string>
 </resources>

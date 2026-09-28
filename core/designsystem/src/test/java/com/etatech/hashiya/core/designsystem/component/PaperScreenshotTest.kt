@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
+import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.core.testing.ScreenshotVariant
@@ -40,6 +41,18 @@ class PaperScreenshotTest(private val variant: ScreenshotVariant) {
     @Test
     fun preview() = composeRule.captureScreenshot("paper_preview", variant, arabicText = "الملخص") {
         PaperPreviewContent(SamplePapers.bert, inLibrary = false, onToggleSave = {}, onOpenDoi = {}, modifier = Modifier.width(360.dp))
+    }
+
+    @Test
+    fun previewWithStatus() = composeRule.captureScreenshot("paper_preview_status", variant, arabicText = "قيد القراءة") {
+        PaperPreviewContent(
+            SamplePapers.bert,
+            inLibrary = true,
+            onToggleSave = {},
+            onOpenDoi = {},
+            modifier = Modifier.width(360.dp),
+            status = ReadingStatus.Reading
+        )
     }
 
     companion object {

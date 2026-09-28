@@ -1,7 +1,9 @@
 package com.etatech.hashiya.core.designsystem.component
 
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
@@ -38,6 +40,16 @@ class MessageStatesTest {
         }
 
         composeRule.onNodeWithText("Go").assertDoesNotExist()
+    }
+
+    @Test
+    fun emptyStateWithoutMessageLeavesNoBlankLine() {
+        composeRule.setContent {
+            HashiyaTheme { EmptyState(HashiyaIcons.SearchOff, "No papers match", message = null, actionLabel = "Clear") }
+        }
+
+        composeRule.onNodeWithText("No papers match").assertIsDisplayed()
+        composeRule.onAllNodesWithText("").assertCountEquals(0)
     }
 
     @Test

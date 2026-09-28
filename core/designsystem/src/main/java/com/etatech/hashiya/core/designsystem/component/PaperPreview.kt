@@ -26,23 +26,37 @@ import androidx.compose.ui.unit.dp
 import com.etatech.hashiya.core.designsystem.R
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.model.ReadingStatus
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PaperPreviewSheet(paper: Paper, inLibrary: Boolean, onDismiss: () -> Unit, onToggleSave: () -> Unit, onOpenDoi: (String) -> Unit) {
+fun PaperPreviewSheet(
+    paper: Paper,
+    inLibrary: Boolean,
+    onDismiss: () -> Unit,
+    onToggleSave: () -> Unit,
+    onOpenDoi: (String) -> Unit,
+    status: ReadingStatus? = null,
+    onStatusChange: (ReadingStatus) -> Unit = {}
+) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        PaperPreviewContent(paper, inLibrary, onToggleSave, onOpenDoi)
+        PaperPreviewContent(paper, inLibrary, onToggleSave, onOpenDoi, status = status, onStatusChange = onStatusChange)
     }
 }
 
-/** The sheet's body, separate so it can be tested and screenshotted without a window. */
+/**
+ * The sheet's body, separate so it can be tested and screenshotted without a window.
+ * With a [status] (the Library), a To read · Reading · Read selector sits above the buttons; Search passes none.
+ */
 @Composable
 fun PaperPreviewContent(
     paper: Paper,
     inLibrary: Boolean,
     onToggleSave: () -> Unit,
     onOpenDoi: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    status: ReadingStatus? = null,
+    onStatusChange: (ReadingStatus) -> Unit = {}
 ) {
     // Paper text is full width so it aligns by its own direction (Latin left, Arabic right) in either locale.
     val contentText = MaterialTheme.typography.bodyMedium.copy(textDirection = TextDirection.Content)
@@ -90,6 +104,10 @@ fun PaperPreviewContent(
                 color = if (paper.abstract == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
+        if (status != null) {
+            Spacer(Modifier.height(16.dp))
+            ReadingStatusSelector(status, onStatusChange)
         }
         Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

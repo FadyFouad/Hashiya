@@ -224,14 +224,17 @@ private fun LibraryRow(paper: Paper, onClick: () -> Unit) {
             paperTitle(paper),
             style = MaterialTheme.typography.titleSmall.copy(textDirection = TextDirection.Content),
             maxLines = 2,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            // Full width so the text aligns by its own direction, even on one line.
+            modifier = Modifier.fillMaxWidth()
         )
         Text(
             listOfNotNull(authorText, paper.year?.toString(), paper.venue).joinToString(" · "),
             style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }

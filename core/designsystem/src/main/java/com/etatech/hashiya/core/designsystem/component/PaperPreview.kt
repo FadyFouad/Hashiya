@@ -44,16 +44,18 @@ fun PaperPreviewContent(
     onOpenDoi: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Paper text is full width so it aligns by its own direction (Latin left, Arabic right) in either locale.
     val contentText = MaterialTheme.typography.bodyMedium.copy(textDirection = TextDirection.Content)
     Column(modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
             Text(
                 paperTitle(paper),
-                style = MaterialTheme.typography.titleLarge.copy(textDirection = TextDirection.Content)
+                style = MaterialTheme.typography.titleLarge.copy(textDirection = TextDirection.Content),
+                modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(6.dp))
             if (paper.authors.isNotEmpty()) {
-                Text(paper.authors.joinToString(", ") { it.name }, style = contentText)
+                Text(paper.authors.joinToString(", ") { it.name }, style = contentText, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(4.dp))
             }
             Text(
@@ -63,7 +65,8 @@ fun PaperPreviewContent(
                     stringResource(R.string.designsystem_citations, fullCount(paper.citationCount))
                 ).joinToString(" · "),
                 style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth()
             )
             if (paper.isOpenAccess) {
                 Spacer(Modifier.height(8.dp))
@@ -84,7 +87,8 @@ fun PaperPreviewContent(
             Text(
                 paper.abstract ?: stringResource(R.string.designsystem_no_abstract),
                 style = contentText,
-                color = if (paper.abstract == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+                color = if (paper.abstract == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
             )
         }
         Spacer(Modifier.height(16.dp))

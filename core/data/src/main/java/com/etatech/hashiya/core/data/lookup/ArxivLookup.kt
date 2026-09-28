@@ -1,5 +1,7 @@
 package com.etatech.hashiya.core.data.lookup
 
+import java.text.Normalizer
+
 internal const val ARXIV_DOI_PREFIX = "10.48550/arXiv."
 
 /**
@@ -12,11 +14,17 @@ internal fun arxivLandingPageFilter(id: String): String {
     return "locations.landing_page_url:" + (absPages + "https://doi.org/10.48550/arxiv.$id").joinToString("|")
 }
 
+private val COMBINING_MARKS = Regex("""\p{M}+""")
 private val NON_ALPHANUMERIC = Regex("""[^\p{L}\p{N}]+""")
 
-internal fun normalizedTitle(title: String): String = title.lowercase().replace(NON_ALPHANUMERIC, " ").trim()
+/** Decomposes and drops accents first, so "ö" written as one character or as "o" + a mark (or plain "o") match. */
+internal fun normalizedTitle(title: String): String = Normalizer.normalize(title, Normalizer.Form.NFKD)
+    .replace(COMBINING_MARKS, "")
+    .lowercase()
+    .replace(NON_ALPHANUMERIC, " ")
+    .trim()
 
-/** True when both titles have the same letters and digits in the same order, ignoring case and punctuation. */
+/** True when both titles have the same letters and digits in the same order, ignoring case, accents and punctuation. */
 internal fun titlesMatch(a: String, b: String): Boolean {
     val left = normalizedTitle(a)
     return left.isNotEmpty() && left == normalizedTitle(b)

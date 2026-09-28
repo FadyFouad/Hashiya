@@ -21,6 +21,14 @@ class TitleMatchingTest {
     }
 
     @Test
+    fun ignoresAccentEncodingAndAccents() {
+        val composed = "Schr\u00f6dinger Equations"
+        val decomposed = "Schro\u0308dinger equations"
+        assertTrue(titlesMatch(composed, decomposed))
+        assertTrue(titlesMatch(composed, "Schrodinger equations"))
+    }
+
+    @Test
     fun worksForNonLatinTitles() {
         assertTrue(titlesMatch("تعلم الآلة", "تعلم الآلة."))
     }

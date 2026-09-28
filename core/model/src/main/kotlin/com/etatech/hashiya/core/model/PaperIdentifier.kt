@@ -11,8 +11,11 @@ sealed interface PaperIdentifier {
 
 private const val MAX_SHARED_TEXT = 2_000
 
-// New style: YYMM.NNNN(N) with a real month, optional version.
-private const val NEW_ARXIV = """\d{2}(?:0[1-9]|1[0-2])\.\d{4,5}(?:v\d+)?"""
+// New style, optional version: YYMM.NNNN from 0704 (when it began) to 1412, YYMM.NNNNN from 1501 on.
+private const val MONTH = "(?:0[1-9]|1[0-2])"
+private const val NEW_ARXIV_4 = """(?:07(?:0[4-9]|1[0-2])|(?:0[89]|1[0-4])$MONTH)\.\d{4}"""
+private const val NEW_ARXIV_5 = """(?:1[5-9]|[2-9]\d)$MONTH\.\d{5}"""
+private const val NEW_ARXIV = """(?:$NEW_ARXIV_4|$NEW_ARXIV_5)(?:v\d+)?"""
 
 // Old style: archive[.SUBJECT]/YYMMNNN, optional version.
 private const val OLD_ARXIV = """[a-z]+(?:-[a-z]+)?(?:\.[a-z]{2})?/\d{7}(?:v\d+)?"""

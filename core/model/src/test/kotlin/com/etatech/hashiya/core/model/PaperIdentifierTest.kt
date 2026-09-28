@@ -48,6 +48,17 @@ class PaperIdentifierTest {
     )
 
     @Test
+    fun strictAcceptsOnlyRealNewStyleArxivShapes() = strict(
+        "0704.0001" to Arxiv("0704.0001"),
+        "1412.6980" to Arxiv("1412.6980"),
+        "2401.00001" to Arxiv("2401.00001"),
+        "1706.0376" to null,
+        "2401.0001" to null,
+        "0612.0001" to null,
+        "1412.69801" to null
+    )
+
+    @Test
     fun strictRejectsEverythingElse() = strict(
         "" to null,
         "   " to null,

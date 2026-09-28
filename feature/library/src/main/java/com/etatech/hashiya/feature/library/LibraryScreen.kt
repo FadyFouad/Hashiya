@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,7 +49,12 @@ import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.model.Paper
 
 @Composable
-internal fun LibraryScreen(onGoToSearch: () -> Unit, onOpenSettings: () -> Unit, viewModel: LibraryViewModel = hiltViewModel()) {
+internal fun LibraryScreen(
+    onGoToSearch: () -> Unit,
+    onAddPaper: () -> Unit,
+    onOpenSettings: () -> Unit,
+    viewModel: LibraryViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedPaper by viewModel.selectedPaper.collectAsStateWithLifecycle()
     val pendingUndo by viewModel.pendingUndo.collectAsStateWithLifecycle()
@@ -64,7 +70,8 @@ internal fun LibraryScreen(onGoToSearch: () -> Unit, onOpenSettings: () -> Unit,
         onUndoDismissed = viewModel::onUndoDismissed,
         onGoToSearch = onGoToSearch,
         onOpenSettings = onOpenSettings,
-        onOpenDoi = { doi -> runCatching { uriHandler.openUri("https://doi.org/$doi") } }
+        onOpenDoi = { doi -> runCatching { uriHandler.openUri("https://doi.org/$doi") } },
+        onAddPaper = onAddPaper
     )
 }
 
@@ -82,6 +89,7 @@ internal fun LibraryContent(
     onGoToSearch: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenDoi: (String) -> Unit,
+    onAddPaper: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -107,7 +115,14 @@ internal fun LibraryContent(
                 }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = onAddPaper,
+                icon = { Icon(HashiyaIcons.Add, contentDescription = null) },
+                text = { Text(stringResource(R.string.library_add_paper)) }
+            )
+        }
     ) { padding ->
         Box(Modifier.padding(padding)) {
             when (uiState) {

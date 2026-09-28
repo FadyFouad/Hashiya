@@ -12,4 +12,5 @@
     <string name="library_undo">Undo</string>
     <string name="library_remove">Remove</string>
     <string name="library_et_al">%1$s et al.</string>
+    <string name="library_add_paper">Add paper</string>
 </resources>

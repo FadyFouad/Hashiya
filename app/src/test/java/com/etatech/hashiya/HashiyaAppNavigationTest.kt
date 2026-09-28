@@ -1,6 +1,7 @@
 package com.etatech.hashiya
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
@@ -59,6 +60,27 @@ class HashiyaAppNavigationTest {
         composeRule.onNodeWithText("Search").performClick()
         waitForText("Search OpenAlex")
         composeRule.onAllNodesWithText("Library").onFirst().performClick()
+        waitForText("No saved papers yet")
+    }
+
+    @Test
+    fun addPaperOpensSearchReadyForAnId() {
+        waitForText("No saved papers yet")
+
+        composeRule.onNodeWithText("Add paper", useUnmergedTree = true).performClick()
+
+        waitForText("Search, or paste a DOI, arXiv ID or link")
+        composeRule.onNodeWithText("Search, or paste a DOI, arXiv ID or link").assertIsFocused()
+    }
+
+    @Test
+    fun libraryTabWorksAfterAddPaper() {
+        waitForText("No saved papers yet")
+        composeRule.onNodeWithText("Add paper", useUnmergedTree = true).performClick()
+        waitForText("Search, or paste a DOI, arXiv ID or link")
+
+        composeRule.onAllNodesWithText("Library").onFirst().performClick()
+
         waitForText("No saved papers yet")
     }
 }

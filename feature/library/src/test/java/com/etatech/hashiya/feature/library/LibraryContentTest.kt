@@ -41,7 +41,8 @@ class LibraryContentTest {
                 onUndoDismissed = { events += "undoDismissed" },
                 onGoToSearch = { events += "search" },
                 onOpenSettings = { events += "settings" },
-                onOpenDoi = {}
+                onOpenDoi = {},
+                onAddPaper = { events += "addPaper" }
             )
         }
     }
@@ -106,5 +107,22 @@ class LibraryContentTest {
         composeRule.onNodeWithText("Undo").performClick()
         composeRule.mainClock.advanceTimeBy(1_000)
         assertEquals(listOf("undo"), events)
+    }
+
+    // The extended FAB's label is only in the unmerged semantics tree.
+    @Test
+    fun addPaperButtonOnEmptyLibrary() {
+        show(LibraryUiState.Empty)
+
+        composeRule.onNodeWithText("Add paper", useUnmergedTree = true).performClick()
+        assertEquals(listOf("addPaper"), events)
+    }
+
+    @Test
+    fun addPaperButtonWithPapers() {
+        show(LibraryUiState.Papers(listOf(SamplePapers.bert)))
+
+        composeRule.onNodeWithText("Add paper", useUnmergedTree = true).performClick()
+        assertEquals(listOf("addPaper"), events)
     }
 }

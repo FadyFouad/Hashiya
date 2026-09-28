@@ -12,6 +12,8 @@ data object LibraryRoute
 
 fun NavController.navigateToLibrary(navOptions: NavOptions? = null) = navigate(LibraryRoute, navOptions)
 
-fun NavGraphBuilder.libraryScreen(onGoToSearch: () -> Unit, onOpenSettings: () -> Unit) {
-    composable<LibraryRoute> { LibraryScreen(onGoToSearch = onGoToSearch, onOpenSettings = onOpenSettings) }
+fun NavGraphBuilder.libraryScreen(onGoToSearch: () -> Unit, onAddPaper: () -> Unit, onOpenSettings: () -> Unit) {
+    composable<LibraryRoute> {
+        LibraryScreen(onGoToSearch = onGoToSearch, onAddPaper = onAddPaper, onOpenSettings = onOpenSettings)
+    }
 }

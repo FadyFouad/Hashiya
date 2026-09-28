@@ -19,7 +19,11 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
-/** Shares without a paper ID, so no request leaves the test. */
+/**
+ * The first two shares have no paper ID, so no lookup request leaves them. The third shares a real
+ * arXiv link, so a lookup does start in the background; it only asserts what Search shows immediately
+ * (the field's text), never anything that depends on the lookup's outcome.
+ */
 @HiltAndroidTest
 @RunWith(RobolectricTestRunner::class)
 @Config(application = HiltTestApplication::class)
@@ -74,8 +78,8 @@ class ShareNavigationTest {
                     .callActivityOnNewIntent(activity, shareIntent("https://arxiv.org/abs/1706.03762"))
             }
 
-            waitForText("Looking up arXiv 1706.03762…")
-            composeRule.onNodeWithText("Looking up arXiv 1706.03762…").assertIsDisplayed()
+            waitForText("arXiv:1706.03762")
+            composeRule.onNodeWithText("arXiv:1706.03762").assertIsDisplayed()
             composeRule.onNodeWithText(nothingNote).assertDoesNotExist()
         }
     }

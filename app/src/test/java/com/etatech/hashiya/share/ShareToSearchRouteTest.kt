@@ -59,4 +59,19 @@ class ShareToSearchRouteTest {
         assertEquals(SearchRoute(note = SearchNote.NothingInShare.name), shareToSearchRoute("just some words", null))
         assertEquals(SearchRoute(note = SearchNote.NothingInShare.name), shareToSearchRoute(null, "   "))
     }
+
+    @Test
+    fun veryLongSharedTitleIsShortened() {
+        val longTitle = "A".repeat(400)
+        val shortenedTitle = "A".repeat(300)
+
+        assertEquals(
+            SearchRoute(query = shortenedTitle, note = SearchNote.NoIdInShare.name),
+            shareToSearchRoute(null, longTitle)
+        )
+        assertEquals(
+            SearchRoute(query = "arXiv:1706.03762", pageTitle = shortenedTitle),
+            shareToSearchRoute("https://arxiv.org/abs/1706.03762", longTitle)
+        )
+    }
 }

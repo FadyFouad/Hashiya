@@ -31,6 +31,26 @@ class PaperIdentifierTest {
     )
 
     @Test
+    fun publisherLinksDropPdfAndViewSuffixes() = strict(
+        "https://link.springer.com/content/pdf/10.1007/s11263-015-0816-y.pdf" to Doi("10.1007/s11263-015-0816-y"),
+        "https://onlinelibrary.wiley.com/doi/10.1002/anie.201915678/full" to Doi("10.1002/anie.201915678"),
+        "https://onlinelibrary.wiley.com/doi/10.1002/anie.201915678/abstract" to Doi("10.1002/anie.201915678"),
+        "https://onlinelibrary.wiley.com/doi/10.1002/anie.201915678/epdf" to Doi("10.1002/anie.201915678"),
+        "https://example.org/10.1002/anie.201915678/PDF/" to Doi("10.1002/anie.201915678"),
+        "https://www.biorxiv.org/content/10.1101/2020.01.01.123456v1" to Doi("10.1101/2020.01.01.123456"),
+        "https://www.biorxiv.org/content/10.1101/2020.01.01.123456v2.full" to Doi("10.1101/2020.01.01.123456"),
+        "https://www.medrxiv.org/content/10.1101/2020.01.01.123456v1.full.pdf" to Doi("10.1101/2020.01.01.123456")
+    )
+
+    @Test
+    fun doiLinksAndPlainDoisKeepTheirSuffixes() = strict(
+        "https://doi.org/10.1000/xyz.pdf" to Doi("10.1000/xyz.pdf"),
+        "https://doi.org/10.1000/abc/full" to Doi("10.1000/abc/full"),
+        "doi:10.1000/xyz.pdf" to Doi("10.1000/xyz.pdf"),
+        "10.1101/2020.01.01.123456v1" to Doi("10.1101/2020.01.01.123456v1")
+    )
+
+    @Test
     fun strictRecognizesArxivIds() = strict(
         "1706.03762" to Arxiv("1706.03762"),
         "2401.00001v2" to Arxiv("2401.00001"),

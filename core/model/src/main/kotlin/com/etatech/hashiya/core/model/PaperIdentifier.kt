@@ -30,6 +30,9 @@ private val BARE_ARXIV = Regex(ANY_ARXIV, RegexOption.IGNORE_CASE)
 private val ARXIV_DOI = Regex("""10\.48550/arxiv\.($ANY_ARXIV)""", RegexOption.IGNORE_CASE)
 private val BARE_DOI = Regex("""10\.\d{4,9}/\S+""")
 private val DOI_IN_PATH = Regex("""10\.\d{4,9}/.+""")
+private val VIEW_SEGMENT = Regex("""/(?:full|abstract|epdf|pdf|fulltext)$""", RegexOption.IGNORE_CASE)
+private val PDF_SUFFIX = Regex("""\.pdf$""", RegexOption.IGNORE_CASE)
+private val PREPRINT_SUFFIX = Regex("""(?:v\d+)?(?:\.full)?$""", RegexOption.IGNORE_CASE)
 private val SPACE_AFTER_PREFIX = Regex("""(?i)\b(arxiv:|doi:)\s+""")
 private val WHITESPACE = Regex("""\s+""")
 private val URL_START = Regex("""(?i)(https?://|www\.|(?:export\.)?arxiv\.org/|(?:dx\.)?doi\.org/)""")
@@ -79,8 +82,17 @@ private fun parseUrl(url: String): PaperIdentifier? {
     val withoutScheme = withoutQuery.substringAfter("://")
     val host = withoutScheme.substringBefore('/').lowercase()
     val path = percentDecode(withoutScheme.substringAfter('/', missingDelimiterValue = ""))
-    val doiPart = if (host in DOI_HOSTS) path else DOI_IN_PATH.find(path)?.value
+    val doiPart = if (host in DOI_HOSTS) path else DOI_IN_PATH.find(path)?.value?.let(::dropPublisherSuffix)
     return doiPart?.let(::doiIdentifier)
+}
+
+/**
+ * Publisher links put views after the DOI ("….pdf", "…/full", "…/epdf"), and bioRxiv/medRxiv add a version
+ * ("…v1", "…v1.full.pdf"). Only for DOIs found in a publisher's path; doi.org links and typed DOIs are kept as is.
+ */
+private fun dropPublisherSuffix(doi: String): String {
+    val withoutView = doi.trimEnd('/').replace(VIEW_SEGMENT, "").replace(PDF_SUFFIX, "")
+    return if (withoutView.startsWith("10.1101/")) withoutView.replace(PREPRINT_SUFFIX, "") else withoutView
 }
 
 private fun doiIdentifier(raw: String): PaperIdentifier? {

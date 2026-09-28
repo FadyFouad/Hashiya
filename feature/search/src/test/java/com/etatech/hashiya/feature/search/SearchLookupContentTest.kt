@@ -15,6 +15,7 @@ import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.feature.search.components.SEARCH_FIELD_TAG
+import com.etatech.hashiya.feature.search.components.shortTitle
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -101,6 +102,15 @@ class SearchLookupContentTest {
         composeRule.onNodeWithText("No paper found for this arXiv ID").assertIsDisplayed()
         composeRule.onNodeWithText("Search for", substring = true).performClick()
         assertEquals(listOf("suggestion:$bertTitle"), events)
+    }
+
+    @Test
+    fun notFoundButtonIsolatesThePastedTitle() {
+        show(text = "1810.04805", lookupState = LookupUiState.NotFound(PaperIdentifier.Arxiv("1810.04805"), bertTitle))
+
+        // First-strong isolates (U+2068/U+2069) keep the Latin title left-to-right inside the Arabic label,
+        // wherever it is rendered — a plain substring match would pass even if they were dropped by mistake.
+        composeRule.onNodeWithText("⁨${shortTitle(bertTitle)}⁩", substring = true).assertIsDisplayed()
     }
 
     @Test

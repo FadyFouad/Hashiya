@@ -63,7 +63,9 @@ internal fun LookupBody(
             title = stringResource(notFoundTitle(state.identifier)),
             message = stringResource(R.string.search_lookup_not_found_message),
             modifier = modifier,
-            actionLabel = state.searchTitle?.let { stringResource(R.string.search_lookup_search_title, shortTitle(it)) },
+            actionLabel = state.searchTitle?.let {
+                stringResource(R.string.search_lookup_search_title, "⁨${shortTitle(it)}⁩")
+            },
             onAction = { state.searchTitle?.let(onSearchTitle) }
         )
 

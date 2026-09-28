@@ -47,21 +47,22 @@ abstract class PaperDao {
     @Query("UPDATE papers SET reading_status = :status WHERE open_alex_id = :openAlexId")
     abstract suspend fun setStatus(openAlexId: String, status: String): Int
 
+    // Building blocks of the transactions below; protected so a paper is never written without its authors and search row.
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    abstract suspend fun insertPaper(paper: PaperEntity): Long
+    protected abstract suspend fun insertPaper(paper: PaperEntity): Long
 
     @Insert
-    abstract suspend fun insertAuthors(authors: List<PaperAuthorEntity>)
+    protected abstract suspend fun insertAuthors(authors: List<PaperAuthorEntity>)
 
     @Insert
-    abstract suspend fun insertSearch(search: PaperSearchEntity)
+    protected abstract suspend fun insertSearch(search: PaperSearchEntity)
 
     @Query("DELETE FROM papers WHERE id = :id")
-    abstract suspend fun deleteById(id: String)
+    protected abstract suspend fun deleteById(id: String)
 
     // FTS rows don't cascade, so every paper deletion deletes its search row too.
     @Query("DELETE FROM paper_search WHERE paper_id = :id")
-    abstract suspend fun deleteSearchById(id: String)
+    protected abstract suspend fun deleteSearchById(id: String)
 
     /** Writes the paper, its authors and its search row atomically. Returns false, writing nothing, if it is already saved. */
     @Transaction

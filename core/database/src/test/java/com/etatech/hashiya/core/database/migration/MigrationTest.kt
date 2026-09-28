@@ -21,7 +21,10 @@ class MigrationTest {
     @get:Rule
     val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), HashiyaDatabase::class.java)
 
-    /** A version 1 library as sub-project 2 left it: one paper with authors, one with no authors and no abstract or venue. */
+    /**
+     * A version 1 library as sub-project 2 left it: one paper with authors, one with no authors and no abstract or venue.
+     * The second author is inserted first, so the backfilled authors are in order only if the migration sorts them.
+     */
     private fun createVersion1() {
         helper.createDatabase(DB_NAME, 1).use { db ->
             db.execSQL(
@@ -29,8 +32,8 @@ class MigrationTest {
                     "oa_pdf_url, saved_at) VALUES ('a', 'W1', '10.48550/arxiv.1706.03762', 'Attention Is All You Need', 2017, " +
                     "'Neural Information Processing Systems', 'The dominant sequence transduction models', 128412, 1, NULL, 100)"
             )
-            db.execSQL("INSERT INTO paper_authors (paper_id, position, name, open_alex_author_id) VALUES ('a', 0, 'Ashish Vaswani', NULL)")
             db.execSQL("INSERT INTO paper_authors (paper_id, position, name, open_alex_author_id) VALUES ('a', 1, 'Noam Shazeer', NULL)")
+            db.execSQL("INSERT INTO paper_authors (paper_id, position, name, open_alex_author_id) VALUES ('a', 0, 'Ashish Vaswani', NULL)")
             db.execSQL(
                 "INSERT INTO papers (id, open_alex_id, doi, title, year, venue, abstract, citation_count, is_open_access, " +
                     "oa_pdf_url, saved_at) VALUES ('b', 'W2', NULL, 'تطبيقات التَّعلُّم العميق', NULL, NULL, NULL, 0, 0, NULL, 200)"
@@ -74,6 +77,7 @@ class MigrationTest {
             assertEquals(listOf("a"), ids("\"attention*\""))
             assertEquals(listOf("a"), ids("\"shazeer*\""))
             assertEquals(listOf("a"), ids("\"transduction*\""))
+            assertEquals(listOf("a"), ids("\"neural*\" \"processing*\""))
             assertEquals(listOf("b"), ids("\"التعلم*\""))
         } finally {
             database.close()

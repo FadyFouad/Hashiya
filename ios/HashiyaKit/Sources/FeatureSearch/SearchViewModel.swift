@@ -18,6 +18,17 @@ public enum SearchMessage: Equatable, Sendable {
     case saveFailed, removeFailed
 }
 
+/// ID mode: the text is a DOI, an arXiv ID or a link.
+public enum LookupState: Equatable, Sendable {
+    case looking(PaperIdentifier)
+    case found(Paper)
+    /// `searchTitle`: arXiv's title, offered as a keyword search.
+    case notFound(PaperIdentifier, searchTitle: String?)
+    case failed(SearchError)
+    /// A link with no DOI or arXiv ID in it: nothing is requested.
+    case noIDInLink
+}
+
 @Observable
 @MainActor
 public final class SearchViewModel {
@@ -32,6 +43,10 @@ public final class SearchViewModel {
     public internal(set) var totalCount: Int64?
     public internal(set) var append: AppendState = .idle
     public internal(set) var savedIDs: Set<String> = []
+    /// Non-nil in ID mode, which replaces the keyword results.
+    public private(set) var lookup: LookupState?
+    /// Set by `startFresh(focus: true)`; the view activates the field and calls `focusHandled()`.
+    public private(set) var focusRequested = false
     /// The paper in the preview sheet.
     public var selectedPaper: Paper?
     public var message: SearchMessage?
@@ -39,6 +54,7 @@ public final class SearchViewModel {
     public static let debounce: Duration = .milliseconds(300)
 
     @ObservationIgnored private let repository: any SearchRepository
+    @ObservationIgnored private let lookupRepository: any PaperLookupRepository
     @ObservationIgnored private let library: any LibraryRepository
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
     @ObservationIgnored private var activeQuery: SearchQuery?
@@ -48,16 +64,21 @@ public final class SearchViewModel {
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     /// Cancelled searches still finishing, by ID; each is dropped when it finishes. Only tests wait for them.
     @ObservationIgnored private var supersededTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var lookupTask: Task<Void, Never>?
+    /// The identifier of the current lookup, while in ID mode.
+    @ObservationIgnored private var lookupIdentifier: PaperIdentifier?
     @ObservationIgnored private var hasRestored = false
     @ObservationIgnored private let observations = TaskBag()
 
     public init(
         repository: any SearchRepository,
+        lookup: any PaperLookupRepository,
         library: any LibraryRepository,
         preferences: any UserPreferencesRepository,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {
         self.repository = repository
+        self.lookupRepository = lookup
         self.library = library
         self.sleep = sleep
 
@@ -104,7 +125,7 @@ public final class SearchViewModel {
     /// The keyboard's Search key: submit without waiting; the same text again after an error retries it.
     public func submitNow() {
         debounceTask?.cancel()
-        if case .failed = phase, activeQuery?.text == text.trimmingCharacters(in: .whitespacesAndNewlines) {
+        if case .failed = phase, activeQuery?.text == keywordText(text) {
             retry()
             return
         }
@@ -116,6 +137,26 @@ public final class SearchViewModel {
         debounceTask?.cancel()
         text = suggestion
         submit(suggestion)
+    }
+
+    /// Not found's "Search for …": like a suggestion, with the full title.
+    public func searchTitle(_ title: String) {
+        applySuggestion(title)
+    }
+
+    /// The Library's Add paper: stop everything, clear the field and the chips, and ask for the keyboard.
+    public func startFresh(focus: Bool) {
+        debounceTask?.cancel()
+        stopLookup()
+        stopKeywordSearch()
+        text = ""
+        query = SearchQuery(text: "")
+        focusRequested = focus
+    }
+
+    /// The view has activated the field.
+    public func focusHandled() {
+        focusRequested = false
     }
 
     public func setSort(_ sort: SearchSort) {
@@ -154,9 +195,13 @@ public final class SearchViewModel {
 
     // MARK: Paging
 
-    /// Re-runs the first page after a first-page error.
+    /// Re-runs the lookup in ID mode, else the first page after a first-page error.
     public func retry() {
-        loadFirstPage()
+        if let identifier = lookupIdentifier {
+            runLookup(identifier)
+        } else {
+            loadFirstPage()
+        }
     }
 
     /// The last row appeared: load the next page if there is one and nothing is loading.
@@ -196,17 +241,72 @@ public final class SearchViewModel {
 
     // MARK: Private
 
+    /// An identifier or a link switches to ID mode; anything else is a keyword query without Arabic marks
+    /// (a query of only marks is idle).
     private func submit(_ submitted: String) {
         let trimmed = submitted.trimmingCharacters(in: .whitespacesAndNewlines)
-        query.text = trimmed
-        guard !trimmed.isEmpty else {
-            supersede(searchTask)
-            activeQuery = nil
-            resetResults()
-            phase = .idle
+        if let identifier = parsePaperIdentifier(submitted) {
+            query.text = trimmed
+            stopKeywordSearch()
+            startLookup(identifier)
+            return
+        }
+        if looksLikeLink(submitted) {
+            query.text = trimmed
+            stopKeywordSearch()
+            stopLookup()
+            lookup = .noIDInLink
+            return
+        }
+        stopLookup()
+        let keywords = keywordText(submitted)
+        query.text = keywords
+        guard !keywords.isEmpty else {
+            stopKeywordSearch()
             return
         }
         activate(query)
+    }
+
+    /// The keyword query for the text: trimmed, without Arabic marks.
+    private func keywordText(_ text: String) -> String {
+        withoutArabicMarks(text.trimmingCharacters(in: .whitespacesAndNewlines)).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func stopKeywordSearch() {
+        supersede(searchTask)
+        activeQuery = nil
+        resetResults()
+        phase = .idle
+    }
+
+    private func stopLookup() {
+        lookupTask?.cancel()
+        lookupIdentifier = nil
+        lookup = nil
+    }
+
+    /// The same identifier again (e.g. with a version or a prefix) keeps its result unless it failed.
+    private func startLookup(_ identifier: PaperIdentifier) {
+        if identifier == lookupIdentifier, let lookup, !lookup.isFailure { return }
+        runLookup(identifier)
+    }
+
+    private func runLookup(_ identifier: PaperIdentifier) {
+        lookupTask?.cancel()
+        lookupIdentifier = identifier
+        lookup = .looking(identifier)
+        lookupTask = Task { [weak self, lookupRepository] in
+            // A lookup replaced before this task started never reaches the network.
+            guard !Task.isCancelled else { return }
+            let result = await lookupRepository.lookup(identifier)
+            guard let self, !Task.isCancelled else { return }
+            self.lookup = switch result {
+            case let .found(paper): .found(paper)
+            case let .notFound(arxivTitle): .notFound(identifier, searchTitle: arxivTitle)
+            case let .failed(error): .failed(error)
+            }
+        }
     }
 
     private func chipsChanged() {
@@ -221,8 +321,11 @@ public final class SearchViewModel {
     }
 
     private func reloadAfterKeyChange() {
-        guard activeQuery != nil else { return }
-        loadFirstPage()
+        if let identifier = lookupIdentifier {
+            runLookup(identifier)
+        } else if activeQuery != nil {
+            loadFirstPage()
+        }
     }
 
     private func resetResults() {
@@ -308,20 +411,29 @@ public final class SearchViewModel {
     /// Superseded searches still tracked.
     var supersededSearchCount: Int { supersededTasks.count }
 
-    /// Waits for the debounce and the search in flight, including work they start.
+    /// Waits for the debounce, the search and the lookup in flight, including work they start.
     func waitForPendingWork() async {
         var finished: Set<UUID> = []
         while true {
             let debounce = debounceTask
             let search = searchTask
+            let lookup = lookupTask
             let superseded = supersededTasks.filter { !finished.contains($0.key) }
             await debounce?.value
             await search?.value
+            await lookup?.value
             for (id, task) in superseded {
                 await task.value
                 finished.insert(id)
             }
-            if debounceTask == debounce, searchTask == search, supersededTasks.keys.allSatisfy(finished.contains) { return }
+            if debounceTask == debounce, searchTask == search, lookupTask == lookup,
+               supersededTasks.keys.allSatisfy(finished.contains) { return }
         }
+    }
+}
+
+extension LookupState {
+    fileprivate var isFailure: Bool {
+        if case .failed = self { true } else { false }
     }
 }

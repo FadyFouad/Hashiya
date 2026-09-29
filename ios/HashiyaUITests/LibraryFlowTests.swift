@@ -1,6 +1,6 @@
 import XCTest
 
-/// End to end with `-ui-testing`: in-memory library, stub search, no network.
+/// End to end with `-ui-testing`: the UI tests' own library file, stub search and lookup, no network.
 @MainActor
 final class LibraryFlowTests: XCTestCase {
     @discardableResult
@@ -18,7 +18,7 @@ final class LibraryFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["No saved papers yet"].waitForExistence(timeout: 10))
         app.buttons["Go to Search"].tap()
 
-        let field = app.searchFields["Search papers"]
+        let field = app.searchFields["Search, or paste a DOI, arXiv ID or link"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
         field.typeText("attention\n")
@@ -38,6 +38,38 @@ final class LibraryFlowTests: XCTestCase {
 
         app.buttons["Undo"].tap()
         XCTAssertTrue(row.waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testPastingAnArxivIDShowsThePaperToSave() {
+        let app = launchApp()
+        app.tabBars.buttons["Search"].tap()
+        let field = app.searchFields["Search, or paste a DOI, arXiv ID or link"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("arXiv:1706.03762\n")
+
+        XCTAssertTrue(app.staticTexts["Attention Is All You Need"].waitForExistence(timeout: 5))
+        app.buttons["Save to library"].tap()
+        XCTAssertTrue(app.buttons["Remove from library"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Library"].tap()
+        XCTAssertTrue(app.staticTexts["1 paper"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
+    func testAddPaperOpensSearchReadyForInput() {
+        let app = launchApp()
+        XCTAssertTrue(app.buttons["Add paper"].waitForExistence(timeout: 10))
+
+        app.buttons["Add paper"].tap()
+
+        XCTAssertTrue(app.tabBars.buttons["Search"].isSelected)
+        let field = app.searchFields["Search, or paste a DOI, arXiv ID or link"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        let focused = expectation(for: NSPredicate(format: "hasKeyboardFocus == true"), evaluatedWith: field)
+        wait(for: [focused], timeout: 5)
+        XCTAssertEqual(field.value as? String, "Search, or paste a DOI, arXiv ID or link")
     }
 
     @MainActor

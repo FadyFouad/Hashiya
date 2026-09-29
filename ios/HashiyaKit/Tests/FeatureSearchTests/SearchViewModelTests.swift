@@ -11,7 +11,7 @@ struct SearchViewModelTests {
     private let preferences = FakeUserPreferencesRepository()
 
     private func makeViewModel(_ repository: FakeSearchRepository) -> SearchViewModel {
-        SearchViewModel(repository: repository, library: library, preferences: preferences, sleep: sleeper.sleep)
+        SearchViewModel(repository: repository, lookup: FakePaperLookupRepository(), library: library, preferences: preferences, sleep: sleeper.sleep)
     }
 
     /// Answers every first page with `papers` and no next page.
@@ -432,7 +432,7 @@ struct SearchViewModelTests {
     @Test func savedIDsComeFromTheLibraryNotThePapers() async throws {
         let library = FakeLibraryRepository(saved: [SamplePapers.bert])
         let repository = repository()
-        let viewModel = SearchViewModel(repository: repository, library: library, preferences: preferences, sleep: sleeper.sleep)
+        let viewModel = SearchViewModel(repository: repository, lookup: FakePaperLookupRepository(), library: library, preferences: preferences, sleep: sleeper.sleep)
         await type("transformers", into: viewModel)
 
         #expect(await eventually { viewModel.savedIDs == [SamplePapers.bert.openAlexID] })
@@ -477,7 +477,7 @@ struct SearchViewModelTests {
     @Test func aRemoveFailureShowsItsMessage() async {
         let library = FakeLibraryRepository(saved: [SamplePapers.attention])
         library.setFailRemoves(true)
-        let viewModel = SearchViewModel(repository: repository(), library: library, preferences: preferences, sleep: sleeper.sleep)
+        let viewModel = SearchViewModel(repository: repository(), lookup: FakePaperLookupRepository(), library: library, preferences: preferences, sleep: sleeper.sleep)
         #expect(await eventually { viewModel.isSaved(SamplePapers.attention) })
 
         await viewModel.toggleSave(SamplePapers.attention)

@@ -1,6 +1,7 @@
 import FeatureLibrary
 import FeatureSearch
 import FeatureSettings
+import HashiyaData
 import HashiyaDesignSystem
 import SwiftUI
 
@@ -13,6 +14,7 @@ struct RootView: View {
     @State private var showsSettings = false
     @State private var libraryViewModel: LibraryViewModel
     @State private var searchViewModel: SearchViewModel
+    @Environment(\.scenePhase) private var scenePhase
 
     init(container: AppContainer) {
         self.container = container
@@ -26,6 +28,10 @@ struct RootView: View {
                 LibraryView(
                     viewModel: libraryViewModel,
                     onGoToSearch: { selectedTab = .search },
+                    onAddPaper: {
+                        searchViewModel.startFresh(focus: true)
+                        selectedTab = .search
+                    },
                     onOpenSettings: { showsSettings = true }
                 )
             }
@@ -54,5 +60,27 @@ struct RootView: View {
         .sheet(isPresented: $showsSettings) {
             SettingsView(viewModel: container.makeSettingsViewModel())
         }
+        .task { await presentUITestingShareSheetIfRequested() }
+        .onChange(of: scenePhase, initial: true) { _, phase in
+            switch phase {
+            case .active:
+                // Papers saved in the Share Extension appear in the Library and as "In library".
+                SharedLibraryDatabase.resume()
+                Task { await container.libraryRepository.refreshAfterExternalChanges() }
+            case .background:
+                SharedLibraryDatabase.suspend()
+            default:
+                break
+            }
+        }
+    }
+
+    /// Debug UI tests only (`-ui-testing-share <url>`); a Release build does nothing.
+    private func presentUITestingShareSheetIfRequested() async {
+        #if DEBUG
+        await UITestingShareSheet.presentIfRequested {
+            Task { await container.libraryRepository.refreshAfterExternalChanges() }
+        }
+        #endif
     }
 }

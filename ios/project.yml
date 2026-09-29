@@ -18,6 +18,7 @@ targets:
     platform: iOS
     sources:
       - Hashiya
+      - Shared
     configFiles:
       Debug: Config/Base.xcconfig
       Release: Config/Base.xcconfig
@@ -41,6 +42,33 @@ targets:
           - FeatureSearch
           - FeatureLibrary
           - FeatureSettings
+      - target: HashiyaShare
+  HashiyaShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - HashiyaShare
+      - Shared
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.etatech.hashiya.share
+        INFOPLIST_FILE: HashiyaShare/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        CODE_SIGN_ENTITLEMENTS: HashiyaShare/HashiyaShare.entitlements
+        APPLICATION_EXTENSION_API_ONLY: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_EMIT_LOC_STRINGS: NO
+        LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    dependencies:
+      - package: HashiyaKit
+        products:
+          - FeatureSearch
+          - HashiyaData
+          - HashiyaDesignSystem
+          - HashiyaModel
   HashiyaUITests:
     type: bundle.ui-testing
     platform: iOS

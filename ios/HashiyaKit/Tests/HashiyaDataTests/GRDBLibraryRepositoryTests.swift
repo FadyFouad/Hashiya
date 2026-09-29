@@ -1,4 +1,6 @@
+import Foundation
 import HashiyaData
+import HashiyaDatabase
 import HashiyaModel
 import HashiyaTesting
 import os
@@ -91,5 +93,22 @@ struct GRDBLibraryRepositoryTests {
             latest = await iterator.next()
         }
         #expect(latest == [SamplePapers.vit])
+    }
+
+    /// A paper saved by the Share Extension (another pool on the same file) appears after a refresh.
+    @Test func refreshShowsPapersSavedThroughAnotherPool() async throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appending(path: "hashiya.sqlite")
+        let app = GRDBLibraryRepository(store: try PaperStore.open(at: url))
+        let shareExtension = GRDBLibraryRepository(store: try PaperStore.open(at: url))
+        var papers = app.observeSavedPapers().makeAsyncIterator()
+        #expect(await papers.next() == [])
+
+        try await shareExtension.save(SamplePapers.attention)
+        await app.refreshAfterExternalChanges()
+
+        #expect(await papers.next() == [SamplePapers.attention])
     }
 }

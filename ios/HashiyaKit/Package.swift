@@ -11,6 +11,7 @@ let package = Package(
         .library(name: "HashiyaModel", targets: ["HashiyaModel"]),
         .library(name: "HashiyaNetwork", targets: ["HashiyaNetwork"]),
         .library(name: "HashiyaDatabase", targets: ["HashiyaDatabase"]),
+        .library(name: "HashiyaData", targets: ["HashiyaData"]),
         .library(name: "HashiyaTesting", targets: ["HashiyaTesting"]),
     ],
     dependencies: [
@@ -20,13 +21,18 @@ let package = Package(
         .target(name: "HashiyaModel"),
         .target(name: "HashiyaNetwork"),
         .target(name: "HashiyaDatabase", dependencies: [grdb]),
+        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase"]),
         .target(
             name: "HashiyaTesting",
-            dependencies: ["HashiyaNetwork"],
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaNetwork"],
             resources: [.copy("Resources/Fixtures")]
         ),
         .testTarget(name: "HashiyaModelTests", dependencies: ["HashiyaModel"]),
         .testTarget(name: "HashiyaNetworkTests", dependencies: ["HashiyaNetwork", "HashiyaTesting"]),
         .testTarget(name: "HashiyaDatabaseTests", dependencies: ["HashiyaDatabase", grdb]),
+        .testTarget(
+            name: "HashiyaDataTests",
+            dependencies: ["HashiyaData", "HashiyaDatabase", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting"]
+        ),
     ]
 )

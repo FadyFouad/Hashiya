@@ -9,6 +9,8 @@ public final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         case status(Int, body: Data = Data())
         /// A transport failure, as URLSession reports it.
         case failure(URLError.Code)
+        /// No answer: the request ends only when its task is cancelled (or times out).
+        case stall
 
         /// A 200 response with a UTF-8 body.
         public static func json(_ body: String) -> Reply { .status(200, body: Data(body.utf8)) }
@@ -90,6 +92,8 @@ public final class URLProtocolStub: URLProtocol, @unchecked Sendable {
             client?.urlProtocolDidFinishLoading(self)
         case let .failure(code):
             client?.urlProtocol(self, didFailWithError: URLError(code, userInfo: [NSURLErrorFailingURLErrorKey: url]))
+        case .stall:
+            break
         }
     }
 

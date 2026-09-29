@@ -7,21 +7,19 @@ import Testing
 /// ID mode: DOIs, arXiv IDs and links typed or pasted into Search; and the Arabic-marks rule for keywords.
 @MainActor
 struct SearchLookupTests {
-    private let sleeper = ManualSleeper()
     private let library = FakeLibraryRepository()
     private let preferences = FakeUserPreferencesRepository()
     private let search = FakeSearchRepository(page: .of(SamplePapers.all))
     private let bertTitle = "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"
 
     private func makeViewModel(_ lookup: FakePaperLookupRepository) -> SearchViewModel {
-        SearchViewModel(repository: search, lookup: lookup, library: library, preferences: preferences, sleep: sleeper.sleep)
+        SearchViewModel(repository: search, lookup: lookup, library: library, preferences: preferences)
     }
 
-    /// Types `text` and lets the debounce elapse.
+    /// Types `text` and presses the keyboard's Search key.
     private func type(_ text: String, into viewModel: SearchViewModel) async {
         viewModel.updateText(text)
-        await sleeper.waitForSleeper()
-        sleeper.advance(by: .milliseconds(300))
+        viewModel.submitNow()
         await viewModel.waitForPendingWork()
     }
 
@@ -154,7 +152,6 @@ struct SearchLookupTests {
         #expect(viewModel.text == bertTitle)
         #expect(viewModel.lookup == nil)
         #expect(search.calls.map(\.query.text) == [bertTitle])
-        #expect(sleeper.pendingCount == 0)
     }
 
     @Test func theSameIDAgainDoesNotLookUpAgain() async {
@@ -174,7 +171,6 @@ struct SearchLookupTests {
         await viewModel.waitForPendingWork()
 
         #expect(viewModel.lookup == .found(SamplePapers.attention))
-        #expect(sleeper.pendingCount == 0)
     }
 
     @Test func startFreshClearsTextChipsAndLookupAndRequestsFocusOnce() async {

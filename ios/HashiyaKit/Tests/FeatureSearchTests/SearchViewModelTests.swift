@@ -6,12 +6,11 @@ import Testing
 
 @MainActor
 struct SearchViewModelTests {
-    private let sleeper = ManualSleeper()
     private let library = FakeLibraryRepository()
     private let preferences = FakeUserPreferencesRepository()
 
     private func makeViewModel(_ repository: FakeSearchRepository) -> SearchViewModel {
-        SearchViewModel(repository: repository, lookup: FakePaperLookupRepository(), library: library, preferences: preferences, sleep: sleeper.sleep)
+        SearchViewModel(repository: repository, lookup: FakePaperLookupRepository(), library: library, preferences: preferences)
     }
 
     /// Answers every first page with `papers` and no next page.
@@ -19,11 +18,10 @@ struct SearchViewModelTests {
         FakeSearchRepository(page: .of(papers, total: total))
     }
 
-    /// Types `text` and lets the debounce elapse.
+    /// Types `text` and presses the keyboard's Search key.
     private func type(_ text: String, into viewModel: SearchViewModel) async {
         viewModel.updateText(text)
-        await sleeper.waitForSleeper()
-        sleeper.advance(by: .milliseconds(300))
+        viewModel.submitNow()
         await viewModel.waitForPendingWork()
     }
 
@@ -38,19 +36,18 @@ struct SearchViewModelTests {
         #expect(repository.calls.isEmpty)
     }
 
-    @Test func typingWaitsForThePauseThenSearchesOnce() async {
+    @Test func typingDoesNotSearchUntilSubmitted() async throws {
         let repository = repository()
         let viewModel = makeViewModel(repository)
         viewModel.updateText("b")
-        await sleeper.waitForSleeper()
-        sleeper.advance(by: .milliseconds(200))
         viewModel.updateText("bert")
-        await sleeper.waitForSleeper()
-        sleeper.advance(by: .milliseconds(299))
+        await viewModel.waitForPendingWork()
+        try await Task.sleep(for: .milliseconds(400))
+
         #expect(repository.calls.isEmpty)
         #expect(viewModel.phase == .idle)
 
-        sleeper.advance(by: .milliseconds(1))
+        viewModel.submitNow()
         await viewModel.waitForPendingWork()
 
         #expect(repository.calls == [.init(query: SearchQuery(text: "bert"), cursor: nil)])
@@ -58,7 +55,22 @@ struct SearchViewModelTests {
         #expect(viewModel.papers == SamplePapers.all)
     }
 
-    @Test func theSearchKeySkipsTheDebounce() async {
+    @Test func editingKeepsThePreviousResultsUntilSubmitted() async throws {
+        let repository = repository()
+        let viewModel = makeViewModel(repository)
+        await type("bert", into: viewModel)
+
+        viewModel.updateText("gpt")
+        await viewModel.waitForPendingWork()
+        try await Task.sleep(for: .milliseconds(400))
+
+        #expect(repository.calls.map(\.query.text) == ["bert"])
+        #expect(viewModel.phase == .results)
+        #expect(viewModel.text == "gpt")
+        #expect(viewModel.papers == SamplePapers.all)
+    }
+
+    @Test func theSearchKeySearches() async {
         let repository = repository()
         let viewModel = makeViewModel(repository)
         viewModel.updateText("bert")
@@ -66,7 +78,6 @@ struct SearchViewModelTests {
         await viewModel.waitForPendingWork()
 
         #expect(repository.calls.map(\.query.text) == ["bert"])
-        #expect(sleeper.pendingCount == 0)
     }
 
     @Test func aSuggestionFillsTheFieldAndSubmitsAtOnce() async {
@@ -116,7 +127,6 @@ struct SearchViewModelTests {
             SearchQuery(text: "bert", sort: .mostCited, years: .since(2020)),
             SearchQuery(text: "bert", sort: .mostCited, years: .since(2020), openAccessOnly: true),
         ])
-        #expect(sleeper.pendingCount == 0)
     }
 
     @Test func chipChangesWhileIdleOnlyChangeTheChips() async {
@@ -153,7 +163,6 @@ struct SearchViewModelTests {
         #expect(viewModel.phase == .idle)
         #expect(viewModel.papers.isEmpty)
         #expect(viewModel.totalCount == nil)
-        #expect(sleeper.pendingCount == 0)
     }
 
     @Test func exposesTheTotalCount() async {
@@ -432,7 +441,7 @@ struct SearchViewModelTests {
     @Test func savedIDsComeFromTheLibraryNotThePapers() async throws {
         let library = FakeLibraryRepository(saved: [SamplePapers.bert])
         let repository = repository()
-        let viewModel = SearchViewModel(repository: repository, lookup: FakePaperLookupRepository(), library: library, preferences: preferences, sleep: sleeper.sleep)
+        let viewModel = SearchViewModel(repository: repository, lookup: FakePaperLookupRepository(), library: library, preferences: preferences)
         await type("transformers", into: viewModel)
 
         #expect(await eventually { viewModel.savedIDs == [SamplePapers.bert.openAlexID] })
@@ -477,7 +486,7 @@ struct SearchViewModelTests {
     @Test func aRemoveFailureShowsItsMessage() async {
         let library = FakeLibraryRepository(saved: [SamplePapers.attention])
         library.setFailRemoves(true)
-        let viewModel = SearchViewModel(repository: repository(), lookup: FakePaperLookupRepository(), library: library, preferences: preferences, sleep: sleeper.sleep)
+        let viewModel = SearchViewModel(repository: repository(), lookup: FakePaperLookupRepository(), library: library, preferences: preferences)
         #expect(await eventually { viewModel.isSaved(SamplePapers.attention) })
 
         await viewModel.toggleSave(SamplePapers.attention)
@@ -497,7 +506,6 @@ struct SearchViewModelTests {
         #expect(viewModel.text == "bert")
         #expect(viewModel.query == expected)
         #expect(repository.calls.map(\.query) == [expected])
-        #expect(sleeper.pendingCount == 0)
 
         viewModel.restore(text: "other", query: SearchQuery(text: ""))
         #expect(viewModel.text == "bert")

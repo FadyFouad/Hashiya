@@ -2,6 +2,7 @@
 import PackageDescription
 
 let grdb: Target.Dependency = .product(name: "GRDB", package: "GRDB.swift")
+let snapshotTesting: Target.Dependency = .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
 
 let package = Package(
     name: "HashiyaKit",
@@ -12,19 +13,22 @@ let package = Package(
         .library(name: "HashiyaNetwork", targets: ["HashiyaNetwork"]),
         .library(name: "HashiyaDatabase", targets: ["HashiyaDatabase"]),
         .library(name: "HashiyaData", targets: ["HashiyaData"]),
+        .library(name: "HashiyaDesignSystem", targets: ["HashiyaDesignSystem"]),
         .library(name: "HashiyaTesting", targets: ["HashiyaTesting"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1"),
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing.git", exact: "1.19.6"),
     ],
     targets: [
         .target(name: "HashiyaModel"),
         .target(name: "HashiyaNetwork"),
         .target(name: "HashiyaDatabase", dependencies: [grdb]),
         .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase"]),
+        .target(name: "HashiyaDesignSystem", dependencies: ["HashiyaModel"], resources: [.process("Resources")]),
         .target(
             name: "HashiyaTesting",
-            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaNetwork"],
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaNetwork", "HashiyaDesignSystem", snapshotTesting],
             resources: [.copy("Resources/Fixtures")]
         ),
         .testTarget(name: "HashiyaModelTests", dependencies: ["HashiyaModel"]),
@@ -33,6 +37,11 @@ let package = Package(
         .testTarget(
             name: "HashiyaDataTests",
             dependencies: ["HashiyaData", "HashiyaDatabase", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting"]
+        ),
+        .testTarget(
+            name: "HashiyaDesignSystemTests",
+            dependencies: ["HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"],
+            exclude: ["__Snapshots__"]
         ),
     ]
 )

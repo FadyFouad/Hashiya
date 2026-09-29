@@ -28,4 +28,17 @@ struct LibraryStringsTests {
         // The "et al." part is isolated, so the year after it never joins its Arabic run.
         #expect(inLanguage("ar") { L10n.rowMeta(SamplePapers.attention) } == "\u{2068}\u{2068}Ashish Vaswani\u{2069} وآخرون\u{2069} · 2017 · Neural Information Processing Systems")
     }
+
+    /// "·" beside Arabic digits reads like "٠", so Arabic puts the count in parentheses; Arabic formatting also isolates
+    /// each argument (U+2068 … U+2069).
+    @Test func chipsShowTheirCount() {
+        #expect(inLanguage("en") { L10n.filterCount(readingStatusLabel(.reading), 3) } == "Reading · 3")
+        #expect(inLanguage("en") { L10n.filterCount(L10n.string("library.filterAll"), 1_234) } == "All · 1,234")
+        #expect(inLanguage("ar") { L10n.filterCount(readingStatusLabel(.reading), 3) } == "\u{2068}قيد القراءة\u{2069} (\u{2068}3\u{2069})")
+    }
+
+    @Test func theBadgeDescribesTheStatusAndTheAction() {
+        #expect(inLanguage("en") { L10n.statusBadgeDescription(.toRead) } == "Status: To read. Change status")
+        #expect(inLanguage("ar") { L10n.statusBadgeDescription(.read) } == "الحالة: \u{2068}مقروءة\u{2069}. تغيير الحالة")
+    }
 }

@@ -3,5 +3,23 @@
     "superpowers@claude-plugins-official": true,
     "swift-lsp@claude-plugins-official": true,
     "figma@claude-plugins-official": true
+  },
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git -C \"$CLAUDE_PROJECT_DIR\" config user.name \"Fady\" && git -C \"$CLAUDE_PROJECT_DIR\" config user.email \"fady.fouad.a@gmail.com\" 2>/dev/null || true",
+            "statusMessage": "Setting the git author"
+          }
+        ]
+      }
+    ]
   }
 }

@@ -31,6 +31,7 @@ export FILTER='(^/|^xcodebuild: |^macro expansion ).*error:|^✘|✔ Test run|Ex
 
 1. Task 3 carry-over
 2. Task 4
+3. Task 5
 
 ## Task 3 carry-over
 
@@ -79,6 +80,29 @@ Commit: `feat: put the iOS 26 preview buttons in a glass bar the paper scrolls u
   simulator shows the tab bar and the Library/Search screens, not an empty window. `HashiyaApp` only shows
   `Color.clear` when `XCTestConfigurationFilePath` is set, which XCTest sets for the hosted snapshot bundle and
   not for UI tests; a UI-test failure that says an element was not found and a blank simulator mean this broke.
+
+## Task 5: Glass Search chips and suggestions
+
+Commit: `feat: make the iOS 26 Search filter chips and suggestions glass`
+
+- [ ] **Build + record iOS 26 Search:**
+  ```bash
+  TEST_RUNNER_SNAPSHOT_RECORD=1 xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/SearchSnapshotTests 2>&1 | grep -E "$FILTER"
+  ```
+  Expect no `error:` lines; it fails only because it recorded.
+- [ ] **Verify iOS 26:** the same command without `TEST_RUNNER_SNAPSHOT_RECORD=1`. Expect `** TEST SUCCEEDED **`.
+- [ ] **Look at the images** in `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/SearchSnapshotTests/`:
+  - `filtersAndBanner.filtersAndBanner-EnglishLight.png`: Most cited, 2015–2020 and ✓ Open access are teal glass
+    capsules with white text.
+  - `idle.idle-EnglishDark.png`: the three suggestions are clear glass capsules; in `idle.idle-Arabic*.png` they
+    stay left to right.
+  - `results.results-*.png`: Relevance, Any time and Open access are clear glass.
+- [ ] **iOS 18 unchanged** (no recording): `ChipLabel` now takes its colours from `hashiyaChip`, whose pre-iOS 26
+  branch must draw exactly what `ChipLabel` drew before.
+  ```bash
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
+  ```
+  Expect `** TEST SUCCEEDED **`.
 
 ## Deferred findings for the final review
 

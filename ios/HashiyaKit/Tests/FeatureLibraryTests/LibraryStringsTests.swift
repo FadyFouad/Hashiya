@@ -22,8 +22,10 @@ struct LibraryStringsTests {
     }
 
     @Test func rowMetaShowsTheFirstAuthorYearAndVenue() {
-        #expect(inLanguage("en") { L10n.rowMeta(SamplePapers.attention) } == "Ashish Vaswani et al. · 2017 · Neural Information Processing Systems")
+        #expect(inLanguage("en") { L10n.rowMeta(SamplePapers.attention) } == "\u{2068}Ashish Vaswani et al.\u{2069} · 2017 · Neural Information Processing Systems")
         #expect(inLanguage("en") { L10n.rowMeta(SamplePapers.arabicTitled) } == "محمد علي · 2022")
         #expect(inLanguage("en") { L10n.rowMeta(SamplePapers.untitled) } == "")
+        // The "et al." part is isolated, so the year after it never joins its Arabic run.
+        #expect(inLanguage("ar") { L10n.rowMeta(SamplePapers.attention) } == "\u{2068}\u{2068}Ashish Vaswani\u{2069} وآخرون\u{2069} · 2017 · Neural Information Processing Systems")
     }
 }

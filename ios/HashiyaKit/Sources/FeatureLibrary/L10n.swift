@@ -18,12 +18,14 @@ enum L10n {
         format("library.paperCount", Int64(count), PaperFormat.number(count))
     }
 
-    /// First author (alone when there is exactly one, else "et al."), year and venue.
+    /// First author (alone when there is exactly one, else "et al."), year and venue. The "et al." part
+    /// is isolated (FSI…PDI): in Arabic it ends in Arabic, and the year after it would otherwise join
+    /// that right-to-left run and show before it in a left-to-right line.
     static func rowMeta(_ paper: Paper) -> String {
         let author: String? = switch paper.authors.count {
         case 0: nil
         case 1: paper.authors[0].name
-        default: format("library.etAl", paper.authors[0].name)
+        default: "\u{2068}" + format("library.etAl", paper.authors[0].name) + "\u{2069}"
         }
         return [author, paper.year.map(PaperFormat.year), paper.venue].compactMap { $0 }.joined(separator: " · ")
     }

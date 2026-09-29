@@ -23,16 +23,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -41,9 +38,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-internal const val DEBOUNCE_MS = 300L
-
-@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
@@ -60,7 +55,10 @@ class SearchViewModel @Inject constructor(
         savedStateHandle.readSearchQuery().let { restored -> routeArgs?.query?.let { restored.copy(text = it) } ?: restored }
     )
 
-    /** The text actually searched: set after the debounce, or immediately on IME search / suggestion / clear / route query. */
+    /**
+     * The text actually searched. Typing never searches: it changes on the keyboard's Search action, a suggestion,
+     * a route query or clearing the field, so every OpenAlex request is one the user asked for.
+     */
     private val submittedText = MutableStateFlow(draft.value.text)
 
     /** A shared page's title, offered as a title search if its ID isn't found; forgotten once the text is edited. */
@@ -73,9 +71,6 @@ class SearchViewModel @Inject constructor(
     val focusSearch: StateFlow<Boolean> = _focusSearch.asStateFlow()
 
     init {
-        viewModelScope.launch {
-            draft.map { it.text }.distinctUntilChanged().drop(1).debounce(DEBOUNCE_MS).collect { submittedText.value = it }
-        }
         viewModelScope.launch {
             draft.collect { savedStateHandle.writeSearchQuery(it) }
         }

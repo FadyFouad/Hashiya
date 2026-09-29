@@ -23,7 +23,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
 import com.etatech.hashiya.R
+import com.etatech.hashiya.core.designsystem.component.UpdateRequiredScreen
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
+import com.etatech.hashiya.core.model.RequiredUpdate
 import com.etatech.hashiya.feature.library.navigation.LibraryRoute
 import com.etatech.hashiya.feature.library.navigation.libraryScreen
 import com.etatech.hashiya.feature.library.navigation.navigateToLibrary
@@ -42,8 +44,14 @@ enum class TopLevelDestination(val icon: ImageVector, @StringRes val labelRes: I
 fun HashiyaApp(
     navController: NavHostController = rememberNavController(),
     pendingSearch: SearchRoute? = null,
-    onPendingSearchHandled: () -> Unit = {}
+    onPendingSearchHandled: () -> Unit = {},
+    requiredUpdate: RequiredUpdate? = null,
+    onOpenStore: (String) -> Unit = {}
 ) {
+    if (requiredUpdate != null) {
+        UpdateRequiredScreen(onUpdate = { onOpenStore(requiredUpdate.storeUrl) })
+        return
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
     val currentTopLevel = TopLevelDestination.entries.firstOrNull { topLevel ->

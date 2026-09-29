@@ -1,8 +1,8 @@
 name: iOS snapshot baselines
 
-# A push to record-snapshots-ios/<anything> records every iOS snapshot on this pinned runner, Xcode
-# and simulator (the source of truth). ios/scripts/record-snapshots-on-ci.sh drives it and copies
-# the result into the checkout.
+# A push to record-snapshots-ios/<anything> records every iOS snapshot on this pinned runner, Xcode 26.3
+# and the iOS 26.2 and iOS 18.5 simulators (the source of truth). ios/scripts/record-snapshots-on-ci.sh
+# drives it and copies the result into the checkout.
 on:
   push:
     branches: ['record-snapshots-ios/**']
@@ -13,8 +13,8 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
-      - name: Select Xcode 16.4
-        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Select Xcode 26.3
+        run: sudo xcode-select -s /Applications/Xcode_26.3.app
       - name: Generate the Xcode project
         run: |
           brew install xcodegen
@@ -27,9 +27,10 @@ jobs:
           # recorded image count decide instead.
           set +e
           xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=26.2' \
             -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
             -collect-test-diagnostics never \
-            -skip-testing:HashiyaUITests 2>&1 | tee xcodebuild.log
+            -only-testing:HashiyaSnapshotTests 2>&1 | tee xcodebuild.log
           set -e
           if grep -qE '\*\* BUILD FAILED \*\*' xcodebuild.log; then
             echo "::error::xcodebuild reported BUILD FAILED"
@@ -40,12 +41,14 @@ jobs:
             grep -E '\.swift:[0-9]+:[0-9]+: error:' xcodebuild.log
             exit 1
           fi
-          count=$(find ios/HashiyaKit/Tests -path '*/__Snapshots__/*' -type f -name '*.png' | wc -l | tr -d ' ')
-          echo "Recorded $count baseline images"
-          if [ "$count" -eq 0 ]; then
-            echo "::error::no snapshot baselines were recorded"
-            exit 1
-          fi
+          for os in iOS26 iOS18; do
+            count=$(find ios/HashiyaSnapshotTests/__Snapshots__/$os -type f -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
+            echo "Recorded $count $os baseline images"
+            if [ "$count" -eq 0 ]; then
+              echo "::error::no $os snapshot baselines were recorded"
+              exit 1
+            fi
+          done
       - name: Pack the baselines with their paths
         run: find ios -path '*/__Snapshots__/*' -type f -name '*.png' | tar -cf ios-snapshot-baselines.tar -T -
       - uses: actions/upload-artifact@v7

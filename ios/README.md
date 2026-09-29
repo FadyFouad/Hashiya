@@ -36,10 +36,13 @@ Uncomment the `DEVELOPMENT_TEAM` line in `ios/Config/Secrets.xcconfig` and put y
 
 ```bash
 # Everything CI runs: package unit and snapshot tests, and the UI tests
+xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4'
+
+# The same on iOS 18 (the pre-Liquid Glass look)
 xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.2'
 
 # Package tests only (faster), from the package directory
-cd ios/HashiyaKit && xcodebuild test -scheme HashiyaKit-Package -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.2'
+cd ios/HashiyaKit && xcodebuild test -scheme HashiyaKit-Package -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4'
 
 # Every String Catalog key has an Arabic translation
 python3 ios/scripts/check-translations.py
@@ -49,7 +52,7 @@ The UI tests include sharing a link through a real share sheet: launched with `-
 
 ## Snapshot baselines
 
-Snapshot tests render every screen in English and Arabic, light and dark. The baselines under `ios/HashiyaKit/Tests/*/__Snapshots__/` are recorded only on CI (`macos-15`, Xcode 16.4, iPhone 16 on iOS 18.5), which is the source of truth; images recorded on your Mac are for inspection only and are not committed. After an intended UI change:
+Snapshot tests render every screen in English and Arabic, light and dark, on iOS 26 (Liquid Glass) and on iOS 18 (the teal styling iOS 17 and 18 keep). They live in `ios/HashiyaSnapshotTests`, a test bundle hosted by the app, because only a window render captures Liquid Glass. Their baselines under `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/` and `…/iOS18/` are recorded only on CI (`macos-15`, Xcode 26.3, iPhone 16 on iOS 26.2 and on iOS 18.5), which is the source of truth; images recorded on your Mac are for inspection only and are not committed. Building needs Xcode 26 or later. After an intended UI change:
 
 ```bash
 bash ios/scripts/record-snapshots-on-ci.sh   # 15–25 minutes; needs `gh` logged in

@@ -123,6 +123,17 @@ All text is in `docs/store/metadata.md`.
 2. **Closed testing:** personal developer accounts created after 13 November 2023 must run a closed test with **at least 12 testers opted in for 14 continuous days** before they can apply for production. Organization accounts skip this step. Create a closed track, add testers by email list or Google Group, upload the same bundle, and keep 12+ testers opted in for the full 14 days.
 3. **Production:** after the closed test (or directly for organization accounts), Production → Create release → promote the tested bundle → roll out, optionally as a staged rollout (e.g. 20%). Reviews usually take a few hours to a few days.
 
+## Forcing an update
+
+Both apps read `app-config.json` from the [Hashiya-Privacy-Policy](https://github.com/FadyFouad/Hashiya-Privacy-Policy) repo on every launch and every return to the foreground. A build lower than its platform's minimum shows a full-screen "Update required" screen whose button opens the store page.
+
+1. Find the first good build number: `versionCode` on Android, the build (`CURRENT_PROJECT_VERSION`) on iOS.
+2. In `app-config.json`, set `android.minimumVersionCode` or `ios.minimumBuild` to it. Before the first iOS block, replace the placeholder `id0000000000` in `ios.storeUrl` with the real App Store ID.
+3. Check the number twice: a minimum above every released build blocks everyone. Then push.
+4. GitHub Pages caches the file for 10 minutes, so it takes effect within about 10 minutes and the user's next return to the app.
+
+If the file can't be read (offline, a typo in the JSON, GitHub down), nobody is blocked. To undo a block, lower the number and push; blocked users get back in after restarting the app.
+
 ## Each release
 
 1. Bump the version:

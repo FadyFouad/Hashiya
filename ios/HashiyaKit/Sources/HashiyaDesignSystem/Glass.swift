@@ -13,11 +13,13 @@ public struct HashiyaGlassGroup<Content: View>: View {
         self.content = content()
     }
 
-    public var body: some View {
+    // One view, not an `if #available` branch: a conditional body lays out through an implicit stack that places
+    // `content` at a fixed width, and inside a horizontal ScrollView that truncates chip text.
+    public var body: AnyView {
         if #available(iOS 26, *) {
-            GlassEffectContainer(spacing: spacing) { content }
+            return AnyView(GlassEffectContainer(spacing: spacing) { content })
         } else {
-            content
+            return AnyView(content)
         }
     }
 }

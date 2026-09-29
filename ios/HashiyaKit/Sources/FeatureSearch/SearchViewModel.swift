@@ -51,16 +51,12 @@ public final class SearchViewModel {
     public var selectedPaper: Paper?
     public var message: SearchMessage?
 
-    public static let debounce: Duration = .milliseconds(300)
-
     @ObservationIgnored private let repository: any SearchRepository
     @ObservationIgnored private let lookupRepository: any PaperLookupRepository
     @ObservationIgnored private let library: any LibraryRepository
-    @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
     @ObservationIgnored private var activeQuery: SearchQuery?
     @ObservationIgnored private var nextCursor: String?
     @ObservationIgnored private var seenIDs: Set<String> = []
-    @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     /// Cancelled searches still finishing, by ID; each is dropped when it finishes. Only tests wait for them.
     @ObservationIgnored private var supersededTasks: [UUID: Task<Void, Never>] = [:]
@@ -74,13 +70,11 @@ public final class SearchViewModel {
         repository: any SearchRepository,
         lookup: any PaperLookupRepository,
         library: any LibraryRepository,
-        preferences: any UserPreferencesRepository,
-        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+        preferences: any UserPreferencesRepository
     ) {
         self.repository = repository
         self.lookupRepository = lookup
         self.library = library
-        self.sleep = sleep
 
         observations.add(Task { [weak self] in
             for await ids in library.observeSavedIDs() {
@@ -103,28 +97,18 @@ public final class SearchViewModel {
 
     // MARK: Text and chips
 
-    /// The field changed: (re)start the debounce; a blank field goes idle at once.
+    /// The field changed. Typing never searches, so every OpenAlex request is one the user asked for (the Search key,
+    /// a suggestion, a shared link); a blank field goes idle at once.
     public func updateText(_ newText: String) {
         guard newText != text else { return }
         text = newText
-        debounceTask?.cancel()
         if newText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             submit("")
-            return
-        }
-        debounceTask = Task { [weak self, sleep] in
-            do {
-                try await sleep(Self.debounce)
-            } catch {
-                return
-            }
-            self?.submit(newText)
         }
     }
 
-    /// The keyboard's Search key: submit without waiting; the same text again after an error retries it.
+    /// The keyboard's Search key: submit the text; the same text again after an error retries it.
     public func submitNow() {
-        debounceTask?.cancel()
         if case .failed = phase, activeQuery?.text == keywordText(text) {
             retry()
             return
@@ -134,7 +118,6 @@ public final class SearchViewModel {
 
     /// A suggestion chip: fill the field and submit at once.
     public func applySuggestion(_ suggestion: String) {
-        debounceTask?.cancel()
         text = suggestion
         submit(suggestion)
     }
@@ -146,7 +129,6 @@ public final class SearchViewModel {
 
     /// The Library's Add paper: stop everything, clear the field and the chips, and ask for the keyboard.
     public func startFresh(focus: Bool) {
-        debounceTask?.cancel()
         stopLookup()
         stopKeywordSearch()
         text = ""
@@ -187,7 +169,6 @@ public final class SearchViewModel {
         guard !hasRestored else { return }
         hasRestored = true
         guard !restoredText.isEmpty || restoredQuery != SearchQuery(text: "") else { return }
-        debounceTask?.cancel()
         text = restoredText
         query = restoredQuery
         submit(restoredText)
@@ -411,22 +392,20 @@ public final class SearchViewModel {
     /// Superseded searches still tracked.
     var supersededSearchCount: Int { supersededTasks.count }
 
-    /// Waits for the debounce, the search and the lookup in flight, including work they start.
+    /// Waits for the search and the lookup in flight, including work they start.
     func waitForPendingWork() async {
         var finished: Set<UUID> = []
         while true {
-            let debounce = debounceTask
             let search = searchTask
             let lookup = lookupTask
             let superseded = supersededTasks.filter { !finished.contains($0.key) }
-            await debounce?.value
             await search?.value
             await lookup?.value
             for (id, task) in superseded {
                 await task.value
                 finished.insert(id)
             }
-            if debounceTask == debounce, searchTask == search, lookupTask == lookup,
+            if searchTask == search, lookupTask == lookup,
                supersededTasks.keys.allSatisfy(finished.contains) { return }
         }
     }

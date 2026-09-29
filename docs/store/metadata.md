@@ -1,0 +1,317 @@
+# Store listing and questionnaires
+
+Everything to paste into App Store Connect and the Play Console for version 1.0. Character limits
+are in brackets; `scripts/check-store-metadata.py` checks every field against them.
+
+## Shared
+
+| Field                          | Value                                                 |
+|--------------------------------|-------------------------------------------------------|
+| Price                          | Free, no in-app purchases, no ads                     |
+| Privacy policy URL             | https://fadyfouad.github.io/Hashiya-Privacy-Policy/ |
+| Support URL / contact          | https://fadyfouad.github.io/Hashiya-Privacy-Policy/ (email `fady.fouad.a@gmail.com`) |
+| Primary category               | Education (App Store and Play)                        |
+| Secondary category (App Store) | Reference                                             |
+| Copyright (App Store)          | 2026 Fady Fouad                                       |
+
+## App Store
+
+<!-- lang:en store:app-store -->
+**Name** [30]
+
+```
+Hashiya: Research Papers
+```
+
+**Subtitle** [30]
+
+```
+Find, save and track papers
+```
+
+**Promotional text** [170]
+
+```
+Search millions of scholarly works, save papers to an offline library and track what you've read, in English or Arabic.
+```
+
+**Keywords** [100]
+
+```
+research,papers,thesis,phd,masters,scholar,citations,doi,arxiv,literature,review,academic,journal
+```
+
+**Description** [4000]
+
+```
+Hashiya helps master's and PhD students keep their research in one place, from finding a paper to tracking what they've read. The name is the Arabic ḥāshiya: the commentary scholars wrote in the margins of books.
+
+FIND ANY PAPER
+• Search millions of scholarly works from the OpenAlex catalog.
+• Sort by relevance, most cited or newest, and filter by year or open access.
+• Paste a DOI, an arXiv ID or a link to go straight to a paper.
+• Share a paper's page from Safari to add it without leaving the browser.
+
+PREVIEW, THEN SAVE
+• See the abstract, authors, venue, year and citation count before you save.
+• Open the paper's DOI page or its open-access PDF when one is available.
+
+YOUR LIBRARY, OFFLINE
+• Saved papers stay on your device and work without a connection.
+• Search your library by words from a title, author, abstract or venue. Arabic search ignores diacritics and letter variants.
+• Swipe to remove a paper, with Undo.
+
+TRACK YOUR READING
+• Mark each paper To read, Reading or Read.
+• Filter your library by status, with a count for each.
+
+MADE FOR ARABIC AND ENGLISH
+• Full Arabic and English interfaces with right-to-left layouts.
+• Light and dark themes.
+
+PRIVATE BY DESIGN
+• No account, no tracking and no ads. Your library never leaves your device.
+
+Paper data comes from OpenAlex (openalex.org), a free and open catalog of scholarly works.
+```
+
+**What's New** [4000]
+
+```
+The first release of Hashiya.
+```
+
+<!-- /lang -->
+
+<!-- lang:ar store:app-store -->
+**الاسم** [30]
+
+```
+حاشية: الأوراق البحثية
+```
+
+**العنوان الفرعي** [30]
+
+```
+ابحث واحفظ وتابع أبحاثك
+```
+
+**النص الترويجي** [170]
+
+```
+ابحث في ملايين الأعمال العلمية، واحفظ الأوراق في مكتبة تعمل دون اتصال، وتابع ما قرأته، بالعربية أو الإنجليزية.
+```
+
+**الكلمات المفتاحية** [100]
+
+```
+بحث,أبحاث,رسالة,ماجستير,دكتوراه,أوراق,علمية,مراجع,استشهادات,دراسات,مكتبة,أكاديمي
+```
+
+**الوصف** [4000]
+
+```
+تساعد حاشية طلاب الماجستير والدكتوراه على جمع أبحاثهم في مكان واحد، من العثور على الورقة البحثية إلى متابعة ما قرأوه. والاسم مأخوذ من «الحاشية»: الشروح التي كتبها العلماء في هوامش الكتب.
+
+ابحث عن أي ورقة بحثية
+• ابحث في ملايين الأعمال العلمية من فهرس OpenAlex.
+• رتّب النتائج حسب الصلة أو الأكثر استشهادًا أو الأحدث، وصفِّها حسب السنة أو الوصول المفتوح.
+• الصق DOI أو معرّف arXiv أو رابطًا للوصول إلى الورقة مباشرة.
+• شارك صفحة الورقة من Safari لإضافتها دون مغادرة المتصفح.
+
+اطّلع ثم احفظ
+• اطّلع على الملخص والمؤلفين وجهة النشر والسنة وعدد الاستشهادات قبل الحفظ.
+• افتح صفحة DOI للورقة أو ملف PDF المفتوح عند توفّره.
+
+مكتبتك معك دائمًا
+• تبقى الأوراق المحفوظة على جهازك وتعمل دون اتصال.
+• ابحث في مكتبتك بكلمات من العنوان أو المؤلفين أو الملخص أو جهة النشر، ويتجاهل البحث العربي التشكيل واختلاف أشكال الحروف.
+• اسحب لإزالة ورقة، مع إمكانية التراجع.
+
+تابع قراءاتك
+• صنّف كل ورقة: للقراءة، قيد القراءة، مقروءة.
+• صفِّ مكتبتك حسب الحالة، مع عدد الأوراق في كل منها.
+
+بالعربية والإنجليزية
+• واجهة كاملة بالعربية والإنجليزية مع تخطيط من اليمين إلى اليسار.
+• مظهر فاتح وداكن.
+
+خصوصيتك أولًا
+• بلا حساب ولا تتبّع ولا إعلانات، ولا تغادر مكتبتك جهازك.
+
+بيانات الأوراق من OpenAlex ‏(openalex.org)، وهو فهرس مجاني ومفتوح للأعمال العلمية.
+```
+
+**ما الجديد** [4000]
+
+```
+الإصدار الأول من حاشية.
+```
+
+<!-- /lang -->
+
+## Google Play
+
+<!-- lang:en store:play-store -->
+**App name** [30]
+
+```
+Hashiya: Research Papers
+```
+
+**Short description** [80]
+
+```
+Find, save and track research papers, with an offline library. English & Arabic.
+```
+
+**Full description** [4000]
+
+```
+Hashiya helps master's and PhD students keep their research in one place, from finding a paper to tracking what they've read. The name is the Arabic ḥāshiya: the commentary scholars wrote in the margins of books.
+
+FIND ANY PAPER
+• Search millions of scholarly works from the OpenAlex catalog.
+• Sort by relevance, most cited or newest, and filter by year or open access.
+• Paste a DOI, an arXiv ID or a link to go straight to a paper.
+• Share a paper's page from your browser to add it in one step.
+
+PREVIEW, THEN SAVE
+• See the abstract, authors, venue, year and citation count before you save.
+• Open the paper's DOI page or its open-access PDF when one is available.
+
+YOUR LIBRARY, OFFLINE
+• Saved papers stay on your device and work without a connection.
+• Search your library by words from a title, author, abstract or venue. Arabic search ignores diacritics and letter variants.
+• Swipe to remove a paper, with Undo.
+
+TRACK YOUR READING
+• Mark each paper To read, Reading or Read.
+• Filter your library by status, with a count for each.
+
+MADE FOR ARABIC AND ENGLISH
+• Full Arabic and English interfaces with right-to-left layouts, and a per-app language setting.
+• Light and dark themes, on phones, tablets and foldables.
+
+PRIVATE BY DESIGN
+• No account, no tracking and no ads. Your library never leaves your device.
+
+Paper data comes from OpenAlex (openalex.org), a free and open catalog of scholarly works.
+```
+
+**Release notes** [500]
+
+```
+The first release of Hashiya.
+```
+
+<!-- /lang -->
+
+<!-- lang:ar store:play-store -->
+**اسم التطبيق** [30]
+
+```
+حاشية: الأوراق البحثية
+```
+
+**الوصف المختصر** [80]
+
+```
+ابحث عن الأوراق البحثية واحفظها وتابع قراءتها، مع مكتبة تعمل دون اتصال.
+```
+
+**الوصف الكامل** [4000]
+
+```
+تساعد حاشية طلاب الماجستير والدكتوراه على جمع أبحاثهم في مكان واحد، من العثور على الورقة البحثية إلى متابعة ما قرأوه. والاسم مأخوذ من «الحاشية»: الشروح التي كتبها العلماء في هوامش الكتب.
+
+ابحث عن أي ورقة بحثية
+• ابحث في ملايين الأعمال العلمية من فهرس OpenAlex.
+• رتّب النتائج حسب الصلة أو الأكثر استشهادًا أو الأحدث، وصفِّها حسب السنة أو الوصول المفتوح.
+• الصق DOI أو معرّف arXiv أو رابطًا للوصول إلى الورقة مباشرة.
+• شارك صفحة الورقة من المتصفح لإضافتها بخطوة واحدة.
+
+اطّلع ثم احفظ
+• اطّلع على الملخص والمؤلفين وجهة النشر والسنة وعدد الاستشهادات قبل الحفظ.
+• افتح صفحة DOI للورقة أو ملف PDF المفتوح عند توفّره.
+
+مكتبتك معك دائمًا
+• تبقى الأوراق المحفوظة على جهازك وتعمل دون اتصال.
+• ابحث في مكتبتك بكلمات من العنوان أو المؤلفين أو الملخص أو جهة النشر، ويتجاهل البحث العربي التشكيل واختلاف أشكال الحروف.
+• اسحب لإزالة ورقة، مع إمكانية التراجع.
+
+تابع قراءاتك
+• صنّف كل ورقة: للقراءة، قيد القراءة، مقروءة.
+• صفِّ مكتبتك حسب الحالة، مع عدد الأوراق في كل منها.
+
+بالعربية والإنجليزية
+• واجهة كاملة بالعربية والإنجليزية مع تخطيط من اليمين إلى اليسار، ولغة خاصة بالتطبيق.
+• مظهر فاتح وداكن، على الهواتف والأجهزة اللوحية والأجهزة القابلة للطي.
+
+خصوصيتك أولًا
+• بلا حساب ولا تتبّع ولا إعلانات، ولا تغادر مكتبتك جهازك.
+
+بيانات الأوراق من OpenAlex ‏(openalex.org)، وهو فهرس مجاني ومفتوح للأعمال العلمية.
+```
+
+**ملاحظات الإصدار** [500]
+
+```
+الإصدار الأول من حاشية.
+```
+
+<!-- /lang -->
+
+## Questionnaires
+
+### App Store Connect: App Privacy
+
+- **Data collection:** "No, we do not collect data from this app." The library and settings stay on
+  the device. Search queries and identifiers go straight to OpenAlex and arXiv to answer that
+  request only; there is no Hashiya server, analytics or crash reporting.
+- **Privacy manifest:** `PrivacyInfo.xcprivacy` in the app and the share extension declares no
+  tracking and no collected data.
+
+### App Store Connect: Age rating
+
+Answer "None" or "No" to every question, which gives **4+**. The app has no web browser of its own (
+links open in Safari), no user-generated content, no chat, and no gambling or contests.
+
+### App Store Connect: Export compliance
+
+`ITSAppUsesNonExemptEncryption` is `false` in `Info.plist`. The app uses only HTTPS (Apple's system
+encryption), which is exempt, so uploads don't ask this question.
+
+### App Store Connect: App Review notes
+
+```
+Hashiya needs no account. To try it: open Search and search for "large language models", tap Save on a result, then open Library and change the paper's status.
+Share extension: in Safari, open https://arxiv.org/abs/1706.03762, tap Share and choose Hashiya.
+Paper data comes from the public OpenAlex API (openalex.org).
+```
+
+### Play Console: Data safety
+
+- **Does your app collect or share any of the required user data types?** No.
+- **Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS only). Play may
+  ask this even when nothing is collected.
+- **Do you provide a way for users to request that their data is deleted?** Not applicable: nothing
+  is collected, and uninstalling removes the library.
+
+### Play Console: Content rating (IARC)
+
+Category **Reference, News, or Educational**. Answer "No" to violence, sexuality, language,
+controlled substances, gambling, user interaction/sharing, location sharing and digital purchases.
+Expected rating: Everyone / PEGI 3.
+
+### Play Console: App content
+
+| Question           | Answer                                                                       |
+|--------------------|------------------------------------------------------------------------------|
+| Target audience    | 18 and over (university students; keeps the app out of the Families program) |
+| Contains ads       | No                                                                           |
+| App access         | All functionality is available without special access                        |
+| Government app     | No                                                                           |
+| Financial features | None                                                                         |
+| Health             | None                                                                         |
+| News app           | No                                                                           |

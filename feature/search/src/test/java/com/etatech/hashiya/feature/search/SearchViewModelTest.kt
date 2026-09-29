@@ -61,24 +61,42 @@ class SearchViewModelTest {
     }
 
     @Test
-    fun typingIsDebounced() = runTest {
+    fun typingDoesNotSearchUntilSubmitted() = runTest {
         val viewModel = viewModel()
         viewModel.onTextChange("t")
-        advanceTimeBy(100)
         viewModel.onTextChange("tra")
-        advanceTimeBy(100)
         viewModel.onTextChange("transformer")
+        advanceTimeBy(10_000)
+        runCurrent()
 
-        advanceTimeBy(DEBOUNCE_MS - 1)
         assertTrue(searchRepository.queries.isEmpty())
+        assertTrue(viewModel.uiState.value.isIdle)
 
-        advanceTimeBy(2)
+        viewModel.onSearchAction()
+        runCurrent()
+
         assertEquals(listOf(SearchQuery("transformer")), searchRepository.queries)
         assertFalse(viewModel.uiState.value.isIdle)
     }
 
     @Test
-    fun searchActionSkipsDebounce() = runTest {
+    fun editingKeepsThePreviousResultsUntilSubmitted() = runTest {
+        val viewModel = viewModel()
+        viewModel.onTextChange("bert")
+        viewModel.onSearchAction()
+        runCurrent()
+
+        viewModel.onTextChange("gpt")
+        advanceTimeBy(10_000)
+        runCurrent()
+
+        assertEquals(listOf(SearchQuery("bert")), searchRepository.queries)
+        assertFalse(viewModel.uiState.value.isIdle)
+        assertEquals("gpt", viewModel.uiState.value.text)
+    }
+
+    @Test
+    fun searchActionSearches() = runTest {
         val viewModel = viewModel()
         viewModel.onTextChange("bert")
         viewModel.onSearchAction()
@@ -102,14 +120,14 @@ class SearchViewModelTest {
     fun tatweelOnlyQueryIsIdleAndDoesNotSearch() = runTest {
         val viewModel = viewModel()
         viewModel.onTextChange("ـــ")
-        advanceTimeBy(DEBOUNCE_MS + 1)
+        viewModel.onSearchAction()
         runCurrent()
 
         assertTrue(viewModel.uiState.value.isIdle)
         assertTrue(searchRepository.queries.isEmpty())
 
         viewModel.onTextChange("التَّعلُّم")
-        advanceTimeBy(DEBOUNCE_MS + 1)
+        viewModel.onSearchAction()
         runCurrent()
 
         assertEquals(listOf(SearchQuery("التَّعلُّم")), searchRepository.queries)
@@ -119,7 +137,7 @@ class SearchViewModelTest {
     fun tashkeelOnlyQueryIsIdleAndDoesNotSearch() = runTest {
         val viewModel = viewModel()
         viewModel.onTextChange("\u064E")
-        advanceTimeBy(DEBOUNCE_MS + 1)
+        viewModel.onSearchAction()
         runCurrent()
 
         assertTrue(viewModel.uiState.value.isIdle)
@@ -335,7 +353,7 @@ class SearchViewModelTest {
         val viewModel = viewModel()
 
         viewModel.onTextChange("https://doi.org/10.1038/nature14539")
-        advanceTimeBy(DEBOUNCE_MS + 1)
+        viewModel.onSearchAction()
         runCurrent()
 
         assertEquals(listOf(doi), lookupRepository.lookups)
@@ -364,7 +382,7 @@ class SearchViewModelTest {
         val viewModel = viewModel()
 
         viewModel.onTextChange("a study of 10.1038/nature14539")
-        advanceTimeBy(DEBOUNCE_MS + 1)
+        viewModel.onSearchAction()
         runCurrent()
 
         assertEquals(listOf(SearchQuery("a study of 10.1038/nature14539")), searchRepository.queries)
@@ -377,7 +395,7 @@ class SearchViewModelTest {
         val viewModel = viewModel()
 
         viewModel.onTextChange("https://example.com/some/article")
-        advanceTimeBy(DEBOUNCE_MS + 1)
+        viewModel.onSearchAction()
         runCurrent()
 
         assertEquals(LookupUiState.NoIdInLink, viewModel.lookupState.value)
@@ -385,7 +403,7 @@ class SearchViewModelTest {
         assertTrue(lookupRepository.lookups.isEmpty())
 
         viewModel.onTextChange("graph neural networks")
-        advanceTimeBy(DEBOUNCE_MS + 1)
+        viewModel.onSearchAction()
         runCurrent()
 
         assertEquals(listOf(SearchQuery("graph neural networks")), searchRepository.queries)
@@ -480,7 +498,7 @@ class SearchViewModelTest {
         val viewModel = viewModel(SavedStateHandle(mapOf("query" to "10.1038/nature14539", "pageTitle" to "Deep learning")))
 
         viewModel.onTextChange("1810.04805")
-        advanceTimeBy(DEBOUNCE_MS + 1)
+        viewModel.onSearchAction()
         runCurrent()
 
         assertEquals(LookupUiState.NotFound(PaperIdentifier.Arxiv("1810.04805"), searchTitle = null), viewModel.lookupState.value)
@@ -502,7 +520,7 @@ class SearchViewModelTest {
         val handle = SavedStateHandle(mapOf("query" to "10.1038/nature14539", "focusSearch" to true))
         val first = viewModel(handle)
         first.onTextChange("gpt")
-        advanceTimeBy(DEBOUNCE_MS + 1)
+        first.onSearchAction()
         runCurrent()
 
         val recreated = viewModel(handle)

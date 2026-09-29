@@ -185,6 +185,23 @@ struct SearchViewModelTests {
         #expect(repository.calls.count == 2)
     }
 
+    @Test func searchingTheSameTextAgainAfterAnErrorRetries() async {
+        let repository = FakeSearchRepository { _, _ in throw SearchError.offline }
+        let viewModel = makeViewModel(repository)
+        viewModel.updateText("bert")
+        viewModel.submitNow()
+        await viewModel.waitForPendingWork()
+        #expect(viewModel.phase == .failed(.offline))
+
+        repository.setHandler { _, _ in .of(SamplePapers.all) }
+        viewModel.submitNow()
+        await viewModel.waitForPendingWork()
+
+        #expect(repository.calls.map(\.query.text) == ["bert", "bert"])
+        #expect(viewModel.phase == .results)
+        #expect(viewModel.papers == SamplePapers.all)
+    }
+
     @Test func aSlowEarlierSearchNeverOverwritesANewerOne() async {
         let slow = AsyncGate()
         let repository = FakeSearchRepository { query, _ in

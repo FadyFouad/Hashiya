@@ -101,9 +101,13 @@ public final class SearchViewModel {
         }
     }
 
-    /// The keyboard's Search key: submit without waiting.
+    /// The keyboard's Search key: submit without waiting; the same text again after an error retries it.
     public func submitNow() {
         debounceTask?.cancel()
+        if case .failed = phase, activeQuery?.text == text.trimmingCharacters(in: .whitespacesAndNewlines) {
+            retry()
+            return
+        }
         submit(text)
     }
 

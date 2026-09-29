@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -33,4 +34,5 @@ object HashiyaIcons {
     val Check: ImageVector = Icons.Outlined.Check
     val ArrowDropDown: ImageVector = Icons.Outlined.ArrowDropDown
     val Add: ImageVector = Icons.Outlined.Add
+    val Update: ImageVector = Icons.Outlined.SystemUpdate
 }

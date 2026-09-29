@@ -56,4 +56,8 @@ struct DesignSystemSnapshotTests {
         .background(HashiyaColors.surface)
         assertHashiyaSnapshots(of: states, named: "components", arabicText: "بدون عنوان")
     }
+
+    @Test func updateRequired() {
+        assertHashiyaSnapshots(of: UpdateRequiredView(onUpdate: {}), named: "updateRequired", arabicText: "يلزم التحديث")
+    }
 }

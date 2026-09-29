@@ -11,12 +11,14 @@ final class AppContainer {
     let searchRepository: any SearchRepository
     let lookupRepository: any PaperLookupRepository
     let preferences: any UserPreferencesRepository
+    let appUpdateRepository: any AppUpdateRepository
 
-    init(dependencies: LiveDependencies) {
+    init(dependencies: LiveDependencies, appUpdateRepository: any AppUpdateRepository) {
         libraryRepository = dependencies.libraryRepository
         searchRepository = dependencies.searchRepository
         lookupRepository = dependencies.lookupRepository
         preferences = dependencies.preferences
+        self.appUpdateRepository = appUpdateRepository
     }
 
     /// The real graph, or — in Debug builds launched with `-ui-testing` — the UI tests' library file, stub search and lookup.
@@ -25,11 +27,11 @@ final class AppContainer {
         // Tells a Debug Share Extension whether to use the UI tests' stubs; reset on every other launch.
         UITestingFlags.stubsEnabled = arguments.contains("-ui-testing")
         if arguments.contains("-ui-testing") {
-            return AppContainer(dependencies: UITestingStubs.dependencies())
+            return AppContainer(dependencies: UITestingStubs.dependencies(), appUpdateRepository: UITestingStubs.appUpdateRepository)
         }
         #endif
         do {
-            return AppContainer(dependencies: try LiveDependencies.live())
+            return AppContainer(dependencies: try LiveDependencies.live(), appUpdateRepository: ConfigAppUpdateRepository.live())
         } catch {
             fatalError("Could not open the library database: \(error)")
         }
@@ -45,5 +47,9 @@ final class AppContainer {
 
     func makeSettingsViewModel() -> SettingsViewModel {
         SettingsViewModel(preferences: preferences)
+    }
+
+    func makeAppUpdateModel() -> AppUpdateModel {
+        AppUpdateModel(repository: appUpdateRepository, currentBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
     }
 }

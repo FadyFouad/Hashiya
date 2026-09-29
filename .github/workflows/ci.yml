@@ -10,7 +10,7 @@ concurrency:
 
 jobs:
   build:
-    if: ${{ !startsWith(github.ref_name, 'record-screenshots/') }}
+    if: ${{ !startsWith(github.ref_name, 'record-screenshots/') && !startsWith(github.ref_name, 'record-snapshots-ios/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

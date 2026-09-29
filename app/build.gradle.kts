@@ -13,7 +13,7 @@ android {
     defaultConfig {
         applicationId = "com.etatech.hashiya"
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "0.1.0"
     }
 
     // The Play upload key, from the git-ignored local.properties (see docs/release.md).

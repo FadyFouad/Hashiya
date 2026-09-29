@@ -1,17 +1,30 @@
 import HashiyaModel
 import SwiftUI
 
-/// The preview sheet's body: the full paper, then Open DOI and Save/Remove.
+/// The preview sheet's body: the full paper, the reading status (Library only), then Open DOI and Save/Remove.
 public struct PaperPreviewContent: View {
     private let paper: Paper
     private let inLibrary: Bool
+    private let status: ReadingStatus?
+    private let onStatusChange: (ReadingStatus) -> Void
     private let onToggleSave: () -> Void
     private let onOpenDOI: ((String) -> Void)?
 
-    /// - Parameter onOpenDOI: nil hides Open DOI.
-    public init(paper: Paper, inLibrary: Bool, onToggleSave: @escaping () -> Void, onOpenDOI: ((String) -> Void)?) {
+    /// - Parameters:
+    ///   - status: the saved paper's status, shown as a segmented selector above the buttons; nil shows none.
+    ///   - onOpenDOI: nil hides Open DOI.
+    public init(
+        paper: Paper,
+        inLibrary: Bool,
+        status: ReadingStatus? = nil,
+        onStatusChange: @escaping (ReadingStatus) -> Void = { _ in },
+        onToggleSave: @escaping () -> Void,
+        onOpenDOI: ((String) -> Void)?
+    ) {
         self.paper = paper
         self.inLibrary = inLibrary
+        self.status = status
+        self.onStatusChange = onStatusChange
         self.onToggleSave = onToggleSave
         self.onOpenDOI = onOpenDOI
     }
@@ -51,6 +64,13 @@ public struct PaperPreviewContent: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 24)
                 .padding(.bottom, 16)
+            }
+            if let status {
+                // 16 pt above; the buttons' 12 pt padding plus 4 makes 16 below.
+                ReadingStatusSelector(status: status, onChange: onStatusChange)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 16)
+                    .padding(.bottom, 4)
             }
             HStack(spacing: 12) {
                 if let doi = paper.doi, let onOpenDOI {

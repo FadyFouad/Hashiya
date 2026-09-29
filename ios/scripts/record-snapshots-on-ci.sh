@@ -12,7 +12,7 @@ trap 'git push --quiet origin --delete "$branch" || true; [ -z "$download_dir" ]
 
 run_id=""
 for _ in $(seq 1 60); do
-  run_id=$(gh run list --branch "$branch" --workflow ios-record-snapshots.yml --limit 1 --json databaseId --jq '.[0].databaseId // empty' || true)
+  run_id=$(gh run list --branch "$branch" --limit 10 --json databaseId,workflowName --jq 'map(select(.workflowName == "iOS snapshot baselines")) | .[0].databaseId // empty' || true)
   [ -n "$run_id" ] && break
   sleep 5
 done
@@ -22,5 +22,7 @@ gh run watch "$run_id" --exit-status --interval 30 > /dev/null
 
 download_dir=$(mktemp -d)
 gh run download "$run_id" --name ios-snapshot-baselines --dir "$download_dir"
+count=$(tar -tf "$download_dir/ios-snapshot-baselines.tar" | wc -l | tr -d ' ')
+[ "$count" -gt 0 ] || { echo "Run $run_id recorded no baselines (empty archive)" >&2; exit 1; }
 tar -xf "$download_dir/ios-snapshot-baselines.tar"
-echo "Baselines copied from run $run_id: $(tar -tf "$download_dir/ios-snapshot-baselines.tar" | wc -l | tr -d ' ') images"
+echo "Baselines copied from run $run_id: $count images"

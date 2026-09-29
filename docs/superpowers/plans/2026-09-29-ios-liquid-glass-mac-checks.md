@@ -182,14 +182,33 @@ search field that is *not* active) — that is the correct way to see whether Se
   fade is specific to iOS 26 with a populated list under the title, not a general iOS 26 style and not present
   on iOS 18. See `mac-checks-2-report.md` for the crops and pixel samples. Also rechecked Task 5's and Task 6's
   image lists on these new images: still PASS.
-- [ ] **iOS 18 unchanged** (no recording; the pre-iOS 26 branch keeps `safeAreaInset` with the surface
+- [x] **iOS 18 unchanged** (no recording; the pre-iOS 26 branch keeps `safeAreaInset` with the surface
   background):
   ```bash
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
   ```
-  **FAILED (phase 2), same `LibrarySnapshotTests` chip-truncation regression as Task 4/6's iOS 18 boxes above.**
-  `SearchSnapshotTests` (this task's other suite) passed in full. Left unticked because the full-suite run this
-  step calls for does not currently pass; see `mac-checks-2-report.md`.
+  Phase 2: FAILED, with the same `LibrarySnapshotTests` chip-truncation regression as Task 4/6's iOS 18 boxes
+  above. The cause was `HashiyaGlassGroup`'s `if #available` body, which made SwiftUI lay the chip row out at a
+  fixed width inside the horizontal ScrollView. Fixed in `fix: keep the iOS 18 Library chips' layout unchanged`
+  (the body is now one `AnyView`). After the fix: `✔ Test run with 39 tests in 6 suites passed`, against Task 1's
+  iOS 18 images, with nothing recorded. See `debug-report.md`, Issue A.
+- [x] **Follow-up: full-contrast large titles (the pale title from extra look (b)).** Cause: iOS 26 hosts the
+  large title inside the list, and `safeAreaBar` extends the list's top scroll-edge effect (0–333 pt, with a
+  backdrop at α 0.85) over it (see `debug-report.md`, Issue B). Fix: `fix: show the iOS 26 large titles at full
+  contrast`. On iOS 26, `hashiyaTopBar` is now `safeAreaInset(edge: .top)` with no background; the iOS 17/18 branch
+  is unchanged. I re-recorded only `iOS26/LibrarySnapshotTests` and `iOS26/SearchSnapshotTests`, and two verify
+  runs both printed `** TEST SUCCEEDED **`. Title pixels (darkest title pixel on the background):
+
+  | Image | Before | After |
+  |---|---|---|
+  | papers-EnglishLight | 214 on 252 | 0 on 255 |
+  | results-EnglishLight | 214 on 252 | 0 on 255 |
+  | papers-ArabicDark | 49 on 14 | 255 on 14 |
+  | results-ArabicDark | 49 on 14 | 255 on 14 |
+
+  The chips still sit under the search field, and the chip row's background matches the list (no band).
+  `testTheLibraryShowsItsLargeTitle` passed on iOS 26.4 and iOS 18.2 (app uninstalled first), and all iOS 18
+  snapshot suites passed unchanged (39 tests, 6 suites).
 
 ## Task 8: Full verification, device checks, push and PR
 

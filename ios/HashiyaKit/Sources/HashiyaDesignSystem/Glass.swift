@@ -87,8 +87,9 @@ private struct SecondaryButton: ViewModifier {
 }
 
 public extension View {
-    /// A bar under the navigation bar (the filter chips). iOS 26: `safeAreaBar`, which joins the navigation bar's
-    /// scroll edge effect, so it needs no background of its own. Before: `safeAreaInset` on the surface colour.
+    /// A bar under the navigation bar (the filter chips). iOS 26: `safeAreaInset` with no background. Not
+    /// `safeAreaBar`: iOS 26 hosts the large title inside the list, and a `safeAreaBar` extends the list's top scroll
+    /// edge effect over it, which washes the title out. Before: `safeAreaInset` on the surface colour.
     func hashiyaTopBar<Bar: View>(@ViewBuilder _ bar: () -> Bar) -> some View {
         modifier(TopBar(bar: bar()))
     }
@@ -99,7 +100,7 @@ private struct TopBar<Bar: View>: ViewModifier {
 
     func body(content: Content) -> some View {
         if #available(iOS 26, *) {
-            content.safeAreaBar(edge: .top, spacing: 0) { bar }
+            content.safeAreaInset(edge: .top, spacing: 0) { bar }
         } else {
             content.safeAreaInset(edge: .top, spacing: 0) { bar.background(HashiyaColors.surface) }
         }

@@ -26,6 +26,10 @@ struct RootView: View {
                 LibraryView(
                     viewModel: libraryViewModel,
                     onGoToSearch: { selectedTab = .search },
+                    onAddPaper: {
+                        searchViewModel.startFresh(focus: true)
+                        selectedTab = .search
+                    },
                     onOpenSettings: { showsSettings = true }
                 )
             }

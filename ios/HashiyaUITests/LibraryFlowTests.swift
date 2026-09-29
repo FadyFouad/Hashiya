@@ -55,6 +55,20 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     @MainActor
+    func testAddPaperOpensSearchReadyForInput() {
+        XCTAssertTrue(app.buttons["Add paper"].waitForExistence(timeout: 10))
+
+        app.buttons["Add paper"].tap()
+
+        XCTAssertTrue(app.tabBars.buttons["Search"].isSelected)
+        let field = app.searchFields["Search, or paste a DOI, arXiv ID or link"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        let focused = expectation(for: NSPredicate(format: "hasKeyboardFocus == true"), evaluatedWith: field)
+        wait(for: [focused], timeout: 5)
+        XCTAssertEqual(field.value as? String, "Search, or paste a DOI, arXiv ID or link")
+    }
+
+    @MainActor
     func testSettingsSavesAndResetsTheUserKey() {
         app.buttons["Settings"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Using built-in key"].waitForExistence(timeout: 5))

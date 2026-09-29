@@ -9,7 +9,7 @@ import Testing
 struct LibrarySnapshotTests {
     private func screen(_ viewModel: LibraryViewModel) -> some View {
         NavigationStack {
-            LibraryView(viewModel: viewModel, onGoToSearch: {}, onOpenSettings: {})
+            LibraryView(viewModel: viewModel, onGoToSearch: {}, onAddPaper: {}, onOpenSettings: {})
         }
     }
 
@@ -23,7 +23,7 @@ struct LibrarySnapshotTests {
         let saved = [SamplePapers.attention, SamplePapers.arabicTitled, SamplePapers.vit, SamplePapers.untitled]
         let viewModel = LibraryViewModel(library: FakeLibraryRepository(saved: saved))
         _ = await eventually { viewModel.papers.count == 4 }
-        assertHashiyaSnapshots(of: screen(viewModel), named: "papers", arabicText: "\u{2068}4\u{2069} أوراق")
+        assertHashiyaSnapshots(of: screen(viewModel), named: "papers", arabicText: "إضافة ورقة")
     }
 
     @Test func undoBanner() async {

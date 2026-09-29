@@ -6,13 +6,24 @@ import SwiftUI
 public struct LibraryView: View {
     @Bindable private var viewModel: LibraryViewModel
     private let onGoToSearch: () -> Void
+    private let onAddPaper: () -> Void
     private let onOpenSettings: () -> Void
+
+    /// Space under the list's last row, so the Add paper button never covers it.
+    static let addPaperClearance: CGFloat = 88
 
     @Environment(\.openURL) private var openURL
 
-    public init(viewModel: LibraryViewModel, onGoToSearch: @escaping () -> Void, onOpenSettings: @escaping () -> Void) {
+    /// - Parameter onAddPaper: the Add paper button; the app opens Search ready for input.
+    public init(
+        viewModel: LibraryViewModel,
+        onGoToSearch: @escaping () -> Void,
+        onAddPaper: @escaping () -> Void,
+        onOpenSettings: @escaping () -> Void
+    ) {
         self.viewModel = viewModel
         self.onGoToSearch = onGoToSearch
+        self.onAddPaper = onAddPaper
         self.onOpenSettings = onOpenSettings
     }
 
@@ -21,11 +32,20 @@ public struct LibraryView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(HashiyaColors.surface)
             .overlay(alignment: .bottom) {
-                if viewModel.pendingUndo != nil {
-                    HashiyaBanner(text: L10n.string("library.removed"), actionTitle: L10n.string("library.undo")) {
-                        Task { await viewModel.undo() }
+                // The Undo banner sits above the Add paper button (bottom trailing; bottom left in Arabic).
+                VStack(alignment: .trailing, spacing: 0) {
+                    if viewModel.pendingUndo != nil {
+                        HashiyaBanner(text: L10n.string("library.removed"), actionTitle: L10n.string("library.undo")) {
+                            Task { await viewModel.undo() }
+                        }
+                    }
+                    if viewModel.isLoaded {
+                        AddPaperButton(action: onAddPaper)
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 16)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .animation(.default, value: viewModel.pendingUndo)
             .task(id: viewModel.pendingUndo) {
@@ -94,6 +114,7 @@ public struct LibraryView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .contentMargins(.bottom, Self.addPaperClearance, for: .scrollContent)
     }
 
     private func preview(_ paper: Paper) -> some View {
@@ -107,6 +128,29 @@ public struct LibraryView: View {
         )
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+}
+
+/// The floating "+ Add paper" capsule.
+private struct AddPaperButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label {
+                Text(verbatim: L10n.string("library.addPaper"))
+            } icon: {
+                Image(systemName: "plus")
+            }
+            .font(.hashiya(.label))
+            .foregroundStyle(HashiyaColors.onPrimary)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .tint(HashiyaColors.primary)
+        .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
     }
 }
 

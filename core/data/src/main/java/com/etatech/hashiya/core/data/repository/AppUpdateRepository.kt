@@ -2,6 +2,8 @@ package com.etatech.hashiya.core.data.repository
 
 import com.etatech.hashiya.core.model.RequiredUpdate
 import com.etatech.hashiya.core.network.AppConfigDataSource
+import java.net.URI
+import java.net.URISyntaxException
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -21,7 +23,17 @@ internal class ConfigAppUpdateRepository @Inject constructor(private val dataSou
             null
         } ?: return null
         val minimum = config.minimumVersionCode ?: return null
-        val storeUrl = config.storeUrl?.takeIf { it.startsWith("https://") } ?: return null
+        val storeUrl = config.storeUrl?.takeIf(::isHttpsWithHost) ?: return null
         return if (currentVersionCode < minimum) RequiredUpdate(storeUrl) else null
     }
+}
+
+/** A store link must be https with a host, or the Update button would lead nowhere. */
+private fun isHttpsWithHost(link: String): Boolean {
+    val uri = try {
+        URI(link)
+    } catch (e: URISyntaxException) {
+        return false
+    }
+    return uri.scheme == "https" && !uri.host.isNullOrEmpty()
 }

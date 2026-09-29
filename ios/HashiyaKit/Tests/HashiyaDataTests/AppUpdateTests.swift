@@ -35,7 +35,7 @@ struct ConfigAppUpdateRepositoryTests {
         #expect(await repository { PlatformAppConfig(minimumBuild: nil, storeUrl: store) }.requiredUpdate(currentBuild: 1) == nil)
     }
 
-    @Test(arguments: [nil, "", "http://apps.apple.com/app/id0000000000", "app store"] as [String?])
+    @Test(arguments: [nil, "", "http://apps.apple.com/app/id0000000000", "app store", "https://", "https:///app"] as [String?])
     func aStoreLinkThatIsNotHTTPSMeansNoBlock(link: String?) async {
         #expect(await repository { PlatformAppConfig(minimumBuild: 5, storeUrl: link) }.requiredUpdate(currentBuild: 1) == nil)
     }

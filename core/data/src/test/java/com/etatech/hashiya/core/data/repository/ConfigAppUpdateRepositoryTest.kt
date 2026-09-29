@@ -50,7 +50,13 @@ class ConfigAppUpdateRepositoryTest {
 
     @Test
     fun aStoreLinkThatIsNotHttpsMeansNoBlock() = runTest {
-        for (link in listOf("http://play.google.com/store/apps/details?id=com.etatech.hashiya", "", "play store")) {
+        for (link in listOf(
+            "http://play.google.com/store/apps/details?id=com.etatech.hashiya",
+            "",
+            "play store",
+            "https://",
+            "https:///store"
+        )) {
             assertNull(link, repository { NetworkPlatformConfig(5, link) }.requiredUpdate(1))
         }
     }

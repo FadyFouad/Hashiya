@@ -24,7 +24,7 @@ public struct ConfigAppUpdateRepository: AppUpdateRepository {
     public func requiredUpdate(currentBuild: Int) async -> RequiredUpdate? {
         guard let config = try? await service.iosConfig(),
               let minimum = config.minimumBuild,
-              let link = config.storeUrl, let storeURL = URL(string: link), storeURL.scheme == "https",
+              let link = config.storeUrl, let storeURL = URL(string: link), storeURL.scheme == "https", storeURL.host()?.isEmpty == false,
               currentBuild < minimum else { return nil }
         return RequiredUpdate(storeURL: storeURL)
     }

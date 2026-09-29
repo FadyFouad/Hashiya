@@ -33,6 +33,7 @@ internal data class RawPlatformConfig(val minimumVersionCode: JsonElement? = nul
 internal fun buildAppConfigOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
     .connectTimeout(5, TimeUnit.SECONDS)
     .readTimeout(5, TimeUnit.SECONDS)
+    .callTimeout(10, TimeUnit.SECONDS)
     .build()
 
 internal class OkHttpAppConfigDataSource(private val client: OkHttpClient, private val url: HttpUrl) : AppConfigDataSource {

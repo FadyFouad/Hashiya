@@ -38,6 +38,9 @@ public final class AppConfigClient: AppConfigService {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 5
         configuration.timeoutIntervalForResource = 5
+        // Always ask the server: a cached copy would add up to 10 minutes to a raised minimum.
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         return configuration
     }
 

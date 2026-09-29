@@ -2,31 +2,55 @@ import Foundation
 import HashiyaDatabase
 import HashiyaModel
 
+/// The Library for one search and status filter, read in one go so its parts always describe the same moment.
+public struct LibrarySnapshot: Equatable, Sendable {
+    /// Papers matching the search and the status, newest saved first.
+    public var papers: [LibraryPaper]
+    /// Papers matching the search (whatever their status) per status; all three keys are present.
+    public var counts: [ReadingStatus: Int]
+    /// Every saved paper, ignoring the search and the status.
+    public var libraryTotal: Int
+
+    /// Papers matching the search: the All chip.
+    public var matchingTotal: Int { counts.values.reduce(0, +) }
+
+    public init(papers: [LibraryPaper], counts: [ReadingStatus: Int], libraryTotal: Int) {
+        self.papers = papers
+        self.counts = counts
+        self.libraryTotal = libraryTotal
+    }
+}
+
 public protocol LibraryRepository: Sendable {
-    /// Saved papers, newest saved first. Each call returns a new stream starting with the current value.
-    func observeSavedPapers() -> AsyncStream<[Paper]>
+    /// One consistent snapshot per database change. Blank query = all; nil status = all. Each call returns a new
+    /// stream starting with the current value.
+    func observeLibrary(query: String, status: ReadingStatus?) -> AsyncStream<LibrarySnapshot>
     /// The OpenAlex IDs in the library. Each call returns a new stream starting with the current value.
     func observeSavedIDs() -> AsyncStream<Set<String>>
-    /// Already saved → no-op.
+    /// Starts as To read. Already saved → no-op.
     func save(_ paper: Paper) async throws
+    /// Doesn't reorder. Not saved → no-op.
+    func setStatus(openAlexID: String, status: ReadingStatus) async throws
     /// Nil if the paper was not saved.
     func remove(openAlexID: String) async throws -> RemovedPaper?
-    /// Puts a removed paper back with the same local ID and saved time. No-op if it was saved again meanwhile.
+    /// Puts a removed paper back with the same local ID, saved time and status. No-op if it was saved again meanwhile.
     func restore(_ removed: RemovedPaper) async throws
     /// Makes every observation fetch again, so papers saved by the Share Extension appear. Failures are ignored.
     func refreshAfterExternalChanges() async
 }
 
-/// What `remove` deleted, so Undo can put it back in the same place.
+/// What `remove` deleted, so Undo can put it back in the same place with the same status.
 public struct RemovedPaper: Equatable, Sendable {
     public var paper: Paper
     public var localID: String
     public var savedAt: Int64
+    public var status: ReadingStatus
 
-    public init(paper: Paper, localID: String, savedAt: Int64) {
+    public init(paper: Paper, localID: String, savedAt: Int64, status: ReadingStatus) {
         self.paper = paper
         self.localID = localID
         self.savedAt = savedAt
+        self.status = status
     }
 }
 
@@ -63,8 +87,8 @@ public struct GRDBLibraryRepository: LibraryRepository {
         GRDBLibraryRepository(store: try PaperStore.inMemory(), now: now, newID: newID)
     }
 
-    public func observeSavedPapers() -> AsyncStream<[Paper]> {
-        store.observeLibrary(match: nil, status: nil).mapped { rows in rows.papers.map { $0.asPaper() } }
+    public func observeLibrary(query: String, status: ReadingStatus?) -> AsyncStream<LibrarySnapshot> {
+        store.observeLibrary(match: ftsMatch(query), status: status?.storedValue).mapped { $0.asSnapshot() }
     }
 
     public func observeSavedIDs() -> AsyncStream<Set<String>> {
@@ -76,18 +100,34 @@ public struct GRDBLibraryRepository: LibraryRepository {
         try await store.insert(paper: records.paper, authors: records.authors, search: records.searchRow)
     }
 
+    public func setStatus(openAlexID: String, status: ReadingStatus) async throws {
+        try await store.setStatus(openAlexID: openAlexID, status: status.storedValue)
+    }
+
     public func remove(openAlexID: String) async throws -> RemovedPaper? {
         guard let deleted = try await store.deleteByOpenAlexID(openAlexID) else { return nil }
-        return RemovedPaper(paper: deleted.asPaper(), localID: deleted.paper.id, savedAt: deleted.paper.savedAt)
+        let saved = deleted.asLibraryPaper()
+        return RemovedPaper(paper: saved.paper, localID: deleted.paper.id, savedAt: deleted.paper.savedAt, status: saved.status)
     }
 
     public func restore(_ removed: RemovedPaper) async throws {
-        let records = removed.paper.asRecords(localID: removed.localID, savedAt: removed.savedAt)
+        let records = removed.paper.asRecords(localID: removed.localID, savedAt: removed.savedAt, status: removed.status)
         try await store.insert(paper: records.paper, authors: records.authors, search: records.searchRow)
     }
 
     public func refreshAfterExternalChanges() async {
         try? await store.notifyExternalChanges()
+    }
+}
+
+extension LibraryRows {
+    /// Every stored status mapped to its `ReadingStatus` (unknown values count as To read); missing statuses are 0.
+    func asSnapshot() -> LibrarySnapshot {
+        var counts = Dictionary(uniqueKeysWithValues: ReadingStatus.allCases.map { ($0, 0) })
+        for (stored, count) in statusCounts {
+            counts[ReadingStatus(stored: stored), default: 0] += count
+        }
+        return LibrarySnapshot(papers: papers.map { $0.asLibraryPaper() }, counts: counts, libraryTotal: total)
     }
 }
 

@@ -22,8 +22,9 @@ public final class LibraryViewModel {
     public init(library: any LibraryRepository) {
         self.library = library
         observations.add(Task { [weak self] in
-            for await papers in library.observeSavedPapers() {
+            for await snapshot in library.observeLibrary(query: "", status: nil) {
                 guard let self else { return }
+                let papers = snapshot.papers.map(\.paper)
                 self.papers = papers
                 self.isLoaded = true
                 if let id = self.selectedPaperID, !papers.contains(where: { $0.openAlexID == id }) {

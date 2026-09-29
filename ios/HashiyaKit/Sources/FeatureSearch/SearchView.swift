@@ -222,7 +222,14 @@ public struct SearchView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-        case .idle, .endReached:
+        case .idle:
+            // More pages exist. The last card's onAppear does not fire again after pages made only of
+            // duplicates are skipped, so this invisible row asks for the next page when it comes into view.
+            Color.clear
+                .frame(height: 0)
+                .accessibilityHidden(true)
+                .onAppear { viewModel.loadMore() }
+        case .endReached:
             EmptyView()
         }
     }

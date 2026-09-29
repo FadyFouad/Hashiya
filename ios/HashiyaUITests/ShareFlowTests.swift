@@ -3,6 +3,7 @@ import XCTest
 /// Sharing a link to the Share Extension from a real share sheet. The app presents the sheet for the URL
 /// (`-ui-testing-share`); the Debug extension sees the App Group flag, uses the stub lookup and saves into the
 /// UI tests' library file, which the app shows.
+@MainActor
 final class ShareFlowTests: XCTestCase {
     @MainActor
     func testSharingAnArxivLinkSavesThePaperToTheLibrary() {

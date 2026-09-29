@@ -62,6 +62,8 @@ public final class SearchViewModel {
     @ObservationIgnored private var seenIDs: Set<String> = []
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored private var searchTask: Task<Void, Never>?
+    /// Cancelled searches still finishing, by ID; each is dropped when it finishes. Only tests wait for them.
+    @ObservationIgnored private var supersededTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var lookupTask: Task<Void, Never>?
     /// The identifier of the current lookup, while in ID mode.
     @ObservationIgnored private var lookupIdentifier: PaperIdentifier?
@@ -120,9 +122,13 @@ public final class SearchViewModel {
         }
     }
 
-    /// The keyboard's Search key: submit without waiting.
+    /// The keyboard's Search key: submit without waiting; the same text again after an error retries it.
     public func submitNow() {
         debounceTask?.cancel()
+        if case .failed = phase, activeQuery?.text == keywordText(text) {
+            retry()
+            return
+        }
         submit(text)
     }
 
@@ -253,7 +259,7 @@ public final class SearchViewModel {
             return
         }
         stopLookup()
-        let keywords = withoutArabicMarks(trimmed).trimmingCharacters(in: .whitespacesAndNewlines)
+        let keywords = keywordText(submitted)
         query.text = keywords
         guard !keywords.isEmpty else {
             stopKeywordSearch()
@@ -262,8 +268,13 @@ public final class SearchViewModel {
         activate(query)
     }
 
+    /// The keyword query for the text: trimmed, without Arabic marks.
+    private func keywordText(_ text: String) -> String {
+        withoutArabicMarks(text.trimmingCharacters(in: .whitespacesAndNewlines)).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private func stopKeywordSearch() {
-        searchTask?.cancel()
+        supersede(searchTask)
         activeQuery = nil
         resetResults()
         phase = .idle
@@ -327,7 +338,7 @@ public final class SearchViewModel {
 
     private func loadFirstPage() {
         guard let active = activeQuery else { return }
-        searchTask?.cancel()
+        supersede(searchTask)
         resetResults()
         phase = .loading
         searchTask = Task { [weak self, repository] in
@@ -348,7 +359,22 @@ public final class SearchViewModel {
         }
     }
 
-    private func loadNextPage() {
+    private func supersede(_ task: Task<Void, Never>?) {
+        guard let task else { return }
+        task.cancel()
+        let id = UUID()
+        supersededTasks[id] = task
+        Task { [weak self] in
+            await task.value
+            self?.supersededTasks[id] = nil
+        }
+    }
+
+    /// Pages made only of papers already shown are skipped this many times in a row.
+    private static let maxDuplicatePages = 3
+
+    /// `duplicatePages` counts the all-duplicate pages just skipped for this scroll.
+    private func loadNextPage(duplicatePages: Int = 0) {
         guard let active = activeQuery, let cursor = nextCursor else { return }
         append = .loading
         searchTask = Task { [weak self, repository] in
@@ -356,7 +382,11 @@ public final class SearchViewModel {
             do {
                 let page = try await repository.searchPage(active, cursor: cursor)
                 guard let self, !Task.isCancelled else { return }
-                self.add(page)
+                let addedAny = self.add(page)
+                // The last row stays the same when a page adds nothing, so keep going here.
+                if !addedAny, self.nextCursor != nil, duplicatePages + 1 < Self.maxDuplicatePages {
+                    self.loadNextPage(duplicatePages: duplicatePages + 1)
+                }
             } catch is CancellationError {
                 return
             } catch {
@@ -367,25 +397,37 @@ public final class SearchViewModel {
     }
 
     /// Appends the page's papers that were not shown yet for this query.
-    private func add(_ page: SearchPage) {
+    @discardableResult
+    private func add(_ page: SearchPage) -> Bool {
         let new = page.papers.filter { seenIDs.insert($0.openAlexID).inserted }
         papers.append(contentsOf: new)
         nextCursor = page.nextCursor
         append = page.nextCursor == nil ? .endReached : .idle
+        return !new.isEmpty
     }
 
     // MARK: Tests
 
+    /// Superseded searches still tracked.
+    var supersededSearchCount: Int { supersededTasks.count }
+
     /// Waits for the debounce, the search and the lookup in flight, including work they start.
     func waitForPendingWork() async {
+        var finished: Set<UUID> = []
         while true {
             let debounce = debounceTask
             let search = searchTask
             let lookup = lookupTask
+            let superseded = supersededTasks.filter { !finished.contains($0.key) }
             await debounce?.value
             await search?.value
             await lookup?.value
-            if debounceTask == debounce, searchTask == search, lookupTask == lookup { return }
+            for (id, task) in superseded {
+                await task.value
+                finished.insert(id)
+            }
+            if debounceTask == debounce, searchTask == search, lookupTask == lookup,
+               supersededTasks.keys.allSatisfy(finished.contains) { return }
         }
     }
 }

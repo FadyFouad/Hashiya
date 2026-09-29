@@ -1,18 +1,20 @@
 import XCTest
 
-/// End to end with `-ui-testing`: in-memory library, stub search, no network.
+/// End to end with `-ui-testing`: the UI tests' own library file, stub search and lookup, no network.
+@MainActor
 final class LibraryFlowTests: XCTestCase {
-    private var app: XCUIApplication!
-
-    override func setUp() {
+    @discardableResult
+    private func launchApp() -> XCUIApplication {
         continueAfterFailure = false
-        app = XCUIApplication()
+        let app = XCUIApplication()
         app.launchArguments += ["-ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
+        return app
     }
 
     @MainActor
     func testSaveFromSearchThenRemoveAndUndoInLibrary() {
+        let app = launchApp()
         XCTAssertTrue(app.staticTexts["No saved papers yet"].waitForExistence(timeout: 10))
         app.buttons["Go to Search"].tap()
 
@@ -40,6 +42,7 @@ final class LibraryFlowTests: XCTestCase {
 
     @MainActor
     func testPastingAnArxivIDShowsThePaperToSave() {
+        let app = launchApp()
         app.tabBars.buttons["Search"].tap()
         let field = app.searchFields["Search, or paste a DOI, arXiv ID or link"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
@@ -56,6 +59,7 @@ final class LibraryFlowTests: XCTestCase {
 
     @MainActor
     func testAddPaperOpensSearchReadyForInput() {
+        let app = launchApp()
         XCTAssertTrue(app.buttons["Add paper"].waitForExistence(timeout: 10))
 
         app.buttons["Add paper"].tap()
@@ -70,6 +74,7 @@ final class LibraryFlowTests: XCTestCase {
 
     @MainActor
     func testSettingsSavesAndResetsTheUserKey() {
+        let app = launchApp()
         app.buttons["Settings"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Using built-in key"].waitForExistence(timeout: 5))
 

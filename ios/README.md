@@ -1,6 +1,6 @@
 # Hashiya for iOS
 
-The iOS app: SwiftUI, iOS 17 or later, English and Arabic with full right-to-left layouts. It behaves like the Android app — OpenAlex search with filters, a preview sheet, an offline Library and Settings.
+The iOS app: SwiftUI, iOS 17 or later, English and Arabic with full right-to-left layouts. It matches the Android app's first milestone: OpenAlex search with filters, a preview sheet, an offline Library with swipe-to-remove and Undo, and Settings for the OpenAlex API key and the language. Adding papers by DOI or arXiv ID and from the Share sheet, then Library search and reading status, come next.
 
 ## Opening the project
 

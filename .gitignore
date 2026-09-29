@@ -16,3 +16,10 @@ local.properties
 
 .superpowers/
 .kotlin/
+
+# iOS
+ios/Config/Secrets.xcconfig
+ios/Hashiya.xcodeproj/
+ios/HashiyaKit/.build/
+ios/HashiyaKit/.swiftpm/
+xcuserdata/

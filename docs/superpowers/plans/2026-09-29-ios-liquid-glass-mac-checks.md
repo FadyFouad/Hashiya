@@ -43,7 +43,7 @@ list.
 
 ## Task 3 carry-over
 
-- [ ] **iOS 18 DesignSystemSnapshotTests pass without recording** (confirms Task 3's four new images and that
+- [x] **iOS 18 DesignSystemSnapshotTests pass without recording** (confirms Task 3's four new images and that
   iOS 18 did not change):
   ```bash
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/DesignSystemSnapshotTests 2>&1 | grep -E "$FILTER"
@@ -148,35 +148,47 @@ Commit: `feat: make the iOS 26 Library chips, status badges and Add paper glass`
 
 Commit: `fix: show the Library and Search large titles on iOS 26`
 
-The fix (`hashiyaTopBar`: chips in `safeAreaBar(edge: .top)` with no opaque background on iOS 26) is **unverified**.
+The fix (`hashiyaTopBar`: chips in `safeAreaBar(edge: .top)` with no opaque background on iOS 26) was unverified.
 Run this section first.
 
-- [ ] **The new test sees the bug.** Put back the Task 6 versions of the two screens (they still build against
-  the new `Glass.swift`), run the test, then restore the head versions:
+Controller ruling (phase 1 finding): the original `testLibraryAndSearchResultsShowTheirLargeTitles` UI test was
+invalid for its Search half. That check ran while the Search field was **active** (focused, holding typed text,
+with the cancel/✕ affordance visible) — iOS hides the navigation title while a search field is active by design,
+on iOS 18 as well as iOS 26, so the check was never testing the bug it claimed to. The test was renamed to
+`testTheLibraryShowsItsLargeTitle` (`test: check the Library large title only (iOS hides titles while search is
+active)`) and now checks only the Library screen, whose search field is idle during the check. **Search's large
+title is verified separately, through the iOS 26 `SearchSnapshotTests` results image** (the existing "Look at the
+images" step below already checks that `results.results-EnglishLight.png` shows "Search" as a large title with a
+search field that is *not* active) — that is the correct way to see whether Search's large title shows at rest.
+
+- [x] **The new test sees the bug (Library).** Put back the Task 6 versions of the two screens (they still build
+  against the new `Glass.swift`), run the test, then restore the head versions:
   ```bash
   git checkout cb7737d -- ios/HashiyaKit/Sources/FeatureSearch/SearchView.swift ios/HashiyaKit/Sources/FeatureLibrary/LibraryView.swift
   xcrun simctl uninstall 'iPhone 17 Pro' com.etatech.hashiya
-  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testLibraryAndSearchResultsShowTheirLargeTitles 2>&1 | grep -E "$FILTER"
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testTheLibraryShowsItsLargeTitle 2>&1 | grep -E "$FILTER"
   git checkout HEAD -- ios/HashiyaKit/Sources/FeatureSearch/SearchView.swift ios/HashiyaKit/Sources/FeatureLibrary/LibraryView.swift
   git status --short   # must show nothing under ios/HashiyaKit/Sources
   ```
   Expect `** TEST FAILED **` on the first `isHittable` (or `waitForExistence`). If it passes, the test can't see
   the bug: per the plan, the `isHittable` checks become an `XCTAttachment(screenshot: XCUIScreen.main.screenshot())`
   with `lifetime = .keepAlways`, checked by eye, and the commit message says so. Decide that before going on.
-- [ ] **The fix shows the titles on iOS 26:**
+  Result: FAILED as expected (line 166 of the original two-screen test, before the rename).
+- [x] **The fix shows the Library title on iOS 26:**
   ```bash
   xcrun simctl uninstall 'iPhone 17 Pro' com.etatech.hashiya
-  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testLibraryAndSearchResultsShowTheirLargeTitles 2>&1 | grep -E "$FILTER"
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testTheLibraryShowsItsLargeTitle 2>&1 | grep -E "$FILTER"
   ```
-  Expect `** TEST SUCCEEDED **`. **If it fails, stop here and report with screenshots of Library and Search
-  results; don't try other layouts.**
-- [ ] **Still passes on iOS 18:**
+  Expect `** TEST SUCCEEDED **`. **If it fails, stop here and report with a screenshot of Library; don't try
+  other layouts.** Result: SUCCEEDED.
+- [x] **Still passes on iOS 18:**
   ```bash
   xcrun simctl uninstall 'iPhone 16 Pro' com.etatech.hashiya
-  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testLibraryAndSearchResultsShowTheirLargeTitles 2>&1 | grep -E "$FILTER"
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testTheLibraryShowsItsLargeTitle 2>&1 | grep -E "$FILTER"
   ```
-  Expect `** TEST SUCCEEDED **`.
-- [ ] **Re-record iOS 26 Library and Search** (after Tasks 5 and 6, this is the recording that counts):
+  Expect `** TEST SUCCEEDED **`. Result: SUCCEEDED.
+- [ ] **Re-record iOS 26 Library and Search** (after Tasks 5 and 6, this is the recording that counts; this is
+  also where Search's large title gets its real verification — see the ruling above):
   ```bash
   TEST_RUNNER_SNAPSHOT_RECORD=1 xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/LibrarySnapshotTests -only-testing:HashiyaSnapshotTests/SearchSnapshotTests 2>&1 | grep -E "$FILTER"
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/LibrarySnapshotTests -only-testing:HashiyaSnapshotTests/SearchSnapshotTests 2>&1 | grep -E "$FILTER"
@@ -184,8 +196,11 @@ Run this section first.
   The first fails because it recorded; the second must print `** TEST SUCCEEDED **`.
 - [ ] **Look at the images:** in `iOS26/LibrarySnapshotTests/papersWithChipsAndBadges.papers-EnglishLight.png`
   and `iOS26/SearchSnapshotTests/results.results-EnglishLight.png`, "Library" and "Search" show as large titles
-  above the search field, and the chips sit under it with no white band. Also recheck Task 5's and Task 6's
-  image lists on these new images.
+  above the search field, and the chips sit under it with no white band. This `results.results-EnglishLight.png`
+  check is Search's real large-title verification (see the ruling above): the snapshot's search field is idle,
+  not mid-edit, so it is the correct place to confirm the title shows at rest — the UI test only ever checks
+  Library, since a UI test that types into Search's field would put it in the active state that hides titles by
+  design. Also recheck Task 5's and Task 6's image lists on these new images.
 - [ ] **iOS 18 unchanged** (no recording; the pre-iOS 26 branch keeps `safeAreaInset` with the surface
   background):
   ```bash

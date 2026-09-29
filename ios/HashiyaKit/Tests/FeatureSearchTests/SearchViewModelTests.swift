@@ -236,6 +236,22 @@ struct SearchViewModelTests {
         #expect(viewModel.phase == .results)
     }
 
+    @Test func supersededSearchesAreForgottenOnceTheyFinish() async {
+        let repository = repository()
+        let viewModel = makeViewModel(repository)
+        viewModel.updateText("bert")
+        viewModel.submitNow()
+        #expect(await eventually { viewModel.phase == .results })
+        viewModel.updateText("vit")
+        viewModel.submitNow()
+        viewModel.updateText("attention")
+        viewModel.submitNow()
+        #expect(await eventually { viewModel.phase == .results })
+
+        #expect(repository.calls.map(\.query.text) == ["bert", "attention"])
+        #expect(await eventually { viewModel.supersededSearchCount == 0 })
+    }
+
     @Test func aNextPageInFlightCannotLandAfterTheChipsChange() async {
         let slow = AsyncGate()
         let repository = FakeSearchRepository { query, cursor in

@@ -46,8 +46,8 @@ public final class SearchViewModel {
     @ObservationIgnored private var seenIDs: Set<String> = []
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored private var searchTask: Task<Void, Never>?
-    /// Cancelled searches that may still be finishing; only tests wait for them.
-    @ObservationIgnored private var supersededTasks: [Task<Void, Never>] = []
+    /// Cancelled searches still finishing, by ID; each is dropped when it finishes. Only tests wait for them.
+    @ObservationIgnored private var supersededTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var hasRestored = false
     @ObservationIgnored private let observations = TaskBag()
 
@@ -255,7 +255,12 @@ public final class SearchViewModel {
     private func supersede(_ task: Task<Void, Never>?) {
         guard let task else { return }
         task.cancel()
-        supersededTasks.append(task)
+        let id = UUID()
+        supersededTasks[id] = task
+        Task { [weak self] in
+            await task.value
+            self?.supersededTasks[id] = nil
+        }
     }
 
     /// Pages made only of papers already shown are skipped this many times in a row.
@@ -296,17 +301,23 @@ public final class SearchViewModel {
 
     // MARK: Tests
 
+    /// Superseded searches still tracked.
+    var supersededSearchCount: Int { supersededTasks.count }
+
     /// Waits for the debounce and the search in flight, including work they start.
     func waitForPendingWork() async {
+        var finished: Set<UUID> = []
         while true {
             let debounce = debounceTask
             let search = searchTask
-            let superseded = supersededTasks
+            let superseded = supersededTasks.filter { !finished.contains($0.key) }
             await debounce?.value
             await search?.value
-            for task in superseded { await task.value }
-            supersededTasks.removeFirst(superseded.count)
-            if debounceTask == debounce, searchTask == search, supersededTasks.isEmpty { return }
+            for (id, task) in superseded {
+                await task.value
+                finished.insert(id)
+            }
+            if debounceTask == debounce, searchTask == search, supersededTasks.keys.allSatisfy(finished.contains) { return }
         }
     }
 }

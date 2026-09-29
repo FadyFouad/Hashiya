@@ -10,8 +10,11 @@ import Testing
 struct SearchSnapshotTests {
     private let library = FakeLibraryRepository(saved: [SamplePapers.attention])
 
-    private func makeViewModel(_ repository: FakeSearchRepository = FakeSearchRepository(page: .of([]))) -> SearchViewModel {
-        SearchViewModel(repository: repository, lookup: FakePaperLookupRepository(), library: library, preferences: FakeUserPreferencesRepository())
+    private func makeViewModel(
+        _ repository: FakeSearchRepository = FakeSearchRepository(page: .of([])),
+        lookup: FakePaperLookupRepository = FakePaperLookupRepository()
+    ) -> SearchViewModel {
+        SearchViewModel(repository: repository, lookup: lookup, library: library, preferences: FakeUserPreferencesRepository())
     }
 
     private func screen(_ viewModel: SearchViewModel) -> some View {
@@ -32,6 +35,16 @@ struct SearchSnapshotTests {
         return viewModel
     }
 
+    /// A view model that has looked up `text` with `lookup`.
+    private func lookupViewModel(_ text: String, _ lookup: FakePaperLookupRepository) async -> SearchViewModel {
+        let viewModel = makeViewModel(lookup: lookup)
+        viewModel.updateText(text)
+        viewModel.submitNow()
+        await viewModel.waitForPendingWork()
+        _ = await eventually { viewModel.savedIDs == [SamplePapers.attention.openAlexID] }
+        return viewModel
+    }
+
     @Test func idle() {
         assertHashiyaSnapshots(of: screen(makeViewModel()), named: "idle", arabicText: "ابحث في OpenAlex")
     }
@@ -39,7 +52,7 @@ struct SearchSnapshotTests {
     @Test func loading() {
         let viewModel = makeViewModel()
         viewModel.phase = .loading
-        assertHashiyaSnapshots(of: screen(viewModel), named: "loading", arabicText: "ابحث عن أوراق")
+        assertHashiyaSnapshots(of: screen(viewModel), named: "loading", arabicText: "ابحث، أو الصق DOI أو معرّف arXiv أو رابطًا")
     }
 
     @Test func results() async {
@@ -80,5 +93,46 @@ struct SearchSnapshotTests {
         await viewModel.waitForPendingWork()
         viewModel.message = .saveFailed
         assertHashiyaSnapshots(of: screen(viewModel), named: "filtersAndBanner", arabicText: "تعذّر حفظ الورقة")
+    }
+
+    @Test func lookupLooking() async {
+        let lookup = FakePaperLookupRepository()
+        lookup.hold()
+        let viewModel = makeViewModel(lookup: lookup)
+        viewModel.updateText("10.18653/v1/n19-1423")
+        viewModel.submitNow()
+        _ = await eventually { lookup.lookups.count == 1 }
+        #expect(viewModel.lookup == .looking(.doi("10.18653/v1/n19-1423")))
+        assertHashiyaSnapshots(of: screen(viewModel), named: "lookupLooking", arabicText: "جارٍ البحث عن DOI \u{2068}10.18653/v1/n19-1423\u{2069}…")
+        lookup.release()
+        await viewModel.waitForPendingWork()
+    }
+
+    @Test func lookupFound() async {
+        let lookup = FakePaperLookupRepository(results: [.doi("10.18653/v1/n19-1423"): .found(SamplePapers.bert)])
+        let viewModel = await lookupViewModel("https://doi.org/10.18653/v1/N19-1423", lookup)
+        #expect(viewModel.lookup == .found(SamplePapers.bert))
+        assertHashiyaSnapshots(of: screen(viewModel), named: "lookupFound", arabicText: "حفظ في المكتبة")
+    }
+
+    @Test func lookupNotFoundWithTheSearchForButton() async {
+        let bertTitle = "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"
+        let lookup = FakePaperLookupRepository(results: [.arxiv("1810.04805"): .notFound(arxivTitle: bertTitle)])
+        let viewModel = await lookupViewModel("1810.04805", lookup)
+        #expect(viewModel.lookup == .notFound(.arxiv("1810.04805"), searchTitle: bertTitle))
+        assertHashiyaSnapshots(of: screen(viewModel), named: "lookupNotFound", arabicText: "لم يتم العثور على ورقة بمعرّف arXiv هذا")
+    }
+
+    @Test func lookupError() async {
+        let lookup = FakePaperLookupRepository(otherwise: .failed(.offline))
+        let viewModel = await lookupViewModel("arXiv:1706.03762", lookup)
+        #expect(viewModel.lookup == .failed(.offline))
+        assertHashiyaSnapshots(of: screen(viewModel), named: "lookupError", arabicText: "تعذّر الوصول إلى OpenAlex")
+    }
+
+    @Test func linkWithoutAnID() async {
+        let viewModel = await lookupViewModel("https://ieeexplore.ieee.org/document/1234567", FakePaperLookupRepository())
+        #expect(viewModel.lookup == .noIDInLink)
+        assertHashiyaSnapshots(of: screen(viewModel), named: "linkWithoutID", arabicText: "لا يوجد DOI أو معرّف arXiv في هذا الرابط")
     }
 }

@@ -41,6 +41,32 @@ struct SearchStringsTests {
         #expect(inLanguage("ar") { L10n.string("search.suggestionClimate") } == "climate adaptation")
     }
 
+    @Test func lookupLabelsNameTheIdentifier() {
+        #expect(inLanguage("en") { L10n.lookupLooking(.doi("10.1038/nature14539")) } == "Looking up DOI 10.1038/nature14539…")
+        #expect(inLanguage("en") { L10n.lookupLooking(.arxiv("1706.03762")) } == "Looking up arXiv 1706.03762…")
+        // Arabic formatting isolates the argument, so the ID stays left-to-right.
+        #expect(inLanguage("ar") { L10n.lookupLooking(.arxiv("1706.03762")) } == "جارٍ البحث عن arXiv \u{2068}1706.03762\u{2069}…")
+        #expect(inLanguage("en") { L10n.lookupNotFoundTitle(.doi("10.9999/x")) } == "No paper found for this DOI")
+        #expect(inLanguage("en") { L10n.lookupNotFoundTitle(.arxiv("1810.04805")) } == "No paper found for this arXiv ID")
+    }
+
+    @Test func searchForShortensLongTitlesAndIsolatesThem() {
+        let bert = "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"
+        #expect(inLanguage("en") { L10n.searchTitleButton(bert) }
+            == "Search for “\u{2068}BERT: Pre-training of Deep Bidirectional Transformers for L…\u{2069}”")
+        #expect(inLanguage("ar") { L10n.searchTitleButton(bert) }
+            == "ابحث عن «\u{2068}BERT: Pre-training of Deep Bidirectional Transformers for L…\u{2069}»")
+    }
+
+    @Test(arguments: [
+        (String(repeating: "a", count: 60), String(repeating: "a", count: 60)),
+        (String(repeating: "a", count: 61), String(repeating: "a", count: 59) + "…"),
+        (String(repeating: "a", count: 58) + "  bcd", String(repeating: "a", count: 58) + "…"),
+    ])
+    func titlesOver60CharactersAreCut(title: String, shown: String) {
+        #expect(L10n.shortenedTitle(title) == shown)
+    }
+
     @Test(arguments: [SearchError.offline, .invalidUserKey, .serviceUnavailable, .rateLimited, .unexpected])
     func everyErrorHasATitleAndMessageInBothLanguages(error: SearchError) {
         for language in ["en", "ar"] {

@@ -307,6 +307,142 @@
         }
       }
     },
+    "search.linkNoIDMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الصق DOI الورقة أو معرّف arXiv، أو ابحث بعنوانها."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste the paper's DOI or arXiv ID, or search by its title."
+          }
+        }
+      }
+    },
+    "search.linkNoIDTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا يوجد DOI أو معرّف arXiv في هذا الرابط"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No DOI or arXiv ID in this link"
+          }
+        }
+      }
+    },
+    "search.lookupLookingArxiv" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جارٍ البحث عن arXiv %1$@…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking up arXiv %1$@…"
+          }
+        }
+      }
+    },
+    "search.lookupLookingDOI" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "جارٍ البحث عن DOI %1$@…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looking up DOI %1$@…"
+          }
+        }
+      }
+    },
+    "search.lookupNotFoundArxiv" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لم يتم العثور على ورقة بمعرّف arXiv هذا"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No paper found for this arXiv ID"
+          }
+        }
+      }
+    },
+    "search.lookupNotFoundDOI" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لم يتم العثور على ورقة بهذا الـ DOI"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No paper found for this DOI"
+          }
+        }
+      }
+    },
+    "search.lookupNotFoundMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تحقّق من المعرّف، أو ابحث بعنوان الورقة."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check the ID, or search by the paper's title."
+          }
+        }
+      }
+    },
+    "search.lookupSearchTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ابحث عن «%1$@»"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search for “%1$@”"
+          }
+        }
+      }
+    },
     "search.openAccess" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -347,13 +483,13 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ابحث عن أوراق"
+            "value" : "ابحث، أو الصق DOI أو معرّف arXiv أو رابطًا"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Search papers"
+            "value" : "Search, or paste a DOI, arXiv ID or link"
           }
         }
       }

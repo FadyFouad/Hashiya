@@ -15,6 +15,7 @@ public struct SearchView: View {
     @SceneStorage(SearchSceneState.openAccessKey) private var storedOpenAccess = false
 
     @State private var showsYearRange = false
+    @State private var isSearchActive = false
     @Environment(\.openURL) private var openURL
 
     public init(viewModel: SearchViewModel, onOpenSettings: @escaping () -> Void) {
@@ -27,6 +28,7 @@ public struct SearchView: View {
             .navigationTitle(Text(verbatim: L10n.string("search.title")))
             .searchable(
                 text: Binding(get: { viewModel.text }, set: { viewModel.updateText($0) }),
+                isPresented: $isSearchActive,
                 placement: .navigationBarDrawer(displayMode: .always),
                 prompt: Text(verbatim: L10n.string("search.placeholder"))
             )
@@ -49,6 +51,12 @@ public struct SearchView: View {
             .onAppear(perform: restore)
             .onChange(of: viewModel.text) { _, text in storedText = text }
             .onChange(of: viewModel.query) { _, query in store(query) }
+            .task(id: viewModel.focusRequested) {
+                // Add paper: activate the field (and the keyboard) once, also when this tab appears for it.
+                guard viewModel.focusRequested else { return }
+                isSearchActive = true
+                viewModel.focusHandled()
+            }
     }
 
     private var screen: some View {
@@ -56,14 +64,17 @@ public struct SearchView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(HashiyaColors.surface)
             .safeAreaInset(edge: .top, spacing: 0) {
-                FilterChips(
-                    query: viewModel.query,
-                    onSort: { viewModel.setSort($0) },
-                    onYears: { viewModel.setYears($0) },
-                    onCustomRange: { showsYearRange = true },
-                    onOpenAccess: { viewModel.setOpenAccessOnly($0) }
-                )
-                .background(HashiyaColors.surface)
+                // ID mode has no chips.
+                if viewModel.lookup == nil {
+                    FilterChips(
+                        query: viewModel.query,
+                        onSort: { viewModel.setSort($0) },
+                        onYears: { viewModel.setYears($0) },
+                        onCustomRange: { showsYearRange = true },
+                        onOpenAccess: { viewModel.setOpenAccessOnly($0) }
+                    )
+                    .background(HashiyaColors.surface)
+                }
             }
             .overlay(alignment: .bottom) {
                 if let message = viewModel.message {
@@ -83,12 +94,14 @@ public struct SearchView: View {
             paper: paper,
             inLibrary: viewModel.isSaved(paper),
             onToggleSave: { Task { await viewModel.toggleSave(paper) } },
-            onOpenDOI: { doi in
-                if let url = DOILink.url(for: doi) { openURL(url) }
-            }
+            onOpenDOI: openDOI
         )
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    private func openDOI(_ doi: String) {
+        if let url = DOILink.url(for: doi) { openURL(url) }
     }
 
     private func restore() {
@@ -113,6 +126,23 @@ public struct SearchView: View {
 
     @ViewBuilder
     private var content: some View {
+        if let lookup = viewModel.lookup {
+            LookupBody(
+                state: lookup,
+                isSaved: { viewModel.isSaved($0) },
+                onToggleSave: { paper in Task { await viewModel.toggleSave(paper) } },
+                onOpenDOI: openDOI,
+                onSearchTitle: { viewModel.searchTitle($0) },
+                onRetry: { viewModel.retry() },
+                onOpenSettings: onOpenSettings
+            )
+        } else {
+            keywordContent
+        }
+    }
+
+    @ViewBuilder
+    private var keywordContent: some View {
         switch viewModel.phase {
         case .idle:
             IdleView { viewModel.applySuggestion($0) }
@@ -137,16 +167,7 @@ public struct SearchView: View {
                 )
             }
         case let .failed(error):
-            let text = L10n.error(error)
-            if error == .invalidUserKey {
-                ErrorStateView(title: text.title, message: text.message, actionTitle: L10n.string("search.openSettings")) {
-                    onOpenSettings()
-                }
-            } else {
-                ErrorStateView(title: text.title, message: text.message, actionTitle: L10n.string("search.retry")) {
-                    viewModel.retry()
-                }
-            }
+            SearchErrorView(error: error, onRetry: { viewModel.retry() }, onOpenSettings: onOpenSettings)
         }
     }
 
@@ -201,14 +222,7 @@ public struct SearchView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-        case .idle:
-            // More pages exist. The last card's onAppear does not fire again after pages made only of
-            // duplicates are skipped, so this invisible row asks for the next page when it comes into view.
-            Color.clear
-                .frame(height: 0)
-                .accessibilityHidden(true)
-                .onAppear { viewModel.loadMore() }
-        case .endReached:
+        case .idle, .endReached:
             EmptyView()
         }
     }

@@ -1,24 +1,22 @@
 import XCTest
 
 /// End to end with `-ui-testing`: in-memory library, stub search, no network.
-@MainActor
 final class LibraryFlowTests: XCTestCase {
-    @discardableResult
-    private func launchApp() -> XCUIApplication {
+    private var app: XCUIApplication!
+
+    override func setUp() {
         continueAfterFailure = false
-        let app = XCUIApplication()
+        app = XCUIApplication()
         app.launchArguments += ["-ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
-        return app
     }
 
     @MainActor
     func testSaveFromSearchThenRemoveAndUndoInLibrary() {
-        let app = launchApp()
         XCTAssertTrue(app.staticTexts["No saved papers yet"].waitForExistence(timeout: 10))
         app.buttons["Go to Search"].tap()
 
-        let field = app.searchFields["Search papers"]
+        let field = app.searchFields["Search, or paste a DOI, arXiv ID or link"]
         XCTAssertTrue(field.waitForExistence(timeout: 5))
         field.tap()
         field.typeText("attention\n")
@@ -41,8 +39,23 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     @MainActor
+    func testPastingAnArxivIDShowsThePaperToSave() {
+        app.tabBars.buttons["Search"].tap()
+        let field = app.searchFields["Search, or paste a DOI, arXiv ID or link"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("arXiv:1706.03762\n")
+
+        XCTAssertTrue(app.staticTexts["Attention Is All You Need"].waitForExistence(timeout: 5))
+        app.buttons["Save to library"].tap()
+        XCTAssertTrue(app.buttons["Remove from library"].waitForExistence(timeout: 5))
+
+        app.tabBars.buttons["Library"].tap()
+        XCTAssertTrue(app.staticTexts["1 paper"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     func testSettingsSavesAndResetsTheUserKey() {
-        let app = launchApp()
         app.buttons["Settings"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Using built-in key"].waitForExistence(timeout: 5))
 

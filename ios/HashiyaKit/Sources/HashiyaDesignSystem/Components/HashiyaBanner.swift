@@ -19,20 +19,40 @@ public struct HashiyaBanner: View {
         HStack(spacing: 12) {
             Text(verbatim: text)
                 .font(.hashiya(.body))
-                .foregroundStyle(HashiyaColors.surface)
+                .foregroundStyle(textColor)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if let actionTitle, let action {
                 Button(action: action) {
                     Text(verbatim: actionTitle).font(.hashiya(.label))
                 }
-                .foregroundStyle(HashiyaColors.inversePrimary)
+                .foregroundStyle(actionColor)
             }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(RoundedRectangle(cornerRadius: 12).fill(HashiyaColors.onSurface))
+        .modifier(BannerSurface())
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
         .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    /// iOS 26: dark text on glass. Before: the inverted surface.
+    private var textColor: Color {
+        if #available(iOS 26, *) { HashiyaColors.onSurface } else { HashiyaColors.surface }
+    }
+
+    private var actionColor: Color {
+        if #available(iOS 26, *) { HashiyaColors.primary } else { HashiyaColors.inversePrimary }
+    }
+}
+
+/// iOS 26: regular glass in a continuous rounded rectangle. Before: an `OnSurface` fill.
+private struct BannerSurface: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.glassEffect(.regular, in: .rect(cornerRadius: 16, style: .continuous))
+        } else {
+            content.background(RoundedRectangle(cornerRadius: 12).fill(HashiyaColors.onSurface))
+        }
     }
 }

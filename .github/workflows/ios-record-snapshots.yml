@@ -1,0 +1,54 @@
+name: iOS snapshot baselines
+
+# A push to record-snapshots-ios/<anything> records every iOS snapshot on this pinned runner, Xcode
+# and simulator (the source of truth). ios/scripts/record-snapshots-on-ci.sh drives it and copies
+# the result into the checkout.
+on:
+  push:
+    branches: ['record-snapshots-ios/**']
+
+jobs:
+  record:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate --spec ios/project.yml
+      - name: Record snapshots (recording fails the tests by design)
+        env:
+          TEST_RUNNER_SNAPSHOT_RECORD: "1"
+        run: |
+          # Test failures are expected while recording, so the exit code is ignored; the log and the
+          # recorded image count decide instead.
+          set +e
+          xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
+            -collect-test-diagnostics never \
+            -skip-testing:HashiyaUITests 2>&1 | tee xcodebuild.log
+          set -e
+          if grep -qE '\*\* BUILD FAILED \*\*' xcodebuild.log; then
+            echo "::error::xcodebuild reported BUILD FAILED"
+            exit 1
+          fi
+          if grep -qE '\.swift:[0-9]+:[0-9]+: error:' xcodebuild.log; then
+            echo "::error::compile errors in the xcodebuild output"
+            grep -E '\.swift:[0-9]+:[0-9]+: error:' xcodebuild.log
+            exit 1
+          fi
+          count=$(find ios/HashiyaKit/Tests -path '*/__Snapshots__/*' -type f -name '*.png' | wc -l | tr -d ' ')
+          echo "Recorded $count baseline images"
+          if [ "$count" -eq 0 ]; then
+            echo "::error::no snapshot baselines were recorded"
+            exit 1
+          fi
+      - name: Pack the baselines with their paths
+        run: find ios -path '*/__Snapshots__/*' -type f -name '*.png' | tar -cf ios-snapshot-baselines.tar -T -
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ios-snapshot-baselines
+          path: ios-snapshot-baselines.tar

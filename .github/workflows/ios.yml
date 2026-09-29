@@ -1,0 +1,41 @@
+name: iOS
+
+on:
+  push:
+    branches-ignore: ['record-snapshots-ios/**']
+    paths: ['ios/**', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['ios/**', '.github/workflows/ios.yml']
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app
+      - name: Check Arabic translations
+        run: python3 ios/scripts/check-translations.py
+      - name: Generate the Xcode project
+        run: |
+          brew install xcodegen
+          xcodegen generate --spec ios/project.yml
+      - name: Unit, snapshot and UI tests (no API key, no live network)
+        env:
+          TEST_RUNNER_SNAPSHOT_ARTIFACTS: ${{ runner.temp }}/snapshot-diffs
+        run: >-
+          xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
+          -collect-test-diagnostics never
+      - name: Upload snapshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-snapshot-diffs
+          path: ${{ runner.temp }}/snapshot-diffs
+          if-no-files-found: ignore

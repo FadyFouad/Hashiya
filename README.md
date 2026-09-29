@@ -60,6 +60,10 @@ bash scripts/record-screenshots-on-linux.sh     # re-record screenshot baselines
 
 Screenshot baselines are recorded on CI's Linux runners, which are the source of truth; CI verifies every push against them.
 
+## iOS
+
+A native SwiftUI app with the features of sub-project 1 lives in [`ios/`](ios/README.md): OpenAlex search with filters, the preview sheet, the offline Library and Settings, in English and Arabic. Adding papers by ID and from the Share sheet, and Library search and reading status, are not on iOS yet. Its Xcode project is generated with XcodeGen; see [`ios/README.md`](ios/README.md) for setup, tests and snapshot baselines.
+
 ## Roadmap
 
 1. ✅ Foundation + OpenAlex search

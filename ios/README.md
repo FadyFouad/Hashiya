@@ -22,6 +22,16 @@ cp ios/Config/Secrets.example.xcconfig ios/Config/Secrets.xcconfig
 
 Put your key after `OPENALEX_API_KEY =` in `ios/Config/Secrets.xcconfig` (git-ignored). Without it the app sends requests without a key, at OpenAlex's lower free limits. Users can enter their own key in Settings; it is stored in the Keychain and never logged.
 
+## Running on a device
+
+The simulator needs no signing. A device does: the app's App Group and shared Keychain group entitlements need a development team. Because `xcodegen generate` rewrites the project, a team picked in Xcode's Signing & Capabilities is lost on the next generate, so set it in the git-ignored secrets file instead:
+
+```bash
+cp ios/Config/Secrets.example.xcconfig ios/Config/Secrets.xcconfig   # if you have not already
+```
+
+Uncomment the `DEVELOPMENT_TEAM` line in `ios/Config/Secrets.xcconfig` and put your team ID after the `=` (for example `DEVELOPMENT_TEAM = ABCDE12345`; find it under Membership details at developer.apple.com/account). The app and UI-test targets both read it through `ios/Config/Base.xcconfig`, so it survives every `xcodegen generate`. Bundle IDs and App Groups are unique across all teams: on a team that does not own `com.etatech.hashiya`, automatic signing cannot register it or `group.com.etatech.hashiya`, and you need your own identifiers locally (`ios/project.yml`, `ios/Hashiya/Hashiya.entitlements` and `HashiyaDatabase.appGroup`).
+
 ## Tests
 
 ```bash

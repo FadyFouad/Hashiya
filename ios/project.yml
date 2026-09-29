@@ -46,6 +46,9 @@ targets:
     platform: iOS
     sources:
       - HashiyaUITests
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.etatech.hashiya.uitests

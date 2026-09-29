@@ -1,5 +1,5 @@
 // Shared build settings for the Hashiya targets.
-// The OpenAlex key lives in the git-ignored Secrets.xcconfig (copy Secrets.example.xcconfig).
+// The OpenAlex key and the signing team live in the git-ignored Secrets.xcconfig (copy Secrets.example.xcconfig).
 // Without it, OPENALEX_API_KEY is empty and the app sends requests without a key.
 OPENALEX_API_KEY =
 

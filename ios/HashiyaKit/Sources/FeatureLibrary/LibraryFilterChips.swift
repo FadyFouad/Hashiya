@@ -11,10 +11,12 @@ struct LibraryFilterChips: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                chip(nil, label: L10n.string("library.filterAll"), count: counts.values.reduce(0, +))
-                ForEach(ReadingStatus.allCases, id: \.self) { status in
-                    chip(status, label: readingStatusLabel(status), count: counts[status] ?? 0)
+            HashiyaGlassGroup(spacing: 8) {
+                HStack(spacing: 8) {
+                    chip(nil, label: L10n.string("library.filterAll"), count: counts.values.reduce(0, +))
+                    ForEach(ReadingStatus.allCases, id: \.self) { status in
+                        chip(status, label: readingStatusLabel(status), count: counts[status] ?? 0)
+                    }
                 }
             }
             .padding(.horizontal, 12)
@@ -33,12 +35,9 @@ struct LibraryFilterChips: View {
                 }
                 Text(verbatim: L10n.filterCount(label, count)).font(.hashiya(.label))
             }
-            .foregroundStyle(isSelected ? HashiyaColors.onPrimaryContainer : HashiyaColors.onSurface)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .background(RoundedRectangle(cornerRadius: 8).fill(isSelected ? HashiyaColors.primaryContainer : Color.clear))
-            .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isSelected ? Color.clear : HashiyaColors.outline, lineWidth: 1))
-            .contentShape(RoundedRectangle(cornerRadius: 8))
+            .hashiyaChip(isSelected: isSelected)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])

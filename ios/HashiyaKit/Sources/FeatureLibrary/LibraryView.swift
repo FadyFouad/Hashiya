@@ -34,20 +34,23 @@ public struct LibraryView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(HashiyaColors.surface)
             .overlay(alignment: .bottom) {
-                // The banners sit above the Add paper button (bottom trailing; bottom left in Arabic).
-                VStack(alignment: .trailing, spacing: 0) {
-                    if viewModel.message == .statusUpdateFailed {
-                        HashiyaBanner(text: L10n.string("library.statusUpdateFailed"))
-                    }
-                    if viewModel.pendingUndo != nil {
-                        HashiyaBanner(text: L10n.string("library.removed"), actionTitle: L10n.string("library.undo")) {
-                            Task { await viewModel.undo() }
+                // The banners sit above the Add paper button (bottom trailing; bottom left in Arabic). On iOS 26
+                // they are glass, grouped so they blend as they come and go.
+                HashiyaGlassGroup(spacing: 12) {
+                    VStack(alignment: .trailing, spacing: 0) {
+                        if viewModel.message == .statusUpdateFailed {
+                            HashiyaBanner(text: L10n.string("library.statusUpdateFailed"))
                         }
-                    }
-                    if viewModel.isLoaded {
-                        AddPaperButton(action: onAddPaper)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 16)
+                        if viewModel.pendingUndo != nil {
+                            HashiyaBanner(text: L10n.string("library.removed"), actionTitle: L10n.string("library.undo")) {
+                                Task { await viewModel.undo() }
+                            }
+                        }
+                        if viewModel.isLoaded {
+                            AddPaperButton(action: onAddPaper)
+                                .padding(.horizontal, 16)
+                                .padding(.bottom, 16)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -204,12 +207,12 @@ private struct FilteredContent<List: View, NoMatches: View>: View {
     }
 }
 
-/// The floating "+ Add paper" capsule.
+/// The floating "+ Add paper" capsule: glass on iOS 26, a filled capsule with a shadow before.
 private struct AddPaperButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        let button = Button(action: action) {
             Label {
                 Text(verbatim: L10n.string("library.addPaper"))
             } icon: {
@@ -220,10 +223,14 @@ private struct AddPaperButton: View {
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
         }
-        .buttonStyle(.borderedProminent)
+        .hashiyaProminentButton()
         .buttonBorderShape(.capsule)
-        .tint(HashiyaColors.primary)
-        .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+
+        if #available(iOS 26, *) {
+            button
+        } else {
+            button.shadow(color: .black.opacity(0.15), radius: 6, y: 2)
+        }
     }
 }
 

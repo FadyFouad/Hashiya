@@ -32,6 +32,7 @@ export FILTER='(^/|^xcodebuild: |^macro expansion ).*error:|^✘|✔ Test run|Ex
 1. Task 3 carry-over
 2. Task 4
 3. Task 5
+4. Task 6
 
 ## Task 3 carry-over
 
@@ -103,6 +104,38 @@ Commit: `feat: make the iOS 26 Search filter chips and suggestions glass`
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
   ```
   Expect `** TEST SUCCEEDED **`.
+
+## Task 6: Glass Library chips, status badges and Add paper
+
+Commit: `feat: make the iOS 26 Library chips, status badges and Add paper glass`
+
+- [ ] **Build + record iOS 26 Library:**
+  ```bash
+  TEST_RUNNER_SNAPSHOT_RECORD=1 xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/LibrarySnapshotTests 2>&1 | grep -E "$FILTER"
+  ```
+  Expect no `error:` lines (in particular `AddPaperButton.body`'s `let button` plus `if #available` in the view
+  builder); it fails only because it recorded.
+- [ ] **Verify iOS 26:** the same command without `TEST_RUNNER_SNAPSHOT_RECORD=1`. Expect `** TEST SUCCEEDED **`.
+- [ ] **Look at the images** in `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/LibrarySnapshotTests/`:
+  - `papersWithChipsAndBadges.papers-EnglishLight.png`: ✓ All is teal glass, the others clear glass; Reading is a
+    teal glass pill, ✓ Read and To read are clear glass; Add paper is solid teal glass with no grey shadow.
+  - `papersWithChipsAndBadges.papers-ArabicDark.png`: all of this mirrored, with Add paper bottom left.
+  - `statusBadges.badges-*.png`: the three pills.
+  - `undoBanner.undo-*.png` and `statusUpdateFailedBanner.statusFailed-*.png`: the glass banners sit just above
+    Add paper.
+- [ ] **iOS 18 unchanged** (no recording; the chips, pills and Add paper keep their pre-iOS 26 look, shadow included):
+  ```bash
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
+  ```
+  Expect `** TEST SUCCEEDED **`.
+- [ ] **Library UI tests on iOS 26:**
+  ```bash
+  xcrun simctl uninstall 'iPhone 17 Pro' com.etatech.hashiya
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests 2>&1 | grep -E "$FILTER"
+  ```
+  Expect `** TEST SUCCEEDED **`. `testChangingAStatusFiltersAndSearchesTheLibrary` proves the glass badge still
+  opens its menu (not the preview) and that the chips keep `.isSelected`. If a test fails on a leftover search
+  text or tab, uninstall the app again (not erase) and rerun once; report a failure that survives that.
 
 ## Deferred findings for the final review
 

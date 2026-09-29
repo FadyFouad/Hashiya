@@ -26,7 +26,7 @@ let package = Package(
     targets: [
         .target(name: "HashiyaModel"),
         .target(name: "HashiyaNetwork"),
-        .target(name: "HashiyaDatabase", dependencies: [grdb]),
+        .target(name: "HashiyaDatabase", dependencies: ["HashiyaModel", grdb]),
         .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase"]),
         .target(name: "HashiyaDesignSystem", dependencies: ["HashiyaModel"], resources: [.process("Resources")]),
         .target(

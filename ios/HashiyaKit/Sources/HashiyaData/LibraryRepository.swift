@@ -64,7 +64,7 @@ public struct GRDBLibraryRepository: LibraryRepository {
     }
 
     public func observeSavedPapers() -> AsyncStream<[Paper]> {
-        store.observeSavedPapers().mapped { rows in rows.map { $0.asPaper() } }
+        store.observeLibrary(match: nil, status: nil).mapped { rows in rows.papers.map { $0.asPaper() } }
     }
 
     public func observeSavedIDs() -> AsyncStream<Set<String>> {
@@ -73,7 +73,7 @@ public struct GRDBLibraryRepository: LibraryRepository {
 
     public func save(_ paper: Paper) async throws {
         let records = paper.asRecords(localID: newID(), savedAt: now())
-        try await store.insert(paper: records.paper, authors: records.authors)
+        try await store.insert(paper: records.paper, authors: records.authors, search: records.searchRow)
     }
 
     public func remove(openAlexID: String) async throws -> RemovedPaper? {
@@ -83,7 +83,7 @@ public struct GRDBLibraryRepository: LibraryRepository {
 
     public func restore(_ removed: RemovedPaper) async throws {
         let records = removed.paper.asRecords(localID: removed.localID, savedAt: removed.savedAt)
-        try await store.insert(paper: records.paper, authors: records.authors)
+        try await store.insert(paper: records.paper, authors: records.authors, search: records.searchRow)
     }
 
     public func refreshAfterExternalChanges() async {

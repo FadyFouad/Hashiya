@@ -1,4 +1,5 @@
 import GRDB
+import HashiyaModel
 
 /// A row of `papers`.
 public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
@@ -17,6 +18,8 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
     public var oaPDFURL: String?
     /// Epoch milliseconds; the library's sort key.
     public var savedAt: Int64
+    /// `to_read`, `reading` or `read` (`HashiyaData` maps them to `ReadingStatus`).
+    public var readingStatus: String
 
     public init(
         id: String,
@@ -29,7 +32,8 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
         citationCount: Int,
         isOpenAccess: Bool,
         oaPDFURL: String?,
-        savedAt: Int64
+        savedAt: Int64,
+        readingStatus: String = "to_read"
     ) {
         self.id = id
         self.openAlexID = openAlexID
@@ -42,6 +46,7 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
         self.isOpenAccess = isOpenAccess
         self.oaPDFURL = oaPDFURL
         self.savedAt = savedAt
+        self.readingStatus = readingStatus
     }
 
     enum CodingKeys: String, CodingKey {
@@ -51,6 +56,7 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
         case isOpenAccess = "is_open_access"
         case oaPDFURL = "oa_pdf_url"
         case savedAt = "saved_at"
+        case readingStatus = "reading_status"
     }
 }
 
@@ -78,6 +84,43 @@ public struct PaperAuthorRecord: Codable, Equatable, Sendable, FetchableRecord, 
     }
 }
 
+/// A row of the full-text index `paper_search`: one per saved paper, keyed by the paper's local id (stored, not
+/// indexed). FTS rows don't cascade, so `PaperStore` writes and deletes them with their paper.
+public struct PaperSearchRow: Equatable, Sendable {
+    public var paperID: String
+    public var title: String
+    /// Author names joined with spaces.
+    public var authors: String
+    public var abstract: String
+    public var venue: String
+
+    public init(paperID: String, title: String, authors: String, abstract: String, venue: String) {
+        self.paperID = paperID
+        self.title = title
+        self.authors = authors
+        self.abstract = abstract
+        self.venue = venue
+    }
+
+    /// The row for a paper, every column passed through `searchableText`. New saves and migration `v2` both use it.
+    public static func make(paperID: String, title: String, authorNames: [String], abstract: String?, venue: String?) -> PaperSearchRow {
+        PaperSearchRow(
+            paperID: paperID,
+            title: searchableText(title),
+            authors: searchableText(authorNames.joined(separator: " ")),
+            abstract: searchableText(abstract ?? ""),
+            venue: searchableText(venue ?? "")
+        )
+    }
+
+    func insert(_ db: Database) throws {
+        try db.execute(
+            sql: "INSERT INTO paper_search (paper_id, title, authors, abstract, venue) VALUES (?, ?, ?, ?, ?)",
+            arguments: [paperID, title, authors, abstract, venue]
+        )
+    }
+}
+
 /// A saved paper with its authors, sorted by position.
 public struct PaperWithAuthors: Equatable, Sendable {
     public var paper: PaperRecord
@@ -86,5 +129,32 @@ public struct PaperWithAuthors: Equatable, Sendable {
     public init(paper: PaperRecord, authors: [PaperAuthorRecord]) {
         self.paper = paper
         self.authors = authors
+    }
+
+    /// This paper's row in the search index.
+    public var searchRow: PaperSearchRow {
+        PaperSearchRow.make(
+            paperID: paper.id,
+            title: paper.title,
+            authorNames: authors.sorted { $0.position < $1.position }.map(\.name),
+            abstract: paper.abstract,
+            venue: paper.venue
+        )
+    }
+}
+
+/// One consistent read of the library for a search and a status.
+public struct LibraryRows: Equatable, Sendable {
+    /// Papers matching the search and the status, newest saved first.
+    public var papers: [PaperWithAuthors]
+    /// Papers matching the search per stored status; statuses with none are absent.
+    public var statusCounts: [String: Int]
+    /// Every saved paper, ignoring the search and the status.
+    public var total: Int
+
+    public init(papers: [PaperWithAuthors], statusCounts: [String: Int], total: Int) {
+        self.papers = papers
+        self.statusCounts = statusCounts
+        self.total = total
     }
 }

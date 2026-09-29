@@ -15,7 +15,7 @@ public enum HashiyaDatabase {
         case coordinationFailed
     }
 
-    /// `v1`: Android's Room version 1 schema.
+    /// `v1`: Android's Room version 1 schema. `v2`: Android's version 2 — the reading status and the search index.
     public static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1") { db in
@@ -43,6 +43,28 @@ public enum HashiyaDatabase {
                   PRIMARY KEY (paper_id, position)
                 );
                 """)
+        }
+        migrator.registerMigration("v2") { db in
+            // Raw SQL rather than GRDB's FTS4 builder, so `notindexed=paper_id` is certain: a search never matches a local id.
+            try db.execute(sql: """
+                ALTER TABLE papers ADD COLUMN reading_status TEXT NOT NULL DEFAULT 'to_read';
+                CREATE VIRTUAL TABLE paper_search USING fts4(paper_id, title, authors, abstract, venue, tokenize=unicode61, notindexed=paper_id);
+                """)
+            // Index every saved paper, its authors in position order, exactly as a new save would.
+            var authorNames: [String: [String]] = [:]
+            for row in try Row.fetchAll(db, sql: "SELECT paper_id, name FROM paper_authors ORDER BY paper_id, position") {
+                authorNames[row["paper_id"], default: []].append(row["name"])
+            }
+            for row in try Row.fetchAll(db, sql: "SELECT id, title, abstract, venue FROM papers") {
+                let id: String = row["id"]
+                try PaperSearchRow.make(
+                    paperID: id,
+                    title: row["title"],
+                    authorNames: authorNames[id] ?? [],
+                    abstract: row["abstract"],
+                    venue: row["venue"]
+                ).insert(db)
+            }
         }
         return migrator
     }

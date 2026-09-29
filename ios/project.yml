@@ -116,6 +116,11 @@ schemes:
         HashiyaSnapshotTests: [test]
         HashiyaUITests: [test]
     test:
+      environmentVariables:
+        # HashiyaSnapshotTests links the package products that its host app links, so Xcode builds them as dynamic
+        # frameworks, and a framework built from a package target doesn't carry that target's resource bundle. The
+        # unhosted package test bundles would then crash in `Bundle.module`; this points it at the built bundles.
+        PACKAGE_RESOURCE_BUNDLE_PATH: $(BUILT_PRODUCTS_DIR)
       targets:
         - package: HashiyaKit/HashiyaModelTests
         - package: HashiyaKit/HashiyaNetworkTests

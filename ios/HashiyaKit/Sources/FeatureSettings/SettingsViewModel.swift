@@ -17,8 +17,11 @@ public final class SettingsViewModel {
     public init(preferences: any UserPreferencesRepository) {
         self.preferences = preferences
         // Seeded at once, so Settings never opens on "Using built-in key" while the stream starts.
-        storedKey = preferences.currentUserAPIKey
-        usingUserKey = storedKey != nil
+        // Only written here, never read: SwiftUI creates this inside the sheet's observation scope, and a read
+        // would make the sheet rebuild the view model (losing the typed key) on every stored-key update.
+        let key = preferences.currentUserAPIKey
+        storedKey = key
+        usingUserKey = key != nil
         observations.add(Task { [weak self] in
             for await key in preferences.userAPIKeyUpdates() {
                 guard let self else { return }

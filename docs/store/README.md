@@ -6,6 +6,7 @@ Ready to upload, in English (`en`) and Arabic (`ar`):
 |---|---|---|
 | `app-store/<lang>/` | 1320 × 2868 | App Store, iPhone 6.9" display |
 | `play-store/<lang>/` | 1080 × 1920 | Google Play, phone screenshots |
+| `play-store/feature-graphic.png` | 1024 × 500 | Google Play, feature graphic |
 
 | # | English caption | Arabic caption | Screen |
 |---|---|---|---|
@@ -22,7 +23,7 @@ Ready to upload, in English (`en`) and Arabic (`ar`):
 python3 scripts/frame-store-screenshots.py
 ```
 
-It needs a Pillow built with libraqm, which shapes the Arabic captions (Homebrew's Python has it). Captions and colours are at the top of the script; the colours are the design system's primary teal.
+The same script also redraws the feature graphic. It needs `rsvg-convert` and a Pillow built with libraqm, which shapes the Arabic captions (Homebrew's Python has it). Captions and colours are at the top of the script; the colours are the design system's primary teal.
 
 - **iOS** captures come from the iPhone 17 Pro Max simulator, with the status bar set to 9:41 and full signal and battery (`xcrun simctl status_bar`).
 - **Android** captures are rendered with Robolectric at 411 × 891 dp and 420 dpi. They have no system bars, so the script draws a status bar on them.

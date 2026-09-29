@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("hashiya.android.application")
     id("hashiya.android.compose")
@@ -11,7 +13,24 @@ android {
     defaultConfig {
         applicationId = "com.etatech.hashiya"
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
+    }
+
+    // The Play upload key, from the git-ignored local.properties (see docs/release.md).
+    // Without these entries, release builds are unsigned.
+    val localProperties = Properties()
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use(localProperties::load)
+    }
+    val uploadStoreFile = localProperties.getProperty("UPLOAD_STORE_FILE")
+    val uploadSigning = uploadStoreFile?.let {
+        signingConfigs.create("upload") {
+            storeFile = file(it)
+            storePassword = localProperties.getProperty("UPLOAD_STORE_PASSWORD")
+            keyAlias = localProperties.getProperty("UPLOAD_KEY_ALIAS")
+            keyPassword = localProperties.getProperty("UPLOAD_KEY_PASSWORD")
+        }
     }
 
     androidResources {
@@ -20,6 +39,7 @@ android {
 
     buildTypes {
         release {
+            signingConfig = uploadSigning
             optimization {
                 enable = false
             }

@@ -4,8 +4,12 @@
 Reads docs/store/raw/<platform>/<lang>/<n>-<name>.png and writes docs/store/<platform>/<lang>/<n>-<name>.png.
   app-store: 1320x2868 (iPhone 6.9")
   play-store: 1080x1920 (phone, 9:16)
-Needs Pillow built with libraqm for Arabic shaping (pip3 install pillow).
+Also draws the Play feature graphic (1024x500) at docs/store/play-store/feature-graphic.png.
+Needs Pillow built with libraqm for Arabic shaping (pip3 install pillow), and rsvg-convert for the glyph.
 """
+import io
+import re
+import subprocess
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, features
@@ -138,6 +142,26 @@ def frame(capture: Path, platform: str, lang: str, key: str) -> Image.Image:
     return canvas.convert("RGB")
 
 
+def feature_graphic() -> Image.Image:
+    """Play's 1024x500 banner: the icon's glyph beside the English and Arabic names and a tagline."""
+    width, height = 1024, 500
+    canvas = background(width, height).convert("RGBA")
+
+    # The glyph alone, in white, from the icon's source SVG (its background rect dropped).
+    svg = (ROOT / "docs/brand/app-icon.svg").read_text()
+    svg = re.sub(r"<rect[^>]*/>", "", svg)
+    png = subprocess.run(["rsvg-convert", "-w", "340"], input=svg.encode(), capture_output=True, check=True).stdout
+    glyph = Image.open(io.BytesIO(png)).convert("RGBA")
+    canvas.alpha_composite(glyph, (40, (height - glyph.height) // 2))
+
+    draw = ImageDraw.Draw(canvas)
+    x = 400
+    draw.text((x, 118), "Hashiya", font=font("en", "semibold", 88), fill=ON_PRIMARY)
+    draw.text((x, 222), "حاشية", font=font("ar", "semibold", 72), fill=ON_PRIMARY, direction="rtl")
+    draw.text((x, 340), "Find, save and track research papers", font=font("en", "medium", 30), fill=PRIMARY_CONTAINER)
+    return canvas.convert("RGB")
+
+
 def main() -> None:
     assert features.check("raqm"), "This Pillow has no libraqm, so Arabic would render unshaped; use a Python whose Pillow has it (e.g. Homebrew's)"
     count = 0
@@ -148,6 +172,8 @@ def main() -> None:
         frame(capture, platform, lang, key).save(out, optimize=True)
         count += 1
     print(f"Framed {count} screenshots.")
+    feature_graphic().save(OUT / "play-store/feature-graphic.png", optimize=True)
+    print("Drew the Play feature graphic.")
 
 
 if __name__ == "__main__":

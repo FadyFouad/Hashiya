@@ -1,0 +1,135 @@
+# Releasing Hashiya
+
+How to ship a version to the App Store and Google Play. Written for 1.0; later releases repeat the "Each release" steps only.
+
+**In the repo:** the icons, screenshots (`docs/store/`), listing text and questionnaire answers (`docs/store/metadata.md`), the privacy policy page (`docs/store/privacy-policy.html`), the iOS privacy manifests and export flag, and Android release signing.
+
+**Done by hand:** everything in the developer consoles below.
+
+## 0. Before either store
+
+1. **OpenAlex API key.** Create a free key at [openalex.org](https://openalex.org) (sign in, then the API key page in your account settings). Then:
+   - In `local.properties`, add `OPENALEX_API_KEY=<key>`.
+   - Copy `ios/Config/Secrets.example.xcconfig` to `ios/Config/Secrets.xcconfig` and put the key after `OPENALEX_API_KEY =`.
+   - Both files are git-ignored. The key ends up inside the app, where a determined user could extract it; that's acceptable for a free key, and users can still enter their own in Settings.
+2. **Privacy policy link.** The page is published at <https://claude.ai/artifact/5LQepVgydy5YYSzzANJQL4>. It starts out private: open it, choose **Share**, and allow anyone with the link to view it. Check it in a private browser window. It is both the privacy policy URL and the support URL. To change it, edit `docs/store/privacy-policy.html` and republish it to the same link.
+3. **Check the listing text** with `python3 scripts/check-store-metadata.py`; every field should say `ok`.
+
+## 1. App Store
+
+### One-time setup (developer.apple.com → Certificates, Identifiers & Profiles)
+
+1. **Register the App Group:** Identifiers → **+** → App Groups → `group.com.etatech.hashiya`.
+2. **Register the app's App ID:** Identifiers → **+** → App IDs → App.
+   - Description `Hashiya`, Bundle ID (explicit) `com.etatech.hashiya`.
+   - Capabilities: **App Groups** (then Configure → pick `group.com.etatech.hashiya`).
+3. **(Pending) Register the share extension's App ID** the same way: Bundle ID `com.etatech.hashiya.share`, capability **App Groups** with the same group.
+
+   The keychain group `$(AppIdentifierPrefix)com.etatech.hashiya.shared` needs no registration: keychain sharing between apps of one team is always allowed.
+
+   If Xcode's automatic signing registers these for you on the first archive, check they match; don't create duplicates.
+4. **Team ID:** in `ios/Config/Secrets.xcconfig`, uncomment `DEVELOPMENT_TEAM` and set your team ID (Membership details at developer.apple.com/account).
+
+### Create the app (appstoreconnect.apple.com → Apps → +)
+
+| Field | Value |
+|---|---|
+| Platform | iOS |
+| Name | `Hashiya: Research Papers` (if taken, try `Hashiya – Research Library`) |
+| Primary language | English (U.S.) |
+| Bundle ID | `com.etatech.hashiya` |
+| SKU | `hashiya-ios` |
+| User access | Full access |
+
+Then add **Arabic** under App Information → Localizable information, so each language gets its own listing.
+
+### Build and upload
+
+1. `cd ios && xcodegen generate`, then open `Hashiya.xcodeproj`.
+2. Select the **Hashiya** scheme and **Any iOS Device (arm64)**, then **Product → Archive**.
+3. In the Organizer: **Distribute App → App Store Connect → Upload**, with automatic signing.
+4. The build appears under TestFlight after processing (usually 10–30 minutes). There's no encryption question: `ITSAppUsesNonExemptEncryption` is already `false`.
+5. **TestFlight:** add yourself as an internal tester and install on a real iPhone. Try search, save, status changes, library search, and the share extension from Safari.
+
+### Fill in the listing (App Store Connect → the app)
+
+All text is in `docs/store/metadata.md`.
+
+- **App Information:** categories Education and Reference, content rights (the app shows third-party metadata from OpenAlex, which is CC0), age rating (answer "None" or "No" throughout, giving 4+).
+- **Pricing and Availability:** Free, all countries.
+- **App Privacy:** privacy policy URL, then "Data Not Collected".
+- **Version 1.0 → English (U.S.) and Arabic:**
+  - Screenshots: iPhone 6.9" from `docs/store/app-store/<lang>/`, in order 1 to 4.
+  - Promotional text, description, keywords, support URL and copyright.
+- **iPad:** 1.0 is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"` in `ios/project.yml`), so App Store Connect asks for iPhone screenshots only; iPad users can run the iPhone version. To add iPad later, set it back to `"1,2"` and add 13" iPad screenshots.
+- **Build:** choose the TestFlight build.
+- **App Review Information:** no sign-in required; paste the review notes from `metadata.md`; add your phone and email.
+- **Version release:** "Manually release this version", so you choose the launch moment.
+
+Then **Add for Review → Submit**. Reviews usually take 1–2 days.
+
+## 2. Google Play
+
+### One-time setup
+
+1. **Upload key.** Create it once, keep it outside the repo, and back it up with its passwords (a password manager is ideal):
+   ```bash
+   keytool -genkeypair -v -keystore ~/keys/hashiya-upload.jks -alias upload \
+     -keyalg RSA -keysize 4096 -validity 10000
+   ```
+2. **Point the build at it** in `local.properties` (git-ignored):
+   ```properties
+   UPLOAD_STORE_FILE=/Users/<you>/keys/hashiya-upload.jks
+   UPLOAD_STORE_PASSWORD=...
+   UPLOAD_KEY_ALIAS=upload
+   UPLOAD_KEY_PASSWORD=...
+   ```
+3. **Create the app** in the Play Console → Create app:
+   - Name `Hashiya: Research Papers`, default language English (United States).
+   - App, Free.
+   - Accept the declarations.
+4. **Play App Signing:** keep the default (Google manages the app signing key). Your upload key only signs what you upload, and it can be reset through Play support if lost.
+
+### Build
+
+```bash
+./gradlew :app:bundleRelease
+```
+The signed bundle is `app/build/outputs/bundle/release/app-release.aab`. Without the `UPLOAD_*` entries the bundle is unsigned, and Play rejects it.
+
+### Fill in the listing (Play Console → the app)
+
+All text is in `docs/store/metadata.md`.
+
+- **App content:**
+  - Privacy policy URL.
+  - Ads: No.
+  - App access: all functionality available.
+  - Content rating: IARC questionnaire, Reference/News/Educational category, "No" throughout.
+  - Target audience: 18+.
+  - Data safety: no data collected or shared.
+  - Government app: No. Financial features: None. Health: None.
+- **Main store listing, English:**
+  - App name, short and full descriptions.
+  - App icon: `app/src/main/ic_launcher-playstore.png` (512 px).
+  - Phone screenshots from `docs/store/play-store/en/`.
+  - Feature graphic: `docs/store/play-store/feature-graphic.png` (1024 × 500).
+- **Store listing, Arabic:** Translations → add Arabic → the Arabic text and `docs/store/play-store/ar/` screenshots.
+- **Store settings:** category Education, contact email.
+
+### Testing and release
+
+1. **Internal testing** → Create release → upload the `.aab` → release notes → roll out. Install from the opt-in link and try the same flows as on iOS, plus sharing a link from Chrome.
+2. **Closed testing:** personal developer accounts created after 13 November 2023 must run a closed test with **at least 12 testers opted in for 14 continuous days** before they can apply for production. Organization accounts skip this step. Create a closed track, add testers by email list or Google Group, upload the same bundle, and keep 12+ testers opted in for the full 14 days.
+3. **Production:** after the closed test (or directly for organization accounts), Production → Create release → promote the tested bundle → roll out, optionally as a staged rollout (e.g. 20%). Reviews usually take a few hours to a few days.
+
+## Each release
+
+1. Bump the version:
+   - iOS: `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `ios/project.yml`.
+   - Android: `versionName` and `versionCode` in `app/build.gradle.kts`.
+   - Build numbers and version codes must always increase.
+2. Update "What's New" / release notes in `docs/store/metadata.md` and run the metadata checker.
+3. If the UI changed, update the screenshots (`docs/store/README.md`).
+4. Archive and upload the iOS build, and build and upload the Android bundle; test through TestFlight and internal testing, then submit.
+5. Tag the release: `git tag v1.0.0 && git push origin v1.0.0`.

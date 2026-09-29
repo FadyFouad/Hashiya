@@ -54,95 +54,73 @@ list.
 
 Commit: `feat: put the iOS 26 preview buttons in a glass bar the paper scrolls under`
 
-- [ ] **Build + record iOS 26 for the three suites that show the preview:**
-  ```bash
-  TEST_RUNNER_SNAPSHOT_RECORD=1 xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/DesignSystemSnapshotTests -only-testing:HashiyaSnapshotTests/ShareSnapshotTests -only-testing:HashiyaSnapshotTests/SearchSnapshotTests 2>&1 | grep -E "$FILTER"
-  ```
-  Expect it to compile (no `error:` lines; `safeAreaBar` and the glass button styles need the iOS 26 SDK) and
-  to fail only because it recorded.
-- [ ] **Verify iOS 26:** the same command without `TEST_RUNNER_SNAPSHOT_RECORD=1`. Expect `** TEST SUCCEEDED **`.
-- [ ] **Look at the images** in `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/`:
-  - `DesignSystemSnapshotTests/previewOpenAccessWithPDF.previewOpenAccessPDF-EnglishLight.png`: Open DOI is
-    glass with teal text, Save to library is solid teal glass, and there is no divider above them.
-  - `DesignSystemSnapshotTests/previewWithTheStatusSelector.previewStatus-*.png`: the selector sits above the
-    buttons.
-  - `ShareSnapshotTests/found.found-ArabicDark.png`: the same bar, mirrored, under "حاشية" and the glass Done
-    button.
-  - None of them is blank or partly blank around the buttons (Review Focus 1).
+- [x] **Build + record iOS 26 for the three suites that show the preview:** recorded together with Library in
+  one run (phase 2); failed only because it recorded, no `error:` lines. See `mac-checks-2-report.md`.
+- [x] **Verify iOS 26:** `** TEST SUCCEEDED **` (34 tests, 4 suites: DesignSystem, Share, Search, Library).
+- [x] **Look at the images** — all PASS, see `mac-checks-2-report.md` for each image. One separate legibility
+  finding (not a fail against this step's own criteria, see the report's look (b)): the large titles render
+  washed-out pale grey on iOS 26 when a list/results row sits below, unlike iOS 18 or the idle screens.
 - [ ] **iOS 18 unchanged** (no recording; covers the Task 3 carry-over too):
   ```bash
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
   ```
-  Expect `** TEST SUCCEEDED **`.
-- [ ] **UI tests that use the preview, on iOS 26:**
-  ```bash
-  xcrun simctl uninstall 'iPhone 17 Pro' com.etatech.hashiya
-  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testPastingAnArxivIDShowsThePaperToSave -only-testing:HashiyaUITests/LibraryFlowTests/testThePreviewChangesTheStatusAndTheSearchKeyHidesTheKeyboard -only-testing:HashiyaUITests/ShareFlowTests 2>&1 | grep -E "$FILTER"
-  ```
-  Expect `** TEST SUCCEEDED **`; `app.buttons["Save to library"]` still finds the glass button.
-- [ ] **The UI tests launch the real app, not the snapshot host's blank window:**
-  ```bash
-  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LaunchTests 2>&1 | grep -E "$FILTER"
-  ```
-  Expect `** TEST SUCCEEDED **` (it finds the Library and Search tabs). While it and the run above go, the
-  simulator shows the tab bar and the Library/Search screens, not an empty window. `HashiyaApp` only shows
-  `Color.clear` when `XCTestConfigurationFilePath` is set, which XCTest sets for the hosted snapshot bundle and
-  not for UI tests; a UI-test failure that says an element was not found and a blank simulator mean this broke.
+  **FAILED (phase 2): `LibrarySnapshotTests` fails 5/8 tests** (`papersWithChipsAndBadges`, `aFilteredSearch`,
+  `noMatches`, `undoBanner`, `statusUpdateFailedBanner`) — a selected filter chip's text truncates with an
+  ellipsis instead of showing the full label + count. DesignSystem, Share, Search and Settings all passed. This
+  is a regression against the images Task 1 recorded: not fixed, not re-recorded. See `mac-checks-2-report.md`
+  for the measured diffs and evidence — it also reproduces on freshly-recorded iOS 26 (this suite's `Library`
+  images above are affected too: `papers-ArabicDark`'s "All" chip and `aFilteredSearch`'s "To read" chip both
+  truncate on iOS 26 as well as iOS 18).
+- [x] **UI tests that use the preview, on iOS 26:** `** TEST SUCCEEDED **` (`app.buttons["Save to library"]`
+  still finds the glass button).
+- [x] **The UI tests launch the real app, not the snapshot host's blank window:** `** TEST SUCCEEDED **` on iOS
+  26.4 (`LaunchTests`); confirmed again on iOS 18.2.
 
 ## Task 5: Glass Search chips and suggestions
 
 Commit: `feat: make the iOS 26 Search filter chips and suggestions glass`
 
-- [ ] **Build + record iOS 26 Search:**
-  ```bash
-  TEST_RUNNER_SNAPSHOT_RECORD=1 xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/SearchSnapshotTests 2>&1 | grep -E "$FILTER"
-  ```
-  Expect no `error:` lines; it fails only because it recorded.
-- [ ] **Verify iOS 26:** the same command without `TEST_RUNNER_SNAPSHOT_RECORD=1`. Expect `** TEST SUCCEEDED **`.
-- [ ] **Look at the images** in `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/SearchSnapshotTests/`:
-  - `filtersAndBanner.filtersAndBanner-EnglishLight.png`: Most cited, 2015–2020 and ✓ Open access are teal glass
-    capsules with white text.
-  - `idle.idle-EnglishDark.png`: the three suggestions are clear glass capsules; in `idle.idle-Arabic*.png` they
-    stay left to right.
-  - `results.results-*.png`: Relevance, Any time and Open access are clear glass.
+- [x] **Build + record iOS 26 Search:** recorded together with DesignSystem, Share and Library in one run
+  (phase 2); no `error:` lines, failed only because it recorded.
+- [x] **Verify iOS 26:** `** TEST SUCCEEDED **` (part of the same 4-suite verify run).
+- [x] **Look at the images** in `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/SearchSnapshotTests/` — all PASS,
+  see `mac-checks-2-report.md`.
 - [ ] **iOS 18 unchanged** (no recording): `ChipLabel` now takes its colours from `hashiyaChip`, whose pre-iOS 26
   branch must draw exactly what `ChipLabel` drew before.
   ```bash
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
   ```
-  Expect `** TEST SUCCEEDED **`.
+  **FAILED (phase 2), but not because of Search:** `SearchSnapshotTests` itself passed every test; the failure
+  is entirely in `LibrarySnapshotTests` (see Task 4's iOS 18 box above and `mac-checks-2-report.md`). Left
+  unticked because the full-suite run this step calls for does not currently pass.
 
 ## Task 6: Glass Library chips, status badges and Add paper
 
 Commit: `feat: make the iOS 26 Library chips, status badges and Add paper glass`
 
-- [ ] **Build + record iOS 26 Library:**
-  ```bash
-  TEST_RUNNER_SNAPSHOT_RECORD=1 xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/LibrarySnapshotTests 2>&1 | grep -E "$FILTER"
-  ```
-  Expect no `error:` lines (in particular `AddPaperButton.body`'s `let button` plus `if #available` in the view
-  builder); it fails only because it recorded.
-- [ ] **Verify iOS 26:** the same command without `TEST_RUNNER_SNAPSHOT_RECORD=1`. Expect `** TEST SUCCEEDED **`.
-- [ ] **Look at the images** in `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/LibrarySnapshotTests/`:
-  - `papersWithChipsAndBadges.papers-EnglishLight.png`: ✓ All is teal glass, the others clear glass; Reading is a
-    teal glass pill, ✓ Read and To read are clear glass; Add paper is solid teal glass with no grey shadow.
-  - `papersWithChipsAndBadges.papers-ArabicDark.png`: all of this mirrored, with Add paper bottom left.
-  - `statusBadges.badges-*.png`: the three pills.
-  - `undoBanner.undo-*.png` and `statusUpdateFailedBanner.statusFailed-*.png`: the glass banners sit just above
-    Add paper.
+- [x] **Build + record iOS 26 Library:** recorded together with DesignSystem, Share and Search in one run
+  (phase 2); no `error:` lines, failed only because it recorded.
+- [x] **Verify iOS 26:** `** TEST SUCCEEDED **` (part of the same 4-suite verify run).
+- [x] **Look at the images** in `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/LibrarySnapshotTests/` — PASS
+  against this step's own criteria (glass styling, mirroring, banner placement all correct; none blank). Separate
+  defect found while looking (not this step's criteria, see `mac-checks-2-report.md`): the selected filter
+  chip's label+count text truncates with "…" in `papers-ArabicDark`'s "All" chip and in `aFilteredSearch`'s
+  chips — the same truncation as the iOS 18 regression below, so it is not iOS-26-specific.
 - [ ] **iOS 18 unchanged** (no recording; the chips, pills and Add paper keep their pre-iOS 26 look, shadow included):
   ```bash
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
   ```
-  Expect `** TEST SUCCEEDED **`.
-- [ ] **Library UI tests on iOS 26:**
-  ```bash
-  xcrun simctl uninstall 'iPhone 17 Pro' com.etatech.hashiya
-  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests 2>&1 | grep -E "$FILTER"
-  ```
-  Expect `** TEST SUCCEEDED **`. `testChangingAStatusFiltersAndSearchesTheLibrary` proves the glass badge still
-  opens its menu (not the preview) and that the chips keep `.isSelected`. If a test fails on a leftover search
-  text or tab, uninstall the app again (not erase) and rerun once; report a failure that survives that.
+  **FAILED (phase 2): `** TEST FAILED **`, 5 of 8 `LibrarySnapshotTests` failed.** `papersWithChipsAndBadges`,
+  `aFilteredSearch`, `noMatches`, `undoBanner` and `statusUpdateFailedBanner` all fail because the selected
+  filter chip's text (e.g. Arabic "(4) الكل", English "To read · 1") now truncates to an ellipsis instead of
+  showing in full — a real, measured pixel difference (~11,000-12,600 "strong" >30/255 pixels per image, not
+  anti-aliasing noise), not a flake. `empty()` and `statusBadges()` passed (they have no selected chip with a
+  count in frame). This is a code defect in `LibraryFilterChips.chip()`: unlike `ReadingStatusPill` (which has
+  `.fixedSize()`), the filter chip's `Text` has no `.fixedSize()`/`.lineLimit()`, so it truncates instead of
+  growing when the chip's available width tightens. Not fixed here, not re-recorded; see `mac-checks-2-report.md`
+  for measurements, crops and the reference-vs-actual comparison.
+- [x] **Library UI tests on iOS 26:** `** TEST SUCCEEDED **` (`LibraryFlowTests`, 7 tests). Also reran on iOS
+  18.2 (both `LibraryFlowTests` and `ShareFlowTests`, 8 tests): `** TEST SUCCEEDED **`.
 
 ## Task 7: Large titles on iOS 26 (Library and Search results)
 
@@ -187,26 +165,31 @@ search field that is *not* active) — that is the correct way to see whether Se
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testTheLibraryShowsItsLargeTitle 2>&1 | grep -E "$FILTER"
   ```
   Expect `** TEST SUCCEEDED **`. Result: SUCCEEDED.
-- [ ] **Re-record iOS 26 Library and Search** (after Tasks 5 and 6, this is the recording that counts; this is
-  also where Search's large title gets its real verification — see the ruling above):
-  ```bash
-  TEST_RUNNER_SNAPSHOT_RECORD=1 xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/LibrarySnapshotTests -only-testing:HashiyaSnapshotTests/SearchSnapshotTests 2>&1 | grep -E "$FILTER"
-  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/LibrarySnapshotTests -only-testing:HashiyaSnapshotTests/SearchSnapshotTests 2>&1 | grep -E "$FILTER"
-  ```
-  The first fails because it recorded; the second must print `** TEST SUCCEEDED **`.
-- [ ] **Look at the images:** in `iOS26/LibrarySnapshotTests/papersWithChipsAndBadges.papers-EnglishLight.png`
-  and `iOS26/SearchSnapshotTests/results.results-EnglishLight.png`, "Library" and "Search" show as large titles
-  above the search field, and the chips sit under it with no white band. This `results.results-EnglishLight.png`
-  check is Search's real large-title verification (see the ruling above): the snapshot's search field is idle,
-  not mid-edit, so it is the correct place to confirm the title shows at rest — the UI test only ever checks
-  Library, since a UI test that types into Search's field would put it in the active state that hides titles by
-  design. Also recheck Task 5's and Task 6's image lists on these new images.
+- [x] **Re-record iOS 26 Library and Search** (after Tasks 5 and 6, this is the recording that counts; this is
+  also where Search's large title gets its real verification — see the ruling above): recorded together with
+  DesignSystem and Share in one run (phase 2); the record run failed only because it recorded, and the verify
+  run printed `** TEST SUCCEEDED **`.
+- [x] **Look at the images:** confirmed in `papersWithChipsAndBadges.papers-EnglishLight.png` and
+  `results.results-EnglishLight.png` — "Library" and "Search" both show as large titles above the search field,
+  chips sit under them with no white band. **Extra look (a)** (controller): yes — `results.results-EnglishLight.png`
+  shows "Search" as a large title above the field while the field is idle (holds "transformers" as plain
+  committed text, no clear/cancel affordance), which is Search's real large-title verification. **Extra look
+  (b)** (controller): the "Library" and "Search" titles in these two images are pale/washed-out, not
+  normal-contrast — measured, not just eyeballed: title-pixel RGB ≈ (214,214,214) against a ≈(252,252,252)
+  background in both images (contrast ratio ≈1.2:1). By contrast, iOS 26's own idle Search screen (no list
+  below the title) renders "Search" at full contrast — pure black (0,0,0) in light mode, pure white in dark
+  mode — and iOS 18's "Library"/"Search" titles are pure black (0,0,0) in the same papers/results states. So the
+  fade is specific to iOS 26 with a populated list under the title, not a general iOS 26 style and not present
+  on iOS 18. See `mac-checks-2-report.md` for the crops and pixel samples. Also rechecked Task 5's and Task 6's
+  image lists on these new images: still PASS.
 - [ ] **iOS 18 unchanged** (no recording; the pre-iOS 26 branch keeps `safeAreaInset` with the surface
   background):
   ```bash
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
   ```
-  Expect `** TEST SUCCEEDED **`.
+  **FAILED (phase 2), same `LibrarySnapshotTests` chip-truncation regression as Task 4/6's iOS 18 boxes above.**
+  `SearchSnapshotTests` (this task's other suite) passed in full. Left unticked because the full-suite run this
+  step calls for does not currently pass; see `mac-checks-2-report.md`.
 
 ## Task 8: Full verification, device checks, push and PR
 

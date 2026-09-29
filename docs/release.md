@@ -2,7 +2,7 @@
 
 How to ship a version to the App Store and Google Play. Written for 1.0; later releases repeat the "Each release" steps only.
 
-**In the repo:** the icons, screenshots (`docs/store/`), listing text and questionnaire answers (`docs/store/metadata.md`), the privacy policy page (`docs/store/privacy-policy.html`), the iOS privacy manifests and export flag, and Android release signing.
+**In the repo:** the icons, screenshots (`docs/store/`), listing text and questionnaire answers (`docs/store/metadata.md`), the iOS privacy manifests and export flag, and Android release signing.
 
 **Done by hand:** everything in the developer consoles below.
 
@@ -12,7 +12,7 @@ How to ship a version to the App Store and Google Play. Written for 1.0; later r
    - In `local.properties`, add `OPENALEX_API_KEY=<key>`.
    - Copy `ios/Config/Secrets.example.xcconfig` to `ios/Config/Secrets.xcconfig` and put the key after `OPENALEX_API_KEY =`.
    - Both files are git-ignored. The key ends up inside the app, where a determined user could extract it; that's acceptable for a free key, and users can still enter their own in Settings.
-2. **Privacy policy link.** The page is published at <https://claude.ai/artifact/5LQepVgydy5YYSzzANJQL4>. It starts out private: open it, choose **Share**, and allow anyone with the link to view it. Check it in a private browser window. It is both the privacy policy URL and the support URL. To change it, edit `docs/store/privacy-policy.html` and republish it to the same link.
+2. **Privacy policy link:** <https://fadyfouad.github.io/Hashiya-Privacy-Policy/>, served by GitHub Pages from the public [Hashiya-Privacy-Policy](https://github.com/FadyFouad/Hashiya-Privacy-Policy) repo. It is both the privacy policy URL and the support URL. To change the policy, edit that repo's `index.html` and push; the page updates within a minute or two.
 3. **Check the listing text** with `python3 scripts/check-store-metadata.py`; every field should say `ok`.
 
 ## 1. App Store

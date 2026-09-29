@@ -8,8 +8,8 @@ are in brackets; `scripts/check-store-metadata.py` checks every field against th
 | Field                          | Value                                                 |
 |--------------------------------|-------------------------------------------------------|
 | Price                          | Free, no in-app purchases, no ads                     |
-| Privacy policy URL             | The published privacy page (see `docs/release.md`)    |
-| Support URL / contact          | The same page; contact email `fady.fouad.a@gmail.com` |
+| Privacy policy URL             | https://fadyfouad.github.io/Hashiya-Privacy-Policy/ |
+| Support URL / contact          | https://fadyfouad.github.io/Hashiya-Privacy-Policy/ (email `fady.fouad.a@gmail.com`) |
 | Primary category               | Education (App Store and Play)                        |
 | Secondary category (App Store) | Reference                                             |
 | Copyright (App Store)          | 2026 Fady Fouad                                       |

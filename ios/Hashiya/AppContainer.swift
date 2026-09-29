@@ -9,15 +9,17 @@ import HashiyaData
 final class AppContainer {
     let libraryRepository: any LibraryRepository
     let searchRepository: any SearchRepository
+    let lookupRepository: any PaperLookupRepository
     let preferences: any UserPreferencesRepository
 
     init(dependencies: LiveDependencies) {
         libraryRepository = dependencies.libraryRepository
         searchRepository = dependencies.searchRepository
+        lookupRepository = dependencies.lookupRepository
         preferences = dependencies.preferences
     }
 
-    /// The real graph, or — in Debug builds launched with `-ui-testing` — an in-memory library and stub search.
+    /// The real graph, or — in Debug builds launched with `-ui-testing` — an in-memory library, stub search and lookup.
     static func make(arguments: [String] = ProcessInfo.processInfo.arguments) -> AppContainer {
         #if DEBUG
         if arguments.contains("-ui-testing") {
@@ -32,7 +34,7 @@ final class AppContainer {
     }
 
     func makeSearchViewModel() -> SearchViewModel {
-        SearchViewModel(repository: searchRepository, library: libraryRepository, preferences: preferences)
+        SearchViewModel(repository: searchRepository, lookup: lookupRepository, library: libraryRepository, preferences: preferences)
     }
 
     func makeLibraryViewModel() -> LibraryViewModel {

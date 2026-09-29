@@ -11,7 +11,7 @@ struct SearchSnapshotTests {
     private let library = FakeLibraryRepository(saved: [SamplePapers.attention])
 
     private func makeViewModel(_ repository: FakeSearchRepository = FakeSearchRepository(page: .of([]))) -> SearchViewModel {
-        SearchViewModel(repository: repository, library: library, preferences: FakeUserPreferencesRepository())
+        SearchViewModel(repository: repository, lookup: FakePaperLookupRepository(), library: library, preferences: FakeUserPreferencesRepository())
     }
 
     private func screen(_ viewModel: SearchViewModel) -> some View {

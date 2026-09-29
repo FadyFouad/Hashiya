@@ -29,12 +29,19 @@ jobs:
         run: |
           brew install xcodegen
           xcodegen generate --spec ios/project.yml
-      - name: Unit and snapshot tests on iOS 26 and iOS 18 (no API key, no live network)
+      - name: Unit and snapshot tests on iOS 26 (no API key, no live network)
         env:
-          TEST_RUNNER_SNAPSHOT_ARTIFACTS: ${{ runner.temp }}/snapshot-diffs
+          TEST_RUNNER_SNAPSHOT_ARTIFACTS: ${{ runner.temp }}/snapshot-diffs/ios26
         run: >-
           xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya
           -destination 'platform=iOS Simulator,name=iPhone 16,OS=26.2'
+          -skip-testing:HashiyaUITests
+          -collect-test-diagnostics never
+      - name: Unit and snapshot tests on iOS 18 (no API key, no live network)
+        env:
+          TEST_RUNNER_SNAPSHOT_ARTIFACTS: ${{ runner.temp }}/snapshot-diffs/ios18
+        run: >-
+          xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya
           -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
           -skip-testing:HashiyaUITests
           -collect-test-diagnostics never

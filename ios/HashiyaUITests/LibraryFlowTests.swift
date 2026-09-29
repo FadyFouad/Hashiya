@@ -3,17 +3,18 @@ import XCTest
 /// End to end with `-ui-testing`: in-memory library, stub search, no network.
 @MainActor
 final class LibraryFlowTests: XCTestCase {
-    private var app: XCUIApplication!
-
-    override func setUp() {
+    @discardableResult
+    private func launchApp() -> XCUIApplication {
         continueAfterFailure = false
-        app = XCUIApplication()
+        let app = XCUIApplication()
         app.launchArguments += ["-ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
+        return app
     }
 
     @MainActor
     func testSaveFromSearchThenRemoveAndUndoInLibrary() {
+        let app = launchApp()
         XCTAssertTrue(app.staticTexts["No saved papers yet"].waitForExistence(timeout: 10))
         app.buttons["Go to Search"].tap()
 
@@ -41,6 +42,7 @@ final class LibraryFlowTests: XCTestCase {
 
     @MainActor
     func testSettingsSavesAndResetsTheUserKey() {
+        let app = launchApp()
         app.buttons["Settings"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Using built-in key"].waitForExistence(timeout: 5))
 

@@ -4,10 +4,11 @@
 set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
-branch="record-snapshots-ios/$(git rev-parse --short HEAD)"
+branch="record-snapshots-ios/$(git rev-parse --short HEAD)-$(date +%s)"
 
 git push --force --quiet origin "HEAD:refs/heads/$branch"
-trap 'git push --quiet origin --delete "$branch" || true' EXIT
+download_dir=""
+trap 'git push --quiet origin --delete "$branch" || true; [ -z "$download_dir" ] || rm -rf "$download_dir"' EXIT
 
 run_id=""
 for _ in $(seq 1 60); do

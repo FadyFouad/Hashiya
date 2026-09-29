@@ -62,7 +62,7 @@ Screenshot baselines are recorded on CI's Linux runners, which are the source of
 
 ## iOS
 
-A native SwiftUI app with the features of sub-projects 1 and 2 lives in [`ios/`](ios/README.md): OpenAlex search with filters, adding a paper by DOI, arXiv ID or link, a Share Extension that saves the paper of a shared page, the preview sheet, the offline Library and Settings, in English and Arabic. Library search and reading status are not on iOS yet. Its Xcode project is generated with XcodeGen; see [`ios/README.md`](ios/README.md) for setup, tests and snapshot baselines.
+A native SwiftUI app with the features of sub-projects 1 to 3 lives in [`ios/`](ios/README.md): OpenAlex search with filters, adding a paper by DOI, arXiv ID or link, a Share Extension that saves the paper of a shared page, the preview sheet, the offline Library with full-text search and reading status, and Settings, in English and Arabic. Its Xcode project is generated with XcodeGen; see [`ios/README.md`](ios/README.md) for setup, tests and snapshot baselines.
 
 ## Roadmap
 

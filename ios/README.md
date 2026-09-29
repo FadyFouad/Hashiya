@@ -1,6 +1,6 @@
 # Hashiya for iOS
 
-The iOS app: SwiftUI, iOS 17 or later, English and Arabic with full right-to-left layouts. It behaves like the Android app — OpenAlex search with filters, adding a paper by DOI, arXiv ID or link (in Search, or with the Library's **Add paper** button), a preview sheet, an offline Library and Settings. The Share Extension `HashiyaShare` looks up a page shared from Safari or any app and saves the paper from the share sheet. Library search and reading status come next.
+The iOS app: SwiftUI, iOS 17 or later, English and Arabic with full right-to-left layouts. It behaves like the Android app — OpenAlex search with filters, adding a paper by DOI, arXiv ID or link (in Search, or with the Library's **Add paper** button), a preview sheet, an offline Library you can search by title, author, abstract or venue (Arabic search ignores tashkeel and letter variants) and track as To read, Reading or Read, and Settings. The Share Extension `HashiyaShare` looks up a page shared from Safari or any app and saves the paper from the share sheet.
 
 ## Opening the project
 
@@ -12,7 +12,7 @@ xcodegen generate --spec ios/project.yml
 open ios/Hashiya.xcodeproj
 ```
 
-Run `xcodegen generate` again after pulling changes to `project.yml` or adding files to the app, Share Extension (`ios/HashiyaShare`), shared (`ios/Shared`) or UI-test targets. Everything else lives in the local Swift package `ios/HashiyaKit` (targets `HashiyaModel`, `HashiyaNetwork`, `HashiyaDatabase`, `HashiyaData`, `HashiyaDesignSystem`, `FeatureSearch`, `FeatureLibrary`, `FeatureSettings`, and `HashiyaTesting` for tests); features see only `HashiyaData`, `HashiyaModel` and `HashiyaDesignSystem`, and the manifest enforces it. The app and the Share Extension share the library database (`group.com.etatech.hashiya`) and the user's key (Keychain group `com.etatech.hashiya.shared`); the app refreshes its Library whenever it comes to the foreground.
+Run `xcodegen generate` again after pulling changes to `project.yml` or adding files to the app, Share Extension (`ios/HashiyaShare`), shared (`ios/Shared`) or UI-test targets. Everything else lives in the local Swift package `ios/HashiyaKit` (targets `HashiyaModel`, `HashiyaNetwork`, `HashiyaDatabase`, `HashiyaData`, `HashiyaDesignSystem`, `FeatureSearch`, `FeatureLibrary`, `FeatureSettings`, and `HashiyaTesting` for tests); features see only `HashiyaData`, `HashiyaModel` and `HashiyaDesignSystem`, and the manifest enforces it. The app and the Share Extension share the library database (`group.com.etatech.hashiya`) and the user's key (Keychain group `com.etatech.hashiya.shared`); the app refreshes its Library whenever it comes to the foreground. The database is migrated in place with GRDB migrations (`v1`, then `v2` for the reading status and the full-text index); there is no destructive fallback.
 
 ## OpenAlex API key (optional)
 

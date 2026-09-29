@@ -13,6 +13,8 @@ public protocol LibraryRepository: Sendable {
     func remove(openAlexID: String) async throws -> RemovedPaper?
     /// Puts a removed paper back with the same local ID and saved time. No-op if it was saved again meanwhile.
     func restore(_ removed: RemovedPaper) async throws
+    /// Makes every observation fetch again, so papers saved by the Share Extension appear. Failures are ignored.
+    func refreshAfterExternalChanges() async
 }
 
 /// What `remove` deleted, so Undo can put it back in the same place.
@@ -46,6 +48,13 @@ public struct GRDBLibraryRepository: LibraryRepository {
         self.newID = newID
     }
 
+    /// The library in the App Group database file `fileName`; `fresh` deletes that file first (UI tests only).
+    public static func shared(fileName: String = HashiyaDatabase.fileName, fresh: Bool = false) throws -> GRDBLibraryRepository {
+        let url = try HashiyaDatabase.sharedDatabaseURL(fileName: fileName)
+        if fresh { try HashiyaDatabase.removeDatabase(at: url) }
+        return GRDBLibraryRepository(store: try PaperStore.open(at: url))
+    }
+
     /// A repository on a fresh in-memory database (tests and UI-test launches).
     public static func inMemory(
         now: @escaping @Sendable () -> Int64 = { Int64((Date().timeIntervalSince1970 * 1000).rounded()) },
@@ -75,6 +84,23 @@ public struct GRDBLibraryRepository: LibraryRepository {
     public func restore(_ removed: RemovedPaper) async throws {
         let records = removed.paper.asRecords(localID: removed.localID, savedAt: removed.savedAt)
         try await store.insert(paper: records.paper, authors: records.authors)
+    }
+
+    public func refreshAfterExternalChanges() async {
+        try? await store.notifyExternalChanges()
+    }
+}
+
+/// The App Group database's lifecycle for the app and the Share Extension, which never import GRDB.
+public enum SharedLibraryDatabase {
+    /// Call before the process is suspended; see `HashiyaDatabase.suspend()`.
+    public static func suspend() {
+        HashiyaDatabase.suspend()
+    }
+
+    /// Call when the process is active again.
+    public static func resume() {
+        HashiyaDatabase.resume()
     }
 }
 

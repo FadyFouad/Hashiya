@@ -1,3 +1,4 @@
+import Foundation
 import GRDB
 import os
 
@@ -10,9 +11,14 @@ public struct PaperStore: Sendable {
         self.writer = writer
     }
 
-    /// The store on the shared App Group database.
-    public static func shared() throws -> PaperStore {
-        PaperStore(writer: try HashiyaDatabase.openPool(at: HashiyaDatabase.sharedDatabaseURL()))
+    /// The store on the shared App Group database (`fileName` in its container).
+    public static func shared(fileName: String = HashiyaDatabase.fileName) throws -> PaperStore {
+        try open(at: HashiyaDatabase.sharedDatabaseURL(fileName: fileName))
+    }
+
+    /// The store on the database file at `url`.
+    public static func open(at url: URL) throws -> PaperStore {
+        PaperStore(writer: try HashiyaDatabase.openPool(at: url))
     }
 
     /// A store on a fresh in-memory database.
@@ -63,6 +69,15 @@ public struct PaperStore: Sendable {
                 .fetchAll(db)
             try paper.delete(db)
             return PaperWithAuthors(paper: paper, authors: authors)
+        }
+    }
+
+    /// Makes every observation fetch again. Observations only see writes made through this store's own
+    /// database connection, not those of another process (the Share Extension).
+    public func notifyExternalChanges() async throws {
+        try await writer.write { db in
+            try db.notifyChanges(in: Table(PaperRecord.databaseTableName))
+            try db.notifyChanges(in: Table(PaperAuthorRecord.databaseTableName))
         }
     }
 

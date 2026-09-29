@@ -97,6 +97,11 @@ public final class FakeLibraryRepository: LibraryRepository {
         }
     }
 
+    /// Emits the current values again.
+    public func refreshAfterExternalChanges() async {
+        state.withLock { $0.publish() }
+    }
+
     public func restore(_ removed: RemovedPaper) async throws {
         try state.withLock { state in
             if state.failSaves { throw Failure() }

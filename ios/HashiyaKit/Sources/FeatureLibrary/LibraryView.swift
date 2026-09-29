@@ -62,8 +62,8 @@ public struct LibraryView: View {
                     .accessibilityLabel(Text(verbatim: L10n.string("library.settings")))
                 }
             }
-            .sheet(item: Binding(get: { viewModel.selectedPaper }, set: { viewModel.selectedPaperID = $0?.openAlexID })) { paper in
-                preview(paper)
+            .sheet(item: Binding(get: { viewModel.selectedPaper }, set: { viewModel.selectedPaperID = $0?.id })) { paper in
+                preview(paper.paper)
             }
     }
 
@@ -71,7 +71,7 @@ public struct LibraryView: View {
     private var content: some View {
         if !viewModel.isLoaded {
             LoadingSkeleton(rows: 4)
-        } else if viewModel.papers.isEmpty {
+        } else if viewModel.state == .empty {
             EmptyStateView(
                 icon: "books.vertical",
                 title: L10n.string("library.emptyTitle"),
@@ -93,15 +93,15 @@ public struct LibraryView: View {
                 .listRowSeparator(.hidden)
                 .listRowBackground(HashiyaColors.surface)
             ForEach(viewModel.papers) { paper in
-                LibraryRow(paper: paper)
+                LibraryRow(paper: paper.paper)
                     .contentShape(Rectangle())
-                    .onTapGesture { viewModel.select(paper) }
+                    .onTapGesture { viewModel.select(paper.paper) }
                     .accessibilityAddTraits(.isButton)
                     .listRowBackground(HashiyaColors.surface)
                     .listRowSeparatorTint(HashiyaColors.outlineVariant)
                     .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                         Button(role: .destructive) {
-                            Task { await viewModel.remove(paper) }
+                            Task { await viewModel.remove(paper.paper) }
                         } label: {
                             Label {
                                 Text(verbatim: L10n.string("library.remove"))

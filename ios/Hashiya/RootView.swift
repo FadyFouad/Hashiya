@@ -60,6 +60,7 @@ struct RootView: View {
         .sheet(isPresented: $showsSettings) {
             SettingsView(viewModel: container.makeSettingsViewModel())
         }
+        .task { await presentUITestingShareSheetIfRequested() }
         .onChange(of: scenePhase, initial: true) { _, phase in
             switch phase {
             case .active:
@@ -72,5 +73,14 @@ struct RootView: View {
                 break
             }
         }
+    }
+
+    /// Debug UI tests only (`-ui-testing-share <url>`); a Release build does nothing.
+    private func presentUITestingShareSheetIfRequested() async {
+        #if DEBUG
+        await UITestingShareSheet.presentIfRequested {
+            Task { await container.libraryRepository.refreshAfterExternalChanges() }
+        }
+        #endif
     }
 }

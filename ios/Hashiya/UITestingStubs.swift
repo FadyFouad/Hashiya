@@ -4,13 +4,13 @@ import HashiyaData
 import HashiyaModel
 import os
 
-/// Launched with `-ui-testing` (Debug only): an in-memory library, an in-memory key, a search that returns
-/// the same three papers for any query and a lookup that knows arXiv 1706.03762. Nothing touches the network
-/// or the real library.
+/// Launched with `-ui-testing` (Debug only): an empty library in its own App Group file (which the Share
+/// Extension also uses while stubbed), an in-memory key, a search that returns the same three papers for any
+/// query and a lookup that knows arXiv 1706.03762. Nothing touches the network or the real library.
 enum UITestingStubs {
     static func dependencies() -> LiveDependencies {
         LiveDependencies(
-            libraryRepository: try! GRDBLibraryRepository.inMemory(),
+            libraryRepository: try! GRDBLibraryRepository.shared(fileName: UITestingFlags.databaseFileName, fresh: true),
             searchRepository: StubSearchRepository(),
             lookupRepository: StubPaperLookupRepository(),
             preferences: KeychainUserPreferencesRepository(keychain: InMemoryKeychain())

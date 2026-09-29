@@ -19,9 +19,11 @@ final class AppContainer {
         preferences = dependencies.preferences
     }
 
-    /// The real graph, or — in Debug builds launched with `-ui-testing` — an in-memory library, stub search and lookup.
+    /// The real graph, or — in Debug builds launched with `-ui-testing` — the UI tests' library file, stub search and lookup.
     static func make(arguments: [String] = ProcessInfo.processInfo.arguments) -> AppContainer {
         #if DEBUG
+        // Tells a Debug Share Extension whether to use the UI tests' stubs; reset on every other launch.
+        UITestingFlags.stubsEnabled = arguments.contains("-ui-testing")
         if arguments.contains("-ui-testing") {
             return AppContainer(dependencies: UITestingStubs.dependencies())
         }

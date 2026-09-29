@@ -24,12 +24,12 @@ struct YearRangeSheet: View {
     }
 
     /// OpenAlex years are Gregorian, so the device calendar (Islamic, Buddhist, ...) must not decide the year.
-    static func currentGregorianYear(_ date: Date = Date()) -> Int {
+    nonisolated static func currentGregorianYear(_ date: Date = Date()) -> Int {
         Calendar(identifier: .gregorian).component(.year, from: date)
     }
 
     /// 1900 through `currentYear`; never an invalid range.
-    static func allowedYears(currentYear: Int) -> [Int] {
+    nonisolated static func allowedYears(currentYear: Int) -> [Int] {
         Array(1900...max(1900, currentYear))
     }
 

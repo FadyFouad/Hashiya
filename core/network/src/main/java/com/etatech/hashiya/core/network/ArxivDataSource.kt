@@ -45,7 +45,7 @@ internal class OkHttpArxivDataSource(private val client: OkHttpClient, private v
 }
 
 /** The response body; cancelling the coroutine cancels the call, so a dropped lookup stops reaching arXiv. */
-private suspend fun Call.awaitBody(): String = suspendCancellableCoroutine { continuation ->
+internal suspend fun Call.awaitBody(): String = suspendCancellableCoroutine { continuation ->
     continuation.invokeOnCancellation { cancel() }
     enqueue(
         object : Callback {

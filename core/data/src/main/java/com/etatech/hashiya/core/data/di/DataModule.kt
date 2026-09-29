@@ -1,6 +1,8 @@
 package com.etatech.hashiya.core.data.di
 
 import com.etatech.hashiya.core.data.DataStoreUserApiKeySource
+import com.etatech.hashiya.core.data.repository.AppUpdateRepository
+import com.etatech.hashiya.core.data.repository.ConfigAppUpdateRepository
 import com.etatech.hashiya.core.data.repository.DataStoreUserPreferencesRepository
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.OpenAlexPaperLookupRepository
@@ -32,4 +34,7 @@ internal abstract class DataModule {
 
     @Binds
     abstract fun bindPaperLookupRepository(impl: OpenAlexPaperLookupRepository): PaperLookupRepository
+
+    @Binds
+    abstract fun bindAppUpdateRepository(impl: ConfigAppUpdateRepository): AppUpdateRepository
 }

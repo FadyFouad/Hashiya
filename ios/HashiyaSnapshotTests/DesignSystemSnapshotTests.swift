@@ -57,6 +57,10 @@ struct DesignSystemSnapshotTests {
         assertHashiyaSnapshots(of: states, named: "components", arabicText: "بدون عنوان")
     }
 
+    @Test func updateRequired() {
+        assertHashiyaSnapshots(of: UpdateRequiredView(onUpdate: {}), named: "updateRequired", arabicText: "يلزم التحديث")
+    }
+
     /// Chips, the two button styles and a banner over cards, so the glass has content to refract.
     ///
     /// The content lives in `GlassSurfacesFixture`'s own `body` (not a `let` built once) so the status labels are

@@ -1,6 +1,6 @@
 # Releasing Hashiya
 
-How to ship a version to the App Store and Google Play. Written for 1.0; later releases repeat the "Each release" steps only.
+How to ship a version to the App Store and Google Play. Written for 0.1.0; later releases repeat the "Each release" steps only.
 
 **In the repo:** the icons, screenshots (`docs/store/`), listing text and questionnaire answers (`docs/store/metadata.md`), the iOS privacy manifests and export flag, and Android release signing.
 
@@ -58,10 +58,10 @@ All text is in `docs/store/metadata.md`.
 - **App Information:** categories Education and Reference, content rights (the app shows third-party metadata from OpenAlex, which is CC0), age rating (answer "None" or "No" throughout, giving 4+).
 - **Pricing and Availability:** Free, all countries.
 - **App Privacy:** privacy policy URL, then "Data Not Collected".
-- **Version 1.0 → English (U.S.) and Arabic:**
+- **Version 0.1.0 → English (U.S.) and Arabic:**
   - Screenshots: iPhone 6.9" from `docs/store/app-store/<lang>/`, in order 1 to 4.
   - Promotional text, description, keywords, support URL and copyright.
-- **iPad:** 1.0 is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"` in `ios/project.yml`), so App Store Connect asks for iPhone screenshots only; iPad users can run the iPhone version. To add iPad later, set it back to `"1,2"` and add 13" iPad screenshots.
+- **iPad:** 0.1.0 is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"` in `ios/project.yml`), so App Store Connect asks for iPhone screenshots only; iPad users can run the iPhone version. To add iPad later, set it back to `"1,2"` and add 13" iPad screenshots.
 - **Build:** choose the TestFlight build.
 - **App Review Information:** no sign-in required; paste the review notes from `metadata.md`; add your phone and email.
 - **Version release:** "Manually release this version", so you choose the launch moment.
@@ -123,6 +123,17 @@ All text is in `docs/store/metadata.md`.
 2. **Closed testing:** personal developer accounts created after 13 November 2023 must run a closed test with **at least 12 testers opted in for 14 continuous days** before they can apply for production. Organization accounts skip this step. Create a closed track, add testers by email list or Google Group, upload the same bundle, and keep 12+ testers opted in for the full 14 days.
 3. **Production:** after the closed test (or directly for organization accounts), Production → Create release → promote the tested bundle → roll out, optionally as a staged rollout (e.g. 20%). Reviews usually take a few hours to a few days.
 
+## Forcing an update
+
+Both apps read `app-config.json` from the [Hashiya-Privacy-Policy](https://github.com/FadyFouad/Hashiya-Privacy-Policy) repo on every launch and every return to the foreground. A build lower than its platform's minimum shows a full-screen "Update required" screen whose button opens the store page.
+
+1. Find the first good build number: `versionCode` on Android, the build (`CURRENT_PROJECT_VERSION`) on iOS.
+2. In `app-config.json`, set `android.minimumVersionCode` or `ios.minimumBuild` to it. Before the first iOS block, replace the placeholder `id0000000000` in `ios.storeUrl` with the real App Store ID.
+3. Check the number twice: a minimum above every released build blocks everyone. Then push.
+4. GitHub Pages caches the file for 10 minutes, so it takes effect within about 10 minutes and the user's next return to the app.
+
+If the file can't be read (offline, a typo in the JSON, GitHub down), nobody is blocked. To undo a block, lower the number and push; blocked users get back in after restarting the app.
+
 ## Each release
 
 1. Bump the version:
@@ -132,4 +143,4 @@ All text is in `docs/store/metadata.md`.
 2. Update "What's New" / release notes in `docs/store/metadata.md` and run the metadata checker.
 3. If the UI changed, update the screenshots (`docs/store/README.md`).
 4. Archive and upload the iOS build, and build and upload the Android bundle; test through TestFlight and internal testing, then submit.
-5. Tag the release: `git tag v1.0.0 && git push origin v1.0.0`.
+5. Tag the release: `git tag v0.1.0 && git push origin v0.1.0`.

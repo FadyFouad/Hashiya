@@ -222,6 +222,57 @@
         }
       }
     },
+    "designsystem.updateRequired.action" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تحديث"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update"
+          }
+        }
+      }
+    },
+    "designsystem.updateRequired.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لم يعد هذا الإصدار من حاشية مدعومًا. حدّث التطبيق لمتابعة استخدامه، وستبقى أوراقك المحفوظة على جهازك."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This version of Hashiya is no longer supported. Update to keep using it. Your saved papers stay on your device."
+          }
+        }
+      }
+    },
+    "designsystem.updateRequired.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يلزم التحديث"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update required"
+          }
+        }
+      }
+    },
     "status.read" : {
       "extractionState" : "manual",
       "localizations" : {

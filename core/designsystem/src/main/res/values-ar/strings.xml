@@ -15,4 +15,7 @@
     <string name="status_to_read">للقراءة</string>
     <string name="status_reading">قيد القراءة</string>
     <string name="status_read">مقروءة</string>
+    <string name="designsystem_update_required_title">يلزم التحديث</string>
+    <string name="designsystem_update_required_message">لم يعد هذا الإصدار من حاشية مدعومًا. حدّث التطبيق لمتابعة استخدامه، وستبقى أوراقك المحفوظة على جهازك.</string>
+    <string name="designsystem_update_required_action">تحديث</string>
 </resources>

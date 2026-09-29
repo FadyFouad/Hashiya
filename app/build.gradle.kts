@@ -13,7 +13,7 @@ android {
     defaultConfig {
         applicationId = "com.etatech.hashiya"
         versionCode = 1
-        versionName = "1.0.0"
+        versionName = "0.1.0"
     }
 
     // The Play upload key, from the git-ignored local.properties (see docs/release.md).
@@ -62,6 +62,7 @@ dependencies {
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     implementation(libs.kotlinx.serialization.json)
 
+    testImplementation(project(":core:testing"))
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core.ktx)

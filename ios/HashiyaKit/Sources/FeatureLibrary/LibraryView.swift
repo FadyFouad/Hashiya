@@ -108,13 +108,12 @@ public struct LibraryView: View {
     private var filtered: some View {
         FilteredContent(state: viewModel.state, list: list, noMatches: noMatches)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .safeAreaInset(edge: .top, spacing: 0) {
+            .hashiyaTopBar {
                 LibraryFilterChips(
                     selected: viewModel.status,
                     counts: viewModel.filter?.counts ?? [:],
                     onSelect: { viewModel.setStatusFilter($0) }
                 )
-                .background(HashiyaColors.surface)
             }
             .searchable(
                 text: Binding(get: { viewModel.text }, set: { viewModel.updateText($0) }),

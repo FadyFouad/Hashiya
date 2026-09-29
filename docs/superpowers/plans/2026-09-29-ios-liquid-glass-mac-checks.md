@@ -29,10 +29,17 @@ export FILTER='(^/|^xcodebuild: |^macro expansion ).*error:|^✘|✔ Test run|Ex
 
 ## Run order
 
-1. Task 3 carry-over
-2. Task 4
-3. Task 5
-4. Task 6
+Everything runs at the branch head, so the code of all tasks is in every build. Where two tasks re-record the
+same suite (Search and Library change again in Task 7), record it once and check it against every task's image
+list.
+
+1. **Task 7, large titles first.** If the title check fails on iOS 26, stop and report with screenshots; do not
+   try other layouts.
+2. Task 3 carry-over (iOS 18 DesignSystemSnapshotTests).
+3. Tasks 4–7 snapshot records, verifies, image looks and iOS 18 runs.
+4. Tasks 4 and 6 UI tests, and the real-app launch check.
+5. Task 8 (full runs, device checks, then ask before pushing or opening a PR).
+6. Deferred findings for the final review.
 
 ## Task 3 carry-over
 
@@ -136,6 +143,54 @@ Commit: `feat: make the iOS 26 Library chips, status badges and Add paper glass`
   Expect `** TEST SUCCEEDED **`. `testChangingAStatusFiltersAndSearchesTheLibrary` proves the glass badge still
   opens its menu (not the preview) and that the chips keep `.isSelected`. If a test fails on a leftover search
   text or tab, uninstall the app again (not erase) and rerun once; report a failure that survives that.
+
+## Task 7: Large titles on iOS 26 (Library and Search results)
+
+Commit: `fix: show the Library and Search large titles on iOS 26`
+
+The fix (`hashiyaTopBar`: chips in `safeAreaBar(edge: .top)` with no opaque background on iOS 26) is **unverified**.
+Run this section first.
+
+- [ ] **The new test sees the bug.** Put back the Task 6 versions of the two screens (they still build against
+  the new `Glass.swift`), run the test, then restore the head versions:
+  ```bash
+  git checkout cb7737d -- ios/HashiyaKit/Sources/FeatureSearch/SearchView.swift ios/HashiyaKit/Sources/FeatureLibrary/LibraryView.swift
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testLibraryAndSearchResultsShowTheirLargeTitles 2>&1 | grep -E "$FILTER"
+  git checkout HEAD -- ios/HashiyaKit/Sources/FeatureSearch/SearchView.swift ios/HashiyaKit/Sources/FeatureLibrary/LibraryView.swift
+  git status --short   # must show nothing under ios/HashiyaKit/Sources
+  ```
+  Expect `** TEST FAILED **` on the first `isHittable` (or `waitForExistence`). If it passes, the test can't see
+  the bug: per the plan, the `isHittable` checks become an `XCTAttachment(screenshot: XCUIScreen.main.screenshot())`
+  with `lifetime = .keepAlways`, checked by eye, and the commit message says so. Decide that before going on.
+- [ ] **The fix shows the titles on iOS 26:**
+  ```bash
+  xcrun simctl uninstall 'iPhone 17 Pro' com.etatech.hashiya
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testLibraryAndSearchResultsShowTheirLargeTitles 2>&1 | grep -E "$FILTER"
+  ```
+  Expect `** TEST SUCCEEDED **`. **If it fails, stop here and report with screenshots of Library and Search
+  results; don't try other layouts.**
+- [ ] **Still passes on iOS 18:**
+  ```bash
+  xcrun simctl uninstall 'iPhone 16 Pro' com.etatech.hashiya
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testLibraryAndSearchResultsShowTheirLargeTitles 2>&1 | grep -E "$FILTER"
+  ```
+  Expect `** TEST SUCCEEDED **`.
+- [ ] **Re-record iOS 26 Library and Search** (after Tasks 5 and 6, this is the recording that counts):
+  ```bash
+  TEST_RUNNER_SNAPSHOT_RECORD=1 xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/LibrarySnapshotTests -only-testing:HashiyaSnapshotTests/SearchSnapshotTests 2>&1 | grep -E "$FILTER"
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests/LibrarySnapshotTests -only-testing:HashiyaSnapshotTests/SearchSnapshotTests 2>&1 | grep -E "$FILTER"
+  ```
+  The first fails because it recorded; the second must print `** TEST SUCCEEDED **`.
+- [ ] **Look at the images:** in `iOS26/LibrarySnapshotTests/papersWithChipsAndBadges.papers-EnglishLight.png`
+  and `iOS26/SearchSnapshotTests/results.results-EnglishLight.png`, "Library" and "Search" show as large titles
+  above the search field, and the chips sit under it with no white band. Also recheck Task 5's and Task 6's
+  image lists on these new images.
+- [ ] **iOS 18 unchanged** (no recording; the pre-iOS 26 branch keeps `safeAreaInset` with the surface
+  background):
+  ```bash
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
+  ```
+  Expect `** TEST SUCCEEDED **`.
 
 ## Deferred findings for the final review
 

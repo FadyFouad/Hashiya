@@ -83,3 +83,23 @@ private struct SecondaryButton: ViewModifier {
         }
     }
 }
+
+public extension View {
+    /// A bar under the navigation bar (the filter chips). iOS 26: `safeAreaBar`, which joins the navigation bar's
+    /// scroll edge effect, so it needs no background of its own. Before: `safeAreaInset` on the surface colour.
+    func hashiyaTopBar<Bar: View>(@ViewBuilder _ bar: () -> Bar) -> some View {
+        modifier(TopBar(bar: bar()))
+    }
+}
+
+private struct TopBar<Bar: View>: ViewModifier {
+    let bar: Bar
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.safeAreaBar(edge: .top, spacing: 0) { bar }
+        } else {
+            content.safeAreaInset(edge: .top, spacing: 0) { bar.background(HashiyaColors.surface) }
+        }
+    }
+}

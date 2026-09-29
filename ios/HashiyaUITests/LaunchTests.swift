@@ -1,5 +1,6 @@
 import XCTest
 
+@MainActor
 final class LaunchTests: XCTestCase {
     @MainActor
     func testLaunchShowsLibraryAndSearchTabs() {

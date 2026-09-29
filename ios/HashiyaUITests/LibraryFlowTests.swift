@@ -1,6 +1,7 @@
 import XCTest
 
 /// End to end with `-ui-testing`: in-memory library, stub search, no network.
+@MainActor
 final class LibraryFlowTests: XCTestCase {
     private var app: XCUIApplication!
 

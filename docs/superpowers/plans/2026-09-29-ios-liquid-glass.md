@@ -10,6 +10,26 @@
 
 **Spec:** docs/superpowers/specs/2026-09-28-ios-foundation-openalex-search-design.md §16 (Liquid Glass), on top of iOS specs 1–3.
 
+## Superseded during verification
+
+Verification found a few places where the plan text below no longer matches what got built. The tasks and commits
+are still the record of what happened; treat these as corrections layered on top:
+
+- **Task 1's snapshot helper** additionally sets `traits.displayGamut = .SRGB` and `SnapshotHostTests` sets
+  `host.safeAreaRegions = []`, both in `3299755`, to fix a real iOS 26 vs. sRGB-reference colour mismatch found
+  during verification (not in the plan text below).
+- **Task 3's `HashiyaGlassGroup`** returns `AnyView` on both its iOS 26 and pre-iOS 26 paths, not a plain
+  `if #available` conditional body — a conditional body is a dynamic view list that SwiftUI lays out differently
+  inside a horizontal `ScrollView`, which truncated the Library filter chips' text (`94cc5a5`).
+  See `debug-report.md`, Issue A.
+- **Task 7's iOS 26 top bar** is a plain `safeAreaInset(edge: .top)` with no background, not `safeAreaBar` — a
+  `safeAreaBar` extends the list's top scroll-edge effect over the large title and washes it out (`11661f9`). Its
+  UI test checks the Library screen only, since iOS hides the navigation title while search is active by design on
+  both iOS 18 and iOS 26 (`ce5f9f3`).
+- **Task 1's snapshot tolerance** is `(precision: 0.999, perceptualPrecision: 0.95)` on iOS 26, not `(0.98, 0.95)`
+  — the looser value let the Task 3 chip-truncation regression above pass unnoticed. See spec §16.5 for the
+  measurements behind the final values.
+
 ## Global Constraints
 
 - Everything in plans 1–3's Global Constraints still applies, except the toolchain lines this plan replaces: iOS 17 minimum; Swift 6 language mode with strict concurrency; XcodeGen (`ios/project.yml` committed, `ios/Hashiya.xcodeproj` generated and git-ignored, `xcodegen generate --spec ios/project.yml` after adding or removing files outside `ios/HashiyaKit`); exact dependency pins; no new package targets; features never import each other, `HashiyaNetwork`, `HashiyaDatabase` or GRDB; strings only from the String Catalogs through `L10n` and `Text(verbatim:)`; snapshot suites `@MainActor @Suite(.serialized)`; baselines only from CI.

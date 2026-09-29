@@ -136,9 +136,10 @@ Commit: `feat: make the iOS 26 Library chips, status badges and Add paper glass`
 Commit: `fix: show the Library and Search large titles on iOS 26`
 
 The fix (`hashiyaTopBar`: chips in `safeAreaBar(edge: .top)` with no opaque background on iOS 26) was unverified.
-Run this section first.
+Run this section first. (superseded: see below — the shipped fix uses a plain `safeAreaInset`, not `safeAreaBar`;
+see the "Follow-up" item at the end of this section and spec §16.4.)
 
-Controller ruling (phase 1 finding): the original `testLibraryAndSearchResultsShowTheirLargeTitles` UI test was
+Ruling (phase 1 finding): the original `testLibraryAndSearchResultsShowTheirLargeTitles` UI test was
 invalid for its Search half. That check ran while the Search field was **active** (focused, holding typed text,
 with the cancel/✕ affordance visible) — iOS hides the navigation title while a search field is active by design,
 on iOS 18 as well as iOS 26, so the check was never testing the bug it claimed to. The test was renamed to
@@ -180,10 +181,10 @@ search field that is *not* active) — that is the correct way to see whether Se
   run printed `** TEST SUCCEEDED **`.
 - [x] **Look at the images:** confirmed in `papersWithChipsAndBadges.papers-EnglishLight.png` and
   `results.results-EnglishLight.png` — "Library" and "Search" both show as large titles above the search field,
-  chips sit under them with no white band. **Extra look (a)** (controller): yes — `results.results-EnglishLight.png`
+  chips sit under them with no white band. **Extra look (a)**: yes — `results.results-EnglishLight.png`
   shows "Search" as a large title above the field while the field is idle (holds "transformers" as plain
   committed text, no clear/cancel affordance), which is Search's real large-title verification. **Extra look
-  (b)** (controller): the "Library" and "Search" titles in these two images are pale/washed-out, not
+  (b)**: the "Library" and "Search" titles in these two images are pale/washed-out, not
   normal-contrast — measured, not just eyeballed: title-pixel RGB ≈ (214,214,214) against a ≈(252,252,252)
   background in both images (contrast ratio ≈1.2:1). By contrast, iOS 26's own idle Search screen (no list
   below the title) renders "Search" at full contrast — pure black (0,0,0) in light mode, pure white in dark
@@ -266,11 +267,10 @@ Step 1 (the READMEs) is done: `docs: describe iOS Liquid Glass in the READMEs`. 
     right.
   - Then run the app once on iPhone 16 Pro iOS 18.2: it looks as before.
   Write down what you saw for the PR description.
-  **Result: PASS on all four checks**, plus the iOS 18.2 sanity look. No interactive GUI driver (Simulator
-  attach permission, and macOS Accessibility automation) was available in this session, so the taps were driven
-  through a temporary, throwaway XCUITest harness (not committed) that seeded two saved papers and captured
-  `XCTAttachment` screenshots while accessibility settings were toggled from the host via `xcrun simctl
-  ui`/`defaults write`. Reduce Transparency: chips/badges/banner/Add paper/preview buttons all legible (the
+  **Result: PASS on all four checks**, plus the iOS 18.2 sanity look. Check: a temporary XCUITest harness (not
+  committed) seeded two saved papers and captured `XCTAttachment` screenshots while accessibility settings were
+  toggled from the host via `xcrun simctl ui`/`defaults write`, without driving the simulator's UI interactively.
+  Reduce Transparency: chips/badges/banner/Add paper/preview buttons all legible (the
   "frosted" look is subtle against Hashiya's plain white background, as expected). Increase Contrast: text stayed
   legible; a border increase on the chips was not clearly visible at screenshot resolution. Reduce Motion:
   removing a paper showed a clean, separate Undo banner beside Add paper, no morph. Arabic: Library title, search

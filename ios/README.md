@@ -48,6 +48,10 @@ cd ios/HashiyaKit && xcodebuild test -scheme HashiyaKit-Package -destination 'pl
 python3 ios/scripts/check-translations.py
 ```
 
+Until CI records the snapshot baselines, these test commands record any missing images locally and fail (recording
+always fails, by design); the baselines come from CI's iOS 26.2 and 18.5 simulators, so a local iPhone 16 Pro iOS
+18.2 run may render slightly differently from them.
+
 The UI tests include sharing a link through a real share sheet: launched with `-ui-testing -ui-testing-share <url>`, a Debug app presents the share sheet for the URL and tells a Debug Share Extension (through the App Group) to use a stub lookup and the UI tests' own library file. Release builds contain none of these hooks.
 
 ## Snapshot baselines

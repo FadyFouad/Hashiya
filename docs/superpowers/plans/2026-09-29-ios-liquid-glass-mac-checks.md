@@ -60,7 +60,7 @@ Commit: `feat: put the iOS 26 preview buttons in a glass bar the paper scrolls u
 - [x] **Look at the images** — all PASS, see `mac-checks-2-report.md` for each image. One separate legibility
   finding (not a fail against this step's own criteria, see the report's look (b)): the large titles render
   washed-out pale grey on iOS 26 when a list/results row sits below, unlike iOS 18 or the idle screens.
-- [ ] **iOS 18 unchanged** (no recording; covers the Task 3 carry-over too):
+- [x] **iOS 18 unchanged** (no recording; covers the Task 3 carry-over too):
   ```bash
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
   ```
@@ -71,6 +71,10 @@ Commit: `feat: put the iOS 26 preview buttons in a glass bar the paper scrolls u
   for the measured diffs and evidence — it also reproduces on freshly-recorded iOS 26 (this suite's `Library`
   images above are affected too: `papers-ArabicDark`'s "All" chip and `aFilteredSearch`'s "To read" chip both
   truncate on iOS 26 as well as iOS 18).
+  **Task 8 re-run: PASSES.** `94cc5a5` (fix: keep the iOS 18 Library chips' layout unchanged) fixed the
+  `LibraryFilterChips.chip()` truncation. The full `HashiyaSnapshotTests` suite (39 tests, 6 suites) now passes
+  cleanly on iOS 18.2, run three times in a row with no flake, after the `origin/main` merge too. See
+  `task-8-report.md`.
 - [x] **UI tests that use the preview, on iOS 26:** `** TEST SUCCEEDED **` (`app.buttons["Save to library"]`
   still finds the glass button).
 - [x] **The UI tests launch the real app, not the snapshot host's blank window:** `** TEST SUCCEEDED **` on iOS
@@ -85,7 +89,7 @@ Commit: `feat: make the iOS 26 Search filter chips and suggestions glass`
 - [x] **Verify iOS 26:** `** TEST SUCCEEDED **` (part of the same 4-suite verify run).
 - [x] **Look at the images** in `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/SearchSnapshotTests/` — all PASS,
   see `mac-checks-2-report.md`.
-- [ ] **iOS 18 unchanged** (no recording): `ChipLabel` now takes its colours from `hashiyaChip`, whose pre-iOS 26
+- [x] **iOS 18 unchanged** (no recording): `ChipLabel` now takes its colours from `hashiyaChip`, whose pre-iOS 26
   branch must draw exactly what `ChipLabel` drew before.
   ```bash
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
@@ -93,6 +97,8 @@ Commit: `feat: make the iOS 26 Search filter chips and suggestions glass`
   **FAILED (phase 2), but not because of Search:** `SearchSnapshotTests` itself passed every test; the failure
   is entirely in `LibrarySnapshotTests` (see Task 4's iOS 18 box above and `mac-checks-2-report.md`). Left
   unticked because the full-suite run this step calls for does not currently pass.
+  **Task 8 re-run: PASSES.** With `94cc5a5`'s chip fix, the full suite (including `SearchSnapshotTests`) passes
+  on iOS 18.2, three runs in a row, after the `origin/main` merge. See `task-8-report.md`.
 
 ## Task 6: Glass Library chips, status badges and Add paper
 
@@ -106,7 +112,7 @@ Commit: `feat: make the iOS 26 Library chips, status badges and Add paper glass`
   defect found while looking (not this step's criteria, see `mac-checks-2-report.md`): the selected filter
   chip's label+count text truncates with "…" in `papers-ArabicDark`'s "All" chip and in `aFilteredSearch`'s
   chips — the same truncation as the iOS 18 regression below, so it is not iOS-26-specific.
-- [ ] **iOS 18 unchanged** (no recording; the chips, pills and Add paper keep their pre-iOS 26 look, shadow included):
+- [x] **iOS 18 unchanged** (no recording; the chips, pills and Add paper keep their pre-iOS 26 look, shadow included):
   ```bash
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
   ```
@@ -119,6 +125,9 @@ Commit: `feat: make the iOS 26 Library chips, status badges and Add paper glass`
   `.fixedSize()`), the filter chip's `Text` has no `.fixedSize()`/`.lineLimit()`, so it truncates instead of
   growing when the chip's available width tightens. Not fixed here, not re-recorded; see `mac-checks-2-report.md`
   for measurements, crops and the reference-vs-actual comparison.
+  **Task 8 re-run: PASSES.** `94cc5a5` fixed `LibraryFilterChips.chip()` to keep the iOS 18 layout unchanged
+  (full label + count, no truncation). `LibrarySnapshotTests` and the rest of `HashiyaSnapshotTests` pass on iOS
+  18.2, three runs in a row, after the `origin/main` merge. See `task-8-report.md`.
 - [x] **Library UI tests on iOS 26:** `** TEST SUCCEEDED **` (`LibraryFlowTests`, 7 tests). Also reran on iOS
   18.2 (both `LibraryFlowTests` and `ShareFlowTests`, 8 tests): `** TEST SUCCEEDED **`.
 
@@ -214,13 +223,19 @@ search field that is *not* active) — that is the correct way to see whether Se
 
 Step 1 (the READMEs) is done: `docs: describe iOS Liquid Glass in the READMEs`. Steps 2–5 are here.
 
-- [ ] **Merge `main` first:** `main` moved (to `e287610` or later) while this branch ran.
+- [x] **Merge `main` first:** `main` moved (to `e287610` or later) while this branch ran.
   ```bash
   git fetch origin main && git merge origin/main
   xcodegen generate --spec ios/project.yml
   ```
   Resolve conflicts keeping both sides' behaviour; rerun anything a conflict touched.
-- [ ] **Everything, the way CI runs it, on both OS versions** (Step 2; uninstall, never erase):
+  **Result:** merged `origin/main` (442144b) with `git merge --no-ff origin/main`; the merge resolved cleanly
+  with **no textual conflicts** — the two branches touched disjoint files (main's search-on-submit changes and
+  new store/branding assets vs. this branch's glass/design-system/snapshot-test files). `ios/project.yml` kept
+  both sides (this branch's `HashiyaSnapshotTests` target/scheme plus main's changes). Confirmed after merge:
+  `SearchViewModel.submitNow()`/`updateText()` (main's search-on-submit) and `SearchView`'s `.onSubmit(of: .search)`
+  are intact, and the app builds. See `task-8-report.md` for the full merge write-up.
+- [x] **Everything, the way CI runs it, on both OS versions** (Step 2; uninstall, never erase):
   ```bash
   python3 ios/scripts/check-translations.py
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -skip-testing:HashiyaUITests -collect-test-diagnostics never 2>&1 | grep -E "$FILTER"
@@ -232,9 +247,16 @@ Step 1 (the READMEs) is done: `docs: describe iOS Liquid Glass in the READMEs`. 
   ```
   Expect all green. The UI-test runs also confirm the real app launches (tab bar and screens, not a blank
   window).
-- [ ] **Three verifications in a row** (Review Focus 3): run the two `-skip-testing:HashiyaUITests` commands two
+  **Result: all green.** `check-translations.py`: all 8 String Catalogs have Arabic translations. Package tests
+  (`HashiyaKit-Package`, iOS 26.4): 294 tests, 8 bundles, `** TEST SUCCEEDED **`. `HashiyaSnapshotTests`: 39
+  tests/6 suites passed on both iOS 26.4 and iOS 18.2, no re-recording needed anywhere. `HashiyaUITests`: 18
+  tests passed on both iOS 26.4 and iOS 18.2 (app uninstalled first on each), including the search-on-submit
+  typing flows — no test changes were needed.
+- [x] **Three verifications in a row** (Review Focus 3): run the two `-skip-testing:HashiyaUITests` commands two
   more times each. No iOS 26 glass image may flake past the `(0.98, 0.95)` tolerance, and iOS 18 must stay green.
-- [ ] **Device and simulator checks** (Step 3, spec §16.6), on iPhone 17 Pro iOS 26.4 (or a device), with
+  **Result:** `HashiyaSnapshotTests` run 3× on iOS 26.4 (39/39 each time) and 3× on iOS 18.2 (39/39 each time);
+  no flakes.
+- [x] **Device and simulator checks** (Step 3, spec §16.6), on iPhone 17 Pro iOS 26.4 (or a device), with
   `-ui-testing` and two saved papers:
   - Settings → Accessibility → Display & Text Size → **Reduce Transparency** on: chips, badges, banners, Add paper
     and the preview buttons turn frosted and stay legible.
@@ -244,8 +266,22 @@ Step 1 (the READMEs) is done: `docs: describe iOS Liquid Glass in the READMEs`. 
     right.
   - Then run the app once on iPhone 16 Pro iOS 18.2: it looks as before.
   Write down what you saw for the PR description.
-- [ ] **Author check:** `git log --format='%an <%ae>' origin/main..HEAD | sort -u` prints only
+  **Result: PASS on all four checks**, plus the iOS 18.2 sanity look. No interactive GUI driver (Simulator
+  attach permission, and macOS Accessibility automation) was available in this session, so the taps were driven
+  through a temporary, throwaway XCUITest harness (not committed) that seeded two saved papers and captured
+  `XCTAttachment` screenshots while accessibility settings were toggled from the host via `xcrun simctl
+  ui`/`defaults write`. Reduce Transparency: chips/badges/banner/Add paper/preview buttons all legible (the
+  "frosted" look is subtle against Hashiya's plain white background, as expected). Increase Contrast: text stayed
+  legible; a border increase on the chips was not clearly visible at screenshot resolution. Reduce Motion:
+  removing a paper showed a clean, separate Undo banner beside Add paper, no morph. Arabic: Library title, search
+  placeholder, filter chips, Settings gear, Add paper and the tab bar all mirrored to RTL; the preview's status
+  segmented control and Open DOI/Remove buttons mirrored too; English paper titles stayed LTR throughout. iOS
+  18.2: launched once, looks as before (solid teal chips/buttons, no glass). All settings were reset (Reduce
+  Transparency/Motion off, Increase Contrast off, light appearance) and the app uninstalled from both
+  simulators afterward. Screenshots and full detail in `task-8-report.md`.
+- [x] **Author check:** `git log --format='%an <%ae>' origin/main..HEAD | sort -u` prints only
   `Fady <fady.fouad.a@gmail.com>`.
+  **Result:** confirmed — only `Fady <fady.fouad.a@gmail.com>`.
 - [ ] **Push and PR (Step 4): ask first.** Only after a yes: `git push -u origin feat/ios-liquid-glass` and
   `gh pr create` with the plan's title and body, pasting the results above into "Checked locally".
 - [ ] **Baselines (Step 5), once GitHub Actions run again:** `bash ios/scripts/record-snapshots-on-ci.sh`; expect

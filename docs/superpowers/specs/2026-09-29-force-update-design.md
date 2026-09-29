@@ -79,8 +79,8 @@ Hashiya has no backend. Once 0.1.0 is in users' hands, there is no way to stop a
 
 - `AppUpdateViewModel` (Hilt): exposes `requiredUpdate: StateFlow<RequiredUpdate?>` and `fun check()`. It reads the installed `versionCode` with `PackageInfoCompat.getLongVersionCode`. Once blocked, it stays blocked for the life of the process: a later failed check never unblocks.
 - `MainActivity` calls `check()` on every `ON_START` (launch and each return to the foreground).
-- `HashiyaApp` gains a `requiredUpdate: RequiredUpdate?` parameter. When it is non-null, it shows `UpdateRequiredScreen` instead of the navigation scaffold.
-- `UpdateRequiredScreen`: centred app glyph, title, message, and a filled "Update" button that opens `storeUrl` with `Intent.ACTION_VIEW`. No top bar, no navigation. Back leaves the app as usual.
+- `HashiyaApp` gains a `requiredUpdate: RequiredUpdate?` parameter. When it is non-null, it shows `UpdateRequiredScreen` instead of the navigation scaffold, and its button opens `storeUrl` with `Intent.ACTION_VIEW`.
+- `UpdateRequiredScreen` lives in `core:designsystem` (beside `EmptyState`, which it reuses, and where screenshot tests already run): a full-screen surface with the update icon, title, message and a filled "Update" button. No top bar, no navigation. Back leaves the app as usual.
 
 ## 5. iOS
 
@@ -96,9 +96,9 @@ Hashiya has no backend. Once 0.1.0 is in users' hands, there is no way to stop a
 
 ### 5.3 App
 
-- `AppUpdateModel` (`@Observable`, main actor): `requiredUpdate: RequiredUpdate?` and `func check() async`. It reads `CFBundleVersion` from the main bundle. Once blocked, it stays blocked for the life of the process.
+- `AppUpdateModel` (`@Observable`, main actor) in `HashiyaData`, so package tests reach it: `requiredUpdate: RequiredUpdate?` and `func check() async`. The app passes it the build from `CFBundleVersion`; a value that isn't a whole number means no check. Once blocked, it stays blocked for the life of the process.
 - `RootView` calls `check()` from its existing `scenePhase` `.active` case, which runs at launch and on every return to the foreground. When `requiredUpdate` is set, it shows `UpdateRequiredView` instead of the tab view and the Settings sheet.
-- `UpdateRequiredView`: the same layout as Android, with the button calling `openURL(storeURL)`.
+- `UpdateRequiredView` lives in `HashiyaDesignSystem` (reusing `EmptyStateView`, where snapshot tests already run): the same layout as Android. `RootView` passes an action that calls `openURL(storeURL)`.
 
 ## 6. Strings (both apps, both languages)
 
@@ -108,7 +108,7 @@ Hashiya has no backend. Once 0.1.0 is in users' hands, there is no way to stop a
 | Message | This version of Hashiya is no longer supported. Update to keep using it. Your saved papers stay on your device. | لم يعد هذا الإصدار من حاشية مدعومًا. حدّث التطبيق لمتابعة استخدامه، وستبقى أوراقك المحفوظة على جهازك. |
 | Button | Update | تحديث |
 
-Android: `app/src/main/res/values{,-ar}/strings.xml`. iOS: `Localizable.xcstrings` in the app target, read through `AppStrings`.
+Android: `core/designsystem/src/main/res/values{,-ar}/strings.xml` (`designsystem_update_required_*`). iOS: `HashiyaDesignSystem`'s `Localizable.xcstrings` (`designsystem.updateRequired.*`).
 
 ## 7. Version 0.1.0 (build 1)
 

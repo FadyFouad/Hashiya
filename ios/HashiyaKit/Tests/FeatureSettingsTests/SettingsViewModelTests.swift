@@ -17,6 +17,12 @@ struct SettingsViewModelTests {
         #expect(viewModel.keyInput == "stored-key")
     }
 
+    @Test func showsTheStoredKeyAsSoonAsItOpens() {
+        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(key: "stored-key"))
+        #expect(viewModel.usingUserKey)
+        #expect(viewModel.keyInput == "stored-key")
+    }
+
     @Test func savesTheKeyTrimmed() async {
         let preferences = FakeUserPreferencesRepository()
         let viewModel = SettingsViewModel(preferences: preferences)

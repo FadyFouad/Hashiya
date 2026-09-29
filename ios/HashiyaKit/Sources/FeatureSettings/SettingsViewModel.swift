@@ -16,6 +16,9 @@ public final class SettingsViewModel {
 
     public init(preferences: any UserPreferencesRepository) {
         self.preferences = preferences
+        // Seeded at once, so Settings never opens on "Using built-in key" while the stream starts.
+        storedKey = preferences.currentUserAPIKey
+        usingUserKey = storedKey != nil
         observations.add(Task { [weak self] in
             for await key in preferences.userAPIKeyUpdates() {
                 guard let self else { return }

@@ -17,6 +17,8 @@ public final class FakeUserPreferencesRepository: UserPreferencesRepository {
 
     public var key: String? { state.withLock { $0.key } }
 
+    public var currentUserAPIKey: String? { key }
+
     public func userAPIKeyUpdates() -> AsyncStream<String?> {
         let id = UUID()
         return AsyncStream { continuation in

@@ -4,6 +4,8 @@ import os
 import Security
 
 public protocol UserPreferencesRepository: Sendable {
+    /// The stored user key now (nil = none, the built-in key is used), read without waiting.
+    var currentUserAPIKey: String? { get }
     /// The stored user key (nil = none, the built-in key is used), then each change.
     func userAPIKeyUpdates() -> AsyncStream<String?>
     /// Stores the key, trimmed. A blank key removes it.
@@ -40,6 +42,8 @@ public final class KeychainUserPreferencesRepository: UserPreferencesRepository,
     public var userKey: String? {
         state.withLock { $0.key }
     }
+
+    public var currentUserAPIKey: String? { userKey }
 
     public func userAPIKeyUpdates() -> AsyncStream<String?> {
         let id = UUID()

@@ -31,6 +31,7 @@ struct KeychainUserPreferencesRepositoryTests {
     @Test func loadsTheStoredKeyAtInit() {
         let repository = KeychainUserPreferencesRepository(keychain: InMemoryKeychainStore([itemKey: "stored"]))
         #expect(repository.userKey == "stored")
+        #expect(repository.currentUserAPIKey == "stored")
     }
 
     @Test func startsWithNoKey() {

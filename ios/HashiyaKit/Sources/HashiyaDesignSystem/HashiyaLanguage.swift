@@ -10,14 +10,24 @@ public enum HashiyaLanguage {
     /// "ar" when the UI language is Arabic, else "en".
     public static var code: String {
         if let override { return override }
-        return Locale.current.language.languageCode?.identifier == "ar" ? "ar" : "en"
+        return resolvedCode(preferredLocalizations: Bundle.main.preferredLocalizations)
+    }
+
+    /// "ar" when the app's preferred localization is Arabic (any region), else "en". This is the language
+    /// the string bundles resolve to, which can differ from `Locale.current` (e.g. device languages [fr, ar]).
+    nonisolated static func resolvedCode(preferredLocalizations: [String]) -> String {
+        guard let first = preferredLocalizations.first else { return "en" }
+        let language = first.split(whereSeparator: { $0 == "-" || $0 == "_" }).first.map(String.init)
+        return language?.lowercased() == "ar" ? "ar" : "en"
     }
 
     public static var isArabic: Bool { code == "ar" }
 
     /// The locale used to format numbers.
     public static var locale: Locale {
-        override.map { Locale(identifier: $0) } ?? .current
+        if let override { return Locale(identifier: override) }
+        let current = Locale.current
+        return current.language.languageCode?.identifier == code ? current : Locale(identifier: code)
     }
 
     public static var layoutDirection: LayoutDirection {

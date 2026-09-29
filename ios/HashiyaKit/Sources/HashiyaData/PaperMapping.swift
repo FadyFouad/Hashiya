@@ -31,6 +31,11 @@ extension NetworkWork {
 }
 
 extension PaperWithAuthors {
+    /// The paper with its stored status; an unknown stored value is To read.
+    public func asLibraryPaper() -> LibraryPaper {
+        LibraryPaper(paper: asPaper(), status: ReadingStatus(stored: paper.readingStatus))
+    }
+
     public func asPaper() -> Paper {
         Paper(
             // Every paper saved by this version has an OpenAlex ID.
@@ -49,7 +54,7 @@ extension PaperWithAuthors {
 }
 
 extension Paper {
-    public func asRecords(localID: String, savedAt: Int64) -> PaperWithAuthors {
+    public func asRecords(localID: String, savedAt: Int64, status: ReadingStatus = .toRead) -> PaperWithAuthors {
         PaperWithAuthors(
             paper: PaperRecord(
                 id: localID,
@@ -62,7 +67,8 @@ extension Paper {
                 citationCount: citationCount,
                 isOpenAccess: isOpenAccess,
                 oaPDFURL: openAccessPDFURL,
-                savedAt: savedAt
+                savedAt: savedAt,
+                readingStatus: status.storedValue
             ),
             authors: authors.enumerated().map { index, author in
                 PaperAuthorRecord(paperID: localID, position: index, name: author.name, openAlexAuthorID: author.openAlexID)

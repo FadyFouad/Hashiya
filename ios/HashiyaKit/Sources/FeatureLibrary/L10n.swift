@@ -18,6 +18,16 @@ enum L10n {
         format("library.paperCount", Int64(count), PaperFormat.number(count))
     }
 
+    /// A chip: "Reading · 3"; in Arabic "قيد القراءة (3)", in the locale's digits.
+    static func filterCount(_ label: String, _ count: Int) -> String {
+        format("library.filterCount", label, PaperFormat.number(count))
+    }
+
+    /// The badge for VoiceOver: "Status: To read. Change status".
+    static func statusBadgeDescription(_ status: ReadingStatus) -> String {
+        format("library.statusBadgeDescription", readingStatusLabel(status))
+    }
+
     /// First author (alone when there is exactly one, else "et al."), year and venue. The "et al." part
     /// is isolated (FSI…PDI): in Arabic it ends in Arabic, and the year after it would otherwise join
     /// that right-to-left run and show before it in a left-to-right line.

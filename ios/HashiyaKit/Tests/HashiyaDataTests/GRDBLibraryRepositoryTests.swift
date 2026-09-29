@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 import HashiyaData
 import HashiyaDatabase
 import HashiyaModel
@@ -7,13 +8,30 @@ import os
 import Testing
 
 struct GRDBLibraryRepositoryTests {
+    private let queue: DatabaseQueue
+    private let repository: GRDBLibraryRepository
+
     /// A repository on a fresh in-memory database whose clock advances 1 000 ms per save.
-    private func makeRepository() throws -> GRDBLibraryRepository {
+    init() throws {
         let clock = OSAllocatedUnfairLock(initialState: Int64(0))
         let ids = OSAllocatedUnfairLock(initialState: 0)
-        return try GRDBLibraryRepository.inMemory(
+        queue = try HashiyaDatabase.openInMemory()
+        repository = GRDBLibraryRepository(
+            store: PaperStore(writer: queue),
             now: { clock.withLock { $0 += 1_000; return $0 } },
             newID: { ids.withLock { $0 += 1; return "local-\($0)" } }
+        )
+    }
+
+    /// Android's `RoomLibraryRepositoryTest` paper: two authors, and the title, abstract and venue given.
+    private func paper(_ id: String, title: String? = nil, abstract: String? = nil, venue: String? = nil) -> Paper {
+        Paper(
+            openAlexID: id,
+            title: title ?? "Paper \(id)",
+            authors: [Author(name: "First"), Author(name: "Second")],
+            year: 2020,
+            venue: venue,
+            abstract: abstract
         )
     }
 
@@ -24,17 +42,27 @@ struct GRDBLibraryRepositoryTests {
         return nil
     }
 
-    @Test func savedPapersAreNewestFirstWithAuthorsInOrder() async throws {
-        let repository = try makeRepository()
+    private func library(_ query: String = "", status: ReadingStatus? = nil) async -> LibrarySnapshot? {
+        await value(of: repository.observeLibrary(query: query, status: status))
+    }
+
+    private func ids(_ query: String = "", status: ReadingStatus? = nil) async -> [String]? {
+        await library(query, status: status)?.papers.map(\.paper.openAlexID)
+    }
+
+    private func counts(_ query: String) async -> [ReadingStatus: Int]? {
+        await library(query)?.counts
+    }
+
+    @Test func savedPapersAreNewestFirstWithAuthorsInOrderAndStartAsToRead() async throws {
         try await repository.save(SamplePapers.attention)
         try await repository.save(SamplePapers.bert)
 
-        let papers = await value(of: repository.observeSavedPapers())
-        #expect(papers == [SamplePapers.bert, SamplePapers.attention])
+        let papers = await library()?.papers
+        #expect(papers == [LibraryPaper(paper: SamplePapers.bert, status: .toRead), LibraryPaper(paper: SamplePapers.attention, status: .toRead)])
     }
 
     @Test func savedIDsListTheLibrary() async throws {
-        let repository = try makeRepository()
         #expect(await value(of: repository.observeSavedIDs()) == [])
         try await repository.save(SamplePapers.attention)
         try await repository.save(SamplePapers.vit)
@@ -42,30 +70,31 @@ struct GRDBLibraryRepositoryTests {
         #expect(await value(of: repository.observeSavedIDs()) == ["W2626778328", "W3094502228"])
     }
 
-    @Test func savingTwiceKeepsOne() async throws {
-        let repository = try makeRepository()
-        try await repository.save(SamplePapers.attention)
-        try await repository.save(SamplePapers.attention)
+    @Test func savingTwiceKeepsOneCopyAndItsStatus() async throws {
+        try await repository.save(paper("W1"))
+        try await repository.setStatus(openAlexID: "W1", status: .reading)
+        try await repository.save(paper("W1"))
 
-        #expect(await value(of: repository.observeSavedPapers())?.count == 1)
+        #expect(await library()?.papers == [LibraryPaper(paper: paper("W1"), status: .reading)])
     }
 
-    @Test func removeThenRestoreReturnsThePaperToItsPosition() async throws {
-        let repository = try makeRepository()
+    @Test func removeThenRestoreReturnsThePaperToItsPositionWithItsStatus() async throws {
         for paper in [SamplePapers.attention, SamplePapers.bert, SamplePapers.vit] {
             try await repository.save(paper)
         }
+        try await repository.setStatus(openAlexID: SamplePapers.bert.openAlexID, status: .reading)
 
         let removed = try #require(try await repository.remove(openAlexID: SamplePapers.bert.openAlexID))
-        #expect(removed == RemovedPaper(paper: SamplePapers.bert, localID: "local-2", savedAt: 2_000))
-        #expect(await value(of: repository.observeSavedPapers()) == [SamplePapers.vit, SamplePapers.attention])
+        #expect(removed == RemovedPaper(paper: SamplePapers.bert, localID: "local-2", savedAt: 2_000, status: .reading))
+        #expect(await ids() == [SamplePapers.vit.openAlexID, SamplePapers.attention.openAlexID])
 
         try await repository.restore(removed)
-        #expect(await value(of: repository.observeSavedPapers()) == [SamplePapers.vit, SamplePapers.bert, SamplePapers.attention])
+        #expect(await ids() == [SamplePapers.vit.openAlexID, SamplePapers.bert.openAlexID, SamplePapers.attention.openAlexID])
+        #expect(await ids(status: .reading) == [SamplePapers.bert.openAlexID])
+        #expect(await ids("devlin bidirectional") == [SamplePapers.bert.openAlexID])
     }
 
     @Test func restoreAfterSavingAgainIsANoOp() async throws {
-        let repository = try makeRepository()
         try await repository.save(SamplePapers.attention)
         try await repository.save(SamplePapers.bert)
         let removed = try #require(try await repository.remove(openAlexID: SamplePapers.attention.openAlexID))
@@ -73,29 +102,136 @@ struct GRDBLibraryRepositoryTests {
 
         try await repository.restore(removed)
 
-        #expect(await value(of: repository.observeSavedPapers()) == [SamplePapers.attention, SamplePapers.bert])
+        #expect(await ids() == [SamplePapers.attention.openAlexID, SamplePapers.bert.openAlexID])
     }
 
     @Test func removingAnUnknownPaperReturnsNil() async throws {
-        let repository = try makeRepository()
         #expect(try await repository.remove(openAlexID: "W404") == nil)
     }
 
+    @Test func setStatusDoesNotReorder() async throws {
+        try await repository.save(paper("W1"))
+        try await repository.save(paper("W2"))
+
+        try await repository.setStatus(openAlexID: "W1", status: .read)
+
+        #expect(await ids() == ["W2", "W1"])
+        #expect(await ids(status: .read) == ["W1"])
+    }
+
+    @Test func setStatusOfAnUnsavedPaperDoesNothing() async throws {
+        try await repository.setStatus(openAlexID: "W404", status: .read)
+        #expect(await ids() == [])
+    }
+
+    @Test func searchFindsTheTitleAuthorsAbstractAndVenueByPrefix() async throws {
+        try await repository.save(paper("W1", title: "Attention Is All You Need", abstract: "The Transformer architecture", venue: "NeurIPS"))
+        var resnet = paper("W2", title: "Deep Residual Learning", venue: "CVPR")
+        resnet.authors = [Author(name: "Kaiming He")]
+        try await repository.save(resnet)
+
+        #expect(await ids("transf") == ["W1"])
+        #expect(await ids("kaiming") == ["W2"])
+        #expect(await ids("neurips") == ["W1"])
+        #expect(await ids("DEEP resid") == ["W2"])
+        #expect(await ids("attention residual") == [])
+        #expect(await ids("   ") == ["W2", "W1"])
+    }
+
+    @Test func searchIgnoresAccentsTashkeelAndAlefForms() async throws {
+        try await repository.save(paper("W1", title: "Schrödinger equations"))
+        try await repository.save(paper("W2", title: "تطبيقات التعلم العميق في معالجة اللغة"))
+        try await repository.save(paper("W3", title: "أساسيات الإحصاء"))
+
+        #expect(await ids("schrodinger") == ["W1"])
+        #expect(await ids("التَّعلُّم") == ["W2"])
+        #expect(await ids("اساسيات") == ["W3"])
+        #expect(await ids("الاحصاء") == ["W3"])
+    }
+
+    @Test func searchMatchesArabicIndicAndASCIIDigitsEitherWay() async throws {
+        try await repository.save(paper("W1", title: "COVID-19 outcomes"))
+        try await repository.save(paper("W2", title: "جائحة كوفيد-١٩"))
+
+        #expect(await ids("١٩") == ["W2", "W1"])
+        #expect(await ids("19") == ["W2", "W1"])
+        #expect(await ids("كوفيد ۱۹") == ["W2"])
+    }
+
+    /// Whatever the user types reaches SQLite as plain words. A MATCH syntax error would end the stream without a value.
+    @Test(arguments: ["\"", "C++", "templates\"", "-templates", "-x", "(guide", "title:guide", "BERT:", "a AND", "NEAR/2", "*", "^x"])
+    func searchTextWithFTSSyntaxNeverFails(query: String) async throws {
+        try await repository.save(paper("W1", title: "C++ templates: a guide"))
+
+        #expect(await library(query) != nil)
+        #expect(await library(query, status: .reading) != nil)
+    }
+
+    @Test func quotesAndStarsAreIgnored() async throws {
+        try await repository.save(paper("W1", title: "C++ templates: a guide"))
+
+        #expect(await ids("\"templates") == ["W1"])
+        #expect(await ids("*") == ["W1"])
+    }
+
+    @Test func countsFollowTheSearchAndFillMissingStatusesWithZero() async throws {
+        try await repository.save(paper("W1", title: "Transformers one"))
+        try await repository.save(paper("W2", title: "Transformers two"))
+        try await repository.save(paper("W3", title: "Convolutions"))
+        try await repository.setStatus(openAlexID: "W1", status: .reading)
+
+        #expect(await counts("") == [.toRead: 2, .reading: 1, .read: 0])
+        #expect(await counts("transf") == [.toRead: 1, .reading: 1, .read: 0])
+        #expect(await counts("missing") == [.toRead: 0, .reading: 0, .read: 0])
+        #expect(await library("missing")?.matchingTotal == 0)
+        #expect(await library("missing")?.libraryTotal == 3)
+    }
+
+    @Test func anUnknownStoredStatusReadsAndCountsAsToRead() async throws {
+        try await repository.save(paper("W1"))
+        try await repository.save(paper("W2"))
+        try await queue.write { db in
+            try db.execute(sql: "UPDATE papers SET reading_status = 'archived' WHERE open_alex_id = 'W1'")
+        }
+
+        #expect(await library()?.papers.last == LibraryPaper(paper: paper("W1"), status: .toRead))
+        #expect(await counts("") == [.toRead: 2, .reading: 0, .read: 0])
+    }
+
+    /// Papers, counts and the total come from one read, so they never disagree — not even while the only paper goes.
+    @Test func removingTheOnlyPaperNeverEmitsASnapshotWhosePapersAndCountsDisagree() async throws {
+        try await repository.save(paper("W1", title: "Transformers"))
+
+        var snapshots: [LibrarySnapshot] = []
+        for await snapshot in repository.observeLibrary(query: "transf", status: .toRead) {
+            snapshots.append(snapshot)
+            if snapshots.count == 1 {
+                _ = try await repository.remove(openAlexID: "W1")
+            }
+            if snapshot.libraryTotal == 0 { break }
+        }
+
+        #expect(snapshots.first?.papers.map(\.paper.openAlexID) == ["W1"])
+        #expect(snapshots.last == LibrarySnapshot(papers: [], counts: [.toRead: 0, .reading: 0, .read: 0], libraryTotal: 0))
+        for snapshot in snapshots {
+            #expect(snapshot.papers.count == snapshot.counts[.toRead])
+            #expect(snapshot.libraryTotal >= snapshot.papers.count)
+        }
+    }
+
     @Test func observationsFollowChanges() async throws {
-        let repository = try makeRepository()
-        let stream = repository.observeSavedPapers()
-        var iterator = stream.makeAsyncIterator()
-        #expect(await iterator.next() == [])
+        var iterator = repository.observeLibrary(query: "", status: nil).makeAsyncIterator()
+        #expect(await iterator.next()?.papers == [])
 
         try await repository.save(SamplePapers.vit)
         var latest = await iterator.next()
-        while latest?.isEmpty == true {
+        while latest?.papers.isEmpty == true {
             latest = await iterator.next()
         }
-        #expect(latest == [SamplePapers.vit])
+        #expect(latest?.papers == [LibraryPaper(paper: SamplePapers.vit, status: .toRead)])
     }
 
-    /// A paper saved by the Share Extension (another pool on the same file) appears after a refresh.
+    /// A paper saved by the Share Extension (another pool on the same file) appears after a refresh, as To read and searchable.
     @Test func refreshShowsPapersSavedThroughAnotherPool() async throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -103,12 +239,12 @@ struct GRDBLibraryRepositoryTests {
         let url = directory.appending(path: "hashiya.sqlite")
         let app = GRDBLibraryRepository(store: try PaperStore.open(at: url))
         let shareExtension = GRDBLibraryRepository(store: try PaperStore.open(at: url))
-        var papers = app.observeSavedPapers().makeAsyncIterator()
-        #expect(await papers.next() == [])
+        var library = app.observeLibrary(query: "vaswani", status: .toRead).makeAsyncIterator()
+        #expect(await library.next()?.papers == [])
 
         try await shareExtension.save(SamplePapers.attention)
         await app.refreshAfterExternalChanges()
 
-        #expect(await papers.next() == [SamplePapers.attention])
+        #expect(await library.next()?.papers == [LibraryPaper(paper: SamplePapers.attention, status: .toRead)])
     }
 }

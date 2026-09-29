@@ -12,6 +12,8 @@ public struct LibraryView: View {
     /// Space under the list's last row, so the Add paper button never covers it.
     static let addPaperClearance: CGFloat = 88
 
+    @SceneStorage(LibraryViewModel.queryKey) private var storedQuery = ""
+    @SceneStorage(LibraryViewModel.statusKey) private var storedStatus = ""
     @Environment(\.openURL) private var openURL
 
     /// - Parameter onAddPaper: the Add paper button; the app opens Search ready for input.
@@ -32,8 +34,11 @@ public struct LibraryView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(HashiyaColors.surface)
             .overlay(alignment: .bottom) {
-                // The Undo banner sits above the Add paper button (bottom trailing; bottom left in Arabic).
+                // The banners sit above the Add paper button (bottom trailing; bottom left in Arabic).
                 VStack(alignment: .trailing, spacing: 0) {
+                    if viewModel.message == .statusUpdateFailed {
+                        HashiyaBanner(text: L10n.string("library.statusUpdateFailed"))
+                    }
                     if viewModel.pendingUndo != nil {
                         HashiyaBanner(text: L10n.string("library.removed"), actionTitle: L10n.string("library.undo")) {
                             Task { await viewModel.undo() }
@@ -48,10 +53,16 @@ public struct LibraryView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .animation(.default, value: viewModel.pendingUndo)
+            .animation(.default, value: viewModel.message)
             .task(id: viewModel.pendingUndo) {
                 // A newer removal cancels this task and restarts the 4 s.
                 guard viewModel.pendingUndo != nil, (try? await Task.sleep(for: HashiyaBanner.duration)) != nil else { return }
                 viewModel.undoExpired()
+            }
+            .task(id: viewModel.message) {
+                // A newer message cancels this task: then it must not clear the new one.
+                guard viewModel.message != nil, (try? await Task.sleep(for: HashiyaBanner.duration)) != nil else { return }
+                viewModel.message = nil
             }
             .navigationTitle(Text(verbatim: L10n.string("library.title")))
             .toolbar {
@@ -62,16 +73,20 @@ public struct LibraryView: View {
                     .accessibilityLabel(Text(verbatim: L10n.string("library.settings")))
                 }
             }
-            .sheet(item: Binding(get: { viewModel.selectedPaper }, set: { viewModel.selectedPaperID = $0?.openAlexID })) { paper in
-                preview(paper)
+            .sheet(item: Binding(get: { viewModel.selectedPaper }, set: { viewModel.selectedPaperID = $0?.id })) { saved in
+                preview(saved)
             }
+            .onAppear { viewModel.restore(text: storedQuery, status: storedStatus) }
+            .onChange(of: viewModel.text) { _, text in storedQuery = text }
+            .onChange(of: viewModel.status) { _, _ in storedStatus = viewModel.storedStatus }
     }
 
     @ViewBuilder
     private var content: some View {
-        if !viewModel.isLoaded {
+        switch viewModel.state {
+        case .loading:
             LoadingSkeleton(rows: 4)
-        } else if viewModel.papers.isEmpty {
+        case .empty:
             EmptyStateView(
                 icon: "books.vertical",
                 title: L10n.string("library.emptyTitle"),
@@ -80,8 +95,39 @@ public struct LibraryView: View {
             ) {
                 onGoToSearch()
             }
-        } else {
-            list
+        case .papers, .noMatches:
+            filtered
+        }
+    }
+
+    /// Papers and No papers match share this container, its search field and its chips, so moving between them
+    /// never rebuilds the field and the keyboard stays up while typing.
+    private var filtered: some View {
+        FilteredContent(state: viewModel.state, list: list, noMatches: noMatches)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                LibraryFilterChips(
+                    selected: viewModel.status,
+                    counts: viewModel.filter?.counts ?? [:],
+                    onSelect: { viewModel.setStatusFilter($0) }
+                )
+                .background(HashiyaColors.surface)
+            }
+            .searchable(
+                text: Binding(get: { viewModel.text }, set: { viewModel.updateText($0) }),
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: Text(verbatim: L10n.string("library.searchHint"))
+            )
+            .onSubmit(of: .search) { viewModel.submitNow() }
+    }
+
+    private var noMatches: some View {
+        EmptyStateView(
+            icon: "doc.text.magnifyingglass",
+            title: L10n.string("library.noMatchesTitle"),
+            actionTitle: L10n.string("library.noMatchesAction")
+        ) {
+            viewModel.clearSearchAndFilters()
         }
     }
 
@@ -92,42 +138,69 @@ public struct LibraryView: View {
                 .foregroundStyle(HashiyaColors.onSurfaceVariant)
                 .listRowSeparator(.hidden)
                 .listRowBackground(HashiyaColors.surface)
-            ForEach(viewModel.papers) { paper in
-                LibraryRow(paper: paper)
-                    .contentShape(Rectangle())
-                    .onTapGesture { viewModel.select(paper) }
-                    .accessibilityAddTraits(.isButton)
-                    .listRowBackground(HashiyaColors.surface)
-                    .listRowSeparatorTint(HashiyaColors.outlineVariant)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            Task { await viewModel.remove(paper) }
-                        } label: {
-                            Label {
-                                Text(verbatim: L10n.string("library.remove"))
-                            } icon: {
-                                Image(systemName: "trash")
-                            }
+            ForEach(viewModel.papers) { saved in
+                HStack(alignment: .top, spacing: 12) {
+                    LibraryRow(paper: saved.paper)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture { viewModel.select(saved.paper) }
+                        .accessibilityAddTraits(.isButton)
+                    ReadingStatusBadge(status: saved.status) { status in
+                        Task { await viewModel.setStatus(of: saved.paper, to: status) }
+                    }
+                    .padding(.top, 4)
+                }
+                // Keeps the badge's menu and the row's tap separate: tapping the badge never opens the preview.
+                .buttonStyle(.borderless)
+                .listRowBackground(HashiyaColors.surface)
+                .listRowSeparatorTint(HashiyaColors.outlineVariant)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) {
+                        Task { await viewModel.remove(saved.paper) }
+                    } label: {
+                        Label {
+                            Text(verbatim: L10n.string("library.remove"))
+                        } icon: {
+                            Image(systemName: "trash")
                         }
                     }
+                }
             }
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.immediately)
         .contentMargins(.bottom, Self.addPaperClearance, for: .scrollContent)
     }
 
-    private func preview(_ paper: Paper) -> some View {
+    private func preview(_ saved: LibraryPaper) -> some View {
         PaperPreviewContent(
-            paper: paper,
+            paper: saved.paper,
             inLibrary: true,
-            onToggleSave: { Task { await viewModel.remove(paper) } },
+            status: saved.status,
+            onStatusChange: { status in Task { await viewModel.setStatus(of: saved.paper, to: status) } },
+            onToggleSave: { Task { await viewModel.remove(saved.paper) } },
             onOpenDOI: { doi in
                 if let url = DOILink.url(for: doi) { openURL(url) }
             }
         )
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+}
+
+/// The list, or No papers match, inside one view so their shared container keeps its identity.
+private struct FilteredContent<List: View, NoMatches: View>: View {
+    let state: LibraryState
+    let list: List
+    let noMatches: NoMatches
+
+    var body: some View {
+        if case .papers = state {
+            list
+        } else {
+            noMatches
+        }
     }
 }
 

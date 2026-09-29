@@ -35,6 +35,17 @@ struct DesignSystemSnapshotTests {
         assertHashiyaSnapshots(of: preview, named: "previewNoDOI", arabicText: "حفظ في المكتبة")
     }
 
+    @Test func previewWithTheStatusSelector() {
+        let preview = PaperPreviewContent(
+            paper: SamplePapers.arabicTitled,
+            inLibrary: true,
+            status: .reading,
+            onToggleSave: {},
+            onOpenDOI: { _ in }
+        )
+        assertHashiyaSnapshots(of: preview, named: "previewStatus", arabicText: "قيد القراءة")
+    }
+
     @Test func messageStatesAndBanner() {
         let states = VStack(spacing: 0) {
             EmptyStateView(icon: "books.vertical", title: "Empty", message: "Message", actionTitle: "Action", action: {})

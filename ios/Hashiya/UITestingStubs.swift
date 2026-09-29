@@ -8,6 +8,9 @@ import os
 /// Extension also uses while stubbed), an in-memory key, a search that returns the same three papers for any
 /// query and a lookup that knows arXiv 1706.03762. Nothing touches the network or the real library.
 enum UITestingStubs {
+    /// UI tests never see the Update required screen.
+    static let appUpdateRepository: any AppUpdateRepository = NoUpdateRequired()
+
     static func dependencies() -> LiveDependencies {
         LiveDependencies(
             libraryRepository: try! GRDBLibraryRepository.shared(fileName: UITestingFlags.databaseFileName, fresh: true),
@@ -61,6 +64,10 @@ private struct StubPaperLookupRepository: PaperLookupRepository {
     func lookup(_ identifier: PaperIdentifier) async -> LookupResult {
         identifier == .arxiv("1706.03762") ? .found(UITestingStubs.papers[0]) : .notFound(arxivTitle: nil)
     }
+}
+
+private struct NoUpdateRequired: AppUpdateRepository {
+    func requiredUpdate(currentBuild: Int) async -> RequiredUpdate? { nil }
 }
 
 private final class InMemoryKeychain: KeychainStore {

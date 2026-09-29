@@ -83,11 +83,37 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Hashiya
+  HashiyaSnapshotTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: HashiyaSnapshotTests
+        excludes:
+          - "__Snapshots__/**"
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.etatech.hashiya.snapshottests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Hashiya
+      - package: HashiyaKit
+        products:
+          - HashiyaTesting
+          - HashiyaData
+          - HashiyaDesignSystem
+          - HashiyaModel
+          - FeatureSearch
+          - FeatureLibrary
+          - FeatureSettings
 schemes:
   Hashiya:
     build:
       targets:
         Hashiya: all
+        HashiyaSnapshotTests: [test]
         HashiyaUITests: [test]
     test:
       targets:
@@ -99,4 +125,6 @@ schemes:
         - package: HashiyaKit/FeatureSearchTests
         - package: HashiyaKit/FeatureLibraryTests
         - package: HashiyaKit/FeatureSettingsTests
+        - name: HashiyaSnapshotTests
+          parallelizable: false
         - HashiyaUITests

@@ -1,15 +1,33 @@
+import FeatureLibrary
+import FeatureSearch
+import FeatureSettings
+import HashiyaDesignSystem
 import SwiftUI
 
-/// Library and Search tabs, each in its own navigation stack. Library is selected at launch.
+/// Library and Search tabs, each in its own navigation stack; Settings as a sheet from either.
 struct RootView: View {
     enum Tab: Hashable { case library, search }
 
+    private let container: AppContainer
     @State private var selectedTab = Tab.library
+    @State private var showsSettings = false
+    @State private var libraryViewModel: LibraryViewModel
+    @State private var searchViewModel: SearchViewModel
+
+    init(container: AppContainer) {
+        self.container = container
+        _libraryViewModel = State(initialValue: container.makeLibraryViewModel())
+        _searchViewModel = State(initialValue: container.makeSearchViewModel())
+    }
 
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack {
-                Color.clear
+                LibraryView(
+                    viewModel: libraryViewModel,
+                    onGoToSearch: { selectedTab = .search },
+                    onOpenSettings: { showsSettings = true }
+                )
             }
             .tabItem {
                 Label {
@@ -21,7 +39,7 @@ struct RootView: View {
             .tag(Tab.library)
 
             NavigationStack {
-                Color.clear
+                SearchView(viewModel: searchViewModel, onOpenSettings: { showsSettings = true })
             }
             .tabItem {
                 Label {
@@ -31,6 +49,10 @@ struct RootView: View {
                 }
             }
             .tag(Tab.search)
+        }
+        .tint(HashiyaColors.primary)
+        .sheet(isPresented: $showsSettings) {
+            SettingsView(viewModel: container.makeSettingsViewModel())
         }
     }
 }

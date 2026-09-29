@@ -32,6 +32,15 @@ targets:
         TARGETED_DEVICE_FAMILY: "1,2"
         SWIFT_EMIT_LOC_STRINGS: NO
         LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    dependencies:
+      - package: HashiyaKit
+        products:
+          - HashiyaData
+          - HashiyaDesignSystem
+          - HashiyaModel
+          - FeatureSearch
+          - FeatureLibrary
+          - FeatureSettings
   HashiyaUITests:
     type: bundle.ui-testing
     platform: iOS
@@ -51,4 +60,12 @@ schemes:
         HashiyaUITests: [test]
     test:
       targets:
+        - package: HashiyaKit/HashiyaModelTests
+        - package: HashiyaKit/HashiyaNetworkTests
+        - package: HashiyaKit/HashiyaDatabaseTests
+        - package: HashiyaKit/HashiyaDataTests
+        - package: HashiyaKit/HashiyaDesignSystemTests
+        - package: HashiyaKit/FeatureSearchTests
+        - package: HashiyaKit/FeatureLibraryTests
+        - package: HashiyaKit/FeatureSettingsTests
         - HashiyaUITests

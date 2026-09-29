@@ -46,6 +46,8 @@ public final class SearchViewModel {
     @ObservationIgnored private var seenIDs: Set<String> = []
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored private var searchTask: Task<Void, Never>?
+    /// Cancelled searches that may still be finishing; only tests wait for them.
+    @ObservationIgnored private var supersededTasks: [Task<Void, Never>] = []
     @ObservationIgnored private var hasRestored = false
     @ObservationIgnored private let observations = TaskBag()
 
@@ -194,7 +196,7 @@ public final class SearchViewModel {
         let trimmed = submitted.trimmingCharacters(in: .whitespacesAndNewlines)
         query.text = trimmed
         guard !trimmed.isEmpty else {
-            searchTask?.cancel()
+            supersede(searchTask)
             activeQuery = nil
             resetResults()
             phase = .idle
@@ -229,7 +231,7 @@ public final class SearchViewModel {
 
     private func loadFirstPage() {
         guard let active = activeQuery else { return }
-        searchTask?.cancel()
+        supersede(searchTask)
         resetResults()
         phase = .loading
         searchTask = Task { [weak self, repository] in
@@ -250,7 +252,17 @@ public final class SearchViewModel {
         }
     }
 
-    private func loadNextPage() {
+    private func supersede(_ task: Task<Void, Never>?) {
+        guard let task else { return }
+        task.cancel()
+        supersededTasks.append(task)
+    }
+
+    /// Pages made only of papers already shown are skipped this many times in a row.
+    private static let maxDuplicatePages = 3
+
+    /// `duplicatePages` counts the all-duplicate pages just skipped for this scroll.
+    private func loadNextPage(duplicatePages: Int = 0) {
         guard let active = activeQuery, let cursor = nextCursor else { return }
         append = .loading
         searchTask = Task { [weak self, repository] in
@@ -258,7 +270,11 @@ public final class SearchViewModel {
             do {
                 let page = try await repository.searchPage(active, cursor: cursor)
                 guard let self, !Task.isCancelled else { return }
-                self.add(page)
+                let addedAny = self.add(page)
+                // The last row stays the same when a page adds nothing, so keep going here.
+                if !addedAny, self.nextCursor != nil, duplicatePages + 1 < Self.maxDuplicatePages {
+                    self.loadNextPage(duplicatePages: duplicatePages + 1)
+                }
             } catch is CancellationError {
                 return
             } catch {
@@ -269,11 +285,13 @@ public final class SearchViewModel {
     }
 
     /// Appends the page's papers that were not shown yet for this query.
-    private func add(_ page: SearchPage) {
+    @discardableResult
+    private func add(_ page: SearchPage) -> Bool {
         let new = page.papers.filter { seenIDs.insert($0.openAlexID).inserted }
         papers.append(contentsOf: new)
         nextCursor = page.nextCursor
         append = page.nextCursor == nil ? .endReached : .idle
+        return !new.isEmpty
     }
 
     // MARK: Tests
@@ -283,9 +301,12 @@ public final class SearchViewModel {
         while true {
             let debounce = debounceTask
             let search = searchTask
+            let superseded = supersededTasks
             await debounce?.value
             await search?.value
-            if debounceTask == debounce, searchTask == search { return }
+            for task in superseded { await task.value }
+            supersededTasks.removeFirst(superseded.count)
+            if debounceTask == debounce, searchTask == search, supersededTasks.isEmpty { return }
         }
     }
 }

@@ -207,6 +207,58 @@ struct SearchViewModelTests {
         #expect(viewModel.papers == [SamplePapers.vit])
         #expect(viewModel.totalCount == 7)
         #expect(viewModel.phase == .results)
+        #expect(repository.calls.map(\.query.text) == ["vit"])
+    }
+
+    @Test func aSearchAlreadyInFlightCannotOverwriteANewerOne() async {
+        let slow = AsyncGate()
+        let repository = FakeSearchRepository { query, _ in
+            if query.text == "bert" {
+                await slow.wait()
+                return .of([SamplePapers.bert], total: 1)
+            }
+            return .of([SamplePapers.vit], total: 7)
+        }
+        let viewModel = makeViewModel(repository)
+        viewModel.updateText("bert")
+        viewModel.submitNow()
+        #expect(await eventually { repository.calls.count == 1 })
+        viewModel.updateText("vit")
+        viewModel.submitNow()
+        #expect(await eventually { viewModel.phase == .results })
+
+        slow.open()
+        await viewModel.waitForPendingWork()
+
+        #expect(repository.calls.map(\.query.text) == ["bert", "vit"])
+        #expect(viewModel.papers == [SamplePapers.vit])
+        #expect(viewModel.totalCount == 7)
+        #expect(viewModel.phase == .results)
+    }
+
+    @Test func aNextPageInFlightCannotLandAfterTheChipsChange() async {
+        let slow = AsyncGate()
+        let repository = FakeSearchRepository { query, cursor in
+            if cursor == "c2" {
+                await slow.wait()
+                return .of([SamplePapers.bert], total: 2, next: nil)
+            }
+            return query.sort == .newest
+                ? .of([SamplePapers.vit], total: 1)
+                : .of([SamplePapers.attention], total: 2, next: "c2")
+        }
+        let viewModel = makeViewModel(repository)
+        await type("transformers", into: viewModel)
+        viewModel.loadMore()
+        #expect(await eventually { repository.calls.count == 2 })
+        viewModel.setSort(.newest)
+        #expect(await eventually { viewModel.phase == .results && viewModel.papers == [SamplePapers.vit] })
+
+        slow.open()
+        await viewModel.waitForPendingWork()
+
+        #expect(viewModel.papers == [SamplePapers.vit])
+        #expect(viewModel.append == .endReached)
     }
 
     @Test func nextPagesAppendUntilTheEnd() async {
@@ -245,6 +297,51 @@ struct SearchViewModelTests {
         await viewModel.waitForPendingWork()
 
         #expect(viewModel.papers.map(\.openAlexID) == SamplePapers.all.map(\.openAlexID))
+    }
+
+    @Test func aPageOfOnlyDuplicatesLoadsTheNextOneAtOnce() async {
+        let repository = FakeSearchRepository { _, cursor in
+            switch cursor {
+            case nil: .of([SamplePapers.attention, SamplePapers.bert], total: 3, next: "c2")
+            case "c2": .of([SamplePapers.bert], total: 3, next: "c3")
+            default: .of([SamplePapers.vit], total: 3, next: nil)
+            }
+        }
+        let viewModel = makeViewModel(repository)
+        await type("transformers", into: viewModel)
+        viewModel.loadMore()
+        await viewModel.waitForPendingWork()
+
+        #expect(repository.calls.map(\.cursor) == [nil, "c2", "c3"])
+        #expect(viewModel.papers.map(\.openAlexID) == SamplePapers.all.map(\.openAlexID))
+        #expect(viewModel.append == .endReached)
+    }
+
+    @Test func skippingDuplicatePagesStopsAfterThree() async {
+        let repository = FakeSearchRepository { _, cursor in
+            switch cursor {
+            case nil: .of([SamplePapers.attention], total: 2, next: "c2")
+            case "c2": .of([SamplePapers.attention], total: 2, next: "c3")
+            case "c3": .of([SamplePapers.attention], total: 2, next: "c4")
+            case "c4": .of([SamplePapers.attention], total: 2, next: "c5")
+            default: .of([SamplePapers.bert], total: 2, next: nil)
+            }
+        }
+        let viewModel = makeViewModel(repository)
+        await type("transformers", into: viewModel)
+        viewModel.loadMore()
+        await viewModel.waitForPendingWork()
+
+        #expect(repository.calls.map(\.cursor) == [nil, "c2", "c3", "c4"])
+        #expect(viewModel.papers == [SamplePapers.attention])
+        #expect(viewModel.append == .idle)
+
+        viewModel.loadMore()
+        await viewModel.waitForPendingWork()
+
+        #expect(repository.calls.map(\.cursor) == [nil, "c2", "c3", "c4", "c5"])
+        #expect(viewModel.papers == [SamplePapers.attention, SamplePapers.bert])
+        #expect(viewModel.append == .endReached)
     }
 
     @Test func anAppendFailureKeepsResultsAndRetryReloadsTheSameCursor() async {

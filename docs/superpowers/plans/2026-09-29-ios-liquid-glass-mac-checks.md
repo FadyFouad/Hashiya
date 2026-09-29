@@ -155,6 +155,7 @@ Run this section first.
   the new `Glass.swift`), run the test, then restore the head versions:
   ```bash
   git checkout cb7737d -- ios/HashiyaKit/Sources/FeatureSearch/SearchView.swift ios/HashiyaKit/Sources/FeatureLibrary/LibraryView.swift
+  xcrun simctl uninstall 'iPhone 17 Pro' com.etatech.hashiya
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -collect-test-diagnostics never -only-testing:HashiyaUITests/LibraryFlowTests/testLibraryAndSearchResultsShowTheirLargeTitles 2>&1 | grep -E "$FILTER"
   git checkout HEAD -- ios/HashiyaKit/Sources/FeatureSearch/SearchView.swift ios/HashiyaKit/Sources/FeatureLibrary/LibraryView.swift
   git status --short   # must show nothing under ios/HashiyaKit/Sources
@@ -191,6 +192,51 @@ Run this section first.
   xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -collect-test-diagnostics never -only-testing:HashiyaSnapshotTests 2>&1 | grep -E "$FILTER"
   ```
   Expect `** TEST SUCCEEDED **`.
+
+## Task 8: Full verification, device checks, push and PR
+
+Step 1 (the READMEs) is done: `docs: describe iOS Liquid Glass in the READMEs`. Steps 2–5 are here.
+
+- [ ] **Merge `main` first:** `main` moved (to `e287610` or later) while this branch ran.
+  ```bash
+  git fetch origin main && git merge origin/main
+  xcodegen generate --spec ios/project.yml
+  ```
+  Resolve conflicts keeping both sides' behaviour; rerun anything a conflict touched.
+- [ ] **Everything, the way CI runs it, on both OS versions** (Step 2; uninstall, never erase):
+  ```bash
+  python3 ios/scripts/check-translations.py
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -skip-testing:HashiyaUITests -collect-test-diagnostics never 2>&1 | grep -E "$FILTER"
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -skip-testing:HashiyaUITests -collect-test-diagnostics never 2>&1 | grep -E "$FILTER"
+  xcrun simctl uninstall 'iPhone 17 Pro' com.etatech.hashiya
+  xcrun simctl uninstall 'iPhone 16 Pro' com.etatech.hashiya
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS26" -only-testing:HashiyaUITests -collect-test-diagnostics never 2>&1 | grep -E "$FILTER"
+  xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination "$IOS18" -only-testing:HashiyaUITests -collect-test-diagnostics never 2>&1 | grep -E "$FILTER"
+  ```
+  Expect all green. The UI-test runs also confirm the real app launches (tab bar and screens, not a blank
+  window).
+- [ ] **Three verifications in a row** (Review Focus 3): run the two `-skip-testing:HashiyaUITests` commands two
+  more times each. No iOS 26 glass image may flake past the `(0.98, 0.95)` tolerance, and iOS 18 must stay green.
+- [ ] **Device and simulator checks** (Step 3, spec §16.6), on iPhone 17 Pro iOS 26.4 (or a device), with
+  `-ui-testing` and two saved papers:
+  - Settings → Accessibility → Display & Text Size → **Reduce Transparency** on: chips, badges, banners, Add paper
+    and the preview buttons turn frosted and stay legible.
+  - **Increase Contrast** on: glass gets borders, text stays legible.
+  - **Reduce Motion** on: removing a paper shows the Undo banner without morphing into Add paper.
+  - Arabic (Hashiya's language in iOS Settings): chips, badges and Add paper mirror; English titles stay left to
+    right.
+  - Then run the app once on iPhone 16 Pro iOS 18.2: it looks as before.
+  Write down what you saw for the PR description.
+- [ ] **Author check:** `git log --format='%an <%ae>' origin/main..HEAD | sort -u` prints only
+  `Fady <fady.fouad.a@gmail.com>`.
+- [ ] **Push and PR (Step 4): ask first.** Only after a yes: `git push -u origin feat/ios-liquid-glass` and
+  `gh pr create` with the plan's title and body, pasting the results above into "Checked locally".
+- [ ] **Baselines (Step 5), once GitHub Actions run again:** `bash ios/scripts/record-snapshots-on-ci.sh`; expect
+  144 PNGs under each of `ios/HashiyaSnapshotTests/__Snapshots__/iOS26` and `iOS18`; look through the iOS 26
+  Search, Library and share images with the Task 4–7 lists; then
+  `git add -- ':(glob)ios/HashiyaSnapshotTests/__Snapshots__/**'`, commit
+  `test: record iOS 26 and iOS 18 snapshot baselines on CI` and push. The PR's `ios.yml` run must be green on
+  both OS versions.
 
 ## Deferred findings for the final review
 

@@ -1,6 +1,6 @@
 # Hashiya for iOS
 
-The iOS app: SwiftUI, iOS 17 or later, English and Arabic with full right-to-left layouts. It behaves like the Android app — OpenAlex search with filters, adding a paper by DOI, arXiv ID or link (in Search, or with the Library's **Add paper** button), a preview sheet, an offline Library you can search by title, author, abstract or venue (Arabic search ignores tashkeel and letter variants) and track as To read, Reading or Read, and Settings. The Share Extension `HashiyaShare` looks up a page shared from Safari or any app and saves the paper from the share sheet.
+The iOS app: SwiftUI, iOS 17 or later, English and Arabic with full right-to-left layouts. It behaves like the Android app — OpenAlex search with filters, adding a paper by DOI, arXiv ID or link (in Search, or with the Library's **Add paper** button), a preview sheet, an offline Library you can search by title, author, abstract or venue (Arabic search ignores tashkeel and letter variants) and track as To read, Reading or Read, and Settings. The Share Extension `HashiyaShare` looks up a page shared from Safari or any app and saves the paper from the share sheet. On iOS 26 and later the chips, reading-status badges, banners, the preview's buttons and the Add paper button use Liquid Glass; iOS 17 and 18 keep the teal styling.
 
 ## Opening the project
 

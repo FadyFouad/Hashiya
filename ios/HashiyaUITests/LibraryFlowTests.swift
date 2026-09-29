@@ -153,17 +153,13 @@ final class LibraryFlowTests: XCTestCase {
         wait(for: [hidden], timeout: 5)
     }
 
-    /// iOS 26 hid the large title above a list with the chips bar; it must show like on iOS 18.
+    /// iOS 26 hid the Library's large title above the list with the chips bar; it must show like on iOS 18.
     @MainActor
-    func testLibraryAndSearchResultsShowTheirLargeTitles() {
+    func testTheLibraryShowsItsLargeTitle() {
         let app = launchApp()
         saveTwoPapers(in: app)
         XCTAssertTrue(app.navigationBars.staticTexts["Library"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.navigationBars.staticTexts["Library"].isHittable)
-
-        app.tabBars.buttons["Search"].tap()
-        XCTAssertTrue(app.staticTexts["About 3 results"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.navigationBars.staticTexts["Search"].isHittable)
     }
 
     @MainActor

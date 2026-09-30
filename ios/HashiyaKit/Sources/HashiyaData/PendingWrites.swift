@@ -25,9 +25,11 @@ public final class PendingWrites {
         }
     }
 
-    /// Returns once every tracked write has ended.
+    /// Returns once every tracked write has ended, including writes tracked while it waited.
     public func drained() async {
-        guard running > 0 else { return }
-        await withCheckedContinuation { waiters.append($0) }
+        // A write can be tracked after the last one ends but before this resumes: wait again for it.
+        while running > 0 {
+            await withCheckedContinuation { waiters.append($0) }
+        }
     }
 }

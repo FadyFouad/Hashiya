@@ -229,6 +229,26 @@ struct PaperDetailsViewModelTests {
         #expect(library.notes(of: id) == PaperNotes(summary: "Second"))
     }
 
+    /// Reopening Details right after leaving it reads the notes the previous screen was still writing.
+    @Test func aReopenedScreenReadsTheNotesThePreviousOneWasWriting() async {
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention])
+        let (first, firstTask) = await started(library)
+        defer { firstTask.cancel() }
+        library.holdNotesSaves()
+        first.updateNote(.summary, "Just typed")
+        first.flush()
+        #expect(await eventually { library.heldNotesSaves == 1 })
+
+        let second = makeViewModel(library)
+        let secondTask = Task { await second.start() }
+        defer { secondTask.cancel() }
+        try? await Task.sleep(for: .milliseconds(50))
+        library.releaseNotesSaves()
+
+        #expect(await eventually { second.isLoaded })
+        #expect(second.notes == PaperNotes(summary: "Just typed"))
+    }
+
     @Test func aWriteOutlivesTheViewModel() async {
         let library = FakeLibraryRepository(saved: [SamplePapers.attention])
         var viewModel: PaperDetailsViewModel? = makeViewModel(library)

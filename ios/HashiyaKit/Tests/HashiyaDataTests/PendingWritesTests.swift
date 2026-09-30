@@ -39,6 +39,29 @@ struct PendingWritesTests {
         await writes.drained()
         #expect(writes.isIdle)
     }
+
+    /// A write tracked after the last one ended but before the drain resumes is waited for too. Main-actor jobs
+    /// can resume in either order here, so the case repeats until the late write lands in between.
+    @Test func drainedWaitsForAWriteStartedWhileItResumes() async {
+        for _ in 0..<20 {
+            let writes = PendingWrites()
+            let gate = AsyncGate()
+            let first = Task { await gate.wait(); return true }
+            writes.track(first)
+            Task {
+                _ = await first.value
+                // After the first write's own watcher has run and resumed the drain.
+                await Task.yield()
+                writes.track(Task { try? await Task.sleep(for: .milliseconds(20)); return true })
+            }
+            let drained = Task { await writes.drained(); return writes.isIdle }
+            try? await Task.sleep(for: .milliseconds(10))
+
+            gate.open()
+
+            #expect(await drained.value)
+        }
+    }
 }
 
 /// Suspends `wait()` callers until `open()`.

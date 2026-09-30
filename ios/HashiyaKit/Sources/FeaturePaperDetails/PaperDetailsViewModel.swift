@@ -98,6 +98,8 @@ public final class PaperDetailsViewModel {
     }
 
     private func loadNotes() async {
+        // Reopened right after leaving: read what the previous screen was still writing, not what came before it.
+        await pendingWrites.drained()
         do {
             let stored = try await library.notes(openAlexID: openAlexID)
             notes = stored

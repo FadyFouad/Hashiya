@@ -218,9 +218,9 @@ Formatting: two-space indent, `field = {value},` on each line with no comma afte
 2. **Year:** the year, or `nd` when missing.
 3. **Title word:** the first title word that isn't a stop word (a, an, the, on, of, in, for, and, to, with, from, by, via, is, are, towards, toward, using, at), and isn't empty after folding.
 
-ASCII folding uses NFD decomposition and drops combining marks, then applies a small map for letters that don't decompose (ß → ss, æ → ae, ø → o, đ → d, ł → l, ı → i). Arabic and other non-Latin letters fold to nothing.
+ASCII folding lowercases, applies a small map for letters that don't decompose (ß and ẞ → ss, æ → ae, ø → o, đ → d, ł → l, ı → i, œ → oe), then uses NFKD decomposition (which also splits ligatures such as ﬁ) and drops combining marks. Arabic and other non-Latin letters fold to nothing.
 
-If the title word folds to nothing it is left out. If the surname folds to nothing (no authors, or a non-Latin name), `paper` takes its place, e.g. `paper2019`, `paper2019deep` or `papernd`. A key therefore always starts with a letter.
+If the title word folds to nothing it is left out. Leading digits are dropped from the surname. If the surname then is empty (no authors, a non-Latin name, or a name like "Group 7"), `paper` takes its place, e.g. `paper2019`, `paper2019deep` or `papernd`. A key therefore always starts with a letter.
 
 `assign` gives each paper `base`, then `base + "a"`, `"b"` … `"z"`, `"aa"`, `"ab"`… until the key is free of `taken` and of keys already assigned in the same call.
 

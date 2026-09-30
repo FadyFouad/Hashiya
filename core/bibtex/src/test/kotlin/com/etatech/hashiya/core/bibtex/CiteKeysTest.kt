@@ -60,6 +60,17 @@ class CiteKeysTest {
     }
 
     @Test
+    fun keyNeverStartsWithADigit() {
+        assertEquals("paper2020nets", CiteKeys.base(paper("Nets", "Group 7", year = 2020)))
+        assertEquals("b2020nets", CiteKeys.base(paper("Nets", "Team 3b", year = 2020)))
+    }
+
+    @Test
+    fun ligaturesAndCapitalSharpSFold() {
+        assertEquals("strasse2020efficient", CiteKeys.base(paper("Eﬃcient Nets", "Anna STRAẞE", year = 2020)))
+    }
+
+    @Test
     fun suffixesRunAToZThenAa() {
         assertEquals("", keySuffix(0))
         assertEquals("a", keySuffix(1))

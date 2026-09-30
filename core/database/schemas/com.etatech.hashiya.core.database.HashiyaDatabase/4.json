@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 4,
-    "identityHash": "ea7d3eff4419770bf2b17d7e97b2805c",
+    "identityHash": "a2757c665f8dd3b30fa9ba2764f86ef4",
     "entities": [
       {
         "tableName": "papers",
@@ -457,7 +457,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ea7d3eff4419770bf2b17d7e97b2805c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a2757c665f8dd3b30fa9ba2764f86ef4')"
     ]
   }
 }

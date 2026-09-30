@@ -16,16 +16,16 @@ final class ShareFlowTests: XCTestCase {
         app.launch()
 
         let hashiya = app.cells["Hashiya"]
-        XCTAssertTrue(hashiya.waitForExistence(timeout: 15))
+        XCTAssertTrue(hashiya.waitForExistence(timeout: UITestTimeout.long))
         hashiya.tap()
 
-        XCTAssertTrue(app.staticTexts["Attention Is All You Need"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Attention Is All You Need"].waitForExistence(timeout: UITestTimeout.long))
         app.buttons["Save to library"].tap()
-        XCTAssertTrue(app.buttons["Remove from library"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Remove from library"].waitForExistence(timeout: UITestTimeout.long))
         app.buttons["Done"].tap()
 
         app.tabBars.buttons["Library"].tap()
-        XCTAssertTrue(app.staticTexts["1 paper"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["1 paper"].waitForExistence(timeout: UITestTimeout.long))
         let row = app.cells.containing(NSPredicate(format: "label BEGINSWITH %@", "Attention Is All You Need")).firstMatch
         XCTAssertTrue(row.exists)
     }

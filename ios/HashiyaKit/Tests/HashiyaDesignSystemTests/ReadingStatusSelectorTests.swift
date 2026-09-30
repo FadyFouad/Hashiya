@@ -36,18 +36,25 @@ struct ReadingStatusSelectorTests {
         #expect(inLanguage("ar") { ReadingStatus.allCases.map(readingStatusLabel) } == ["للقراءة", "قيد القراءة", "مقروءة"])
     }
 
-    @Test func thePreviewShowsTheSelectorOnlyWithAStatus() {
-        let withStatus = renderedStrings(of: PaperPreviewContent(
-            paper: SamplePapers.attention, inLibrary: true, status: .reading, onToggleSave: {}, onOpenDOI: nil
+    @Test func thePreviewShowsOpenDetailsOnlyWhenGiven() {
+        let with = renderedStrings(of: PaperPreviewContent(
+            paper: SamplePapers.attention, inLibrary: true, onToggleSave: {}, onOpenDOI: nil, onOpenDetails: {}
         ))
-        let withoutStatus = renderedStrings(of: PaperPreviewContent(
-            paper: SamplePapers.attention, inLibrary: false, onToggleSave: {}, onOpenDOI: nil
+        let without = renderedStrings(of: PaperPreviewContent(
+            paper: SamplePapers.attention, inLibrary: true, onToggleSave: {}, onOpenDOI: nil
         ))
 
-        #expect(["To read", "Reading", "Read"].allSatisfy(withStatus.contains))
-        #expect(withStatus.contains("Remove from library"))
-        #expect(!withoutStatus.contains("To read"))
-        #expect(withoutStatus.contains("Save to library"))
+        #expect(with.contains("Open details"))
+        #expect(with.contains("Remove from library"))
+        #expect(!without.contains("Open details"))
+    }
+
+    @Test func sharedStringsResolveInBothLanguages() {
+        #expect(inLanguage("en") { [DesignSystemStrings.abstract, DesignSystemStrings.noAbstract, DesignSystemStrings.openDOI, DesignSystemStrings.removeFromLibrary] }
+            == ["Abstract", "No abstract available", "Open DOI", "Remove from library"])
+        #expect(inLanguage("en") { DesignSystemStrings.openAccess(hasPDF: true) } == "Open access · PDF available")
+        #expect(inLanguage("ar") { DesignSystemStrings.openAccess(hasPDF: true) } == "وصول مفتوح · ملف PDF متاح")
+        #expect(inLanguage("ar") { DesignSystemStrings.removeFromLibrary } == "إزالة من المكتبة")
     }
 
     @Test func choosingAnotherSegmentCallsOnStatusChange() {

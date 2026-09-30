@@ -203,20 +203,6 @@ struct LibraryViewModelTests {
         })
     }
 
-    @Test func aStatusChangeOutOfTheChipKeepsThePreviewOpen() async {
-        let viewModel = makeViewModel(FakeLibraryRepository(saved: [SamplePapers.bert, SamplePapers.attention]))
-        viewModel.setStatusFilter(.toRead)
-        #expect(await eventually { viewModel.papers.count == 2 })
-        viewModel.select(SamplePapers.attention)
-        #expect(await eventually { viewModel.selectedPaper != nil })
-
-        await viewModel.setStatus(of: SamplePapers.attention, to: .read)
-
-        #expect(await eventually { ids(viewModel) == [SamplePapers.bert.openAlexID] })
-        #expect(await eventually { viewModel.selectedPaper == LibraryPaper(paper: SamplePapers.attention, status: .read) })
-        #expect(viewModel.selectedPaperID == SamplePapers.attention.openAlexID)
-    }
-
     @Test func aFailedStatusChangeShowsTheMessageAndKeepsTheStoredStatus() async {
         let library = FakeLibraryRepository(saved: [SamplePapers.attention])
         library.setFailStatusUpdates(true)
@@ -229,39 +215,36 @@ struct LibraryViewModelTests {
         #expect(viewModel.papers == [LibraryPaper(paper: SamplePapers.attention, status: .toRead)])
     }
 
-    @Test func selectingOpensThePreviewAndDismissingClosesIt() async {
-        let viewModel = makeViewModel(FakeLibraryRepository(saved: [SamplePapers.attention]))
-        #expect(await eventually { viewModel.isLoaded })
-
-        viewModel.select(SamplePapers.attention)
-        #expect(await eventually { viewModel.selectedPaper == LibraryPaper(paper: SamplePapers.attention, status: .toRead) })
-        viewModel.selectedPaperID = nil
-        #expect(viewModel.selectedPaper == nil)
-    }
-
-    @Test func removingOffersUndoAndClosesThePreview() async {
+    @Test func removingOffersUndo() async {
         let library = FakeLibraryRepository(saved: [SamplePapers.bert, SamplePapers.attention])
         let viewModel = makeViewModel(library)
         #expect(await eventually { viewModel.papers.count == 2 })
-        viewModel.select(SamplePapers.attention)
 
         await viewModel.remove(SamplePapers.attention)
 
-        #expect(viewModel.selectedPaperID == nil)
         #expect(viewModel.pendingUndo?.paper == SamplePapers.attention)
         #expect(await eventually { ids(viewModel) == [SamplePapers.bert.openAlexID] })
     }
 
-    @Test func theSheetClosesWhenThePaperDisappears() async throws {
-        let library = FakeLibraryRepository(saved: [SamplePapers.attention])
+    /// Remove on Details hands the paper back by its ID; Undo restores it with its status and notes.
+    @Test func removingByIDOffersUndoThatRestoresTheNotes() async {
+        let notes = PaperNotes(summary: "Kept")
+        let library = FakeLibraryRepository(
+            saved: [SamplePapers.bert, SamplePapers.attention],
+            statuses: [SamplePapers.attention.openAlexID: .reading],
+            notes: [SamplePapers.attention.openAlexID: notes]
+        )
         let viewModel = makeViewModel(library)
-        #expect(await eventually { viewModel.isLoaded })
-        viewModel.select(SamplePapers.attention)
+        #expect(await eventually { viewModel.papers.count == 2 })
 
-        _ = try await library.remove(openAlexID: SamplePapers.attention.openAlexID)
+        await viewModel.remove(openAlexID: SamplePapers.attention.openAlexID)
+        #expect(viewModel.pendingUndo?.notes == notes)
+        #expect(await eventually { viewModel.papers.count == 1 })
 
-        #expect(await eventually { viewModel.selectedPaperID == nil })
-        #expect(viewModel.selectedPaper == nil)
+        await viewModel.undo()
+
+        #expect(await eventually { viewModel.papers.contains(LibraryPaper(paper: SamplePapers.attention, status: .reading)) })
+        #expect(library.notes(of: SamplePapers.attention.openAlexID) == notes)
     }
 
     @Test func removingTheLastPaperDuringASearchShowsEmpty() async {

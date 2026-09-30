@@ -35,15 +35,16 @@ struct DesignSystemSnapshotTests {
         assertHashiyaSnapshots(of: preview, named: "previewNoDOI", arabicText: "حفظ في المكتبة")
     }
 
-    @Test func previewWithTheStatusSelector() {
+    /// A saved paper's sheet in Search: Open details above Open DOI and Remove.
+    @Test func previewWithOpenDetails() {
         let preview = PaperPreviewContent(
-            paper: SamplePapers.arabicTitled,
+            paper: SamplePapers.attention,
             inLibrary: true,
-            status: .reading,
             onToggleSave: {},
-            onOpenDOI: { _ in }
+            onOpenDOI: { _ in },
+            onOpenDetails: {}
         )
-        assertHashiyaSnapshots(of: preview, named: "previewStatus", arabicText: "قيد القراءة")
+        assertHashiyaSnapshots(of: preview, named: "previewOpenDetails", arabicText: "فتح التفاصيل")
     }
 
     @Test func messageStatesAndBanner() {

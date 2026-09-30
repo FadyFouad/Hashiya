@@ -41,6 +41,7 @@ targets:
           - HashiyaModel
           - FeatureSearch
           - FeatureLibrary
+          - FeaturePaperDetails
           - FeatureSettings
       - target: HashiyaShare
   HashiyaShare:
@@ -107,6 +108,7 @@ targets:
           - HashiyaModel
           - FeatureSearch
           - FeatureLibrary
+          - FeaturePaperDetails
           - FeatureSettings
 schemes:
   Hashiya:
@@ -129,6 +131,7 @@ schemes:
         - package: HashiyaKit/HashiyaDesignSystemTests
         - package: HashiyaKit/FeatureSearchTests
         - package: HashiyaKit/FeatureLibraryTests
+        - package: HashiyaKit/FeaturePaperDetailsTests
         - package: HashiyaKit/FeatureSettingsTests
         - name: HashiyaSnapshotTests
           parallelizable: false

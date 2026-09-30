@@ -6,6 +6,7 @@ import SwiftUI
 public struct SearchView: View {
     @Bindable private var viewModel: SearchViewModel
     private let onOpenSettings: () -> Void
+    private let onOpenPaper: (String) -> Void
 
     @SceneStorage(SearchSceneState.textKey) private var storedText = ""
     @SceneStorage(SearchSceneState.sortKey) private var storedSort = SearchSort.relevance.rawValue
@@ -16,11 +17,14 @@ public struct SearchView: View {
 
     @State private var showsYearRange = false
     @State private var isSearchActive = false
+    @State private var detailsRequest: String?
     @Environment(\.openURL) private var openURL
 
-    public init(viewModel: SearchViewModel, onOpenSettings: @escaping () -> Void) {
+    /// - Parameter onOpenPaper: Open details in a saved paper's sheet, with its OpenAlex ID, once the sheet is gone.
+    public init(viewModel: SearchViewModel, onOpenSettings: @escaping () -> Void, onOpenPaper: @escaping (String) -> Void = { _ in }) {
         self.viewModel = viewModel
         self.onOpenSettings = onOpenSettings
+        self.onOpenPaper = onOpenPaper
     }
 
     public var body: some View {
@@ -41,7 +45,7 @@ public struct SearchView: View {
                     .accessibilityLabel(Text(verbatim: L10n.string("search.settings")))
                 }
             }
-            .sheet(item: $viewModel.selectedPaper) { paper in
+            .sheet(item: $viewModel.selectedPaper, onDismiss: openRequestedDetails) { paper in
                 preview(paper)
             }
             .sheet(isPresented: $showsYearRange) {
@@ -89,14 +93,28 @@ public struct SearchView: View {
     }
 
     private func preview(_ paper: Paper) -> some View {
-        PaperPreviewContent(
+        let saved = viewModel.isSaved(paper)
+        return PaperPreviewContent(
             paper: paper,
-            inLibrary: viewModel.isSaved(paper),
+            inLibrary: saved,
             onToggleSave: { Task { await viewModel.toggleSave(paper) } },
-            onOpenDOI: openDOI
+            onOpenDOI: openDOI,
+            onOpenDetails: saved ? { openDetails(paper) } : nil
         )
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
+    }
+
+    /// Closes the sheet; Details is pushed once it is gone, so the push never overlaps the dismissal.
+    private func openDetails(_ paper: Paper) {
+        detailsRequest = paper.openAlexID
+        viewModel.selectedPaper = nil
+    }
+
+    private func openRequestedDetails() {
+        guard let id = detailsRequest else { return }
+        detailsRequest = nil
+        onOpenPaper(id)
     }
 
     private func openDOI(_ doi: String) {

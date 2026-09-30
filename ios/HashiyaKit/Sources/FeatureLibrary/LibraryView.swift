@@ -8,25 +8,29 @@ public struct LibraryView: View {
     private let onGoToSearch: () -> Void
     private let onAddPaper: () -> Void
     private let onOpenSettings: () -> Void
+    private let onOpenPaper: (String) -> Void
 
     /// Space under the list's last row, so the Add paper button never covers it.
     static let addPaperClearance: CGFloat = 88
 
     @SceneStorage(LibraryViewModel.queryKey) private var storedQuery = ""
     @SceneStorage(LibraryViewModel.statusKey) private var storedStatus = ""
-    @Environment(\.openURL) private var openURL
 
-    /// - Parameter onAddPaper: the Add paper button; the app opens Search ready for input.
+    /// - Parameters:
+    ///   - onAddPaper: the Add paper button; the app opens Search ready for input.
+    ///   - onOpenPaper: a row tap, with the paper's OpenAlex ID; the app pushes Details.
     public init(
         viewModel: LibraryViewModel,
         onGoToSearch: @escaping () -> Void,
         onAddPaper: @escaping () -> Void,
-        onOpenSettings: @escaping () -> Void
+        onOpenSettings: @escaping () -> Void,
+        onOpenPaper: @escaping (String) -> Void = { _ in }
     ) {
         self.viewModel = viewModel
         self.onGoToSearch = onGoToSearch
         self.onAddPaper = onAddPaper
         self.onOpenSettings = onOpenSettings
+        self.onOpenPaper = onOpenPaper
     }
 
     public var body: some View {
@@ -75,9 +79,6 @@ public struct LibraryView: View {
                     }
                     .accessibilityLabel(Text(verbatim: L10n.string("library.settings")))
                 }
-            }
-            .sheet(item: Binding(get: { viewModel.selectedPaper }, set: { viewModel.selectedPaperID = $0?.id })) { saved in
-                preview(saved)
             }
             .onAppear { viewModel.restore(text: storedQuery, status: storedStatus) }
             .onChange(of: viewModel.text) { _, text in storedQuery = text }
@@ -145,14 +146,14 @@ public struct LibraryView: View {
                     LibraryRow(paper: saved.paper)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
-                        .onTapGesture { viewModel.select(saved.paper) }
+                        .onTapGesture { onOpenPaper(saved.id) }
                         .accessibilityAddTraits(.isButton)
                     ReadingStatusBadge(status: saved.status) { status in
                         Task { await viewModel.setStatus(of: saved.paper, to: status) }
                     }
                     .padding(.top, 4)
                 }
-                // Keeps the badge's menu and the row's tap separate: tapping the badge never opens the preview.
+                // Keeps the badge's menu and the row's tap separate: tapping the badge never opens Details.
                 .buttonStyle(.borderless)
                 .listRowBackground(HashiyaColors.surface)
                 .listRowSeparatorTint(HashiyaColors.outlineVariant)
@@ -173,21 +174,6 @@ public struct LibraryView: View {
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.immediately)
         .contentMargins(.bottom, Self.addPaperClearance, for: .scrollContent)
-    }
-
-    private func preview(_ saved: LibraryPaper) -> some View {
-        PaperPreviewContent(
-            paper: saved.paper,
-            inLibrary: true,
-            status: saved.status,
-            onStatusChange: { status in Task { await viewModel.setStatus(of: saved.paper, to: status) } },
-            onToggleSave: { Task { await viewModel.remove(saved.paper) } },
-            onOpenDOI: { doi in
-                if let url = DOILink.url(for: doi) { openURL(url) }
-            }
-        )
-        .presentationDetents([.medium, .large])
-        .presentationDragIndicator(.visible)
     }
 }
 

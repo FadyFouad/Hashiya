@@ -154,6 +154,23 @@
         }
       }
     },
+    "designsystem.openDetails" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فتح التفاصيل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open details"
+          }
+        }
+      }
+    },
     "designsystem.removeFromLibrary" : {
       "extractionState" : "manual",
       "localizations" : {

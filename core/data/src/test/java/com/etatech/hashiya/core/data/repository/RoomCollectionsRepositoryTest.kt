@@ -77,6 +77,7 @@ class RoomCollectionsRepositoryTest {
         assertEquals(CollectionResult.Done(thesis), repository.rename(thesis, " thesis "))
         assertEquals(listOf("Other", "thesis"), names())
         assertEquals(CollectionResult.Done(thesis), repository.rename(thesis, "THESIS"))
+        // The same name again: the UPDATE still matches the row, so it is Done, not NotFound.
         assertEquals(CollectionResult.Done(thesis), repository.rename(thesis, "THESIS"))
         assertEquals(listOf("Other", "THESIS"), names())
     }

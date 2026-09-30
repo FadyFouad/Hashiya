@@ -25,7 +25,10 @@ interface CollectionsRepository {
     /** Deletes the collection; its papers stay in the library. */
     suspend fun delete(id: Long)
 
-    /** Adds or removes the paper. Adding a paper that isn't saved, or is already in the collection, does nothing. */
+    /**
+     * Adds or removes the paper. Adding a paper that isn't saved, or is already in the collection, does nothing.
+     * Adding to a collection that no longer exists throws, like any other failed change.
+     */
     suspend fun setMembership(collectionId: Long, openAlexId: String, member: Boolean)
 }
 

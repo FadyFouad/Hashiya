@@ -240,7 +240,7 @@ interface CollectionsRepository {
     fun observeCollections(): Flow<List<Collection>>
     fun observeCollectionIds(openAlexId: String): Flow<Set<Long>>
     suspend fun create(name: String): CollectionResult   // Created(id) | NameTaken | InvalidName
-    suspend fun rename(id: Long, name: String): CollectionResult
+    suspend fun rename(id: Long, name: String): CollectionResult   // also NotFound when the collection was deleted
     suspend fun delete(id: Long)
     suspend fun setMembership(collectionId: Long, openAlexId: String, member: Boolean)
 }

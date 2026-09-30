@@ -46,6 +46,18 @@ struct DesignSystemSnapshotTests {
         assertHashiyaSnapshots(of: preview, named: "previewStatus", arabicText: "قيد القراءة")
     }
 
+    /// A saved paper's sheet in Search: Open details above Open DOI and Remove.
+    @Test func previewWithOpenDetails() {
+        let preview = PaperPreviewContent(
+            paper: SamplePapers.attention,
+            inLibrary: true,
+            onToggleSave: {},
+            onOpenDOI: { _ in },
+            onOpenDetails: {}
+        )
+        assertHashiyaSnapshots(of: preview, named: "previewOpenDetails", arabicText: "فتح التفاصيل")
+    }
+
     @Test func messageStatesAndBanner() {
         let states = VStack(spacing: 0) {
             EmptyStateView(icon: "books.vertical", title: "Empty", message: "Message", actionTitle: "Action", action: {})

@@ -1,7 +1,7 @@
 import HashiyaModel
 import SwiftUI
 
-/// The preview sheet's body: the full paper, the reading status (Library only), then Open DOI and Save/Remove.
+/// The preview sheet's body: the full paper, the reading status (Library only), then Open details (saved papers in Search), Open DOI and Save/Remove.
 public struct PaperPreviewContent: View {
     private let paper: Paper
     private let inLibrary: Bool
@@ -9,17 +9,20 @@ public struct PaperPreviewContent: View {
     private let onStatusChange: (ReadingStatus) -> Void
     private let onToggleSave: () -> Void
     private let onOpenDOI: ((String) -> Void)?
+    private let onOpenDetails: (() -> Void)?
 
     /// - Parameters:
     ///   - status: the saved paper's status, shown as a segmented selector above the buttons; nil shows none.
     ///   - onOpenDOI: nil hides Open DOI.
+    ///   - onOpenDetails: nil hides Open details.
     public init(
         paper: Paper,
         inLibrary: Bool,
         status: ReadingStatus? = nil,
         onStatusChange: @escaping (ReadingStatus) -> Void = { _ in },
         onToggleSave: @escaping () -> Void,
-        onOpenDOI: ((String) -> Void)?
+        onOpenDOI: ((String) -> Void)?,
+        onOpenDetails: (() -> Void)? = nil
     ) {
         self.paper = paper
         self.inLibrary = inLibrary
@@ -27,6 +30,7 @@ public struct PaperPreviewContent: View {
         self.onStatusChange = onStatusChange
         self.onToggleSave = onToggleSave
         self.onOpenDOI = onOpenDOI
+        self.onOpenDetails = onOpenDetails
     }
 
     public var body: some View {
@@ -92,28 +96,42 @@ public struct PaperPreviewContent: View {
                     .padding(.bottom, 4)
             }
             HashiyaGlassGroup(spacing: 12) {
-                HStack(spacing: 12) {
-                    if let doi = paper.doi, let onOpenDOI {
-                        Button {
-                            onOpenDOI(doi)
-                        } label: {
+                VStack(spacing: 12) {
+                    if let onOpenDetails {
+                        Button(action: onOpenDetails) {
                             Label {
-                                Text(verbatim: L10n.string("designsystem.openDOI"))
+                                Text(verbatim: L10n.string("designsystem.openDetails"))
                             } icon: {
-                                Image(systemName: "arrow.up.forward.square")
+                                Image(systemName: "doc.text")
                             }
                             .font(.hashiya(.label))
                             .frame(maxWidth: .infinity)
                         }
                         .hashiyaSecondaryButton()
                     }
-                    Button(action: onToggleSave) {
-                        Text(verbatim: L10n.string(inLibrary ? "designsystem.removeFromLibrary" : "designsystem.saveToLibrary"))
-                            .font(.hashiya(.label))
-                            .foregroundStyle(HashiyaColors.onPrimary)
-                            .frame(maxWidth: .infinity)
+                    HStack(spacing: 12) {
+                        if let doi = paper.doi, let onOpenDOI {
+                            Button {
+                                onOpenDOI(doi)
+                            } label: {
+                                Label {
+                                    Text(verbatim: L10n.string("designsystem.openDOI"))
+                                } icon: {
+                                    Image(systemName: "arrow.up.forward.square")
+                                }
+                                .font(.hashiya(.label))
+                                .frame(maxWidth: .infinity)
+                            }
+                            .hashiyaSecondaryButton()
+                        }
+                        Button(action: onToggleSave) {
+                            Text(verbatim: L10n.string(inLibrary ? "designsystem.removeFromLibrary" : "designsystem.saveToLibrary"))
+                                .font(.hashiya(.label))
+                                .foregroundStyle(HashiyaColors.onPrimary)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .hashiyaProminentButton()
                     }
-                    .hashiyaProminentButton()
                 }
             }
             .controlSize(.large)

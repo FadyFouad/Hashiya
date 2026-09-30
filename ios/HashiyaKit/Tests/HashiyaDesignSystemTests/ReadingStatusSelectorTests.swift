@@ -50,6 +50,27 @@ struct ReadingStatusSelectorTests {
         #expect(withoutStatus.contains("Save to library"))
     }
 
+    @Test func thePreviewShowsOpenDetailsOnlyWhenGiven() {
+        let with = renderedStrings(of: PaperPreviewContent(
+            paper: SamplePapers.attention, inLibrary: true, onToggleSave: {}, onOpenDOI: nil, onOpenDetails: {}
+        ))
+        let without = renderedStrings(of: PaperPreviewContent(
+            paper: SamplePapers.attention, inLibrary: true, onToggleSave: {}, onOpenDOI: nil
+        ))
+
+        #expect(with.contains("Open details"))
+        #expect(with.contains("Remove from library"))
+        #expect(!without.contains("Open details"))
+    }
+
+    @Test func sharedStringsResolveInBothLanguages() {
+        #expect(inLanguage("en") { [DesignSystemStrings.abstract, DesignSystemStrings.noAbstract, DesignSystemStrings.openDOI, DesignSystemStrings.removeFromLibrary] }
+            == ["Abstract", "No abstract available", "Open DOI", "Remove from library"])
+        #expect(inLanguage("en") { DesignSystemStrings.openAccess(hasPDF: true) } == "Open access · PDF available")
+        #expect(inLanguage("ar") { DesignSystemStrings.openAccess(hasPDF: true) } == "وصول مفتوح · ملف PDF متاح")
+        #expect(inLanguage("ar") { DesignSystemStrings.removeFromLibrary } == "إزالة من المكتبة")
+    }
+
     @Test func choosingAnotherSegmentCallsOnStatusChange() {
         var received: [ReadingStatus] = []
         let selector = ReadingStatusSelector(status: .toRead) { received.append($0) }

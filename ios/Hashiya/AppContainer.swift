@@ -3,6 +3,7 @@ import FeatureSearch
 import FeatureSettings
 import Foundation
 import HashiyaData
+import HashiyaDesignSystem
 
 /// Owns the long-lived objects and creates the view models. Built once per app launch.
 @MainActor
@@ -27,6 +28,8 @@ final class AppContainer {
         // Tells a Debug Share Extension whether to use the UI tests' stubs; reset on every other launch.
         UITestingFlags.stubsEnabled = arguments.contains("-ui-testing")
         if arguments.contains("-ui-testing") {
+            // Slow CI simulators can take longer than 4 s to tap Undo; the tests never wait for a banner to go.
+            HashiyaBanner.duration = .seconds(30)
             return AppContainer(dependencies: UITestingStubs.dependencies(), appUpdateRepository: UITestingStubs.appUpdateRepository)
         }
         #endif

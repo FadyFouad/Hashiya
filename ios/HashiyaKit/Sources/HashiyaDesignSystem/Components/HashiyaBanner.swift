@@ -2,8 +2,9 @@ import SwiftUI
 
 /// A message at the bottom of the screen, with an optional action. Screens remove it after 4 s.
 public struct HashiyaBanner: View {
-    /// How long a banner stays on screen.
-    public static let duration: Duration = .seconds(4)
+    /// How long a banner stays on screen: 4 s. Debug builds launched for UI tests lengthen it, because a slow CI
+    /// simulator can take longer than that to reach the Undo button.
+    @MainActor public static var duration: Duration = .seconds(4)
 
     private let text: String
     private let actionTitle: String?

@@ -66,7 +66,7 @@ data class Paper(
     val publication: PublicationDetails = PublicationDetails()
 )
 
-data class Collection(val id: Long, val name: String, val paperCount: Int)
+data class PaperCollection(val id: Long, val name: String, val paperCount: Int)
 ```
 
 `PublicationDetails` keeps the OpenAlex strings as-is. `core/bibtex` interprets them, so a new OpenAlex type needs no migration.
@@ -122,20 +122,25 @@ Deleting a collection deletes its links, never its papers. Deleting a paper dele
 A new `CollectionDao`:
 
 - `observeCollections(): Flow<List<CollectionWithCount>>`, sorted by `name_key`;
-- `insert`, `rename` and `delete`, where `insert` and `rename` report a name clash instead of throwing;
-- `observeCollectionIdsForPaper(paperId)`;
-- `setMembership(collectionId, paperId, member: Boolean, addedAt)`.
+- `observeCollectionIdsForPaper(openAlexId)`;
+- `insertCollection`, `renameCollection` and `deleteCollection`, where `insertCollection` returns null and `renameCollection` returns false on a name clash instead of throwing. `renameCollection` also returns false when the collection no longer exists;
+- `collectionExists(id)`, which tells a clash from a deleted collection after a failed rename;
+- `addToCollection(collectionId, openAlexId, addedAt)`, which does nothing when the paper isn't saved or is already in the collection, and `removeFromCollection(collectionId, openAlexId)`.
 
 `PaperDao` changes:
 
 - `observeLibrary` and `observeStatusCounts` gain an optional `collectionId`. When it is set, they join `collection_papers`. The FTS match and status filter stay as they are.
 - `deleteByOpenAlexId` also captures the paper's collection links. `DeletedPaper` gains `collectionLinks: List<CollectionPaperEntity>`.
-- Restore reinserts the links whose collection still exists, in one transaction with the paper.
-- New queries:
-  - papers with `details_fetched = 0` in a set;
-  - `updatePublicationDetails(paperId, …)`, which also sets `details_fetched = 1`;
-  - `assignCiteKeys(Map<String, String>)`;
-  - `allCiteKeys()`.
+- Restore (`insertPaperWithAuthors`) reinserts the links whose collection still exists, and the cite key unless another paper took it meanwhile, in one transaction with the paper.
+
+A new `CitationDao`:
+
+- `getPapers(collectionId)`: every saved paper, or those in the collection, oldest saved first;
+- `getPaper(openAlexId)`;
+- `updatePublicationDetails(paperId, …)`, which also sets `details_fetched = 1`;
+- `markDetailsFetched(paperId)`, for a paper OpenAlex no longer has;
+- `assignCiteKeys(Map<String, String>)`, which stores every key or none;
+- `allCiteKeys()`.
 
 ### 5.4 Migration 3 → 4
 
@@ -237,9 +242,9 @@ If the title word folds to nothing it is left out. Leading digits are dropped fr
 
 ```kotlin
 interface CollectionsRepository {
-    fun observeCollections(): Flow<List<Collection>>
+    fun observeCollections(): Flow<List<PaperCollection>>
     fun observeCollectionIds(openAlexId: String): Flow<Set<Long>>
-    suspend fun create(name: String): CollectionResult   // Created(id) | NameTaken | InvalidName
+    suspend fun create(name: String): CollectionResult   // Done(id) | NameTaken | InvalidName
     suspend fun rename(id: Long, name: String): CollectionResult   // also NotFound when the collection was deleted
     suspend fun delete(id: Long)
     suspend fun setMembership(collectionId: Long, openAlexId: String, member: Boolean)
@@ -258,17 +263,19 @@ interface CitationRepository {
     suspend fun export(collectionId: Long?): CitationResult
 }
 
-/** [complete] is false when at least one paper still has details_fetched = 0 after the refetch attempt. */
+/** [complete] is false when at least one exported paper still has details_fetched = 0 after the refetch attempt. */
 data class CitationResult(val bibtex: String, val complete: Boolean)
 ```
 
 Both methods follow the same three steps:
 
-1. **Refetch.** For papers with `details_fetched = 0`, call `getWork` through the existing lookup, at most 4 at a time. Store the publication details and set the flag. A failure leaves the flag at 0 and doesn't stop the export.
+1. **Refetch.** For papers with `details_fetched = 0`, call `getWork` through the existing lookup, at most 4 at a time. Store the publication details and set the flag. A paper OpenAlex no longer has gets the flag too, because asking again would never help. A failure leaves the flag at 0 and doesn't stop the export.
 2. **Assign keys.** For papers without a cite key, in `saved_at` order, call `CiteKeys.assign` against `allCiteKeys()`, and store the keys in one transaction.
 3. **Build.** Call `BibTeX.entry` or `BibTeX.file`.
 
 Keys are assigned before building, so an entry never goes out without a stored key.
+
+`complete` is computed from the exported rows, which are read again after the refetch. A paper without an OpenAlex id has nothing to refetch and counts as complete.
 
 ## 8. Library (`feature/library`)
 
@@ -310,7 +317,7 @@ Keys are assigned before building, so an entry never goes out without a stored k
 - **Collections row:** it sits below the reading status. It shows the paper's collections as non-interactive chips, or "Not in any collection". The whole row is one button that opens the checklist sheet.
 - **Checklist sheet:**
   - One row per collection, with a checkbox. Toggling it calls `setMembership` immediately.
-  - Then **New collection**, which opens the same name dialog. On `Created(id)`, the paper is added to the new collection.
+  - Then **New collection**, which opens the same name dialog. On `Done(id)`, the paper is added to the new collection.
   - When there are no collections yet, the sheet shows only **New collection** and a line explaining it: "Group papers for a chapter, a course or a project."
 - **Copy BibTeX:** a new overflow item above **Remove from library**.
   - It calls `CitationRepository.entry` and puts the result on the clipboard as plain text, with the label "BibTeX".
@@ -352,6 +359,7 @@ The name dialog and its validation are shared by Library and Details, so they li
 | `details_bibtex_copied` | paperdetails | BibTeX copied | تم نسخ BibTeX |
 | `details_bibtex_incomplete` | paperdetails | Some details may be missing. Copy again when you\'re online. | قد تنقص بعض البيانات. انسخ مرة أخرى عند الاتصال بالإنترنت. |
 | `details_collections_update_failed` | paperdetails | Couldn\'t update collections | تعذّر تحديث المجموعات |
+| `details_copy_failed` | paperdetails | Couldn\'t copy BibTeX | تعذّر نسخ BibTeX |
 
 "BibTeX" and ".bib" stay in Latin script in Arabic, wrapped with a left-to-right mark where needed so the dot stays attached.
 
@@ -365,8 +373,11 @@ The name dialog and its validation are shared by Library and Details, so they li
 | Writing the file fails | The snackbar "Couldn't export" appears. The text is built in memory first, so no partial file is shared. |
 | No app can receive the share | The chooser shows its own empty state. Nothing else is needed. |
 | The selected collection is deleted elsewhere (from Details) | The Library falls back to All papers. |
-| A paper is removed while its export is running | The export uses the list read at the start. A missing row during key assignment is skipped. |
+| A paper is removed while its export is running | The rows are read again after the refetch and key assignment, so the removed paper drops out of the file. A paper saved meanwhile, without a key yet, is left out too. |
 | Unique-key clash when storing keys (a race with another export) | The transaction retries once with a fresh `allCiteKeys()`. |
+| Reading the database fails during Copy BibTeX | The snackbar "Couldn't copy BibTeX" appears. Nothing is copied. |
+| Undo into a collection deleted meanwhile | The Undo is dropped silently. There is nothing to put the paper back into. |
+| A swipe in a collection that was just deleted | Nothing happens. The swipe never removes the paper from the library. |
 
 ## 12. Testing
 

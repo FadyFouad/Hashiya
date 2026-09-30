@@ -117,9 +117,10 @@ class LibraryViewModel @Inject constructor(
                 // The collection list hasn't caught up with the selection (or it was just deleted): keep the last state.
                 results.collectionId != null && collection == null -> null
 
-                collection != null && results.viewSize == 0 -> LibraryUiState.CollectionEmpty(collection)
-
+                // Papers first: the view size is a separate query and can briefly lag behind the list (an Undo, say).
                 results.papers.isNotEmpty() -> LibraryUiState.Papers(results.papers, filter)
+
+                collection != null && results.viewSize == 0 -> LibraryUiState.CollectionEmpty(collection)
 
                 counted == 0 -> LibraryUiState.NoMatches(filter)
 
@@ -206,12 +207,14 @@ class LibraryViewModel @Inject constructor(
 
     /** A swipe: out of the selected collection when one is selected, otherwise out of the library. Both with Undo. */
     fun onRemove(paper: Paper) {
-        // collections is eager, so this is current even when nothing collects the header.
-        val collection = collections.value.firstOrNull { it.id == selectedId.value }
-        if (collection == null) {
+        val selected = selectedId.value
+        if (selected == null) {
             remove(paper.openAlexId)
             return
         }
+        // collections is eager, so this is current even when nothing collects the header. A collection deleted a moment ago
+        // (the fallback to All papers hasn't run yet) ignores the swipe: it must never remove the paper from the library.
+        val collection = collections.value.firstOrNull { it.id == selected } ?: return
         collectionChange {
             collectionsRepository.setMembership(collection.id, paper.openAlexId, member = false)
             _pendingCollectionUndo.value = CollectionRemoval(collection, paper.openAlexId)
@@ -242,6 +245,8 @@ class LibraryViewModel @Inject constructor(
     fun onUndoCollectionRemove() {
         val removal = _pendingCollectionUndo.value ?: return
         _pendingCollectionUndo.value = null
+        // The collection was deleted meanwhile: there is nothing to put the paper back into.
+        if (collections.value.none { it.id == removal.collection.id }) return
         collectionChange { collectionsRepository.setMembership(removal.collection.id, removal.openAlexId, member = true) }
     }
 

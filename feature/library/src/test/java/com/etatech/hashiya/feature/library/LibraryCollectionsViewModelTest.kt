@@ -132,6 +132,25 @@ class LibraryCollectionsViewModelTest {
     }
 
     @Test
+    fun undoIntoACollectionDeletedMeanwhileIsDropped() = runTest {
+        val thesis = thesis()
+        val viewModel = viewModel()
+        viewModel.onSelectCollection(thesis.id)
+        advanceUntilIdle()
+        viewModel.onRemove(SamplePapers.bert)
+        advanceUntilIdle()
+
+        collections.delete(thesis.id)
+        advanceUntilIdle()
+        viewModel.onUndoCollectionRemove()
+        advanceUntilIdle()
+
+        assertNull(viewModel.pendingCollectionUndo.value)
+        assertNull(viewModel.message.value)
+        assertEquals(3, viewModel.titles().size)
+    }
+
+    @Test
     fun swipeInAllPapersStillRemovesFromTheLibrary() = runTest {
         thesis()
         val viewModel = viewModel()

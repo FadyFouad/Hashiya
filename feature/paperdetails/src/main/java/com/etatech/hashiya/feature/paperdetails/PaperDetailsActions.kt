@@ -11,5 +11,11 @@ internal data class PaperDetailsActions(
     val onNoteChange: (NoteSection, String) -> Unit = { _, _ -> },
     val onRetrySave: () -> Unit = {},
     val onMessageShown: () -> Unit = {},
-    val onOpenLink: (String) -> Unit = {}
+    val onOpenLink: (String) -> Unit = {},
+    val onCopyBibTeX: () -> Unit = {},
+    val onToggleCollection: (Long, Boolean) -> Unit = { _, _ -> },
+    val onNewCollection: () -> Unit = {},
+    val onNewCollectionNameEdited: () -> Unit = {},
+    val onNewCollectionConfirm: (String) -> Unit = {},
+    val onNewCollectionDismiss: () -> Unit = {}
 )

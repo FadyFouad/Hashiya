@@ -4,6 +4,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etatech.hashiya.core.data.di.ApplicationScope
+import com.etatech.hashiya.core.data.repository.CitationRepository
+import com.etatech.hashiya.core.data.repository.CollectionResult
+import com.etatech.hashiya.core.data.repository.CollectionsRepository
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NoteSection
@@ -39,6 +42,8 @@ internal const val ARG_OPEN_ALEX_ID = "openAlexId"
 class PaperDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val libraryRepository: LibraryRepository,
+    private val collectionsRepository: CollectionsRepository,
+    private val citationRepository: CitationRepository,
     @ApplicationScope private val applicationScope: CoroutineScope
 ) : ViewModel() {
     val openAlexId: String = checkNotNull(savedStateHandle[ARG_OPEN_ALEX_ID]) { "PaperDetailsRoute needs an openAlexId" }
@@ -60,17 +65,25 @@ class PaperDetailsViewModel @Inject constructor(
     private val _exit = MutableStateFlow<PaperDetailsExit?>(null)
     val exit: StateFlow<PaperDetailsExit?> = _exit.asStateFlow()
 
+    private val _newCollectionDialog = MutableStateFlow<NewCollectionDialog?>(null)
+    val newCollectionDialog: StateFlow<NewCollectionDialog?> = _newCollectionDialog.asStateFlow()
+
+    private val _copied = MutableStateFlow<CopiedBibTeX?>(null)
+    val copied: StateFlow<CopiedBibTeX?> = _copied.asStateFlow()
+
     /** Eager, so a paper that is gone closes the screen even before anything collects the UI state. */
     private val paper: StateFlow<LibraryPaper?> = libraryRepository.observePaper(openAlexId)
         .onEach { if (it == null) _exit.compareAndSet(null, PaperDetailsExit.Closed) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    val uiState: StateFlow<PaperDetailsUiState> = combine(paper.filterNotNull(), notes.filterNotNull(), saveState) {
-            current,
-            typed,
-            state
-        ->
-        PaperDetailsUiState.Loaded(current, typed, state)
+    val uiState: StateFlow<PaperDetailsUiState> = combine(
+        paper.filterNotNull(),
+        notes.filterNotNull(),
+        saveState,
+        collectionsRepository.observeCollections(),
+        collectionsRepository.observeCollectionIds(openAlexId)
+    ) { current, typed, state, collections, memberOf ->
+        PaperDetailsUiState.Loaded(current, typed, state, collections, memberOf)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PaperDetailsUiState.Loading)
 
     init {
@@ -101,6 +114,61 @@ class PaperDetailsViewModel @Inject constructor(
         }
     }
 
+    /** Applied at once. On failure nothing changes, so the checklist shows the stored state again and a failed tick un-ticks. */
+    fun onToggleCollection(collectionId: Long, member: Boolean) {
+        collectionChange { collectionsRepository.setMembership(collectionId, openAlexId, member) }
+    }
+
+    fun onNewCollection() {
+        _newCollectionDialog.value = NewCollectionDialog()
+    }
+
+    fun onNewCollectionNameEdited() {
+        _newCollectionDialog.update { it?.copy(nameTaken = false) }
+    }
+
+    /** Creates the collection and puts this paper in it. */
+    fun onNewCollectionConfirm(name: String) {
+        collectionChange(closeDialogOnFailure = true) {
+            when (val result = collectionsRepository.create(name)) {
+                is CollectionResult.Done -> {
+                    collectionsRepository.setMembership(result.id, openAlexId, member = true)
+                    _newCollectionDialog.value = null
+                }
+
+                CollectionResult.NameTaken -> _newCollectionDialog.value = NewCollectionDialog(nameTaken = true)
+
+                // The dialog's button is disabled for invalid names, so this only happens on a race; keep the dialog open.
+                CollectionResult.InvalidName -> Unit
+
+                // Only rename returns NotFound; create never does, so just close the dialog.
+                CollectionResult.NotFound -> _newCollectionDialog.value = null
+            }
+        }
+    }
+
+    fun onNewCollectionDismiss() {
+        _newCollectionDialog.value = null
+    }
+
+    fun onCopyBibTeX() {
+        viewModelScope.launch {
+            try {
+                citationRepository.entry(openAlexId)?.let { _copied.value = CopiedBibTeX(it.bibtex, it.complete) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = PaperDetailsMessage.CopyFailed
+            }
+        }
+    }
+
+    /** The screen put [copied] on the clipboard; [confirmation] is what to show, from copyConfirmation. */
+    fun onCopyHandled(confirmation: PaperDetailsMessage?) {
+        _copied.value = null
+        if (confirmation != null) _message.value = confirmation
+    }
+
     fun onRetrySave() {
         viewModelScope.launch { notes.value?.let { save(it) } }
     }
@@ -128,6 +196,19 @@ class PaperDetailsViewModel @Inject constructor(
 
     override fun onCleared() {
         flushNotes()
+    }
+
+    private fun collectionChange(closeDialogOnFailure: Boolean = false, change: suspend () -> Unit) {
+        viewModelScope.launch {
+            try {
+                change()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (closeDialogOnFailure) _newCollectionDialog.value = null
+                _message.value = PaperDetailsMessage.CollectionsUpdateFailed
+            }
+        }
     }
 
     /** Returns false only when the write failed. */

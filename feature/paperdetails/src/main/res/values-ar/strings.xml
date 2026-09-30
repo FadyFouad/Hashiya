@@ -1,0 +1,24 @@
+<resources>
+    <string name="details_back">رجوع</string>
+    <string name="details_more_options">خيارات أخرى</string>
+    <string name="details_open_pdf">فتح ملف PDF</string>
+    <string name="details_notes_title">ملاحظاتي</string>
+    <string name="details_notes_saving">جارٍ الحفظ…</string>
+    <string name="details_notes_saved">تم الحفظ</string>
+    <string name="details_notes_save_failed">تعذّر الحفظ</string>
+    <string name="details_notes_save_failed_message">تعذّر حفظ ملاحظاتك</string>
+    <string name="details_retry">إعادة المحاولة</string>
+    <string name="details_status_update_failed">تعذّر تحديث الحالة</string>
+    <string name="note_summary">الخلاصة</string>
+    <string name="note_summary_hint">عمّ تتحدث هذه الورقة، بكلماتك أنت؟</string>
+    <string name="note_research_question">سؤال البحث</string>
+    <string name="note_research_question_hint">ما السؤال أو المشكلة التي تعالجها؟</string>
+    <string name="note_method">المنهجية</string>
+    <string name="note_method_hint">كيف تناولها المؤلفون؟</string>
+    <string name="note_key_findings">أهم النتائج</string>
+    <string name="note_key_findings_hint">ما الذي توصّلوا إليه؟</string>
+    <string name="note_limitations">القيود</string>
+    <string name="note_limitations_hint">ما نقاط ضعفها أو الأسئلة التي تتركها مفتوحة؟</string>
+    <string name="note_thoughts">أفكاري</string>
+    <string name="note_thoughts_hint">ما علاقتها ببحثك؟</string>
+</resources>

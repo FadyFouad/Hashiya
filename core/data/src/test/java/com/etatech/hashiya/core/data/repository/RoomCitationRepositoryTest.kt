@@ -100,6 +100,18 @@ class RoomCitationRepositoryTest {
     }
 
     @Test
+    fun onlyUnfetchedPapersAreRefetched() = runTest {
+        library.save(paper("W1", "Smith"))
+        saveUnfetched(paper("W2", "Jones"))
+        openAlex.works = mapOf("W2" to journalWork("W2"))
+
+        val result = repository().export(null)
+
+        assertEquals(listOf("W2"), openAlex.workRequests)
+        assertTrue(result.complete)
+    }
+
+    @Test
     fun unsavedPaperHasNoEntry() = runTest {
         assertNull(repository().entry("W404"))
     }

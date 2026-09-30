@@ -26,41 +26,41 @@ internal class RoomCitationRepository @Inject constructor(
 ) : CitationRepository {
     override suspend fun entry(openAlexId: String): CitationResult? {
         val stored = citationDao.getPaper(openAlexId) ?: return null
-        val complete = refetch(listOf(stored))
+        refetch(listOf(stored))
         assignMissingKeys()
         // Null when the paper was removed while its details were being fetched.
-        val citable = citationDao.getPaper(openAlexId)?.citable() ?: return null
-        return CitationResult(BibTeX.entry(citable), complete)
+        val row = citationDao.getPaper(openAlexId) ?: return null
+        val citable = row.citable() ?: return null
+        return CitationResult(BibTeX.entry(citable), row.hasDetails())
     }
 
     override suspend fun export(collectionId: Long?): CitationResult {
-        val complete = refetch(citationDao.getPapers(collectionId))
+        refetch(citationDao.getPapers(collectionId))
         assignMissingKeys()
         // Read again: papers removed meanwhile drop out. One saved after the keys were assigned has none yet and is left out too.
-        val papers = citationDao.getPapers(collectionId).mapNotNull { it.citable() }
-        return CitationResult(BibTeX.file(papers), complete)
+        val rows = citationDao.getPapers(collectionId).filter { it.paper.citeKey != null }
+        return CitationResult(BibTeX.file(rows.mapNotNull { it.citable() }), rows.all { it.hasDetails() })
     }
 
-    /** Returns true when every paper now has its details. A paper OpenAlex no longer has counts as done. */
-    private suspend fun refetch(rows: List<PaperWithAuthors>): Boolean {
-        val missing = rows.filter { !it.paper.detailsFetched }
-        if (missing.isEmpty()) return true
+    /** Fetches the details papers saved before v4 lack, at most [MAX_CONCURRENT_REFETCHES] at a time. */
+    private suspend fun refetch(rows: List<PaperWithAuthors>) {
+        val missing = rows.filter { !it.hasDetails() }
+        if (missing.isEmpty()) return
         val permits = Semaphore(MAX_CONCURRENT_REFETCHES)
-        val results = coroutineScope {
+        coroutineScope {
             missing.map { row ->
                 async { permits.withPermit { refetchOne(row) } }
             }.awaitAll()
         }
-        return results.all { it }
     }
 
-    /** False when the request failed: details_fetched stays 0, so the next export or copy asks again. */
-    private suspend fun refetchOne(row: PaperWithAuthors): Boolean {
-        val openAlexId = row.paper.openAlexId ?: return true
+    /** A failed request leaves details_fetched at 0, so the next export or copy asks again. */
+    private suspend fun refetchOne(row: PaperWithAuthors) {
+        val openAlexId = row.paper.openAlexId ?: return
         val work = try {
             openAlex.getWork(openAlexId)
         } catch (e: NetworkException) {
-            return false
+            return
         }
         // Both updates match no row if the paper was removed meanwhile.
         if (work == null) {
@@ -78,7 +78,6 @@ internal class RoomCitationRepository @Inject constructor(
                 lastPage = details.lastPage
             )
         }
-        return true
     }
 
     /**
@@ -101,4 +100,7 @@ internal class RoomCitationRepository @Inject constructor(
     }
 
     private fun PaperWithAuthors.citable(): CitablePaper? = paper.citeKey?.let { CitablePaper(asPaper(), it) }
+
+    /** Whether the stored details are as complete as they will get. A paper with no OpenAlex id has nothing to refetch. */
+    private fun PaperWithAuthors.hasDetails(): Boolean = paper.detailsFetched || paper.openAlexId == null
 }

@@ -13,7 +13,7 @@ abstract class CitationDao {
         """
         SELECT * FROM papers
         WHERE (:collectionId IS NULL OR id IN (SELECT paper_id FROM collection_papers WHERE collection_id = :collectionId))
-        ORDER BY saved_at ASC
+        ORDER BY saved_at ASC, rowid ASC
         """
     )
     abstract suspend fun getPapers(collectionId: Long?): List<PaperWithAuthors>

@@ -1,10 +1,15 @@
 package com.etatech.hashiya.core.testing
 
 import com.etatech.hashiya.core.model.LibraryPaper
+import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.ReadingStatus
+import java.io.IOException
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /** The fake must behave like the real repository, or feature tests prove nothing. */
@@ -64,5 +69,38 @@ class FakeLibraryRepositoryTest {
             mapOf(ReadingStatus.ToRead to 0, ReadingStatus.Reading to 0, ReadingStatus.Read to 1),
             repository.observeStatusCounts("naacl").first()
         )
+    }
+
+    @Test
+    fun keepsNotesLikeTheRoomRepository() = runTest {
+        repository.save(SamplePapers.bert)
+        assertEquals(PaperNotes(), repository.observeNotes(SamplePapers.bert.openAlexId).first())
+
+        repository.saveNotes(SamplePapers.bert.openAlexId, PaperNotes(method = "Masked language model"))
+        assertEquals(PaperNotes(method = "Masked language model"), repository.observeNotes(SamplePapers.bert.openAlexId).first())
+        assertEquals(listOf(SamplePapers.bert.title), titles("masked"))
+
+        val removed = repository.remove(SamplePapers.bert.openAlexId)!!
+        assertEquals(PaperNotes(method = "Masked language model"), removed.notes)
+        assertNull(repository.observePaper(SamplePapers.bert.openAlexId).first())
+        repository.restore(removed)
+        assertEquals(PaperNotes(method = "Masked language model"), repository.observeNotes(SamplePapers.bert.openAlexId).first())
+        assertEquals(LibraryPaper(SamplePapers.bert, ReadingStatus.ToRead), repository.observePaper(SamplePapers.bert.openAlexId).first())
+    }
+
+    @Test
+    fun notesForAnUnsavedPaperAreIgnoredButRecorded() = runTest {
+        repository.saveNotes("missing", PaperNotes(summary = "x"))
+
+        assertEquals(PaperNotes(), repository.observeNotes("missing").first())
+        assertEquals(listOf("missing" to PaperNotes(summary = "x")), repository.notesSaves)
+    }
+
+    @Test
+    fun failOnSaveNotesThrowsAndRecordsNothing() {
+        repository.failOnSaveNotes = true
+
+        assertThrows(IOException::class.java) { runBlocking { repository.saveNotes("W1", PaperNotes(summary = "x")) } }
+        assertEquals(emptyList<Pair<String, PaperNotes>>(), repository.notesSaves)
     }
 }

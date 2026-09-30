@@ -157,22 +157,23 @@ A new module using the `hashiya.android.feature` convention plugin, so its depen
 fun NavController.navigateToPaperDetails(openAlexId: String)
 fun NavGraphBuilder.paperDetailsScreen(onBack: () -> Unit, onRemove: (openAlexId: String) -> Unit)
 
-/** The key under which Details hands a removal back to the previous back stack entry's SavedStateHandle. */
-const val REMOVE_PAPER_RESULT = "remove_paper"
+// In feature/library and feature/search navigation, each feature owning its key:
+fun NavBackStackEntry.requestLibraryRemove(openAlexId: String)
+fun NavBackStackEntry.requestSearchRemove(openAlexId: String)
 ```
 
-- The route is pushed on top of Library or Search, and the bottom bar stays visible. `TopLevelDestination` matching doesn't change: the tab that opened Details stays selected.
-- **Remove:** `HashiyaApp` wires `onRemove` to set `REMOVE_PAPER_RESULT` on `previousBackStackEntry.savedStateHandle`, then `popBackStack()`.
-  - The Library entry collects the key and calls `LibraryViewModel.onRemove`, which shows the existing Undo snackbar, then clears the key.
-  - The Search entry does the same with a new `SearchViewModel.onRemove(openAlexId)`, which removes it the way the sheet's toggle does, with the same `RemoveFailed` message on failure.
+- The route is pushed on top of Library or Search. Like Settings, it is not a top-level destination, so the navigation bar is hidden while it is open (`HashiyaApp` already hides the bar for any route that isn't Library or Search).
+- **Remove:** `HashiyaApp` wires `onRemove` to call `requestLibraryRemove` or `requestSearchRemove` on `previousBackStackEntry`, whichever route it is, and then `popBackStack()`. Each sets a key in that entry's `SavedStateHandle`, which is the same instance its ViewModel was given.
+  - `LibraryViewModel` collects its key, clears it, and removes the paper the way a swipe does, showing the existing Undo snackbar.
+  - `SearchViewModel` collects its key, clears it, and removes the paper the way the sheet's toggle does, with the same `RemoveFailed` message on failure.
 - **Library:** `libraryScreen` gains `onOpenPaper: (openAlexId) -> Unit`. A row tap calls it.
 - **Search:** `searchScreen` gains `onOpenPaper`. The sheet's **Open details** button closes the sheet and then calls it.
 
 ### 6.2 Layout
 
-One `LazyColumn` (or a scrolling `Column`), top to bottom:
+One scrolling `Column` (a form of text fields keeps focus more reliably than in a lazy list), top to bottom:
 
-1. **Top app bar:** Back (auto-mirrored arrow). The title stays empty until the header scrolls away, then shows the paper title on one line. The overflow menu (**More options**) has one item, **Remove from library**.
+1. **Top app bar:** Back (auto-mirrored arrow) and no title, because the header below shows it. The overflow menu (**More options**) has one item, **Remove from library**.
 2. **Header:**
    - the title (`designsystem_untitled` when empty);
    - every author, comma-separated, in full;
@@ -215,10 +216,10 @@ enum class NotesSaveState { Idle, Saving, Saved, Failed }
 enum class PaperDetailsMessage { NotesSaveFailed, StatusUpdateFailed }
 ```
 
-Plus `message: StateFlow<PaperDetailsMessage?>` and `closeRequested: StateFlow<Boolean>`.
+Plus `message: StateFlow<PaperDetailsMessage?>` and `exit: StateFlow<PaperDetailsExit?>`, where `enum class PaperDetailsExit { Closed, Removed }` tells the screen to call `onBack` or `onRemove(id)`.
 
 - The id comes from `SavedStateHandle.toRoute<PaperDetailsRoute>()`.
-- The paper comes from `observePaper(id)`. When it emits null after a paper was shown (or as its first value), `closeRequested` becomes true and the screen calls `onBack`.
+- The paper comes from `observePaper(id)`. When it emits null (the paper isn't saved, or stops being saved), `exit` becomes `Closed`.
 - **Notes are read once:** the ViewModel takes the first value of `observeNotes(id)` into its own `MutableStateFlow<PaperNotes?>`. Later database emissions are ignored, so they can't overwrite text being typed. The state stays `Loading` until both the paper and the notes are in.
 
 ### 7.2 Autosave
@@ -239,7 +240,7 @@ Plus `message: StateFlow<PaperDetailsMessage?>` and `closeRequested: StateFlow<B
 ### 7.3 Other actions
 
 - `onStatusChange(status)`: calls `setStatus`, and on failure sets `StatusUpdateFailed`.
-- `onRemove()`: flushes notes first, so Undo restores what was just typed, then calls the screen's `onRemove(id)`.
+- `onRemove()`: waits for any unsaved notes to be written (in `viewModelScope`, so the removal can't overtake the save), then sets `exit` to `Removed`. Undo therefore restores what was just typed.
 
 ## 8. Strings (both locales)
 
@@ -319,8 +320,8 @@ All tests are written test-first and run on the JVM (Robolectric where Android i
     - the flush on `ON_STOP` and on `onCleared` saves pending notes at once, and saves nothing when there is nothing new;
     - a later `observeNotes` emission doesn't overwrite typed text;
     - a failing status change sets `StatusUpdateFailed`;
-    - the paper becoming null requests close;
-    - `onRemove` flushes before calling back.
+    - the paper becoming null sets `exit` to `Closed`;
+    - `onRemove` saves pending notes before setting `exit` to `Removed`.
   - `PaperDetailsContentTest`:
     - the header shows every author;
     - Untitled and no-abstract cases render;
@@ -346,9 +347,9 @@ All tests are written test-first and run on the JVM (Robolectric where Android i
   - `SearchViewModelTest`: `onRemove`.
 - **`app`:** `HashiyaAppNavigationTest`:
   - Library row → Details → back;
-  - Search sheet → Details;
+  - (Search sheet → Details needs OpenAlex results, which the app test can't fetch offline. `SearchContentTest` covers it, and the on-device checks cover the wiring.)
   - Remove on Details → Library with the Undo snackbar, and Undo brings the paper back;
-  - the bottom bar stays visible on Details.
+  - the navigation bar is hidden on Details, as on Settings.
 
 ## 11. Acceptance criteria (on device)
 

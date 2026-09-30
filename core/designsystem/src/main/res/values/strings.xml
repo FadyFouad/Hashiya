@@ -19,4 +19,11 @@
     <string name="designsystem_update_required_title">Update required</string>
     <string name="designsystem_update_required_message">This version of Hashiya is no longer supported. Update to keep using it. Your saved papers stay on your device.</string>
     <string name="designsystem_update_required_action">Update</string>
+    <string name="collection_name_label">Collection name</string>
+    <string name="collection_new_title">New collection</string>
+    <string name="collection_rename_title">Rename collection</string>
+    <string name="collection_create">Create</string>
+    <string name="collection_save">Save</string>
+    <string name="collection_cancel">Cancel</string>
+    <string name="collection_name_taken">A collection with that name already exists</string>
 </resources>

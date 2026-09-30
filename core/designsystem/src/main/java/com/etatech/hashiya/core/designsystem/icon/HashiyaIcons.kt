@@ -8,12 +8,15 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -37,4 +40,7 @@ object HashiyaIcons {
     val Add: ImageVector = Icons.Outlined.Add
     val Update: ImageVector = Icons.Outlined.SystemUpdate
     val MoreOptions: ImageVector = Icons.Outlined.MoreVert
+    val Export: ImageVector = Icons.Outlined.Share
+    val Copy: ImageVector = Icons.Outlined.ContentCopy
+    val Collection: ImageVector = Icons.Outlined.FolderOpen
 }

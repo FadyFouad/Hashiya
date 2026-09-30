@@ -19,4 +19,11 @@
     <string name="designsystem_update_required_title">يلزم التحديث</string>
     <string name="designsystem_update_required_message">لم يعد هذا الإصدار من حاشية مدعومًا. حدّث التطبيق لمتابعة استخدامه، وستبقى أوراقك المحفوظة على جهازك.</string>
     <string name="designsystem_update_required_action">تحديث</string>
+    <string name="collection_name_label">اسم المجموعة</string>
+    <string name="collection_new_title">مجموعة جديدة</string>
+    <string name="collection_rename_title">إعادة تسمية المجموعة</string>
+    <string name="collection_create">إنشاء</string>
+    <string name="collection_save">حفظ</string>
+    <string name="collection_cancel">إلغاء</string>
+    <string name="collection_name_taken">توجد مجموعة بهذا الاسم بالفعل</string>
 </resources>

@@ -4,6 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.ReadingStatus
+import com.etatech.hashiya.core.testing.FakeCitationRepository
+import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
@@ -30,10 +32,12 @@ class LibraryViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val repository = FakeLibraryRepository()
+    private val collections = FakeCollectionsRepository(repository)
+    private val citations = FakeCitationRepository()
     private val savedStateHandle = SavedStateHandle()
 
     private fun TestScope.viewModel(handle: SavedStateHandle = savedStateHandle): LibraryViewModel {
-        val viewModel = LibraryViewModel(handle, repository)
+        val viewModel = LibraryViewModel(handle, repository, collections, citations)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }
@@ -254,7 +258,8 @@ class LibraryViewModelTest {
     /** Removes the only paper, then undoes it, and returns every state shown along the way. */
     private suspend fun TestScope.statesWhileRemovingAndRestoringTheOnlyPaper(listLags: Boolean, countsLag: Boolean): List<LibraryUiState> {
         repository.save(SamplePapers.bert)
-        val viewModel = LibraryViewModel(SavedStateHandle(), LaggingLibraryRepository(repository, listLags, countsLag))
+        val lagging = LaggingLibraryRepository(repository, listLags, countsLag)
+        val viewModel = LibraryViewModel(SavedStateHandle(), lagging, collections, citations)
         val states = mutableListOf<LibraryUiState>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.toList(states) }
         advanceUntilIdle()

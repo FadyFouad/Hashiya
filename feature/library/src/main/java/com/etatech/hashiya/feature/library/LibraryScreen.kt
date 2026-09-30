@@ -125,6 +125,9 @@ internal fun LibraryContent(
                 actions.onMessageShown()
             }
 
+            // Not raised yet: nothing on this screen changes collections or exports.
+            LibraryMessage.CollectionsUpdateFailed, LibraryMessage.ExportFailed, LibraryMessage.ExportIncomplete -> actions.onMessageShown()
+
             null -> Unit
         }
     }
@@ -154,7 +157,7 @@ internal fun LibraryContent(
             val filter = when (uiState) {
                 is LibraryUiState.Papers -> uiState.filter
                 is LibraryUiState.NoMatches -> uiState.filter
-                LibraryUiState.Loading, LibraryUiState.Empty -> null
+                LibraryUiState.Loading, LibraryUiState.Empty, is LibraryUiState.CollectionEmpty -> null
             }
             // The same place in the tree for Papers and NoMatches, so the field keeps focus when nothing matches.
             if (filter != null) {
@@ -180,6 +183,9 @@ internal fun LibraryContent(
                         actionLabel = stringResource(R.string.library_no_matches_action),
                         onAction = actions.onClearSearchAndFilters
                     )
+
+                    // Not reachable yet: nothing on this screen selects a collection.
+                    is LibraryUiState.CollectionEmpty -> Unit
 
                     is LibraryUiState.Papers -> PaperList(uiState.papers, actions)
                 }

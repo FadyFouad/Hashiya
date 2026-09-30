@@ -11,7 +11,8 @@ data class Paper(
     val abstract: String?,
     val citationCount: Int,
     val isOpenAccess: Boolean,
-    val openAccessPdfUrl: String?
+    val openAccessPdfUrl: String?,
+    val publication: PublicationDetails = PublicationDetails()
 )
 
 data class Author(val name: String, val openAlexId: String?)

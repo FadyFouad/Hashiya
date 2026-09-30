@@ -26,6 +26,7 @@ dependencyResolutionManagement {
 rootProject.name = "Hashiya"
 include(":app")
 include(":core:model")
+include(":core:bibtex")
 include(":core:network")
 include(":core:database")
 include(":core:datastore")

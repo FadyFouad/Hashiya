@@ -37,20 +37,29 @@ public protocol LibraryRepository: Sendable {
     func restore(_ removed: RemovedPaper) async throws
     /// Makes every observation fetch again, so papers saved by the Share Extension appear. Failures are ignored.
     func refreshAfterExternalChanges() async
+    /// The saved paper with its status; nil when it isn't saved or stops being saved. Each call returns a new stream
+    /// starting with the current value.
+    func observePaper(openAlexID: String) -> AsyncStream<LibraryPaper?>
+    /// The paper's notes, read once; empty when it has none or isn't saved.
+    func notes(openAlexID: String) async throws -> PaperNotes
+    /// Saves the notes (blank notes delete them) and updates the search index. Not saved → no-op.
+    func saveNotes(openAlexID: String, notes: PaperNotes) async throws
 }
 
-/// What `remove` deleted, so Undo can put it back in the same place with the same status.
+/// What `remove` deleted, so Undo can put it back in the same place with the same status and notes.
 public struct RemovedPaper: Equatable, Sendable {
     public var paper: Paper
     public var localID: String
     public var savedAt: Int64
     public var status: ReadingStatus
+    public var notes: PaperNotes
 
-    public init(paper: Paper, localID: String, savedAt: Int64, status: ReadingStatus) {
+    public init(paper: Paper, localID: String, savedAt: Int64, status: ReadingStatus, notes: PaperNotes = PaperNotes()) {
         self.paper = paper
         self.localID = localID
         self.savedAt = savedAt
         self.status = status
+        self.notes = notes
     }
 }
 
@@ -107,16 +116,40 @@ public struct GRDBLibraryRepository: LibraryRepository {
     public func remove(openAlexID: String) async throws -> RemovedPaper? {
         guard let deleted = try await store.deleteByOpenAlexID(openAlexID) else { return nil }
         let saved = deleted.saved.asLibraryPaper()
-        return RemovedPaper(paper: saved.paper, localID: deleted.saved.paper.id, savedAt: deleted.saved.paper.savedAt, status: saved.status)
+        return RemovedPaper(
+            paper: saved.paper,
+            localID: deleted.saved.paper.id,
+            savedAt: deleted.saved.paper.savedAt,
+            status: saved.status,
+            notes: deleted.notes?.notes ?? PaperNotes()
+        )
     }
 
     public func restore(_ removed: RemovedPaper) async throws {
         let records = removed.paper.asRecords(localID: removed.localID, savedAt: removed.savedAt, status: removed.status)
-        try await store.insert(paper: records.paper, authors: records.authors, search: records.searchRow)
+        let notes = removed.notes.isEmpty ? nil : removed.notes
+        try await store.insert(
+            paper: records.paper,
+            authors: records.authors,
+            search: records.searchRow(notes: notes),
+            notes: notes.map { PaperNotesRecord(paperID: removed.localID, notes: $0, updatedAt: now()) }
+        )
     }
 
     public func refreshAfterExternalChanges() async {
         try? await store.notifyExternalChanges()
+    }
+
+    public func observePaper(openAlexID: String) -> AsyncStream<LibraryPaper?> {
+        store.observePaper(openAlexID: openAlexID).mapped { $0?.asLibraryPaper() }
+    }
+
+    public func notes(openAlexID: String) async throws -> PaperNotes {
+        try await store.notes(openAlexID: openAlexID)?.notes ?? PaperNotes()
+    }
+
+    public func saveNotes(openAlexID: String, notes: PaperNotes) async throws {
+        try await store.saveNotes(openAlexID: openAlexID, notes: notes, updatedAt: now())
     }
 }
 

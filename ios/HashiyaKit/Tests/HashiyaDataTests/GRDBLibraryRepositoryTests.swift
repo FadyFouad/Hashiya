@@ -247,4 +247,79 @@ struct GRDBLibraryRepositoryTests {
 
         #expect(await library.next()?.papers == [LibraryPaper(paper: SamplePapers.attention, status: .toRead)])
     }
+
+    // MARK: Notes
+
+    @Test func observePaperEmitsThePaperWithItsStatusThenNilAfterRemove() async throws {
+        try await repository.save(SamplePapers.attention)
+        try await repository.setStatus(openAlexID: SamplePapers.attention.openAlexID, status: .reading)
+
+        #expect(await value(of: repository.observePaper(openAlexID: SamplePapers.attention.openAlexID))
+            == .some(LibraryPaper(paper: SamplePapers.attention, status: .reading)))
+
+        _ = try await repository.remove(openAlexID: SamplePapers.attention.openAlexID)
+        #expect(await value(of: repository.observePaper(openAlexID: SamplePapers.attention.openAlexID)) == .some(nil))
+    }
+
+    @Test func notesAreEmptyWhenThereAreNoneOrThePaperIsNotSaved() async throws {
+        try await repository.save(paper("W1"))
+        #expect(try await repository.notes(openAlexID: "W1") == PaperNotes())
+        #expect(try await repository.notes(openAlexID: "W404") == PaperNotes())
+    }
+
+    @Test func savedNotesReadBack() async throws {
+        try await repository.save(paper("W1"))
+        let notes = PaperNotes(summary: "Transformers", method: "Self-attention", thoughts: "أفكار")
+
+        try await repository.saveNotes(openAlexID: "W1", notes: notes)
+
+        #expect(try await repository.notes(openAlexID: "W1") == notes)
+    }
+
+    @Test func savingNotesForAnUnsavedPaperDoesNothing() async throws {
+        try await repository.saveNotes(openAlexID: "W404", notes: PaperNotes(summary: "x"))
+        #expect(try await repository.notes(openAlexID: "W404") == PaperNotes())
+        #expect(await library()?.libraryTotal == 0)
+    }
+
+    @Test func theLibrarySearchFindsAWordOnlyInTheNotes() async throws {
+        try await repository.save(paper("W1", title: "Deep nets"))
+        try await repository.save(paper("W2", title: "Other"))
+        try await repository.saveNotes(openAlexID: "W1", notes: PaperNotes(keyFindings: "Ablation shows التَّعلُّم helps"))
+
+        #expect(await ids("ablation") == ["W1"])
+        #expect(await ids("التعلم") == ["W1"])
+        #expect(await ids("ABLAT deep") == ["W1"])
+        #expect(await ids("ablation other") == [])
+    }
+
+    @Test func removeThenRestoreKeepsTheNotesAndTheirSearch() async throws {
+        try await repository.save(paper("W1"))
+        try await repository.setStatus(openAlexID: "W1", status: .read)
+        let notes = PaperNotes(limitations: "Small sample")
+        try await repository.saveNotes(openAlexID: "W1", notes: notes)
+
+        let removed = try #require(try await repository.remove(openAlexID: "W1"))
+        #expect(removed.notes == notes)
+        #expect(removed.status == .read)
+        #expect(await ids("sample") == [])
+
+        try await repository.restore(removed)
+
+        #expect(try await repository.notes(openAlexID: "W1") == notes)
+        #expect(await ids("sample") == ["W1"])
+        #expect(await library()?.papers.first?.status == .read)
+    }
+
+    @Test func restoringAPaperWithoutNotesAddsNoNotes() async throws {
+        try await repository.save(paper("W1"))
+        let removed = try #require(try await repository.remove(openAlexID: "W1"))
+        #expect(removed.notes == PaperNotes())
+
+        try await repository.restore(removed)
+
+        #expect(try await repository.notes(openAlexID: "W1") == PaperNotes())
+        let rows = try await queue.read { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM paper_notes") }
+        #expect(rows == 0)
+    }
 }

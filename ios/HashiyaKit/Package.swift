@@ -17,6 +17,7 @@ let package = Package(
         .library(name: "HashiyaTesting", targets: ["HashiyaTesting"]),
         .library(name: "FeatureSearch", targets: ["FeatureSearch"]),
         .library(name: "FeatureLibrary", targets: ["FeatureLibrary"]),
+        .library(name: "FeaturePaperDetails", targets: ["FeaturePaperDetails"]),
         .library(name: "FeatureSettings", targets: ["FeatureSettings"]),
     ],
     dependencies: [
@@ -36,6 +37,11 @@ let package = Package(
         ),
         .target(
             name: "FeatureLibrary",
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem"],
+            resources: [.process("Resources")]
+        ),
+        .target(
+            name: "FeaturePaperDetails",
             dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem"],
             resources: [.process("Resources")]
         ),
@@ -67,6 +73,10 @@ let package = Package(
         .testTarget(
             name: "FeatureLibraryTests",
             dependencies: ["FeatureLibrary", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
+        ),
+        .testTarget(
+            name: "FeaturePaperDetailsTests",
+            dependencies: ["FeaturePaperDetails", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
         ),
         .testTarget(
             name: "FeatureSettingsTests",

@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.database.dao
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.etatech.hashiya.core.database.HashiyaDatabase
+import com.etatech.hashiya.core.database.model.CollectionPaperEntity
 import com.etatech.hashiya.core.database.model.PaperAuthorEntity
 import com.etatech.hashiya.core.database.model.PaperEntity
 import com.etatech.hashiya.core.database.model.StatusCount
@@ -76,7 +77,8 @@ class PaperDaoTest {
         it.getInt(0)
     }
 
-    private suspend fun ids(match: String? = null, status: String? = null) = dao.observeLibrary(match, status).first().map { it.paper.id }
+    private suspend fun ids(match: String? = null, status: String? = null, collectionId: Long? = null) =
+        dao.observeLibrary(match, status, collectionId).first().map { it.paper.id }
 
     private fun searchNotes(paperId: String): String = db.query("SELECT notes FROM paper_search WHERE paper_id = ?", arrayOf(paperId)).use {
         it.moveToFirst()
@@ -95,7 +97,7 @@ class PaperDaoTest {
     fun keepsAuthorPositions() = runTest {
         save(paper("a", "W1", 100), "First", "Second", "Third")
 
-        val saved = dao.observeLibrary(null, null).first().single()
+        val saved = dao.observeLibrary(null, null, null).first().single()
         assertEquals(listOf("First", "Second", "Third"), saved.authors.sortedBy { it.position }.map { it.name })
     }
 
@@ -104,7 +106,7 @@ class PaperDaoTest {
         assertTrue(save(paper("a", "W1", 100), "Ada"))
         assertFalse(save(paper("other-id", "W1", 999), "Ada"))
 
-        val saved = dao.observeLibrary(null, null).first()
+        val saved = dao.observeLibrary(null, null, null).first()
         assertEquals(1, saved.size)
         assertEquals(100L, saved.single().paper.savedAt)
         assertEquals(1, count("paper_authors"))
@@ -128,7 +130,7 @@ class PaperDaoTest {
         assertEquals("a", removed?.paper?.paper?.id)
         assertEquals(2, removed?.paper?.authors?.size)
         assertNull(removed?.notes)
-        assertTrue(dao.observeLibrary(null, null).first().isEmpty())
+        assertTrue(dao.observeLibrary(null, null, null).first().isEmpty())
         assertEquals(0, count("paper_authors"))
         assertEquals(0, count("paper_search"))
     }
@@ -141,7 +143,7 @@ class PaperDaoTest {
 
         save(removed.paper.paper, "Ada")
 
-        val saved = dao.observeLibrary(null, null).first()
+        val saved = dao.observeLibrary(null, null, null).first()
         assertEquals(listOf("b", "a"), saved.map { it.paper.id })
         assertEquals(100L, saved.last().paper.savedAt)
         assertEquals("reading", saved.last().paper.readingStatus)
@@ -211,13 +213,13 @@ class PaperDaoTest {
 
         assertEquals(
             setOf(StatusCount("reading", 2), StatusCount("to_read", 1)),
-            dao.observeStatusCounts(null).first().toSet()
+            dao.observeStatusCounts(null, null).first().toSet()
         )
         assertEquals(
             setOf(StatusCount("reading", 1), StatusCount("to_read", 1)),
-            dao.observeStatusCounts("\"transf*\"").first().toSet()
+            dao.observeStatusCounts("\"transf*\"", null).first().toSet()
         )
-        assertEquals(emptyList<StatusCount>(), dao.observeStatusCounts("\"missing*\"").first())
+        assertEquals(emptyList<StatusCount>(), dao.observeStatusCounts("\"missing*\"", null).first())
     }
 
     @Test
@@ -330,5 +332,100 @@ class PaperDaoTest {
 
         assertEquals(notes, dao.observeNotes("W1").first()?.asPaperNotes())
         assertEquals(listOf("a"), ids(match = "\"chapter*\""))
+    }
+
+    @Test
+    fun libraryAndCountsCanBeLimitedToACollection() = runTest {
+        save(paper("a", "W1", 100, title = "Graph networks", status = "read"), "Ada")
+        save(paper("b", "W2", 200, title = "Graph kernels"), "Bo")
+        save(paper("c", "W3", 300, title = "Other"), "Cy")
+        val collections = db.collectionDao()
+        val id = checkNotNull(collections.insertCollection("A", "a", createdAt = 1))
+        collections.addToCollection(id, "W1", addedAt = 1)
+        collections.addToCollection(id, "W3", addedAt = 1)
+
+        assertEquals(listOf("c", "a"), ids(collectionId = id))
+        assertEquals(listOf("a"), ids(match = "\"graph*\"", collectionId = id))
+        assertEquals(listOf("a"), ids(status = "read", collectionId = id))
+        assertEquals(
+            listOf(StatusCount("read", 1), StatusCount("to_read", 1)),
+            dao.observeStatusCounts(null, id).first().sortedBy { it.readingStatus }
+        )
+    }
+
+    @Test
+    fun deleteCapturesCollectionLinksAndRestoreSkipsDeletedCollections() = runTest {
+        save(paper("a", "W1", 100), "Ada")
+        val collections = db.collectionDao()
+        val kept = checkNotNull(collections.insertCollection("Kept", "kept", createdAt = 1))
+        val gone = checkNotNull(collections.insertCollection("Gone", "gone", createdAt = 1))
+        collections.addToCollection(kept, "W1", addedAt = 5)
+        collections.addToCollection(gone, "W1", addedAt = 6)
+
+        val deleted = checkNotNull(dao.deleteByOpenAlexId("W1"))
+        assertEquals(
+            setOf(CollectionPaperEntity(kept, "a", 5), CollectionPaperEntity(gone, "a", 6)),
+            deleted.collectionLinks.toSet()
+        )
+        assertEquals(0, count("collection_papers"))
+        collections.deleteCollection(gone)
+
+        val row = deleted.paper
+        assertTrue(
+            dao.insertPaperWithAuthors(
+                row.paper,
+                row.authors,
+                searchEntityFor(row.paper.id, row.paper.title, row.authors.map { it.name }, null, null),
+                collectionLinks = deleted.collectionLinks
+            )
+        )
+        assertEquals(listOf(kept), collections.observeCollectionIdsForPaper("W1").first())
+    }
+
+    @Test
+    fun restoreDropsACiteKeyAnotherPaperTookMeanwhile() = runTest {
+        save(paper("a", "W1", 100).copy(citeKey = "ada2020title"), "Ada")
+        val deleted = checkNotNull(dao.deleteByOpenAlexId("W1"))
+        save(paper("b", "W2", 200).copy(citeKey = "ada2020title"), "Bo")
+
+        val row = deleted.paper
+        val restored = dao.insertPaperWithAuthors(
+            row.paper,
+            row.authors,
+            searchEntityFor(row.paper.id, row.paper.title, row.authors.map { it.name }, null, null)
+        )
+
+        assertTrue(restored)
+        assertEquals(listOf("b", "a"), ids())
+        assertEquals(null, dao.observeByOpenAlexId("W1").first()?.paper?.citeKey)
+        assertEquals("ada2020title", dao.observeByOpenAlexId("W2").first()?.paper?.citeKey)
+    }
+
+    @Test
+    fun restoreKeepsItsCiteKeyWhenNoOneTookIt() = runTest {
+        save(paper("a", "W1", 100).copy(citeKey = "ada2020title"), "Ada")
+        val deleted = checkNotNull(dao.deleteByOpenAlexId("W1"))
+
+        val row = deleted.paper
+        assertTrue(
+            dao.insertPaperWithAuthors(
+                row.paper,
+                row.authors,
+                searchEntityFor(row.paper.id, row.paper.title, row.authors.map { it.name }, null, null)
+            )
+        )
+
+        assertEquals("ada2020title", dao.observeByOpenAlexId("W1").first()?.paper?.citeKey)
+    }
+
+    @Test
+    fun savingAnAlreadySavedPaperWithACiteKeyIsStillANoOp() = runTest {
+        assertTrue(save(paper("a", "W1", 100).copy(citeKey = "ada2020title"), "Ada"))
+
+        assertFalse(save(paper("a", "W1", 999).copy(citeKey = "ada2020title"), "Ada"))
+
+        assertEquals(100L, dao.observeByOpenAlexId("W1").first()?.paper?.savedAt)
+        assertEquals("ada2020title", dao.observeByOpenAlexId("W1").first()?.paper?.citeKey)
+        assertEquals(1, count("paper_authors"))
     }
 }

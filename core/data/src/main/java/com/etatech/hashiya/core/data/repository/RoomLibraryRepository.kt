@@ -23,12 +23,12 @@ internal class RoomLibraryRepository(private val paperDao: PaperDao, private val
     constructor(paperDao: PaperDao) : this(paperDao, System::currentTimeMillis, { UUID.randomUUID().toString() })
 
     override fun observeLibrary(query: String, status: ReadingStatus?): Flow<List<LibraryPaper>> =
-        paperDao.observeLibrary(ftsMatch(query), status?.storedValue).map { rows ->
+        paperDao.observeLibrary(ftsMatch(query), status?.storedValue, null).map { rows ->
             rows.map { LibraryPaper(it.asPaper(), readingStatusOf(it.paper.readingStatus)) }
         }
 
     override fun observeStatusCounts(query: String): Flow<Map<ReadingStatus, Int>> =
-        paperDao.observeStatusCounts(ftsMatch(query)).map { rows ->
+        paperDao.observeStatusCounts(ftsMatch(query), null).map { rows ->
             // Unknown stored values read as To read, so they are counted there too.
             val counts = ReadingStatus.entries.associateWith { 0 }.toMutableMap()
             rows.forEach { row -> counts.merge(readingStatusOf(row.readingStatus), row.count, Int::plus) }

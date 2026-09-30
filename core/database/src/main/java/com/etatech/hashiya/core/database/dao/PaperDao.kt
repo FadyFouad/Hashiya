@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import com.etatech.hashiya.core.database.model.CollectionPaperEntity
 import com.etatech.hashiya.core.database.model.DeletedPaper
 import com.etatech.hashiya.core.database.model.PaperAuthorEntity
 import com.etatech.hashiya.core.database.model.PaperEntity
@@ -20,27 +21,31 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class PaperDao {
-    /** Newest saved first. [match] is an FTS MATCH expression and [status] a stored status; null means "any". */
+    /** Newest saved first. [match] is an FTS MATCH expression, [status] a stored status, [collectionId] a collection; null means "any". */
     @Transaction
     @Query(
         """
         SELECT papers.* FROM papers
         WHERE (:match IS NULL OR papers.id IN (SELECT paper_id FROM paper_search WHERE paper_search MATCH :match))
           AND (:status IS NULL OR papers.reading_status = :status)
+          AND (:collectionId IS NULL OR papers.id IN (SELECT paper_id FROM collection_papers WHERE collection_id = :collectionId))
         ORDER BY papers.saved_at DESC
         """
     )
-    abstract fun observeLibrary(match: String?, status: String?): Flow<List<PaperWithAuthors>>
+    abstract fun observeLibrary(match: String?, status: String?, collectionId: Long?): Flow<List<PaperWithAuthors>>
 
-    /** How many papers matching [match] (null = all) have each stored status. Statuses with none are missing. */
+    /**
+     * How many papers matching [match] (null = all) in [collectionId] (null = all) have each stored status. Statuses with none are missing.
+     */
     @Query(
         """
         SELECT reading_status, COUNT(*) AS count FROM papers
         WHERE (:match IS NULL OR papers.id IN (SELECT paper_id FROM paper_search WHERE paper_search MATCH :match))
+          AND (:collectionId IS NULL OR papers.id IN (SELECT paper_id FROM collection_papers WHERE collection_id = :collectionId))
         GROUP BY reading_status
         """
     )
-    abstract fun observeStatusCounts(match: String?): Flow<List<StatusCount>>
+    abstract fun observeStatusCounts(match: String?, collectionId: Long?): Flow<List<StatusCount>>
 
     @Query("SELECT open_alex_id FROM papers WHERE open_alex_id IS NOT NULL")
     abstract fun observeSavedOpenAlexIds(): Flow<List<String>>
@@ -100,34 +105,60 @@ abstract class PaperDao {
     @Query("UPDATE paper_search SET notes = :text WHERE paper_id = :paperId")
     protected abstract suspend fun setSearchNotes(paperId: String, text: String)
 
+    @Query("SELECT * FROM collection_papers WHERE paper_id = :paperId")
+    protected abstract suspend fun getCollectionLinks(paperId: String): List<CollectionPaperEntity>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM papers WHERE cite_key = :citeKey)")
+    protected abstract suspend fun citeKeyTaken(citeKey: String): Boolean
+
+    @Query(
+        """
+        INSERT OR IGNORE INTO collection_papers (collection_id, paper_id, added_at)
+        SELECT id, :paperId, :addedAt FROM collections WHERE id = :collectionId
+        """
+    )
+    protected abstract suspend fun insertLinkIfCollectionExists(collectionId: Long, paperId: String, addedAt: Long)
+
     /**
-     * Writes the paper, its authors, its search row and (on a restore) its [notes] atomically.
-     * Returns false, writing nothing, if it is already saved. [search] must already hold the notes' search text.
+     * Writes the paper, its authors, its search row and (on a restore) its [notes] and [collectionLinks] atomically.
+     * Links to collections deleted meanwhile are skipped, and a cite key another paper took meanwhile is dropped (it is
+     * reassigned on the next export). Returns false, writing nothing, if it is already saved. [search] must already hold the
+     * notes' search text.
      */
     @Transaction
     open suspend fun insertPaperWithAuthors(
         paper: PaperEntity,
         authors: List<PaperAuthorEntity>,
         search: PaperSearchEntity,
-        notes: PaperNotesEntity? = null
+        notes: PaperNotesEntity? = null,
+        collectionLinks: List<CollectionPaperEntity> = emptyList()
     ): Boolean {
         require(search.paperId == paper.id) { "The search row must belong to the paper" }
         require(notes == null || notes.paperId == paper.id) { "The notes must belong to the paper" }
-        if (insertPaper(paper) == -1L) return false
+        require(collectionLinks.all { it.paperId == paper.id }) { "The collection links must belong to the paper" }
+        // An already saved paper holds its own key, so its copy loses the key here, but the insert is ignored anyway.
+        val key = paper.citeKey
+        val row = if (key != null && citeKeyTaken(key)) paper.copy(citeKey = null) else paper
+        if (insertPaper(row) == -1L) return false
         insertAuthors(authors)
         insertSearch(search)
         notes?.let { upsertNotes(it) }
+        collectionLinks.forEach { insertLinkIfCollectionExists(it.collectionId, it.paperId, it.addedAt) }
         return true
     }
 
-    /** Deletes the paper (authors and notes cascade) and its search row, and returns what was deleted, so it can be restored. */
+    /**
+     * Deletes the paper (authors, notes and collection links cascade) and its search row, and returns what was deleted, so it can be
+     * restored.
+     */
     @Transaction
     open suspend fun deleteByOpenAlexId(openAlexId: String): DeletedPaper? {
         val existing = getByOpenAlexId(openAlexId) ?: return null
         val notes = getNotes(existing.paper.id)
+        val links = getCollectionLinks(existing.paper.id)
         deleteById(existing.paper.id)
         deleteSearchById(existing.paper.id)
-        return DeletedPaper(existing, notes)
+        return DeletedPaper(existing, notes, links)
     }
 
     /**

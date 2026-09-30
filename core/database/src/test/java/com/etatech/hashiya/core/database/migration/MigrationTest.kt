@@ -68,9 +68,40 @@ class MigrationTest {
         }
     }
 
+    /** A version 3 library as sub-project 4 left it: one paper with a note and a status, one bare. */
+    private fun createVersion3() {
+        helper.createDatabase(DB_NAME, 3).use { db ->
+            db.execSQL(
+                "INSERT INTO papers (id, open_alex_id, doi, title, year, venue, abstract, citation_count, is_open_access, " +
+                    "oa_pdf_url, saved_at, reading_status) VALUES ('a', 'W1', '10.48550/arxiv.1706.03762', " +
+                    "'Attention Is All You Need', 2017, 'Neural Information Processing Systems', " +
+                    "'The dominant sequence transduction models', 128412, 1, NULL, 100, 'read')"
+            )
+            db.execSQL("INSERT INTO paper_authors (paper_id, position, name, open_alex_author_id) VALUES ('a', 0, 'Ashish Vaswani', NULL)")
+            db.execSQL(
+                "INSERT INTO papers (id, open_alex_id, doi, title, year, venue, abstract, citation_count, is_open_access, " +
+                    "oa_pdf_url, saved_at, reading_status) VALUES ('b', 'W2', NULL, 'تطبيقات التَّعلُّم العميق', NULL, NULL, NULL, 0, 0, " +
+                    "NULL, 200, 'to_read')"
+            )
+            db.execSQL(
+                "INSERT INTO paper_notes (paper_id, summary, research_question, method, key_findings, limitations, thoughts, updated_at) " +
+                    "VALUES ('a', 'Transformers', '', 'Ablation study', '', '', '', 5)"
+            )
+            db.execSQL(
+                "INSERT INTO paper_search (paper_id, title, authors, abstract, venue, notes) VALUES ('a', 'attention is all you need', " +
+                    "'ashish vaswani', 'the dominant sequence transduction models', 'neural information processing systems', " +
+                    "'transformers ablation study')"
+            )
+            db.execSQL(
+                "INSERT INTO paper_search (paper_id, title, authors, abstract, venue, notes) " +
+                    "VALUES ('b', 'تطبيقات التعلم العميق', '', '', '', '')"
+            )
+        }
+    }
+
     private fun openWithRoom(): HashiyaDatabase =
         Room.databaseBuilder(ApplicationProvider.getApplicationContext(), HashiyaDatabase::class.java, DB_NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .allowMainThreadQueries()
             .build()
 
@@ -101,9 +132,9 @@ class MigrationTest {
         val database = openWithRoom()
         try {
             val dao = database.paperDao()
-            suspend fun ids(match: String) = dao.observeLibrary(match, null).first().map { it.paper.id }
+            suspend fun ids(match: String) = dao.observeLibrary(match, null, null).first().map { it.paper.id }
 
-            assertEquals(listOf("b", "a"), dao.observeLibrary(null, null).first().map { it.paper.id })
+            assertEquals(listOf("b", "a"), dao.observeLibrary(null, null, null).first().map { it.paper.id })
             assertEquals(listOf("a"), ids("\"attention*\""))
             assertEquals(listOf("a"), ids("\"shazeer*\""))
             assertEquals(listOf("a"), ids("\"transduction*\""))
@@ -137,7 +168,7 @@ class MigrationTest {
         val database = openWithRoom()
         try {
             val dao = database.paperDao()
-            suspend fun ids(match: String) = dao.observeLibrary(match, null).first().map { it.paper.id }
+            suspend fun ids(match: String) = dao.observeLibrary(match, null, null).first().map { it.paper.id }
 
             assertEquals(listOf("a"), ids("\"shazeer*\""))
             assertEquals(listOf("a"), ids("\"transduction*\""))
@@ -158,6 +189,64 @@ class MigrationTest {
             assertEquals(
                 listOf("a:attention is all you need:"),
                 db.strings("SELECT paper_id || ':' || title || ':' || notes FROM paper_search WHERE paper_id = 'a'")
+            )
+        }
+    }
+
+    @Test
+    fun migration3To4KeepsEverythingAndValidatesAgainstVersion4Schema() {
+        createVersion3()
+
+        // Validates every table and index, including collections, collection_papers and the cite_key index, against 4.json.
+        helper.runMigrationsAndValidate(DB_NAME, 4, true, MIGRATION_3_4).use { db ->
+            assertEquals(listOf("a:read", "b:to_read"), db.strings("SELECT id || ':' || reading_status FROM papers ORDER BY id"))
+            assertEquals(listOf("Ablation study"), db.strings("SELECT method FROM paper_notes"))
+            assertEquals(
+                listOf("a:transformers ablation study", "b:"),
+                db.strings("SELECT paper_id || ':' || notes FROM paper_search ORDER BY paper_id")
+            )
+            assertEquals(
+                listOf("a:0:1:1", "b:0:1:1"),
+                db.strings(
+                    "SELECT id || ':' || details_fetched || ':' || (cite_key IS NULL) || ':' || (work_type IS NULL AND volume IS NULL) " +
+                        "FROM papers ORDER BY id"
+                )
+            )
+            assertEquals(listOf("0"), db.strings("SELECT COUNT(*) FROM collections"))
+            assertEquals(listOf("0"), db.strings("SELECT COUNT(*) FROM collection_papers"))
+        }
+    }
+
+    @Test
+    fun libraryMigratedFromVersion3IsSearchableAndTakesCollections() = runTest {
+        createVersion3()
+        helper.runMigrationsAndValidate(DB_NAME, 4, true, MIGRATION_3_4).close()
+
+        val database = openWithRoom()
+        try {
+            val dao = database.paperDao()
+            suspend fun ids(match: String?, collectionId: Long? = null) =
+                dao.observeLibrary(match, null, collectionId).first().map { it.paper.id }
+
+            assertEquals(listOf("a"), ids("\"ablation*\""))
+            assertEquals(listOf("b"), ids("\"التعلم*\""))
+            val collections = database.collectionDao()
+            val id = checkNotNull(collections.insertCollection("Thesis", "thesis", createdAt = 1))
+            collections.addToCollection(id, "W1", addedAt = 2)
+            assertEquals(listOf("a"), ids(null, id))
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun version1LibraryMigratesAllTheWayToVersion4() {
+        createVersion1()
+
+        helper.runMigrationsAndValidate(DB_NAME, 4, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).use { db ->
+            assertEquals(
+                listOf("a:to_read:0", "b:to_read:0"),
+                db.strings("SELECT id || ':' || reading_status || ':' || details_fetched FROM papers ORDER BY id")
             )
         }
     }

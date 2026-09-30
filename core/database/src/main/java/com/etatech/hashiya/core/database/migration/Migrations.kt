@@ -65,3 +65,30 @@ internal val MIGRATION_2_3: Migration = object : Migration(2, 3) {
         db.execSQL("DROP TABLE paper_search_copy")
     }
 }
+
+/**
+ * Adds the citation columns to papers (every existing paper has details_fetched = 0, so it is refetched once before its first
+ * export), the cite_key index, and the collections tables. Nothing existing is rewritten, and the search index is untouched.
+ */
+internal val MIGRATION_3_4: Migration = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        listOf("work_type", "source_type", "publisher", "volume", "issue", "first_page", "last_page", "cite_key").forEach { column ->
+            db.execSQL("ALTER TABLE papers ADD COLUMN `$column` TEXT")
+        }
+        db.execSQL("ALTER TABLE papers ADD COLUMN `details_fetched` INTEGER NOT NULL DEFAULT 0")
+        // The CREATE statements are exactly what Room generates (schemas/…/4.json), so the schema validates.
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_papers_cite_key` ON `papers` (`cite_key`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `collections` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, " +
+                "`name_key` TEXT NOT NULL, `created_at` INTEGER NOT NULL)"
+        )
+        db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS `index_collections_name_key` ON `collections` (`name_key`)")
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `collection_papers` (`collection_id` INTEGER NOT NULL, `paper_id` TEXT NOT NULL, " +
+                "`added_at` INTEGER NOT NULL, PRIMARY KEY(`collection_id`, `paper_id`), " +
+                "FOREIGN KEY(`collection_id`) REFERENCES `collections`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`paper_id`) REFERENCES `papers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_collection_papers_paper_id` ON `collection_papers` (`paper_id`)")
+    }
+}

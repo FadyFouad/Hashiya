@@ -21,4 +21,18 @@
     <string name="library_no_matches_title">No papers match</string>
     <string name="library_no_matches_action">Clear search and filters</string>
     <string name="library_status_update_failed">Couldn\'t update the status</string>
+    <string name="library_all_papers">All papers</string>
+    <string name="library_choose_collection">Choose a collection</string>
+    <string name="library_new_collection">New collection</string>
+    <string name="library_collection_options">Options for %1$s</string>
+    <string name="library_rename">Rename</string>
+    <string name="library_delete">Delete</string>
+    <string name="library_delete_collection_title">Delete \"%1$s\"?</string>
+    <string name="library_delete_collection_message">Its papers stay in your library.</string>
+    <string name="library_collection_empty">No papers in this collection yet. Add papers from their details screen.</string>
+    <string name="library_removed_from_collection">Removed from %1$s</string>
+    <string name="library_export_bib">Export .bib</string>
+    <string name="library_export_failed">Couldn\'t export</string>
+    <string name="library_export_incomplete">Some entries may be incomplete. Export again when you\'re online.</string>
+    <string name="library_collections_update_failed">Couldn\'t update collections</string>
 </resources>

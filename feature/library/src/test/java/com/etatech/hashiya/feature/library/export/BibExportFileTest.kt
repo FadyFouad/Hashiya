@@ -1,0 +1,43 @@
+package com.etatech.hashiya.feature.library.export
+
+import android.content.Intent
+import android.net.Uri
+import androidx.core.content.IntentCompat
+import com.etatech.hashiya.feature.library.BibExport
+import java.io.File
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+@RunWith(RobolectricTestRunner::class)
+class BibExportFileTest {
+    @get:Rule
+    val temp = TemporaryFolder()
+
+    @Test
+    fun writesUtf8AndRemovesEarlierExports() {
+        val dir = File(temp.root, "exports")
+        writeBibFileTo(dir, BibExport("old.bib", "@misc{a,\n}\n", complete = true))
+
+        val file = writeBibFileTo(dir, BibExport("الفصل.bib", "@misc{paper2019,\n  title = {تعلم}\n}\n", complete = true))
+
+        assertEquals(listOf("الفصل.bib"), dir.list()!!.toList())
+        assertEquals("@misc{paper2019,\n  title = {تعلم}\n}\n", file.readText(Charsets.UTF_8))
+    }
+
+    @Test
+    fun shareIntentSendsTheFileWithReadPermission() {
+        val uri = Uri.parse("content://com.etatech.hashiya.exports/exports/Thesis.bib")
+        val intent = bibShareIntent(uri, "Thesis.bib")
+
+        assertEquals(Intent.ACTION_SEND, intent.action)
+        assertEquals(BIB_MIME_TYPE, intent.type)
+        assertEquals(uri, IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java))
+        assertTrue(intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION != 0)
+        assertEquals(uri, intent.clipData?.getItemAt(0)?.uri)
+    }
+}

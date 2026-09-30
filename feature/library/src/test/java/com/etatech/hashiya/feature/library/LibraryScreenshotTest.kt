@@ -4,8 +4,10 @@ import androidx.compose.ui.test.junit4.ComposeContentTestRule
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.etatech.hashiya.core.model.LibraryPaper
+import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
@@ -45,18 +47,20 @@ class LibraryScreenshotTest(private val variant: ScreenshotVariant) {
         state: LibraryUiState,
         arabicText: String,
         wholeScreen: Boolean = false,
+        header: LibraryHeader = LibraryHeader(viewSize = 3, libraryCount = 3),
+        dialog: CollectionDialog? = null,
         beforeCapture: ComposeContentTestRule.() -> Unit = {}
     ) = composeRule.captureScreenshot(name, variant, arabicText, wholeScreen, beforeCapture) {
-        LibraryContent(uiState = state, pendingUndo = null, actions = LibraryActions())
+        LibraryContent(uiState = state, pendingUndo = null, actions = LibraryActions(), header = header, dialog = dialog)
     }
 
     @Test
     fun empty() = capture("library_empty", LibraryUiState.Empty, arabicText = "لا توجد أوراق محفوظة بعد")
 
-    // The top app bar title (library_title) is a values-ar string that appears exactly once on these screens;
+    // The top app bar title (the selector's library_all_papers) is a values-ar string that appears exactly once on these screens;
     // status labels appear on both a chip and a badge, and paper titles are content, not app strings.
     @Test
-    fun papers() = capture("library_papers", library, arabicText = "المكتبة")
+    fun papers() = capture("library_papers", library, arabicText = "كل الأوراق")
 
     @Test
     fun filteredSearch() = capture(
@@ -80,9 +84,48 @@ class LibraryScreenshotTest(private val variant: ScreenshotVariant) {
     )
 
     @Test
-    fun statusMenu() = capture("library_status_menu", library, arabicText = "المكتبة", wholeScreen = true) {
+    fun statusMenu() = capture("library_status_menu", library, arabicText = "كل الأوراق", wholeScreen = true) {
         onAllNodesWithTag(READING_STATUS_BADGE_TAG).onFirst().performClick()
     }
+
+    private val thesis = PaperCollection(1, "Thesis", 2)
+    private val chapter = PaperCollection(2, "الفصل الثاني", 1)
+    private val collectionsHeader = LibraryHeader(collections = listOf(chapter, thesis), selected = thesis, viewSize = 2, libraryCount = 3)
+
+    @Test
+    fun collectionSelector() = capture(
+        "library_collection_selector",
+        library,
+        arabicText = "مجموعة جديدة",
+        wholeScreen = true,
+        header = collectionsHeader
+    ) {
+        onNodeWithText("Thesis").performClick()
+    }
+
+    @Test
+    fun filteredByCollection() = capture("library_collection_filtered", library, arabicText = "الكل", header = collectionsHeader)
+
+    @Test
+    fun emptyCollection() = capture(
+        "library_collection_empty",
+        LibraryUiState.CollectionEmpty(PaperCollection(3, "Empty", 0)),
+        arabicText = "لا توجد أوراق في هذه المجموعة بعد. أضف الأوراق من شاشة تفاصيلها.",
+        header = LibraryHeader(
+            collections = listOf(PaperCollection(3, "Empty", 0)),
+            selected = PaperCollection(3, "Empty", 0),
+            libraryCount = 3
+        )
+    )
+
+    @Test
+    fun nameTaken() = capture(
+        "library_collection_name_taken",
+        library,
+        arabicText = "توجد مجموعة بهذا الاسم بالفعل",
+        wholeScreen = true,
+        dialog = CollectionDialog.New(nameTaken = true)
+    )
 
     companion object {
         @JvmStatic

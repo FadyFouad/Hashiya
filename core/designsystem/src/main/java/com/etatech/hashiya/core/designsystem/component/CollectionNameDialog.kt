@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.window.DialogProperties
 import com.etatech.hashiya.core.designsystem.R
 import com.etatech.hashiya.core.model.isValidCollectionName
 
@@ -40,6 +41,9 @@ fun CollectionNameDialog(
     val valid = isValidCollectionName(name)
     AlertDialog(
         onDismissRequest = onDismiss,
+        // The dialog sizes itself (280–560dp). The platform's default width, with a text field inside, never settles under
+        // Robolectric at phone sizes, which hangs the tests that show this dialog.
+        properties = DialogProperties(usePlatformDefaultWidth = false),
         title = { Text(stringResource(if (initialName == null) R.string.collection_new_title else R.string.collection_rename_title)) },
         text = {
             OutlinedTextField(

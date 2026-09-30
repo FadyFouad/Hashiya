@@ -6,7 +6,9 @@ import com.etatech.hashiya.core.database.HashiyaDatabase
 import com.etatech.hashiya.core.database.model.PaperAuthorEntity
 import com.etatech.hashiya.core.database.model.PaperEntity
 import com.etatech.hashiya.core.database.model.StatusCount
+import com.etatech.hashiya.core.database.model.asPaperNotes
 import com.etatech.hashiya.core.database.model.searchEntityFor
+import com.etatech.hashiya.core.model.PaperNotes
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -76,6 +78,11 @@ class PaperDaoTest {
 
     private suspend fun ids(match: String? = null, status: String? = null) = dao.observeLibrary(match, status).first().map { it.paper.id }
 
+    private fun searchNotes(paperId: String): String = db.query("SELECT notes FROM paper_search WHERE paper_id = ?", arrayOf(paperId)).use {
+        it.moveToFirst()
+        it.getString(0)
+    }
+
     @Test
     fun savedPapersAreNewestFirst() = runTest {
         save(paper("a", "W1", savedAt = 100), "Ada")
@@ -118,8 +125,9 @@ class PaperDaoTest {
 
         val removed = dao.deleteByOpenAlexId("W1")
 
-        assertEquals("a", removed?.paper?.id)
-        assertEquals(2, removed?.authors?.size)
+        assertEquals("a", removed?.paper?.paper?.id)
+        assertEquals(2, removed?.paper?.authors?.size)
+        assertNull(removed?.notes)
         assertTrue(dao.observeLibrary(null, null).first().isEmpty())
         assertEquals(0, count("paper_authors"))
         assertEquals(0, count("paper_search"))
@@ -131,7 +139,7 @@ class PaperDaoTest {
         save(paper("b", "W2", 200), "Bo")
         val removed = dao.deleteByOpenAlexId("W1")!!
 
-        save(removed.paper, "Ada")
+        save(removed.paper.paper, "Ada")
 
         val saved = dao.observeLibrary(null, null).first()
         assertEquals(listOf("b", "a"), saved.map { it.paper.id })
@@ -228,5 +236,99 @@ class PaperDaoTest {
     @Test
     fun settingStatusOfUnknownPaperChangesNothing() = runTest {
         assertEquals(0, dao.setStatus("missing", "read"))
+    }
+
+    @Test
+    fun savingNotesStoresThemAndIndexesThem() = runTest {
+        save(paper("a", "W1", 100))
+
+        assertTrue(dao.saveNotes("W1", PaperNotes(summary = "Self-attention only", method = "Ablation"), updatedAt = 5))
+
+        val stored = dao.observeNotes("W1").first()
+        assertEquals(PaperNotes(summary = "Self-attention only", method = "Ablation"), stored?.asPaperNotes())
+        assertEquals(5L, stored?.updatedAt)
+        assertEquals(listOf("a"), ids(match = "\"ablation*\""))
+    }
+
+    @Test
+    fun savingNotesAgainReplacesThemAndTheirIndex() = runTest {
+        save(paper("a", "W1", 100))
+        dao.saveNotes("W1", PaperNotes(method = "Ablation"), updatedAt = 5)
+
+        dao.saveNotes("W1", PaperNotes(method = "Survey"), updatedAt = 6)
+
+        assertEquals("Survey", dao.observeNotes("W1").first()?.method)
+        assertEquals(1, count("paper_notes"))
+        assertEquals(emptyList<String>(), ids(match = "\"ablation*\""))
+        assertEquals(listOf("a"), ids(match = "\"survey*\""))
+    }
+
+    @Test
+    fun savingBlankNotesDeletesTheRowAndClearsTheIndex() = runTest {
+        save(paper("a", "W1", 100))
+        dao.saveNotes("W1", PaperNotes(method = "Ablation"), updatedAt = 5)
+
+        assertTrue(dao.saveNotes("W1", PaperNotes(method = "  "), updatedAt = 6))
+
+        assertNull(dao.observeNotes("W1").first())
+        assertEquals(0, count("paper_notes"))
+        assertEquals("", searchNotes("a"))
+        assertEquals(emptyList<String>(), ids(match = "\"ablation*\""))
+        // The rest of the search row is untouched: the title ("Title a") still finds it.
+        assertEquals(listOf("a"), ids(match = "\"title*\""))
+    }
+
+    @Test
+    fun savingNotesForAnUnsavedPaperWritesNothing() = runTest {
+        assertFalse(dao.saveNotes("missing", PaperNotes(summary = "x"), updatedAt = 1))
+
+        assertEquals(0, count("paper_notes"))
+    }
+
+    @Test
+    fun notesAreSearchedWithTheSameFolding() = runTest {
+        save(paper("a", "W1", 100))
+        dao.saveNotes("W1", PaperNotes(keyFindings = "التَّعلُّم العميق يتفوّق"), updatedAt = 1)
+
+        assertEquals(listOf("a"), ids(match = "\"التعلم*\""))
+    }
+
+    @Test
+    fun observingAPaperFollowsItUntilItIsDeleted() = runTest {
+        save(paper("a", "W1", 100), "Ada")
+        assertEquals("a", dao.observeByOpenAlexId("W1").first()?.paper?.id)
+
+        dao.deleteByOpenAlexId("W1")
+
+        assertNull(dao.observeByOpenAlexId("W1").first())
+    }
+
+    @Test
+    fun deletingReturnsTheNotesAndLeavesNoNotesRow() = runTest {
+        save(paper("a", "W1", 100))
+        dao.saveNotes("W1", PaperNotes(thoughts = "Useful for chapter 2"), updatedAt = 7)
+
+        val removed = dao.deleteByOpenAlexId("W1")
+
+        assertEquals(PaperNotes(thoughts = "Useful for chapter 2"), removed?.notes?.asPaperNotes())
+        assertEquals(0, count("paper_notes"))
+    }
+
+    @Test
+    fun restoringWithNotesBringsBackTheRowAndItsIndex() = runTest {
+        save(paper("a", "W1", 100), "Ada")
+        dao.saveNotes("W1", PaperNotes(thoughts = "Useful for chapter 2"), updatedAt = 7)
+        val removed = dao.deleteByOpenAlexId("W1")!!
+        val notes = removed.notes!!.asPaperNotes()
+
+        dao.insertPaperWithAuthors(
+            removed.paper.paper,
+            removed.paper.authors,
+            searchEntityFor("a", removed.paper.paper.title, listOf("Ada"), null, "Venue", notes),
+            removed.notes
+        )
+
+        assertEquals(notes, dao.observeNotes("W1").first()?.asPaperNotes())
+        assertEquals(listOf("a"), ids(match = "\"chapter*\""))
     }
 }

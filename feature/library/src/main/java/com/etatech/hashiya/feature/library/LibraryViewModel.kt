@@ -86,20 +86,6 @@ class LibraryViewModel @Inject constructor(
         }
     }.filterNotNull().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState.Loading)
 
-    private val selectedId = MutableStateFlow<String?>(null)
-
-    /**
-     * The paper in the preview sheet, with its current status. Looked up in the whole library, so a status change that
-     * moves it out of the selected chip keeps the sheet open; clears itself if the paper is removed.
-     */
-    val selectedPaper: StateFlow<LibraryPaper?> = selectedId.flatMapLatest { id ->
-        if (id == null) {
-            flowOf(null)
-        } else {
-            libraryRepository.observeLibrary(query = "", status = null).map { papers -> papers.firstOrNull { it.paper.openAlexId == id } }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
     private val _pendingUndo = MutableStateFlow<RemovedPaper?>(null)
     val pendingUndo: StateFlow<RemovedPaper?> = _pendingUndo.asStateFlow()
 
@@ -145,18 +131,14 @@ class LibraryViewModel @Inject constructor(
         _message.value = null
     }
 
-    fun onPaperClick(paper: Paper) {
-        selectedId.value = paper.openAlexId
-    }
+    fun onRemove(paper: Paper) = remove(paper.openAlexId)
 
-    fun onDismissPreview() {
-        selectedId.value = null
-    }
+    /** Details' "Remove from library", handed back through the Library's back stack entry: removed with Undo, like a swipe. */
+    fun onRemoveRequested(openAlexId: String) = remove(openAlexId)
 
-    fun onRemove(paper: Paper) {
-        selectedId.value = null
+    private fun remove(openAlexId: String) {
         viewModelScope.launch {
-            _pendingUndo.value = libraryRepository.remove(paper.openAlexId)
+            _pendingUndo.value = libraryRepository.remove(openAlexId)
         }
     }
 

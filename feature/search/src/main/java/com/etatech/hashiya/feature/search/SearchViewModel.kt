@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -160,6 +161,19 @@ class SearchViewModel @Inject constructor(
 
     private val _message = MutableStateFlow<SearchMessage?>(null)
     val message: StateFlow<SearchMessage?> = _message.asStateFlow()
+
+    /** Details' "Remove from library", handed back through the Search back stack entry: removed as the sheet's Remove does. */
+    fun onRemoveRequested(openAlexId: String) {
+        viewModelScope.launch {
+            try {
+                libraryRepository.remove(openAlexId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = SearchMessage.RemoveFailed
+            }
+        }
+    }
 
     fun onTextChange(text: String) {
         if (text != draft.value.text) forgetShareContext()

@@ -35,7 +35,6 @@ class LibraryViewModelTest {
     private fun TestScope.viewModel(handle: SavedStateHandle = savedStateHandle): LibraryViewModel {
         val viewModel = LibraryViewModel(handle, repository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.selectedPaper.collect() }
         return viewModel
     }
 
@@ -188,20 +187,6 @@ class LibraryViewModelTest {
         assertEquals(counts(toRead = 2, reading = 0, read = 1), viewModel.filter().counts)
     }
 
-    /** With the To read chip selected, marking the open paper as Reading moves it out of the list but keeps its sheet open. */
-    @Test
-    fun statusChangeOutOfTheChipKeepsThePreviewOpen() = runTest {
-        saveSamples()
-        val viewModel = viewModel()
-        viewModel.onStatusFilterChange(ReadingStatus.ToRead)
-        viewModel.onPaperClick(SamplePapers.bert)
-
-        viewModel.onStatusChange(SamplePapers.bert, ReadingStatus.Reading)
-
-        assertEquals(listOf(SamplePapers.vit.title, SamplePapers.attention.title), viewModel.titles())
-        assertEquals(LibraryPaper(SamplePapers.bert, ReadingStatus.Reading), viewModel.selectedPaper.value)
-    }
-
     @Test
     fun statusChangeFailureShowsTheMessageAndKeepsTheStoredStatus() = runTest {
         saveSamples()
@@ -217,27 +202,27 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun selectingAndDismissingPreview() = runTest {
+    fun removingOffersUndo() = runTest {
         repository.save(SamplePapers.bert)
         val viewModel = viewModel()
-
-        viewModel.onPaperClick(SamplePapers.bert)
-        assertEquals(LibraryPaper(SamplePapers.bert, ReadingStatus.ToRead), viewModel.selectedPaper.value)
-        viewModel.onDismissPreview()
-        assertNull(viewModel.selectedPaper.value)
-    }
-
-    @Test
-    fun removingOffersUndoAndClosesPreview() = runTest {
-        repository.save(SamplePapers.bert)
-        val viewModel = viewModel()
-        viewModel.onPaperClick(SamplePapers.bert)
 
         viewModel.onRemove(SamplePapers.bert)
 
         assertEquals(LibraryUiState.Empty, viewModel.uiState.value)
         assertEquals(SamplePapers.bert, viewModel.pendingUndo.value?.paper)
-        assertNull(viewModel.selectedPaper.value)
+    }
+
+    @Test
+    fun removeRequestedFromDetailsRemovesWithUndo() = runTest {
+        saveSamples()
+        val viewModel = viewModel()
+
+        viewModel.onRemoveRequested(SamplePapers.bert.openAlexId)
+
+        assertEquals(listOf(SamplePapers.vit.title, SamplePapers.attention.title), viewModel.titles())
+        assertEquals(SamplePapers.bert, viewModel.pendingUndo.value?.paper)
+        viewModel.onUndoRemove()
+        assertEquals(all, viewModel.titles())
     }
 
     /** Removing the only paper a search matched empties the library: Empty, not "No papers match". */

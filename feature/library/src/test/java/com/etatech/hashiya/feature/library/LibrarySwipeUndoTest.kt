@@ -40,7 +40,7 @@ class LibrarySwipeUndoTest {
         val viewModel = LibraryViewModel(SavedStateHandle(), repository)
         composeRule.setContent {
             HashiyaTheme {
-                LibraryScreen(onGoToSearch = {}, onAddPaper = {}, onOpenSettings = {}, viewModel = viewModel)
+                LibraryScreen(onGoToSearch = {}, onAddPaper = {}, onOpenSettings = {}, onOpenPaper = {}, viewModel = viewModel)
             }
         }
 
@@ -53,6 +53,32 @@ class LibrarySwipeUndoTest {
         composeRule.onNodeWithText(SamplePapers.bert.title).assertIsDisplayed()
         composeRule.onNodeWithText("3 papers").assertIsDisplayed()
         assertEquals(1, repository.removeCount)
+    }
+
+    /** Details' "Remove from library" arrives as a request from the back stack entry: removed once, with Undo, then cleared. */
+    @Test
+    fun removeRequestFromDetailsRemovesOnceWithUndo() {
+        runBlocking { repository.save(SamplePapers.bert) }
+        val viewModel = LibraryViewModel(SavedStateHandle(), repository)
+        var handled = 0
+        composeRule.setContent {
+            HashiyaTheme {
+                LibraryScreen(
+                    onGoToSearch = {},
+                    onAddPaper = {},
+                    onOpenSettings = {},
+                    onOpenPaper = {},
+                    removeRequest = SamplePapers.bert.openAlexId,
+                    onRemoveRequestHandled = { handled++ },
+                    viewModel = viewModel
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Removed from library").assertIsDisplayed()
+        composeRule.waitForIdle()
+        assertEquals(1, repository.removeCount)
+        assertEquals(1, handled)
     }
 }
 

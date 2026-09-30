@@ -77,14 +77,12 @@ class LibraryContentTest {
     private fun show(
         state: () -> LibraryUiState,
         pendingUndo: () -> RemovedPaper? = { null },
-        selectedPaper: LibraryPaper? = null,
         message: LibraryMessage? = null,
         actions: LibraryActions = this.actions
     ) = composeRule.setContent {
         HashiyaTheme {
             LibraryContent(
                 uiState = state(),
-                selectedPaper = selectedPaper,
                 pendingUndo = pendingUndo(),
                 actions = actions,
                 message = message
@@ -115,7 +113,7 @@ class LibraryContentTest {
     }
 
     @Test
-    fun tappingRowOpensPreview() {
+    fun tappingRowOpensThePaper() {
         show(toRead(SamplePapers.bert))
 
         composeRule.onNodeWithText(SamplePapers.bert.title).performClick()
@@ -209,16 +207,6 @@ class LibraryContentTest {
 
         composeRule.onNodeWithText("No papers match").assertIsDisplayed()
         composeRule.onNodeWithTag(LIBRARY_SEARCH_FIELD_TAG).assertIsFocused()
-    }
-
-    @Test
-    fun previewHasTheStatusSelector() {
-        show({ toRead(SamplePapers.bert) }, selectedPaper = LibraryPaper(SamplePapers.bert, ReadingStatus.Reading))
-
-        // The sheet is a dialog window.
-        composeRule.onNode(hasText("Reading") and hasAnyAncestor(isDialog())).assertIsSelected()
-        composeRule.onNode(hasText("Read") and hasAnyAncestor(isDialog())).performClick()
-        assertEquals(listOf("status:${SamplePapers.bert.openAlexId}:Read"), events)
     }
 
     @Test

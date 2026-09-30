@@ -549,4 +549,27 @@ class SearchViewModelTest {
 
         assertFalse(viewModel.focusSearch.value)
     }
+
+    @Test
+    fun removeRequestFromDetailsRemovesThePaper() = runTest {
+        libraryRepository.save(SamplePapers.bert)
+        val viewModel = viewModel()
+
+        viewModel.onRemoveRequested(SamplePapers.bert.openAlexId)
+        runCurrent()
+
+        assertEquals(emptySet<String>(), viewModel.savedIds.value)
+    }
+
+    @Test
+    fun failedRemoveRequestShowsRemoveFailed() = runTest {
+        libraryRepository.save(SamplePapers.bert)
+        libraryRepository.failOnRemove = true
+        val viewModel = viewModel()
+
+        viewModel.onRemoveRequested(SamplePapers.bert.openAlexId)
+        runCurrent()
+
+        assertEquals(SearchMessage.RemoveFailed, viewModel.message.value)
+    }
 }

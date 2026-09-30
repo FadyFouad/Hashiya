@@ -37,3 +37,31 @@ internal val MIGRATION_1_2: Migration = object : Migration(1, 2) {
         }
     }
 }
+
+/**
+ * Adds the notes table and a notes column to the search index. An FTS table can't gain a column, so the existing
+ * search rows are copied out through a plain temporary table and back into the rebuilt one, unchanged and with no notes.
+ */
+internal val MIGRATION_2_3: Migration = object : Migration(2, 3) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Both CREATE statements are exactly what Room generates (schemas/…/3.json), so the schema validates.
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `paper_notes` (`paper_id` TEXT NOT NULL, `summary` TEXT NOT NULL, " +
+                "`research_question` TEXT NOT NULL, `method` TEXT NOT NULL, `key_findings` TEXT NOT NULL, " +
+                "`limitations` TEXT NOT NULL, `thoughts` TEXT NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`paper_id`), " +
+                "FOREIGN KEY(`paper_id`) REFERENCES `papers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+        )
+        db.execSQL("CREATE TEMP TABLE paper_search_copy AS SELECT paper_id, title, authors, abstract, venue FROM paper_search")
+        db.execSQL("DROP TABLE paper_search")
+        db.execSQL(
+            "CREATE VIRTUAL TABLE IF NOT EXISTS `paper_search` USING FTS4(`paper_id` TEXT NOT NULL, `title` TEXT NOT NULL, " +
+                "`authors` TEXT NOT NULL, `abstract` TEXT NOT NULL, `venue` TEXT NOT NULL, `notes` TEXT NOT NULL, " +
+                "tokenize=unicode61, notindexed=`paper_id`)"
+        )
+        db.execSQL(
+            "INSERT INTO paper_search (paper_id, title, authors, abstract, venue, notes) " +
+                "SELECT paper_id, title, authors, abstract, venue, '' FROM paper_search_copy"
+        )
+        db.execSQL("DROP TABLE paper_search_copy")
+    }
+}

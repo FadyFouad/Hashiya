@@ -61,16 +61,22 @@ internal fun LibraryScreen(
     onGoToSearch: () -> Unit,
     onAddPaper: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenPaper: (openAlexId: String) -> Unit,
+    removeRequest: String? = null,
+    onRemoveRequestHandled: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(removeRequest) {
+        removeRequest?.let { openAlexId ->
+            viewModel.onRemoveRequested(openAlexId)
+            onRemoveRequestHandled()
+        }
+    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val selectedPaper by viewModel.selectedPaper.collectAsStateWithLifecycle()
     val pendingUndo by viewModel.pendingUndo.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
-    val uriHandler = LocalUriHandler.current
     LibraryContent(
         uiState = uiState,
-        selectedPaper = selectedPaper,
         pendingUndo = pendingUndo,
         message = message,
         actions = LibraryActions(
@@ -79,17 +85,15 @@ internal fun LibraryScreen(
             onClearQuery = viewModel::onClearQuery,
             onStatusFilterChange = viewModel::onStatusFilterChange,
             onClearSearchAndFilters = viewModel::onClearSearchAndFilters,
-            onPaperClick = viewModel::onPaperClick,
+            onPaperClick = { paper -> onOpenPaper(paper.openAlexId) },
             onStatusChange = viewModel::onStatusChange,
-            onDismissPreview = viewModel::onDismissPreview,
             onRemove = viewModel::onRemove,
             onUndo = viewModel::onUndoRemove,
             onUndoDismissed = viewModel::onUndoDismissed,
             onMessageShown = viewModel::onMessageShown,
             onGoToSearch = onGoToSearch,
             onAddPaper = onAddPaper,
-            onOpenSettings = onOpenSettings,
-            onOpenDoi = { doi -> runCatching { uriHandler.openUri("https://doi.org/$doi") } }
+            onOpenSettings = onOpenSettings
         )
     )
 }
@@ -98,7 +102,6 @@ internal fun LibraryScreen(
 @Composable
 internal fun LibraryContent(
     uiState: LibraryUiState,
-    selectedPaper: LibraryPaper?,
     pendingUndo: RemovedPaper?,
     actions: LibraryActions,
     modifier: Modifier = Modifier,
@@ -182,18 +185,6 @@ internal fun LibraryContent(
                 }
             }
         }
-    }
-
-    selectedPaper?.let { selected ->
-        PaperPreviewSheet(
-            paper = selected.paper,
-            inLibrary = true,
-            onDismiss = actions.onDismissPreview,
-            onToggleSave = { actions.onRemove(selected.paper) },
-            onOpenDoi = actions.onOpenDoi,
-            status = selected.status,
-            onStatusChange = { status -> actions.onStatusChange(selected.paper, status) }
-        )
     }
 }
 

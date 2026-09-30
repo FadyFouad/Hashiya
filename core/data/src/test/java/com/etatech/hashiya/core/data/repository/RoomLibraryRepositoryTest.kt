@@ -6,6 +6,7 @@ import com.etatech.hashiya.core.database.HashiyaDatabase
 import com.etatech.hashiya.core.model.Author
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.ReadingStatus
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -216,5 +217,74 @@ class RoomLibraryRepositoryTest {
             mapOf(ReadingStatus.ToRead to 2, ReadingStatus.Reading to 0, ReadingStatus.Read to 0),
             repository.observeStatusCounts("").first()
         )
+    }
+
+    @Test
+    fun observePaperFollowsTheSavedPaperAndItsStatus() = runTest {
+        repository.save(paper("W1"))
+        repository.setStatus("W1", ReadingStatus.Reading)
+
+        assertEquals(LibraryPaper(paper("W1"), ReadingStatus.Reading), repository.observePaper("W1").first())
+        repository.remove("W1")
+        assertNull(repository.observePaper("W1").first())
+    }
+
+    @Test
+    fun notesAreEmptyUntilSavedAndReadBackAfter() = runTest {
+        repository.save(paper("W1"))
+        assertEquals(PaperNotes(), repository.observeNotes("W1").first())
+
+        repository.saveNotes("W1", PaperNotes(summary = "Transformers", limitations = "English only"))
+
+        assertEquals(PaperNotes(summary = "Transformers", limitations = "English only"), repository.observeNotes("W1").first())
+    }
+
+    @Test
+    fun savingNotesForAnUnsavedPaperDoesNothing() = runTest {
+        repository.saveNotes("W1", PaperNotes(summary = "x"))
+
+        assertEquals(PaperNotes(), repository.observeNotes("W1").first())
+        assertEquals(emptyList<String>(), ids())
+    }
+
+    @Test
+    fun libraryIsSearchableByItsNotes() = runTest {
+        repository.save(paper("W1"))
+        repository.save(paper("W2"))
+
+        repository.saveNotes("W2", PaperNotes(method = "Randomized controlled trial"))
+
+        assertEquals(listOf("W2"), ids("randomiz"))
+        assertEquals(listOf("W2"), ids("Controlled TRIAL"))
+        assertEquals(
+            mapOf(ReadingStatus.ToRead to 1, ReadingStatus.Reading to 0, ReadingStatus.Read to 0),
+            repository.observeStatusCounts("trial").first()
+        )
+    }
+
+    @Test
+    fun removeThenRestoreKeepsTheNotesAndTheirSearch() = runTest {
+        repository.save(paper("W1"))
+        repository.saveNotes("W1", PaperNotes(thoughts = "Cite in chapter two"))
+
+        val removed = repository.remove("W1")!!
+        assertEquals(PaperNotes(thoughts = "Cite in chapter two"), removed.notes)
+        assertEquals(emptyList<String>(), ids("chapter"))
+
+        repository.restore(removed)
+        assertEquals(PaperNotes(thoughts = "Cite in chapter two"), repository.observeNotes("W1").first())
+        assertEquals(listOf("W1"), ids("chapter"))
+    }
+
+    @Test
+    fun removeThenRestoreWithoutNotesStaysWithoutNotes() = runTest {
+        repository.save(paper("W1"))
+
+        val removed = repository.remove("W1")!!
+        repository.restore(removed)
+
+        assertEquals(PaperNotes(), removed.notes)
+        assertEquals(PaperNotes(), repository.observeNotes("W1").first())
+        assertEquals(listOf("W1"), ids("paper"))
     }
 }

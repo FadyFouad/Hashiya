@@ -50,6 +50,7 @@ android {
 dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":feature:library"))
+    implementation(project(":feature:paperdetails"))
     implementation(project(":feature:search"))
     implementation(project(":feature:settings"))
     // Brings the data layer's Hilt modules (and, through it, network/database/datastore) into the app graph.

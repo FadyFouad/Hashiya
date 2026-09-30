@@ -19,6 +19,7 @@ These images are the app's screenshot-test baselines, so they always match the c
 - Add a specific paper by pasting a DOI, arXiv ID or link into Search, with the "Add paper" button, or by sharing a page from the browser; the paper's preview opens before you save it.
 - Preview a paper's abstract, authors and citations, then save it to an offline library.
 - Search your library offline by words from a paper's title, authors, abstract or venue (Arabic search ignores tashkeel and letter variants), and track each paper as To read, Reading or Read with status filters and counts.
+- Open a saved paper's details (every author, the full abstract, DOI and PDF links) and write structured notes: Summary, Research question, Method, Key findings, Limitations and My thoughts. Notes save as you type and are searchable from the Library.
 - Swipe to remove from the library, with Undo.
 - Full English and Arabic support, including right-to-left layouts and per-app language.
 - Light and dark themes; navigation rail on tablets and foldables.
@@ -27,8 +28,8 @@ These images are the app's screenshot-test baselines, so they always match the c
 
 ```mermaid
 graph TD
-    app --> feature/search & feature/library & feature/settings
-    feature/search & feature/library & feature/settings --> core/data & core/designsystem & core/model
+    app --> feature/search & feature/library & feature/paperdetails & feature/settings
+    feature/search & feature/library & feature/paperdetails & feature/settings --> core/data & core/designsystem & core/model
     core/designsystem --> core/model
     core/database --> core/model
     core/data --> core/network & core/database & core/datastore & core/model
@@ -69,6 +70,6 @@ A native SwiftUI app with the features of sub-projects 1 to 3 lives in [`ios/`](
 1. ✅ Foundation + OpenAlex search
 2. ✅ Add by DOI / arXiv ID and Android Share
 3. ✅ Library: full-text search and reading status
-4. Paper details and structured notes
+4. ✅ Paper details and structured notes
 5. Collections and BibTeX export
 6. PDFs: attach or download open-access versions

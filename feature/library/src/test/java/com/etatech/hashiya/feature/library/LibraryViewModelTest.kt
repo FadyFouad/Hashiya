@@ -7,6 +7,7 @@ import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
+import com.etatech.hashiya.feature.library.navigation.LIBRARY_REMOVE_REQUEST
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -35,7 +36,6 @@ class LibraryViewModelTest {
     private fun TestScope.viewModel(handle: SavedStateHandle = savedStateHandle): LibraryViewModel {
         val viewModel = LibraryViewModel(handle, repository)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
-        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.selectedPaper.collect() }
         return viewModel
     }
 
@@ -188,20 +188,6 @@ class LibraryViewModelTest {
         assertEquals(counts(toRead = 2, reading = 0, read = 1), viewModel.filter().counts)
     }
 
-    /** With the To read chip selected, marking the open paper as Reading moves it out of the list but keeps its sheet open. */
-    @Test
-    fun statusChangeOutOfTheChipKeepsThePreviewOpen() = runTest {
-        saveSamples()
-        val viewModel = viewModel()
-        viewModel.onStatusFilterChange(ReadingStatus.ToRead)
-        viewModel.onPaperClick(SamplePapers.bert)
-
-        viewModel.onStatusChange(SamplePapers.bert, ReadingStatus.Reading)
-
-        assertEquals(listOf(SamplePapers.vit.title, SamplePapers.attention.title), viewModel.titles())
-        assertEquals(LibraryPaper(SamplePapers.bert, ReadingStatus.Reading), viewModel.selectedPaper.value)
-    }
-
     @Test
     fun statusChangeFailureShowsTheMessageAndKeepsTheStoredStatus() = runTest {
         saveSamples()
@@ -217,27 +203,39 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun selectingAndDismissingPreview() = runTest {
+    fun removingOffersUndo() = runTest {
         repository.save(SamplePapers.bert)
         val viewModel = viewModel()
-
-        viewModel.onPaperClick(SamplePapers.bert)
-        assertEquals(LibraryPaper(SamplePapers.bert, ReadingStatus.ToRead), viewModel.selectedPaper.value)
-        viewModel.onDismissPreview()
-        assertNull(viewModel.selectedPaper.value)
-    }
-
-    @Test
-    fun removingOffersUndoAndClosesPreview() = runTest {
-        repository.save(SamplePapers.bert)
-        val viewModel = viewModel()
-        viewModel.onPaperClick(SamplePapers.bert)
 
         viewModel.onRemove(SamplePapers.bert)
 
         assertEquals(LibraryUiState.Empty, viewModel.uiState.value)
         assertEquals(SamplePapers.bert, viewModel.pendingUndo.value?.paper)
-        assertNull(viewModel.selectedPaper.value)
+    }
+
+    @Test
+    fun removeRequestFromDetailsRemovesWithUndoOnce() = runTest {
+        saveSamples()
+        val viewModel = viewModel()
+
+        savedStateHandle[LIBRARY_REMOVE_REQUEST] = SamplePapers.bert.openAlexId
+
+        assertEquals(listOf(SamplePapers.vit.title, SamplePapers.attention.title), viewModel.titles())
+        assertEquals(SamplePapers.bert, viewModel.pendingUndo.value?.paper)
+        assertNull(savedStateHandle.get<String>(LIBRARY_REMOVE_REQUEST))
+        viewModel.onUndoRemove()
+        assertEquals(all, viewModel.titles())
+    }
+
+    /** The request can be waiting before the ViewModel exists (process death between Details and the Library). */
+    @Test
+    fun removeRequestWaitingWhenTheViewModelStartsIsHandled() = runTest {
+        saveSamples()
+
+        val viewModel = viewModel(SavedStateHandle(mapOf(LIBRARY_REMOVE_REQUEST to SamplePapers.bert.openAlexId)))
+
+        assertEquals(listOf(SamplePapers.vit.title, SamplePapers.attention.title), viewModel.titles())
+        assertEquals(SamplePapers.bert, viewModel.pendingUndo.value?.paper)
     }
 
     /** Removing the only paper a search matched empties the library: Empty, not "No papers match". */

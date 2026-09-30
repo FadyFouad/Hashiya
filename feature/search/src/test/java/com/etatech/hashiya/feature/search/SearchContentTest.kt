@@ -5,6 +5,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -259,5 +262,51 @@ class SearchContentTest {
 
         composeRule.onNodeWithText(SamplePapers.attention.title).assertDoesNotExist()
         composeRule.onNodeWithTag(LOADING_SKELETON_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun savedPapersSheetOpensDetails() {
+        val events = mutableListOf<String>()
+        composeRule.setContent {
+            HashiyaTheme {
+                SearchContent(
+                    uiState = SearchUiState(),
+                    papers = flowOf(PagingData.empty<Paper>()).collectAsLazyPagingItems(),
+                    savedIds = setOf(SamplePapers.bert.openAlexId),
+                    selectedItem = PaperItem(SamplePapers.bert, inLibrary = true),
+                    message = null,
+                    actions = SearchActions(
+                        onDismissPreview = { events += "dismiss" },
+                        onOpenDetails = { events += "details:${it.openAlexId}" }
+                    ),
+                    currentYear = 2026
+                )
+            }
+        }
+
+        // The sheet is a dialog window.
+        composeRule.onNode(hasText("Open details") and hasAnyAncestor(isDialog())).performClick()
+
+        assertEquals(listOf("dismiss", "details:${SamplePapers.bert.openAlexId}"), events)
+    }
+
+    @Test
+    fun unsavedPapersSheetHasNoOpenDetails() {
+        composeRule.setContent {
+            HashiyaTheme {
+                SearchContent(
+                    uiState = SearchUiState(),
+                    papers = flowOf(PagingData.empty<Paper>()).collectAsLazyPagingItems(),
+                    savedIds = emptySet(),
+                    selectedItem = PaperItem(SamplePapers.bert, inLibrary = false),
+                    message = null,
+                    actions = SearchActions(),
+                    currentYear = 2026
+                )
+            }
+        }
+
+        composeRule.onNode(hasText("Save to library") and hasAnyAncestor(isDialog())).assertExists()
+        composeRule.onNodeWithText("Open details").assertDoesNotExist()
     }
 }

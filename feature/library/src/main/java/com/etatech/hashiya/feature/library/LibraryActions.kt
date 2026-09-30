@@ -12,13 +12,11 @@ internal data class LibraryActions(
     val onClearSearchAndFilters: () -> Unit = {},
     val onPaperClick: (Paper) -> Unit = {},
     val onStatusChange: (Paper, ReadingStatus) -> Unit = { _, _ -> },
-    val onDismissPreview: () -> Unit = {},
     val onRemove: (Paper) -> Unit = {},
     val onUndo: () -> Unit = {},
     val onUndoDismissed: () -> Unit = {},
     val onMessageShown: () -> Unit = {},
     val onGoToSearch: () -> Unit = {},
     val onAddPaper: () -> Unit = {},
-    val onOpenSettings: () -> Unit = {},
-    val onOpenDoi: (String) -> Unit = {}
+    val onOpenSettings: () -> Unit = {}
 )

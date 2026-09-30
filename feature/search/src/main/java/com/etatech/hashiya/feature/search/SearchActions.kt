@@ -14,6 +14,7 @@ internal data class SearchActions(
     val onOpenAccessToggle: () -> Unit = {},
     val onClearFilters: () -> Unit = {},
     val onPaperClick: (Paper) -> Unit = {},
+    val onOpenDetails: (Paper) -> Unit = {},
     val onToggleSave: (PaperItem) -> Unit = {},
     val onDismissPreview: () -> Unit = {},
     val onOpenDoi: (String) -> Unit = {},

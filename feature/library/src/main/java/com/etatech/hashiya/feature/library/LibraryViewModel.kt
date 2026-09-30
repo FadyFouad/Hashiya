@@ -8,6 +8,7 @@ import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.ReadingStatus
+import com.etatech.hashiya.feature.library.navigation.LIBRARY_REMOVE_REQUEST
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -86,25 +87,22 @@ class LibraryViewModel @Inject constructor(
         }
     }.filterNotNull().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState.Loading)
 
-    private val selectedId = MutableStateFlow<String?>(null)
-
-    /**
-     * The paper in the preview sheet, with its current status. Looked up in the whole library, so a status change that
-     * moves it out of the selected chip keeps the sheet open; clears itself if the paper is removed.
-     */
-    val selectedPaper: StateFlow<LibraryPaper?> = selectedId.flatMapLatest { id ->
-        if (id == null) {
-            flowOf(null)
-        } else {
-            libraryRepository.observeLibrary(query = "", status = null).map { papers -> papers.firstOrNull { it.paper.openAlexId == id } }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
     private val _pendingUndo = MutableStateFlow<RemovedPaper?>(null)
     val pendingUndo: StateFlow<RemovedPaper?> = _pendingUndo.asStateFlow()
 
     private val _message = MutableStateFlow<LibraryMessage?>(null)
     val message: StateFlow<LibraryMessage?> = _message.asStateFlow()
+
+    // Declared after _pendingUndo on purpose: with an immediate dispatcher, a request that is already waiting
+    // (restored after process death) is handled right here, and remove() needs _pendingUndo to exist.
+    init {
+        viewModelScope.launch {
+            savedStateHandle.getStateFlow<String?>(LIBRARY_REMOVE_REQUEST, null).filterNotNull().collect { openAlexId ->
+                savedStateHandle[LIBRARY_REMOVE_REQUEST] = null
+                remove(openAlexId)
+            }
+        }
+    }
 
     fun onQueryChange(text: String) {
         query.value = text
@@ -145,18 +143,11 @@ class LibraryViewModel @Inject constructor(
         _message.value = null
     }
 
-    fun onPaperClick(paper: Paper) {
-        selectedId.value = paper.openAlexId
-    }
+    fun onRemove(paper: Paper) = remove(paper.openAlexId)
 
-    fun onDismissPreview() {
-        selectedId.value = null
-    }
-
-    fun onRemove(paper: Paper) {
-        selectedId.value = null
+    private fun remove(openAlexId: String) {
         viewModelScope.launch {
-            _pendingUndo.value = libraryRepository.remove(paper.openAlexId)
+            _pendingUndo.value = libraryRepository.remove(openAlexId)
         }
     }
 

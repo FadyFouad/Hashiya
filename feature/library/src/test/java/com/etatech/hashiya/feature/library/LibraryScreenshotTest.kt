@@ -47,7 +47,7 @@ class LibraryScreenshotTest(private val variant: ScreenshotVariant) {
         wholeScreen: Boolean = false,
         beforeCapture: ComposeContentTestRule.() -> Unit = {}
     ) = composeRule.captureScreenshot(name, variant, arabicText, wholeScreen, beforeCapture) {
-        LibraryContent(uiState = state, selectedPaper = null, pendingUndo = null, actions = LibraryActions())
+        LibraryContent(uiState = state, pendingUndo = null, actions = LibraryActions())
     }
 
     @Test

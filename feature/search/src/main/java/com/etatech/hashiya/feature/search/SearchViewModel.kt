@@ -19,6 +19,7 @@ import com.etatech.hashiya.core.model.YearFilter
 import com.etatech.hashiya.core.model.looksLikeLink
 import com.etatech.hashiya.core.model.parsePaperIdentifier
 import com.etatech.hashiya.core.model.withoutArabicMarks
+import com.etatech.hashiya.feature.search.navigation.SEARCH_REMOVE_REQUEST
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -160,6 +162,22 @@ class SearchViewModel @Inject constructor(
 
     private val _message = MutableStateFlow<SearchMessage?>(null)
     val message: StateFlow<SearchMessage?> = _message.asStateFlow()
+
+    // After _message, which a failed removal sets; a request already waiting (process death) is handled right here.
+    init {
+        viewModelScope.launch {
+            savedStateHandle.getStateFlow<String?>(SEARCH_REMOVE_REQUEST, null).filterNotNull().collect { openAlexId ->
+                savedStateHandle[SEARCH_REMOVE_REQUEST] = null
+                try {
+                    libraryRepository.remove(openAlexId)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    _message.value = SearchMessage.RemoveFailed
+                }
+            }
+        }
+    }
 
     fun onTextChange(text: String) {
         if (text != draft.value.text) forgetShareContext()

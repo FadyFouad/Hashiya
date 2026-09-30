@@ -40,7 +40,7 @@ class LibrarySwipeUndoTest {
         val viewModel = LibraryViewModel(SavedStateHandle(), repository)
         composeRule.setContent {
             HashiyaTheme {
-                LibraryScreen(onGoToSearch = {}, onAddPaper = {}, onOpenSettings = {}, viewModel = viewModel)
+                LibraryScreen(onGoToSearch = {}, onAddPaper = {}, onOpenSettings = {}, onOpenPaper = {}, viewModel = viewModel)
             }
         }
 

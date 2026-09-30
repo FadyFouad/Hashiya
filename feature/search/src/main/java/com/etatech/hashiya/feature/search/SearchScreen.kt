@@ -58,7 +58,11 @@ import java.text.NumberFormat
 import java.util.Calendar
 
 @Composable
-internal fun SearchScreen(onOpenSettings: () -> Unit, viewModel: SearchViewModel = hiltViewModel()) {
+internal fun SearchScreen(
+    onOpenSettings: () -> Unit,
+    onOpenPaper: (openAlexId: String) -> Unit,
+    viewModel: SearchViewModel = hiltViewModel()
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedItem by viewModel.selectedItem.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
@@ -78,6 +82,7 @@ internal fun SearchScreen(onOpenSettings: () -> Unit, viewModel: SearchViewModel
         note = note,
         focusSearch = focusSearch,
         actions = SearchActions(
+            onOpenDetails = { paper -> onOpenPaper(paper.openAlexId) },
             onTextChange = viewModel::onTextChange,
             onSearchAction = viewModel::onSearchAction,
             onSuggestion = viewModel::onSuggestion,
@@ -188,7 +193,16 @@ internal fun SearchContent(
             inLibrary = item.inLibrary,
             onDismiss = actions.onDismissPreview,
             onToggleSave = { actions.onToggleSave(item) },
-            onOpenDoi = actions.onOpenDoi
+            onOpenDoi = actions.onOpenDoi,
+            // Details is for saved papers only.
+            onOpenDetails = if (item.inLibrary) {
+                {
+                    actions.onDismissPreview()
+                    actions.onOpenDetails(item.paper)
+                }
+            } else {
+                null
+            }
         )
     }
 }

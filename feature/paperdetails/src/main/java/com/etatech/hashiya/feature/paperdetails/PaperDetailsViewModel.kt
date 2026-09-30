@@ -115,11 +115,14 @@ class PaperDetailsViewModel @Inject constructor(
         applicationScope.launch { save(current) }
     }
 
-    /** Saves unsaved notes first, so Undo on the screen below restores what was just typed, then asks to leave. */
+    /**
+     * Saves unsaved notes first, so Undo on the screen below restores what was just typed, then asks to leave.
+     * If that save fails, the screen stays, showing Couldn't save with Retry, so Undo can never bring back older notes.
+     */
     fun onRemove() {
         viewModelScope.launch {
-            notes.value?.let { save(it) }
-            _exit.value = PaperDetailsExit.Removed
+            val saved = notes.value?.let { save(it) } ?: true
+            if (saved) _exit.value = PaperDetailsExit.Removed
         }
     }
 
@@ -127,18 +130,21 @@ class PaperDetailsViewModel @Inject constructor(
         flushNotes()
     }
 
-    private suspend fun save(value: PaperNotes) = saveMutex.withLock {
-        if (value == storedNotes) return@withLock
+    /** Returns false only when the write failed. */
+    private suspend fun save(value: PaperNotes): Boolean = saveMutex.withLock {
+        if (value == storedNotes) return@withLock true
         saveState.value = NotesSaveState.Saving
         try {
             libraryRepository.saveNotes(openAlexId, value)
             storedNotes = value
             saveState.value = NotesSaveState.Saved
+            true
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             saveState.value = NotesSaveState.Failed
             _message.value = PaperDetailsMessage.NotesSaveFailed
+            false
         }
     }
 }

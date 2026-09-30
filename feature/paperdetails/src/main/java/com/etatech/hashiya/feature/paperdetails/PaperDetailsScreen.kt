@@ -35,8 +35,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +49,7 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -189,8 +192,10 @@ private fun DetailsBody(state: PaperDetailsUiState.Loaded, actions: PaperDetails
         Spacer(Modifier.height(24.dp))
         NotesHeading(state.saveState)
         NoteSection.entries.forEach { section ->
-            Spacer(Modifier.height(12.dp))
-            NoteField(section, state.notes[section], onTextChange = { text -> actions.onNoteChange(section, text) })
+            key(section) {
+                Spacer(Modifier.height(12.dp))
+                NoteField(section, state.notes[section], onTextChange = { text -> actions.onNoteChange(section, text) })
+            }
         }
     }
 }
@@ -251,9 +256,16 @@ private fun NotesHeading(saveState: NotesSaveState) {
 
 @Composable
 private fun NoteField(section: NoteSection, text: String, onTextChange: (String) -> Unit) {
+    // The field owns what is on screen, so typing never waits for the ViewModel's state to come back, which can drop
+    // characters and reset the keyboard's composition. [text] only seeds it: the ViewModel reads notes once.
+    var value by rememberSaveable(stateSaver = TextFieldValue.Saver) { mutableStateOf(TextFieldValue(text)) }
     OutlinedTextField(
-        value = text,
-        onValueChange = onTextChange,
+        value = value,
+        onValueChange = { new ->
+            val changed = new.text != value.text
+            value = new
+            if (changed) onTextChange(new.text)
+        },
         label = { Text(stringResource(section.labelRes)) },
         placeholder = { Text(stringResource(section.hintRes)) },
         // Arabic notes lay out right to left in an English UI, and English notes left to right in an Arabic one.

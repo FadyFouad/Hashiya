@@ -304,6 +304,26 @@ class PaperDetailsViewModelTest {
         assertEquals(PaperDetailsExit.Removed, viewModel.exit.value)
         assertEquals(PaperNotes(thoughts = "Keep this"), repository.observeNotes(id).first())
     }
+
+    @Test
+    fun removeWaitsWhenTheSaveFailsSoUndoCantRestoreStaleNotes() = runTest {
+        repository.save(paper)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        repository.failOnSaveNotes = true
+        viewModel.onNoteChange(NoteSection.Thoughts, "Keep this")
+
+        viewModel.onRemove()
+        runCurrent()
+
+        assertNull(viewModel.exit.value)
+        assertEquals(PaperDetailsMessage.NotesSaveFailed, viewModel.message.value)
+
+        repository.failOnSaveNotes = false
+        viewModel.onRemove()
+        runCurrent()
+        assertEquals(PaperDetailsExit.Removed, viewModel.exit.value)
+    }
 }
 
 /** Takes [SAVE_DURATION_MS] of virtual time to write notes, so a test can see a write in progress. */

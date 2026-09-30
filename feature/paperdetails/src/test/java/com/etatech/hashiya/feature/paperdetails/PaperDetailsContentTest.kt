@@ -187,4 +187,16 @@ class PaperDetailsContentTest {
         composeRule.onNodeWithContentDescription("Back").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("More options").assertDoesNotExist()
     }
+
+    /** The field keeps its own text: typing never waits for the state to come back from the ViewModel (cursor and IME stay put). */
+    @Test
+    fun typingDoesNotWaitForTheStateToComeBack() {
+        show(loaded())
+
+        field(NoteSection.Method).performScrollTo().performTextInput("Abl")
+        field(NoteSection.Method).performTextInput("ation")
+
+        assertEquals(listOf("note:Method:Abl", "note:Method:Ablation"), events)
+        field(NoteSection.Method).assert(hasText("Ablation"))
+    }
 }

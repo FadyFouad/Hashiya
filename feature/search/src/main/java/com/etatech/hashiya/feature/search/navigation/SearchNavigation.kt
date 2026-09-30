@@ -1,5 +1,7 @@
 package com.etatech.hashiya.feature.search.navigation
 
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
@@ -15,13 +17,22 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SearchRoute(val query: String? = null, val pageTitle: String? = null, val focusSearch: Boolean = false, val note: String? = null)
 
-/** The key in the Search entry's SavedStateHandle, which its ViewModel shares, that asks it to remove a paper. */
-internal const val SEARCH_REMOVE_REQUEST = "search_remove_request"
+/** The key in the Search back stack entry's SavedStateHandle that asks it to remove a paper. */
+private const val SEARCH_REMOVE_REQUEST = "search_remove_request"
 
 fun NavController.navigateToSearch(navOptions: NavOptions? = null, route: SearchRoute = SearchRoute()) = navigate(route, navOptions)
 
 fun NavGraphBuilder.searchScreen(onOpenSettings: () -> Unit, onOpenPaper: (openAlexId: String) -> Unit) {
-    composable<SearchRoute> { SearchScreen(onOpenSettings = onOpenSettings, onOpenPaper = onOpenPaper) }
+    composable<SearchRoute> { entry ->
+        // Written by Details through requestSearchRemove.
+        val removeRequest by entry.savedStateHandle.getStateFlow<String?>(SEARCH_REMOVE_REQUEST, null).collectAsStateWithLifecycle()
+        SearchScreen(
+            onOpenSettings = onOpenSettings,
+            onOpenPaper = onOpenPaper,
+            removeRequest = removeRequest,
+            onRemoveRequestHandled = { entry.savedStateHandle[SEARCH_REMOVE_REQUEST] = null }
+        )
+    }
 }
 
 /** Asks this Search entry to remove [openAlexId] from the library, as its sheet's Remove does: Details' "Remove from library". */

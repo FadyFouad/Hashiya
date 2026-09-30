@@ -163,9 +163,10 @@ fun NavBackStackEntry.requestSearchRemove(openAlexId: String)
 ```
 
 - The route is pushed on top of Library or Search. Like Settings, it is not a top-level destination, so the navigation bar is hidden while it is open (`HashiyaApp` already hides the bar for any route that isn't Library or Search).
-- **Remove:** `HashiyaApp` wires `onRemove` to call `requestLibraryRemove` or `requestSearchRemove` on `previousBackStackEntry`, whichever route it is, and then `popBackStack()`. Each sets a key in that entry's `SavedStateHandle`, which is the same instance its ViewModel was given.
-  - `LibraryViewModel` collects its key, clears it, and removes the paper the way a swipe does, showing the existing Undo snackbar.
-  - `SearchViewModel` collects its key, clears it, and removes the paper the way the sheet's toggle does, with the same `RemoveFailed` message on failure.
+- **Remove:** `HashiyaApp` wires `onRemove` to call `requestLibraryRemove` or `requestSearchRemove` on `previousBackStackEntry`, whichever route it is, and then `popBackStack()`. Each sets a key in that entry's `SavedStateHandle` (the navigation-result pattern; this handle is the entry's own, not the one its Hilt ViewModel gets).
+  - The Library destination collects its key, passes it to `LibraryScreen` as `removeRequest`, and clears it once handled. `LibraryViewModel.onRemoveRequested(id)` removes the paper the way a swipe does, showing the existing Undo snackbar.
+  - Search does the same with `SearchViewModel.onRemoveRequested(id)`, which removes the paper the way the sheet's toggle does, with the same `RemoveFailed` message on failure.
+  - The entry's handle is saved with the back stack, so a request written just before process death is handled when the screen comes back.
 - **Library:** `libraryScreen` gains `onOpenPaper: (openAlexId) -> Unit`. A row tap calls it.
 - **Search:** `searchScreen` gains `onOpenPaper`. The sheet's **Open details** button closes the sheet and then calls it.
 

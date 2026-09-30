@@ -62,8 +62,16 @@ internal fun LibraryScreen(
     onAddPaper: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPaper: (openAlexId: String) -> Unit,
+    removeRequest: String? = null,
+    onRemoveRequestHandled: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(removeRequest) {
+        removeRequest?.let { openAlexId ->
+            viewModel.onRemoveRequested(openAlexId)
+            onRemoveRequestHandled()
+        }
+    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val pendingUndo by viewModel.pendingUndo.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()

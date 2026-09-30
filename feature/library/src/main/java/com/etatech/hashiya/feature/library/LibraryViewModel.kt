@@ -8,7 +8,6 @@ import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.ReadingStatus
-import com.etatech.hashiya.feature.library.navigation.LIBRARY_REMOVE_REQUEST
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -93,17 +92,6 @@ class LibraryViewModel @Inject constructor(
     private val _message = MutableStateFlow<LibraryMessage?>(null)
     val message: StateFlow<LibraryMessage?> = _message.asStateFlow()
 
-    // Declared after _pendingUndo on purpose: with an immediate dispatcher, a request that is already waiting
-    // (restored after process death) is handled right here, and remove() needs _pendingUndo to exist.
-    init {
-        viewModelScope.launch {
-            savedStateHandle.getStateFlow<String?>(LIBRARY_REMOVE_REQUEST, null).filterNotNull().collect { openAlexId ->
-                savedStateHandle[LIBRARY_REMOVE_REQUEST] = null
-                remove(openAlexId)
-            }
-        }
-    }
-
     fun onQueryChange(text: String) {
         query.value = text
     }
@@ -144,6 +132,9 @@ class LibraryViewModel @Inject constructor(
     }
 
     fun onRemove(paper: Paper) = remove(paper.openAlexId)
+
+    /** Details' "Remove from library", handed back through the Library's back stack entry: removed with Undo, like a swipe. */
+    fun onRemoveRequested(openAlexId: String) = remove(openAlexId)
 
     private fun remove(openAlexId: String) {
         viewModelScope.launch {

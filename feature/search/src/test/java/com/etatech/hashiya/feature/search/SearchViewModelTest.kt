@@ -14,7 +14,6 @@ import com.etatech.hashiya.core.testing.FakeSearchRepository
 import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
-import com.etatech.hashiya.feature.search.navigation.SEARCH_REMOVE_REQUEST
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -556,11 +555,10 @@ class SearchViewModelTest {
         libraryRepository.save(SamplePapers.bert)
         val viewModel = viewModel()
 
-        savedStateHandle[SEARCH_REMOVE_REQUEST] = SamplePapers.bert.openAlexId
+        viewModel.onRemoveRequested(SamplePapers.bert.openAlexId)
         runCurrent()
 
         assertEquals(emptySet<String>(), viewModel.savedIds.value)
-        assertNull(savedStateHandle.get<String>(SEARCH_REMOVE_REQUEST))
     }
 
     @Test
@@ -569,7 +567,7 @@ class SearchViewModelTest {
         libraryRepository.failOnRemove = true
         val viewModel = viewModel()
 
-        savedStateHandle[SEARCH_REMOVE_REQUEST] = SamplePapers.bert.openAlexId
+        viewModel.onRemoveRequested(SamplePapers.bert.openAlexId)
         runCurrent()
 
         assertEquals(SearchMessage.RemoveFailed, viewModel.message.value)

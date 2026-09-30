@@ -7,7 +7,6 @@ import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
-import com.etatech.hashiya.feature.library.navigation.LIBRARY_REMOVE_REQUEST
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
@@ -214,28 +213,16 @@ class LibraryViewModelTest {
     }
 
     @Test
-    fun removeRequestFromDetailsRemovesWithUndoOnce() = runTest {
+    fun removeRequestedFromDetailsRemovesWithUndo() = runTest {
         saveSamples()
         val viewModel = viewModel()
 
-        savedStateHandle[LIBRARY_REMOVE_REQUEST] = SamplePapers.bert.openAlexId
+        viewModel.onRemoveRequested(SamplePapers.bert.openAlexId)
 
         assertEquals(listOf(SamplePapers.vit.title, SamplePapers.attention.title), viewModel.titles())
         assertEquals(SamplePapers.bert, viewModel.pendingUndo.value?.paper)
-        assertNull(savedStateHandle.get<String>(LIBRARY_REMOVE_REQUEST))
         viewModel.onUndoRemove()
         assertEquals(all, viewModel.titles())
-    }
-
-    /** The request can be waiting before the ViewModel exists (process death between Details and the Library). */
-    @Test
-    fun removeRequestWaitingWhenTheViewModelStartsIsHandled() = runTest {
-        saveSamples()
-
-        val viewModel = viewModel(SavedStateHandle(mapOf(LIBRARY_REMOVE_REQUEST to SamplePapers.bert.openAlexId)))
-
-        assertEquals(listOf(SamplePapers.vit.title, SamplePapers.attention.title), viewModel.titles())
-        assertEquals(SamplePapers.bert, viewModel.pendingUndo.value?.paper)
     }
 
     /** Removing the only paper a search matched empties the library: Empty, not "No papers match". */

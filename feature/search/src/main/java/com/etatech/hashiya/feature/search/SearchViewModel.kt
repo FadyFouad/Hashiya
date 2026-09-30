@@ -19,7 +19,6 @@ import com.etatech.hashiya.core.model.YearFilter
 import com.etatech.hashiya.core.model.looksLikeLink
 import com.etatech.hashiya.core.model.parsePaperIdentifier
 import com.etatech.hashiya.core.model.withoutArabicMarks
-import com.etatech.hashiya.feature.search.navigation.SEARCH_REMOVE_REQUEST
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -163,18 +162,15 @@ class SearchViewModel @Inject constructor(
     private val _message = MutableStateFlow<SearchMessage?>(null)
     val message: StateFlow<SearchMessage?> = _message.asStateFlow()
 
-    // After _message, which a failed removal sets; a request already waiting (process death) is handled right here.
-    init {
+    /** Details' "Remove from library", handed back through the Search back stack entry: removed as the sheet's Remove does. */
+    fun onRemoveRequested(openAlexId: String) {
         viewModelScope.launch {
-            savedStateHandle.getStateFlow<String?>(SEARCH_REMOVE_REQUEST, null).filterNotNull().collect { openAlexId ->
-                savedStateHandle[SEARCH_REMOVE_REQUEST] = null
-                try {
-                    libraryRepository.remove(openAlexId)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    _message.value = SearchMessage.RemoveFailed
-                }
+            try {
+                libraryRepository.remove(openAlexId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _message.value = SearchMessage.RemoveFailed
             }
         }
     }

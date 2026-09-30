@@ -61,8 +61,16 @@ import java.util.Calendar
 internal fun SearchScreen(
     onOpenSettings: () -> Unit,
     onOpenPaper: (openAlexId: String) -> Unit,
+    removeRequest: String? = null,
+    onRemoveRequestHandled: () -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(removeRequest) {
+        removeRequest?.let { openAlexId ->
+            viewModel.onRemoveRequested(openAlexId)
+            onRemoveRequestHandled()
+        }
+    }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val selectedItem by viewModel.selectedItem.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()

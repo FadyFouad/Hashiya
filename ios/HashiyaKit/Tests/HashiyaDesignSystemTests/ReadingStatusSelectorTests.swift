@@ -36,20 +36,6 @@ struct ReadingStatusSelectorTests {
         #expect(inLanguage("ar") { ReadingStatus.allCases.map(readingStatusLabel) } == ["للقراءة", "قيد القراءة", "مقروءة"])
     }
 
-    @Test func thePreviewShowsTheSelectorOnlyWithAStatus() {
-        let withStatus = renderedStrings(of: PaperPreviewContent(
-            paper: SamplePapers.attention, inLibrary: true, status: .reading, onToggleSave: {}, onOpenDOI: nil
-        ))
-        let withoutStatus = renderedStrings(of: PaperPreviewContent(
-            paper: SamplePapers.attention, inLibrary: false, onToggleSave: {}, onOpenDOI: nil
-        ))
-
-        #expect(["To read", "Reading", "Read"].allSatisfy(withStatus.contains))
-        #expect(withStatus.contains("Remove from library"))
-        #expect(!withoutStatus.contains("To read"))
-        #expect(withoutStatus.contains("Save to library"))
-    }
-
     @Test func thePreviewShowsOpenDetailsOnlyWhenGiven() {
         let with = renderedStrings(of: PaperPreviewContent(
             paper: SamplePapers.attention, inLibrary: true, onToggleSave: {}, onOpenDOI: nil, onOpenDetails: {}

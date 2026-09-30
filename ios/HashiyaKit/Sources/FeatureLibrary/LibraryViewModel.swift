@@ -55,8 +55,6 @@ public final class LibraryViewModel {
     public private(set) var appliedQuery = ""
     /// The selected chip; nil is All.
     public private(set) var status: ReadingStatus?
-    /// The paper in the preview sheet.
-    public var selectedPaperID: String?
     /// The latest removal, which Undo can put back.
     public internal(set) var pendingUndo: RemovedPaper?
     public var message: LibraryMessage?
@@ -65,12 +63,9 @@ public final class LibraryViewModel {
     @ObservationIgnored var stateObserver: ((LibraryState) -> Void)?
     @ObservationIgnored private let library: any LibraryRepository
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
-    @ObservationIgnored private let observations = TaskBag()
     @ObservationIgnored private let filterObservation = TaskSlot()
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored private var hasRestored = false
-    /// The whole library, for the preview: a status change that moves the paper out of the chip keeps the sheet open.
-    private var allPapers: [LibraryPaper] = []
 
     public init(
         library: any LibraryRepository,
@@ -78,15 +73,6 @@ public final class LibraryViewModel {
     ) {
         self.library = library
         self.sleep = sleep
-        observations.add(Task { [weak self] in
-            for await snapshot in library.observeLibrary(query: "", status: nil) {
-                guard let self else { return }
-                self.allPapers = snapshot.papers
-                if let id = self.selectedPaperID, !snapshot.papers.contains(where: { $0.id == id }) {
-                    self.selectedPaperID = nil
-                }
-            }
-        })
         observeFilter()
     }
 
@@ -104,12 +90,6 @@ public final class LibraryViewModel {
         case let .papers(_, filter), let .noMatches(filter): filter
         case .loading, .empty: nil
         }
-    }
-
-    /// The selected paper with its current status; nil once it is gone.
-    public var selectedPaper: LibraryPaper? {
-        guard let id = selectedPaperID else { return nil }
-        return allPapers.first { $0.id == id }
     }
 
     /// The chip as its `@SceneStorage` value: `toRead`, `reading`, `read`, or "" for All.
@@ -215,17 +195,17 @@ public final class LibraryViewModel {
         }
     }
 
-    // MARK: Preview, remove and Undo
+    // MARK: Remove and Undo
 
-    public func select(_ paper: Paper) {
-        selectedPaperID = paper.openAlexID
+    /// A swipe: removes the paper; only the latest removal can be undone.
+    public func remove(_ paper: Paper) async {
+        await remove(openAlexID: paper.openAlexID)
     }
 
-    /// Closes the preview and removes the paper; only the latest removal can be undone.
-    public func remove(_ paper: Paper) async {
-        selectedPaperID = nil
+    /// Remove on Details, after it saved the notes: the same as a swipe, with Undo.
+    public func remove(openAlexID: String) async {
         do {
-            if let removed = try await library.remove(openAlexID: paper.openAlexID) {
+            if let removed = try await library.remove(openAlexID: openAlexID) {
                 pendingUndo = removed
             }
         } catch {
@@ -233,7 +213,7 @@ public final class LibraryViewModel {
         }
     }
 
-    /// Puts the latest removed paper back in its place, with its status.
+    /// Puts the latest removed paper back in its place, with its status and notes.
     public func undo() async {
         guard let removed = pendingUndo else { return }
         pendingUndo = nil

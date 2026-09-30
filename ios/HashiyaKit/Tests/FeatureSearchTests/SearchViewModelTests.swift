@@ -522,6 +522,28 @@ struct SearchViewModelTests {
         #expect(viewModel.text == "bert")
         #expect(repository.calls.count == 1)
     }
+
+    /// Remove on Details opened from Search: the same as the sheet's toggle removing.
+    @Test func removingByIDRemovesThePaper() async throws {
+        try await library.save(SamplePapers.bert)
+        let viewModel = makeViewModel(repository())
+
+        await viewModel.remove(openAlexID: SamplePapers.bert.openAlexID)
+
+        #expect(library.savedPapers.isEmpty)
+        #expect(viewModel.message == nil)
+    }
+
+    @Test func aFailedRemoveByIDShowsRemoveFailed() async throws {
+        try await library.save(SamplePapers.bert)
+        library.setFailRemoves(true)
+        let viewModel = makeViewModel(repository())
+
+        await viewModel.remove(openAlexID: SamplePapers.bert.openAlexID)
+
+        #expect(viewModel.message == .removeFailed)
+        #expect(library.savedPapers == [SamplePapers.bert])
+    }
 }
 
 struct SearchSceneStateTests {

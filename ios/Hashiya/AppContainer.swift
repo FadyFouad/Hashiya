@@ -1,4 +1,5 @@
 import FeatureLibrary
+import FeaturePaperDetails
 import FeatureSearch
 import FeatureSettings
 import Foundation
@@ -13,6 +14,8 @@ final class AppContainer {
     let lookupRepository: any PaperLookupRepository
     let preferences: any UserPreferencesRepository
     let appUpdateRepository: any AppUpdateRepository
+    /// Note writes the app waits for before it suspends the shared database in the background.
+    let pendingWrites = PendingWrites()
 
     init(dependencies: LiveDependencies, appUpdateRepository: any AppUpdateRepository) {
         libraryRepository = dependencies.libraryRepository
@@ -46,6 +49,10 @@ final class AppContainer {
 
     func makeLibraryViewModel() -> LibraryViewModel {
         LibraryViewModel(library: libraryRepository)
+    }
+
+    func makePaperDetailsViewModel(openAlexID: String) -> PaperDetailsViewModel {
+        PaperDetailsViewModel(openAlexID: openAlexID, library: libraryRepository, pendingWrites: pendingWrites)
     }
 
     func makeSettingsViewModel() -> SettingsViewModel {

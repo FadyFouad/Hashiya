@@ -206,17 +206,22 @@ public final class SearchViewModel {
     /// Removes the paper when it is in the library, else saves it.
     public func toggleSave(_ paper: Paper) async {
         if isSaved(paper) {
-            do {
-                _ = try await library.remove(openAlexID: paper.openAlexID)
-            } catch {
-                message = .removeFailed
-            }
+            await remove(openAlexID: paper.openAlexID)
         } else {
             do {
                 try await library.save(paper)
             } catch {
                 message = .saveFailed
             }
+        }
+    }
+
+    /// The sheet's Remove, and Remove on Details opened from Search.
+    public func remove(openAlexID: String) async {
+        do {
+            _ = try await library.remove(openAlexID: openAlexID)
+        } catch {
+            message = .removeFailed
         }
     }
 

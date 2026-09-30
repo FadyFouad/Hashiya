@@ -102,7 +102,7 @@ final class LibraryFlowTests: XCTestCase {
         // The badge's menu lists the three statuses with the current one checked.
         row("Attention Is All You Need", in: app).buttons["Status: To read. Change status"].tap()
         XCTAssertTrue(app.buttons["Reading"].waitForExistence(timeout: UITestTimeout.long))
-        XCTAssertFalse(app.segmentedControls.firstMatch.exists, "Tapping the badge must not open the preview")
+        XCTAssertFalse(app.segmentedControls.firstMatch.exists, "Tapping the badge must not open Details")
         XCTAssertTrue(app.buttons["To read"].isSelected)
         XCTAssertFalse(app.buttons["Reading"].isSelected)
         XCTAssertFalse(app.buttons["Read"].isSelected)
@@ -130,7 +130,7 @@ final class LibraryFlowTests: XCTestCase {
     }
 
     @MainActor
-    func testThePreviewChangesTheStatusAndTheSearchKeyHidesTheKeyboard() {
+    func testDetailsChangesTheStatusAndTheSearchKeyHidesTheKeyboard() {
         let app = launchApp()
         saveTwoPapers(in: app)
 
@@ -140,7 +140,7 @@ final class LibraryFlowTests: XCTestCase {
         XCTAssertTrue(app.segmentedControls.buttons["To read"].isSelected)
         read.tap()
         XCTAssertTrue(read.isSelected)
-        app.swipeDown(velocity: .fast)
+        app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["Read · 1"].waitForExistence(timeout: UITestTimeout.long))
         XCTAssertTrue(row("BERT", in: app).buttons["Status: Read. Change status"].exists)
 

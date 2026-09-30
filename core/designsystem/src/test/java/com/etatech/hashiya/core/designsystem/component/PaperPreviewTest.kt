@@ -106,4 +106,23 @@ class PaperPreviewTest {
         composeRule.onNodeWithText("To read").assertDoesNotExist()
         composeRule.onNodeWithText("Reading").assertDoesNotExist()
     }
+
+    @Test
+    fun openDetailsShowsWhenOfferedAndCallsBack() {
+        var opened = 0
+        composeRule.setContent {
+            HashiyaTheme {
+                PaperPreviewContent(SamplePapers.bert, inLibrary = true, onToggleSave = {}, onOpenDoi = {}, onOpenDetails = { opened++ })
+            }
+        }
+
+        composeRule.onNodeWithText("Open details").performClick()
+        assertEquals(1, opened)
+    }
+
+    @Test
+    fun noOpenDetailsWithoutTheCallback() {
+        show(SamplePapers.bert, inLibrary = true)
+        composeRule.onNodeWithText("Open details").assertDoesNotExist()
+    }
 }

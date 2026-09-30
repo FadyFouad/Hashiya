@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -37,16 +38,26 @@ fun PaperPreviewSheet(
     onToggleSave: () -> Unit,
     onOpenDoi: (String) -> Unit,
     status: ReadingStatus? = null,
-    onStatusChange: (ReadingStatus) -> Unit = {}
+    onStatusChange: (ReadingStatus) -> Unit = {},
+    onOpenDetails: (() -> Unit)? = null
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        PaperPreviewContent(paper, inLibrary, onToggleSave, onOpenDoi, status = status, onStatusChange = onStatusChange)
+        PaperPreviewContent(
+            paper,
+            inLibrary,
+            onToggleSave,
+            onOpenDoi,
+            status = status,
+            onStatusChange = onStatusChange,
+            onOpenDetails = onOpenDetails
+        )
     }
 }
 
 /**
  * The sheet's body, separate so it can be tested and screenshotted without a window.
  * With a [status] (the Library), a To read · Reading · Read selector sits above the buttons; Search passes none.
+ * With [onOpenDetails] (a saved paper in Search), an Open details button sits above the other buttons.
  */
 @Composable
 fun PaperPreviewContent(
@@ -56,60 +67,26 @@ fun PaperPreviewContent(
     onOpenDoi: (String) -> Unit,
     modifier: Modifier = Modifier,
     status: ReadingStatus? = null,
-    onStatusChange: (ReadingStatus) -> Unit = {}
+    onStatusChange: (ReadingStatus) -> Unit = {},
+    onOpenDetails: (() -> Unit)? = null
 ) {
-    // Paper text is full width so it aligns by its own direction (Latin left, Arabic right) in either locale.
-    val contentText = MaterialTheme.typography.bodyMedium.copy(textDirection = TextDirection.Content)
     Column(modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
         Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
-            Text(
-                paperTitle(paper),
-                style = MaterialTheme.typography.titleLarge.copy(textDirection = TextDirection.Content),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(Modifier.height(6.dp))
-            if (paper.authors.isNotEmpty()) {
-                Text(paper.authors.joinToString(", ") { it.name }, style = contentText, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(4.dp))
-            }
-            Text(
-                listOfNotNull(
-                    paper.venue,
-                    paper.year?.toString(),
-                    stringResource(R.string.designsystem_citations, fullCount(paper.citationCount))
-                ).joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall.copy(textDirection = TextDirection.Content),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.fillMaxWidth()
-            )
-            if (paper.isOpenAccess) {
-                Spacer(Modifier.height(8.dp))
-                StatusBadge(
-                    text = stringResource(
-                        if (paper.openAccessPdfUrl != null) R.string.designsystem_open_access_pdf else R.string.designsystem_open_access
-                    ),
-                    kind = BadgeKind.OpenAccess
-                )
-            }
+            PaperHeader(paper)
             Spacer(Modifier.height(16.dp))
-            Text(
-                stringResource(R.string.designsystem_abstract),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                paper.abstract ?: stringResource(R.string.designsystem_no_abstract),
-                style = contentText,
-                color = if (paper.abstract == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.fillMaxWidth()
-            )
+            PaperAbstract(paper)
         }
         if (status != null) {
             Spacer(Modifier.height(16.dp))
             ReadingStatusSelector(status, onStatusChange)
         }
-        Spacer(Modifier.height(16.dp))
+        if (onOpenDetails != null) {
+            Spacer(Modifier.height(16.dp))
+            FilledTonalButton(onClick = onOpenDetails, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.designsystem_open_details))
+            }
+        }
+        Spacer(Modifier.height(if (onOpenDetails != null) 8.dp else 16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             paper.doi?.let { doi ->
                 OutlinedButton(onClick = { onOpenDoi(doi) }, modifier = Modifier.weight(1f)) {

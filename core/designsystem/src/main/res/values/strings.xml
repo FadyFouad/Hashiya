@@ -12,6 +12,7 @@
     <string name="designsystem_open_doi">Open DOI</string>
     <string name="designsystem_save_to_library">Save to library</string>
     <string name="designsystem_remove_from_library">Remove from library</string>
+    <string name="designsystem_open_details">Open details</string>
     <string name="status_to_read">To read</string>
     <string name="status_reading">Reading</string>
     <string name="status_read">Read</string>

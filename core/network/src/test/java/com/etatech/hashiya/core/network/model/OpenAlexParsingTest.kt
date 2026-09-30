@@ -32,6 +32,10 @@ class OpenAlexParsingTest {
         assertTrue(work.openAccess!!.isOa)
         assertEquals("https://arxiv.org/pdf/1706.03762", work.bestOaLocation?.pdfUrl)
         assertEquals(listOf(1), work.abstractInvertedIndex?.get("dominant"))
+        assertEquals("preprint", work.type)
+        assertEquals(NetworkBiblio(volume = "30", issue = null, firstPage = "5998", lastPage = "6008"), work.biblio)
+        assertEquals("conference", work.primaryLocation?.source?.type)
+        assertEquals("Neural Information Processing Systems Foundation", work.primaryLocation?.source?.hostOrganizationName)
     }
 
     @Test
@@ -46,5 +50,7 @@ class OpenAlexParsingTest {
         assertFalse(work.openAccess!!.isOa)
         assertNull(work.bestOaLocation)
         assertNull(work.abstractInvertedIndex)
+        assertNull(work.type)
+        assertNull(work.biblio)
     }
 }

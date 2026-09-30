@@ -8,6 +8,7 @@ import mockwebserver3.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
@@ -47,6 +48,13 @@ class OpenAlexLookupDataSourceTest {
         assertEquals("built-in-key", url.queryParameter("api_key"))
         assertEquals("https://openalex.org/W2919115771", work?.id)
         assertEquals("Deep learning", work?.displayName)
+    }
+
+    @Test
+    fun workFieldsIncludeTypeAndBiblio() {
+        val fields = WORK_FIELDS.split(",")
+        assertTrue("type" in fields)
+        assertTrue("biblio" in fields)
     }
 
     @Test

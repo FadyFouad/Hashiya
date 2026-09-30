@@ -1,5 +1,6 @@
 import GRDB
 import HashiyaDatabase
+import HashiyaModel
 import Testing
 
 struct PaperStoreTests {
@@ -115,8 +116,9 @@ struct PaperStoreTests {
         try await save(record, "Ada", "Grace")
 
         let deleted = try await store.deleteByOpenAlexID("W1")
-        #expect(deleted?.paper == record)
-        #expect(deleted?.authors.map(\.name) == ["Ada", "Grace"])
+        #expect(deleted?.saved.paper == record)
+        #expect(deleted?.saved.authors.map(\.name) == ["Ada", "Grace"])
+        #expect(deleted?.notes == nil)
         #expect(await library()?.papers.isEmpty == true)
         #expect(try count("paper_authors") == 0)
         #expect(try count("paper_search") == 0)
@@ -128,7 +130,7 @@ struct PaperStoreTests {
         }
 
         let deleted = try #require(try await store.deleteByOpenAlexID("W2"))
-        try await store.insert(paper: deleted.paper, authors: deleted.authors, search: deleted.searchRow)
+        try await store.insert(paper: deleted.saved.paper, authors: deleted.saved.authors, search: deleted.saved.searchRow)
 
         let saved = await library()?.papers
         #expect(saved?.map(\.paper.id) == ["local-3", "local-2", "local-1"])
@@ -227,5 +229,130 @@ struct PaperStoreTests {
     @Test func aSearchRowMustBelongToItsPaper() {
         let search = PaperSearchRow.make(paperID: "local-1", title: "Café", authorNames: ["Ada", "Grace"], abstract: nil, venue: "NeurIPS")
         #expect(search == PaperSearchRow(paperID: "local-1", title: "cafe", authors: "ada grace", abstract: "", venue: "neurips"))
+    }
+
+    // MARK: Notes
+
+    private func noteRow(_ paperID: String) throws -> PaperNotesRecord? {
+        try queue.read { db in try PaperNotesRecord.fetchOne(db, key: paperID) }
+    }
+
+    private func searchNotes(_ paperID: String) throws -> String? {
+        try queue.read { db in try String.fetchOne(db, sql: "SELECT notes FROM paper_search WHERE paper_id = ?", arguments: [paperID]) }
+    }
+
+    @Test func savingNotesCreatesUpdatesAndDeletesTheRow() async throws {
+        try await save(paper(1, savedAt: 1_000))
+
+        #expect(try await store.saveNotes(openAlexID: "W1", notes: PaperNotes(summary: "First"), updatedAt: 5))
+        #expect(try noteRow("local-1") == PaperNotesRecord(paperID: "local-1", notes: PaperNotes(summary: "First"), updatedAt: 5))
+
+        #expect(try await store.saveNotes(openAlexID: "W1", notes: PaperNotes(summary: "First", thoughts: "Later"), updatedAt: 6))
+        #expect(try noteRow("local-1")?.notes == PaperNotes(summary: "First", thoughts: "Later"))
+        #expect(try noteRow("local-1")?.updatedAt == 6)
+        #expect(try count("paper_notes") == 1)
+
+        #expect(try await store.saveNotes(openAlexID: "W1", notes: PaperNotes(summary: "  ", method: "\n"), updatedAt: 7))
+        #expect(try noteRow("local-1") == nil)
+        #expect(try count("paper_notes") == 0)
+    }
+
+    @Test func theSearchColumnFollowsEverySave() async throws {
+        try await save(paper(1, savedAt: 1_000))
+
+        try await store.saveNotes(openAlexID: "W1", notes: PaperNotes(summary: "Café", keyFindings: "التَّعلُّم"), updatedAt: 1)
+        #expect(try searchNotes("local-1") == "cafe   التعلم  ")
+
+        try await store.saveNotes(openAlexID: "W1", notes: PaperNotes(), updatedAt: 2)
+        #expect(try searchNotes("local-1") == "")
+    }
+
+    @Test func savingNotesForAnUnsavedPaperWritesNothing() async throws {
+        #expect(try await store.saveNotes(openAlexID: "W404", notes: PaperNotes(summary: "x"), updatedAt: 1) == false)
+        #expect(try count("paper_notes") == 0)
+    }
+
+    @Test func aSearchFindsAWordOnlyInTheNotesWithFolding() async throws {
+        try await save(paper(1, title: "Deep learning", savedAt: 1_000))
+        try await save(paper(2, title: "Other", savedAt: 2_000))
+        try await store.saveNotes(openAlexID: "W1", notes: PaperNotes(thoughts: "Try the ablation on التَّعلُّم المعزّز"), updatedAt: 1)
+
+        #expect(await ids(match: "\"ablation*\"") == ["local-1"])
+        #expect(await ids(match: "\"التعلم*\"") == ["local-1"])
+        #expect(await ids(match: "\"ablation*\" \"deep*\"") == ["local-1"])
+        #expect(await ids(match: "\"ablation*\" \"other*\"") == [])
+    }
+
+    /// SQLite doesn't report a virtual table's writes to GRDB, so `saveNotes` notifies `papers` itself.
+    @Test(.timeLimit(.minutes(1)))
+    func anOpenLibrarySearchSeesANewNote() async throws {
+        try await save(paper(1, savedAt: 1_000))
+        var iterator = store.observeLibrary(match: "\"ablation*\"", status: nil).makeAsyncIterator()
+        #expect(await iterator.next()?.papers.isEmpty == true)
+
+        try await store.saveNotes(openAlexID: "W1", notes: PaperNotes(method: "Ablation"), updatedAt: 1)
+
+        #expect(await iterator.next()?.papers.map(\.paper.id) == ["local-1"])
+    }
+
+    @Test func notesAreReadByOpenAlexID() async throws {
+        try await save(paper(1, savedAt: 1_000))
+        #expect(try await store.notes(openAlexID: "W1") == nil)
+
+        try await store.saveNotes(openAlexID: "W1", notes: PaperNotes(summary: "S"), updatedAt: 3)
+
+        #expect(try await store.notes(openAlexID: "W1") == PaperNotesRecord(paperID: "local-1", notes: PaperNotes(summary: "S"), updatedAt: 3))
+        #expect(try await store.notes(openAlexID: "W404") == nil)
+    }
+
+    @Test func observePaperEmitsThePaperThenNilAfterDelete() async throws {
+        try await save(paper(1, savedAt: 1_000), "Ada", "Grace")
+        var iterator = store.observePaper(openAlexID: "W1").makeAsyncIterator()
+
+        let first = await iterator.next()
+        #expect(first??.paper.id == "local-1")
+        #expect(first??.authors.map(\.name) == ["Ada", "Grace"])
+
+        _ = try await store.deleteByOpenAlexID("W1")
+        #expect(await value(of: store.observePaper(openAlexID: "W1")) == .some(nil))
+        let next = await iterator.next()
+        #expect(next == .some(nil))
+    }
+
+    @Test func deleteReturnsTheNotesAndLeavesNoRow() async throws {
+        try await save(paper(1, savedAt: 1_000))
+        try await store.saveNotes(openAlexID: "W1", notes: PaperNotes(limitations: "Small sample"), updatedAt: 4)
+
+        let deleted = try #require(try await store.deleteByOpenAlexID("W1"))
+
+        #expect(deleted.notes == PaperNotesRecord(paperID: "local-1", notes: PaperNotes(limitations: "Small sample"), updatedAt: 4))
+        #expect(try count("paper_notes") == 0)
+        #expect(try count("paper_search") == 0)
+    }
+
+    @Test func insertingWithNotesRestoresTheRowAndTheSearchColumn() async throws {
+        try await save(paper(1, savedAt: 1_000), "Ada")
+        try await store.saveNotes(openAlexID: "W1", notes: PaperNotes(method: "Ablation"), updatedAt: 4)
+        let deleted = try #require(try await store.deleteByOpenAlexID("W1"))
+        let notes = try #require(deleted.notes)
+
+        try await store.insert(
+            paper: deleted.saved.paper,
+            authors: deleted.saved.authors,
+            search: deleted.saved.searchRow(notes: notes.notes),
+            notes: notes
+        )
+
+        #expect(try noteRow("local-1") == notes)
+        #expect(try searchNotes("local-1") == "  ablation   ")
+        #expect(await ids(match: "\"ablation*\"") == ["local-1"])
+    }
+
+    @Test func theNotesTextFoldsEverySectionAndIsEmptyForBlankNotes() {
+        #expect(PaperSearchRow.notesText(PaperNotes()) == "")
+        #expect(PaperSearchRow.notesText(PaperNotes(summary: "  ")) == "")
+        #expect(PaperSearchRow.notesText(PaperNotes(
+            summary: "A", researchQuestion: "B", method: "C", keyFindings: "D", limitations: "E", thoughts: "Ö"
+        )) == "a b c d e o")
     }
 }

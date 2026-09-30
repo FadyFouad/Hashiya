@@ -93,31 +93,93 @@ public struct PaperSearchRow: Equatable, Sendable {
     public var authors: String
     public var abstract: String
     public var venue: String
+    /// `notesText` of the paper's notes; "" when it has none.
+    public var notes: String
 
-    public init(paperID: String, title: String, authors: String, abstract: String, venue: String) {
+    public init(paperID: String, title: String, authors: String, abstract: String, venue: String, notes: String = "") {
         self.paperID = paperID
         self.title = title
         self.authors = authors
         self.abstract = abstract
         self.venue = venue
+        self.notes = notes
     }
 
-    /// The row for a paper, every column passed through `searchableText`. New saves and migration `v2` both use it.
-    public static func make(paperID: String, title: String, authorNames: [String], abstract: String?, venue: String?) -> PaperSearchRow {
+    /// The row for a paper, every column passed through `searchableText`. New saves, Undo and migration `v2` use it.
+    public static func make(
+        paperID: String,
+        title: String,
+        authorNames: [String],
+        abstract: String?,
+        venue: String?,
+        notes: PaperNotes? = nil
+    ) -> PaperSearchRow {
         PaperSearchRow(
             paperID: paperID,
             title: searchableText(title),
             authors: searchableText(authorNames.joined(separator: " ")),
             abstract: searchableText(abstract ?? ""),
-            venue: searchableText(venue ?? "")
+            venue: searchableText(venue ?? ""),
+            notes: notes.map(notesText) ?? ""
         )
+    }
+
+    /// The six sections joined with spaces, through `searchableText`; "" for blank notes, which have no row.
+    public static func notesText(_ notes: PaperNotes) -> String {
+        guard !notes.isEmpty else { return "" }
+        return searchableText(NoteSection.allCases.map { notes[$0] }.joined(separator: " "))
     }
 
     func insert(_ db: Database) throws {
         try db.execute(
-            sql: "INSERT INTO paper_search (paper_id, title, authors, abstract, venue) VALUES (?, ?, ?, ?, ?)",
-            arguments: [paperID, title, authors, abstract, venue]
+            sql: "INSERT INTO paper_search (paper_id, title, authors, abstract, venue, notes) VALUES (?, ?, ?, ?, ?, ?)",
+            arguments: [paperID, title, authors, abstract, venue, notes]
         )
+    }
+}
+
+/// A row of `paper_notes`: a saved paper's notes. It exists only while some section isn't blank.
+public struct PaperNotesRecord: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    public static let databaseTableName = "paper_notes"
+
+    public var paperID: String
+    public var summary: String
+    public var researchQuestion: String
+    public var method: String
+    public var keyFindings: String
+    public var limitations: String
+    public var thoughts: String
+    /// Epoch milliseconds of the last save. Nothing reads it yet.
+    public var updatedAt: Int64
+
+    public init(paperID: String, notes: PaperNotes, updatedAt: Int64) {
+        self.paperID = paperID
+        summary = notes.summary
+        researchQuestion = notes.researchQuestion
+        method = notes.method
+        keyFindings = notes.keyFindings
+        limitations = notes.limitations
+        thoughts = notes.thoughts
+        self.updatedAt = updatedAt
+    }
+
+    public var notes: PaperNotes {
+        PaperNotes(
+            summary: summary,
+            researchQuestion: researchQuestion,
+            method: method,
+            keyFindings: keyFindings,
+            limitations: limitations,
+            thoughts: thoughts
+        )
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case summary, method, limitations, thoughts
+        case paperID = "paper_id"
+        case researchQuestion = "research_question"
+        case keyFindings = "key_findings"
+        case updatedAt = "updated_at"
     }
 }
 
@@ -131,15 +193,32 @@ public struct PaperWithAuthors: Equatable, Sendable {
         self.authors = authors
     }
 
-    /// This paper's row in the search index.
+    /// This paper's row in the search index, with no notes.
     public var searchRow: PaperSearchRow {
+        searchRow(notes: nil)
+    }
+
+    /// This paper's row in the search index with `notes` in its notes column.
+    public func searchRow(notes: PaperNotes?) -> PaperSearchRow {
         PaperSearchRow.make(
             paperID: paper.id,
             title: paper.title,
             authorNames: authors.sorted { $0.position < $1.position }.map(\.name),
             abstract: paper.abstract,
-            venue: paper.venue
+            venue: paper.venue,
+            notes: notes
         )
+    }
+}
+
+/// What `PaperStore.deleteByOpenAlexID` deleted: the paper with its authors, and its notes if it had any.
+public struct DeletedPaper: Equatable, Sendable {
+    public var saved: PaperWithAuthors
+    public var notes: PaperNotesRecord?
+
+    public init(saved: PaperWithAuthors, notes: PaperNotesRecord?) {
+        self.saved = saved
+        self.notes = notes
     }
 }
 

@@ -51,7 +51,7 @@ let package = Package(
         ),
         .testTarget(name: "HashiyaModelTests", dependencies: ["HashiyaModel"]),
         .testTarget(name: "HashiyaNetworkTests", dependencies: ["HashiyaNetwork", "HashiyaTesting"]),
-        .testTarget(name: "HashiyaDatabaseTests", dependencies: ["HashiyaDatabase", grdb]),
+        .testTarget(name: "HashiyaDatabaseTests", dependencies: ["HashiyaDatabase", "HashiyaModel", grdb]),
         .testTarget(
             name: "HashiyaDataTests",
             dependencies: ["HashiyaData", "HashiyaDatabase", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting", grdb]

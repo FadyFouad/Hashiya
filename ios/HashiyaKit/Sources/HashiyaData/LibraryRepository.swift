@@ -106,8 +106,8 @@ public struct GRDBLibraryRepository: LibraryRepository {
 
     public func remove(openAlexID: String) async throws -> RemovedPaper? {
         guard let deleted = try await store.deleteByOpenAlexID(openAlexID) else { return nil }
-        let saved = deleted.asLibraryPaper()
-        return RemovedPaper(paper: saved.paper, localID: deleted.paper.id, savedAt: deleted.paper.savedAt, status: saved.status)
+        let saved = deleted.saved.asLibraryPaper()
+        return RemovedPaper(paper: saved.paper, localID: deleted.saved.paper.id, savedAt: deleted.saved.paper.savedAt, status: saved.status)
     }
 
     public func restore(_ removed: RemovedPaper) async throws {

@@ -16,6 +16,7 @@ public enum HashiyaDatabase {
     }
 
     /// `v1`: Android's Room version 1 schema. `v2`: Android's version 2 — the reading status and the search index.
+    /// `v3`: Android's version 3 — the notes table, and the search index rebuilt with a notes column.
     public static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1") { db in
@@ -57,14 +58,41 @@ public enum HashiyaDatabase {
             }
             for row in try Row.fetchAll(db, sql: "SELECT id, title, abstract, venue FROM papers") {
                 let id: String = row["id"]
-                try PaperSearchRow.make(
+                let search = PaperSearchRow.make(
                     paperID: id,
                     title: row["title"],
                     authorNames: authorNames[id] ?? [],
                     abstract: row["abstract"],
                     venue: row["venue"]
-                ).insert(db)
+                )
+                // The v2 index has these five columns; `PaperSearchRow.insert` writes the current schema's.
+                try db.execute(
+                    sql: "INSERT INTO paper_search (paper_id, title, authors, abstract, venue) VALUES (?, ?, ?, ?, ?)",
+                    arguments: [search.paperID, search.title, search.authors, search.abstract, search.venue]
+                )
             }
+        }
+        migrator.registerMigration("v3") { db in
+            // An FTS table can't be altered: copy its rows out, recreate it with `notes`, and copy them back
+            // unchanged (nothing is re-normalized; no paper has notes yet).
+            try db.execute(sql: """
+                CREATE TABLE paper_notes (
+                  paper_id TEXT NOT NULL PRIMARY KEY REFERENCES papers(id) ON DELETE CASCADE,
+                  summary TEXT NOT NULL,
+                  research_question TEXT NOT NULL,
+                  method TEXT NOT NULL,
+                  key_findings TEXT NOT NULL,
+                  limitations TEXT NOT NULL,
+                  thoughts TEXT NOT NULL,
+                  updated_at INTEGER NOT NULL
+                );
+                CREATE TEMP TABLE paper_search_copy AS SELECT paper_id, title, authors, abstract, venue FROM paper_search;
+                DROP TABLE paper_search;
+                CREATE VIRTUAL TABLE paper_search USING fts4(paper_id, title, authors, abstract, venue, notes, tokenize=unicode61, notindexed=paper_id);
+                INSERT INTO paper_search (paper_id, title, authors, abstract, venue, notes)
+                  SELECT paper_id, title, authors, abstract, venue, '' FROM paper_search_copy;
+                DROP TABLE paper_search_copy;
+                """)
         }
         return migrator
     }

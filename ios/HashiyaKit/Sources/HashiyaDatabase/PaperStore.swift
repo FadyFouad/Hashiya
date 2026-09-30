@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import HashiyaModel
 import os
 
 /// The library's data access. Each operation is one transaction, and every write keeps the search index
@@ -76,11 +77,73 @@ public struct PaperStore: Sendable {
         })
     }
 
-    /// Inserts the paper unless one with the same `id` or `open_alex_id` exists, then its authors and its search row.
-    /// Returns false, writing nothing, when the paper already exists.
+    /// The saved paper with its authors, or nil once it isn't saved. Each call starts its own observation.
+    public func observePaper(openAlexID: String) -> AsyncStream<PaperWithAuthors?> {
+        stream(ValueObservation.tracking { db in try Self.paper(db, openAlexID: openAlexID) })
+    }
+
+    /// A saved paper's notes, read once; nil when it has none or isn't saved.
+    public func notes(openAlexID: String) async throws -> PaperNotesRecord? {
+        try await writer.read { db in
+            try PaperNotesRecord.fetchOne(
+                db,
+                sql: """
+                    SELECT paper_notes.* FROM paper_notes
+                    JOIN papers ON papers.id = paper_notes.paper_id
+                    WHERE papers.open_alex_id = ?
+                    """,
+                arguments: [openAlexID]
+            )
+        }
+    }
+
+    /// Saves a saved paper's notes, or deletes them when blank, and updates its search row. Returns false, writing
+    /// nothing, when the paper isn't saved.
     @discardableResult
-    public func insert(paper: PaperRecord, authors: [PaperAuthorRecord], search: PaperSearchRow) async throws -> Bool {
+    public func saveNotes(openAlexID: String, notes: PaperNotes, updatedAt: Int64) async throws -> Bool {
+        try await writer.write { db in
+            guard let paperID = try String.fetchOne(db, sql: "SELECT id FROM papers WHERE open_alex_id = ?", arguments: [openAlexID]) else {
+                return false
+            }
+            if notes.isEmpty {
+                try db.execute(sql: "DELETE FROM paper_notes WHERE paper_id = ?", arguments: [paperID])
+            } else {
+                try PaperNotesRecord(paperID: paperID, notes: notes, updatedAt: updatedAt).insert(db, onConflict: .replace)
+            }
+            try db.execute(
+                sql: "UPDATE paper_search SET notes = ? WHERE paper_id = ?",
+                arguments: [PaperSearchRow.notesText(notes), paperID]
+            )
+            // SQLite's update hook doesn't report writes to a virtual table, so an open Library search wouldn't
+            // fetch again and miss the note.
+            try db.notifyChanges(in: Table(PaperRecord.databaseTableName))
+            return true
+        }
+    }
+
+    static func paper(_ db: Database, openAlexID: String) throws -> PaperWithAuthors? {
+        guard let paper = try PaperRecord.filter(Column("open_alex_id") == openAlexID).fetchOne(db) else {
+            return nil
+        }
+        let authors = try PaperAuthorRecord
+            .filter(Column("paper_id") == paper.id)
+            .order(Column("position"))
+            .fetchAll(db)
+        return PaperWithAuthors(paper: paper, authors: authors)
+    }
+
+    /// Inserts the paper unless one with the same `id` or `open_alex_id` exists, then its authors, its search row and
+    /// its notes. Returns false, writing nothing, when the paper already exists. `search.notes` must already hold
+    /// `notes`' search text.
+    @discardableResult
+    public func insert(
+        paper: PaperRecord,
+        authors: [PaperAuthorRecord],
+        search: PaperSearchRow,
+        notes: PaperNotesRecord? = nil
+    ) async throws -> Bool {
         precondition(search.paperID == paper.id, "The search row must belong to the paper")
+        precondition(notes.map { $0.paperID == paper.id } ?? true, "The notes must belong to the paper")
         return try await writer.write { db in
             try paper.insert(db, onConflict: .ignore)
             guard db.changesCount > 0 else { return false }
@@ -88,24 +151,21 @@ public struct PaperStore: Sendable {
                 try author.insert(db)
             }
             try search.insert(db)
+            try notes?.insert(db)
             return true
         }
     }
 
-    /// Deletes the paper (its authors cascade) and its search row, and returns what was deleted, or nil if it was not saved.
-    public func deleteByOpenAlexID(_ openAlexID: String) async throws -> PaperWithAuthors? {
+    /// Deletes the paper (its authors and notes cascade) and its search row, and returns what was deleted, or nil if
+    /// it was not saved.
+    public func deleteByOpenAlexID(_ openAlexID: String) async throws -> DeletedPaper? {
         try await writer.write { db in
-            guard let paper = try PaperRecord.filter(Column("open_alex_id") == openAlexID).fetchOne(db) else {
-                return nil
-            }
-            let authors = try PaperAuthorRecord
-                .filter(Column("paper_id") == paper.id)
-                .order(Column("position"))
-                .fetchAll(db)
-            try paper.delete(db)
+            guard let saved = try Self.paper(db, openAlexID: openAlexID) else { return nil }
+            let notes = try PaperNotesRecord.fetchOne(db, key: saved.paper.id)
+            try saved.paper.delete(db)
             // FTS rows don't cascade.
-            try db.execute(sql: "DELETE FROM paper_search WHERE paper_id = ?", arguments: [paper.id])
-            return PaperWithAuthors(paper: paper, authors: authors)
+            try db.execute(sql: "DELETE FROM paper_search WHERE paper_id = ?", arguments: [saved.paper.id])
+            return DeletedPaper(saved: saved, notes: notes)
         }
     }
 
@@ -125,6 +185,7 @@ public struct PaperStore: Sendable {
         try await writer.write { db in
             try db.notifyChanges(in: Table(PaperRecord.databaseTableName))
             try db.notifyChanges(in: Table(PaperAuthorRecord.databaseTableName))
+            try db.notifyChanges(in: Table(PaperNotesRecord.databaseTableName))
         }
     }
 

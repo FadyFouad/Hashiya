@@ -1,14 +1,20 @@
 import Foundation
 import GRDB
 import HashiyaDatabase
+import HashiyaModel
 import Testing
 
 struct MigrationTests {
+    /// A database migrated only to `version`, as an install of that version left it.
+    private func version(_ version: String) throws -> DatabaseQueue {
+        let queue = try DatabaseQueue()
+        try HashiyaDatabase.migrator.migrate(queue, upTo: version)
+        return queue
+    }
+
     /// A database migrated only to `v1`, as plans 1 and 2 left every install.
     private func version1() throws -> DatabaseQueue {
-        let queue = try DatabaseQueue()
-        try HashiyaDatabase.migrator.migrate(queue, upTo: "v1")
-        return queue
+        try version("v1")
     }
 
     /// Android's `MigrationTest` fixture: one paper whose second author was inserted first, and an Arabic paper with
@@ -35,8 +41,8 @@ struct MigrationTests {
         return nil
     }
 
-    @Test func theMigrationsAreV1ThenV2() {
-        #expect(HashiyaDatabase.migrator.migrations == ["v1", "v2"])
+    @Test func theMigrationsAreV1ThenV2ThenV3() {
+        #expect(HashiyaDatabase.migrator.migrations == ["v1", "v2", "v3"])
     }
 
     @Test func v1CreatesAndroidsVersion1Schema() throws {
@@ -72,7 +78,7 @@ struct MigrationTests {
     }
 
     @Test func v2AddsTheReadingStatusAndTheSearchIndex() throws {
-        let (columns, sql) = try HashiyaDatabase.openInMemory().read { db in
+        let (columns, sql) = try version("v2").read { db in
             (try db.columns(in: "papers"), try String.fetchOne(db, sql: "SELECT sql FROM sqlite_master WHERE name = 'paper_search'"))
         }
         let status = try #require(columns.last)
@@ -122,6 +128,81 @@ struct MigrationTests {
         #expect(await first(store.observeLibrary(match: nil, status: nil))?.papers.first?.paper.readingStatus == "to_read")
     }
 
+    @Test func v3AddsTheNotesTable() throws {
+        try HashiyaDatabase.openInMemory().read { db in
+            let columns = try db.columns(in: "paper_notes")
+            #expect(columns.map(\.name) == [
+                "paper_id", "summary", "research_question", "method", "key_findings", "limitations", "thoughts", "updated_at",
+            ])
+            #expect(columns.map(\.type) == ["TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER"])
+            #expect(columns.allSatisfy { $0.isNotNull })
+            #expect(try db.primaryKey("paper_notes").columns == ["paper_id"])
+            #expect(try db.foreignKeys(on: "paper_notes").map(\.destinationTable) == ["papers"])
+            let onDelete = try String.fetchOne(db, sql: "SELECT on_delete FROM pragma_foreign_key_list('paper_notes')")
+            #expect(onDelete == "CASCADE")
+        }
+    }
+
+    @Test func v3RebuildsTheSearchIndexWithANotesColumn() throws {
+        let sql = try HashiyaDatabase.openInMemory().read { db in
+            try String.fetchOne(db, sql: "SELECT sql FROM sqlite_master WHERE name = 'paper_search'")
+        }
+        #expect(sql == "CREATE VIRTUAL TABLE paper_search USING fts4(paper_id, title, authors, abstract, venue, notes, tokenize=unicode61, notindexed=paper_id)")
+    }
+
+    /// A spec 3 install: every paper, status and search result is kept, and no paper has notes yet.
+    @Test func migratingFromV2KeepsEveryPaperStatusAndSearch() async throws {
+        let queue = try version1()
+        try insertVersion1Fixture(into: queue)
+        try HashiyaDatabase.migrator.migrate(queue, upTo: "v2")
+        try await queue.write { db in
+            try db.execute(sql: "UPDATE papers SET reading_status = 'reading' WHERE id = 'a'")
+        }
+        let indexBefore = try await queue.read { db in
+            try String.fetchAll(db, sql: "SELECT paper_id || '|' || title || '|' || authors || '|' || abstract || '|' || venue FROM paper_search ORDER BY paper_id")
+        }
+
+        try HashiyaDatabase.migrator.migrate(queue)
+
+        let (statuses, indexAfter, notes, noteRows, temporary) = try await queue.read { db in
+            (
+                try String.fetchAll(db, sql: "SELECT id || ':' || reading_status FROM papers ORDER BY id"),
+                try String.fetchAll(db, sql: "SELECT paper_id || '|' || title || '|' || authors || '|' || abstract || '|' || venue FROM paper_search ORDER BY paper_id"),
+                try String.fetchAll(db, sql: "SELECT notes FROM paper_search ORDER BY paper_id"),
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM paper_notes"),
+                try db.tableExists("paper_search_copy")
+            )
+        }
+        #expect(statuses == ["a:reading", "b:to_read"])
+        #expect(indexAfter == indexBefore)
+        #expect(notes == ["", ""])
+        #expect(noteRows == 0)
+        #expect(!temporary)
+
+        let store = PaperStore(writer: queue)
+        func ids(_ match: String?) async -> [String]? {
+            await first(store.observeLibrary(match: match, status: nil))?.papers.map(\.paper.id)
+        }
+        #expect(await ids(nil) == ["b", "a"])
+        #expect(await ids("\"attention*\"") == ["a"])
+        #expect(await ids("\"shazeer*\"") == ["a"])
+        #expect(await ids("\"transduction*\"") == ["a"])
+        #expect(await ids("\"التعلم*\"") == ["b"])
+    }
+
+    /// Once the notes column exists, a note written after the upgrade is searchable.
+    @Test func notesAreSearchableAfterTheUpgrade() async throws {
+        let queue = try version1()
+        try insertVersion1Fixture(into: queue)
+        try HashiyaDatabase.migrator.migrate(queue, upTo: "v2")
+        try HashiyaDatabase.migrator.migrate(queue)
+        let store = PaperStore(writer: queue)
+
+        #expect(try await store.saveNotes(openAlexID: "W2", notes: PaperNotes(method: "Ablation study"), updatedAt: 1))
+
+        #expect(await first(store.observeLibrary(match: "\"ablation*\"", status: nil))?.papers.map(\.paper.id) == ["b"])
+    }
+
     @Test func foreignKeysAreEnforced() throws {
         let db = try HashiyaDatabase.openInMemory()
         let enabled = try db.read { db in try Bool.fetchOne(db, sql: "PRAGMA foreign_keys") }
@@ -146,7 +227,7 @@ struct MigrationTests {
         let second = try HashiyaDatabase.openPool(at: url)
         let titles = try await second.read { db in try String.fetchAll(db, sql: "SELECT title FROM papers") }
         #expect(titles == ["Kept"])
-        #expect(try await second.read { db in try HashiyaDatabase.migrator.appliedMigrations(db) } == ["v1", "v2"])
+        #expect(try await second.read { db in try HashiyaDatabase.migrator.appliedMigrations(db) } == ["v1", "v2", "v3"])
         let journalMode = try await second.read { db in try String.fetchOne(db, sql: "PRAGMA journal_mode") }
         #expect(journalMode == "wal")
     }

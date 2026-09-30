@@ -11,12 +11,20 @@ import com.etatech.hashiya.core.model.searchableText
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 
 class FakeLibraryRepository : LibraryRepository {
     private val rows = MutableStateFlow<List<RemovedPaper>>(emptyList())
     private var clock = 0L
+
+    /**
+     * Collection id → name, and collection id → member ids. Owned here so the library can filter; FakeCollectionsRepository edits
+     * them.
+     */
+    internal val collectionNames = MutableStateFlow<Map<Long, String>>(emptyMap())
+    internal val memberships = MutableStateFlow<Map<Long, Set<String>>>(emptyMap())
 
     /** When true, [save] throws like a failing disk would. */
     var failOnSave = false
@@ -33,17 +41,18 @@ class FakeLibraryRepository : LibraryRepository {
     /** Every [saveNotes] call that didn't throw, in order, including those for papers that aren't saved. */
     val notesSaves = mutableListOf<Pair<String, PaperNotes>>()
 
-    // collectionId is ignored until the fake learns about collections.
-    override fun observeLibrary(query: String, status: ReadingStatus?, collectionId: Long?): Flow<List<LibraryPaper>> = rows.map { list ->
-        list.filter { (status == null || it.status == status) && it.matches(query) }
-            .sortedByDescending { it.savedAt }
-            .map { LibraryPaper(it.paper, it.status) }
-    }
+    override fun observeLibrary(query: String, status: ReadingStatus?, collectionId: Long?): Flow<List<LibraryPaper>> =
+        combine(rows, memberships) { list, members ->
+            list.filter { (status == null || it.status == status) && it.matches(query) && it.isIn(collectionId, members) }
+                .sortedByDescending { it.savedAt }
+                .map { LibraryPaper(it.paper, it.status) }
+        }
 
-    override fun observeStatusCounts(query: String, collectionId: Long?): Flow<Map<ReadingStatus, Int>> = rows.map { list ->
-        val matching = list.filter { it.matches(query) }
-        ReadingStatus.entries.associateWith { status -> matching.count { it.status == status } }
-    }
+    override fun observeStatusCounts(query: String, collectionId: Long?): Flow<Map<ReadingStatus, Int>> =
+        combine(rows, memberships) { list, members ->
+            val matching = list.filter { it.matches(query) && it.isIn(collectionId, members) }
+            ReadingStatus.entries.associateWith { status -> matching.count { it.status == status } }
+        }
 
     override fun observeSavedIds(): Flow<Set<String>> = rows.map { list -> list.map { it.paper.openAlexId }.toSet() }
 
@@ -75,14 +84,21 @@ class FakeLibraryRepository : LibraryRepository {
     override suspend fun remove(openAlexId: String): RemovedPaper? {
         if (failOnRemove) throw IOException("disk full")
         val row = rows.value.firstOrNull { it.paper.openAlexId == openAlexId } ?: return null
+        val ids = memberships.value.filterValues { openAlexId in it }.keys
+        memberships.update { all -> all.mapValues { (_, members) -> members - openAlexId } }
         rows.update { it - row }
-        return row
+        return row.copy(collectionIds = ids)
     }
 
+    /** Like Room: memberships come back only for collections that still exist. */
     override suspend fun restore(removed: RemovedPaper) {
         if (isSaved(removed.paper.openAlexId)) return
-        rows.update { it + removed }
+        rows.update { it + removed.copy(collectionIds = emptySet()) }
+        val existing = removed.collectionIds.filter { it in collectionNames.value }
+        memberships.update { all -> all + existing.associateWith { id -> all[id].orEmpty() + removed.paper.openAlexId } }
     }
+
+    internal fun isSavedPaper(openAlexId: String) = isSaved(openAlexId)
 
     private fun isSaved(openAlexId: String) = rows.value.any { it.paper.openAlexId == openAlexId }
 }
@@ -100,3 +116,6 @@ private fun RemovedPaper.matches(query: String): Boolean {
     )
     return words(query).all { word -> indexed.any { it.startsWith(word) } }
 }
+
+private fun RemovedPaper.isIn(collectionId: Long?, members: Map<Long, Set<String>>) =
+    collectionId == null || paper.openAlexId in members[collectionId].orEmpty()

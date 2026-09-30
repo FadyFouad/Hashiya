@@ -244,11 +244,11 @@ class LibraryViewModelTest {
         private val listLags: Boolean,
         private val countsLag: Boolean
     ) : LibraryRepository by delegate {
-        override fun observeLibrary(query: String, status: ReadingStatus?): Flow<List<LibraryPaper>> =
-            delegate.observeLibrary(query, status).onEach { if (listLags) delay(1) }
+        override fun observeLibrary(query: String, status: ReadingStatus?, collectionId: Long?): Flow<List<LibraryPaper>> =
+            delegate.observeLibrary(query, status, collectionId).onEach { if (listLags) delay(1) }
 
-        override fun observeStatusCounts(query: String): Flow<Map<ReadingStatus, Int>> =
-            delegate.observeStatusCounts(query).onEach { if (countsLag) delay(1) }
+        override fun observeStatusCounts(query: String, collectionId: Long?): Flow<Map<ReadingStatus, Int>> =
+            delegate.observeStatusCounts(query, collectionId).onEach { if (countsLag) delay(1) }
     }
 
     /** Removes the only paper, then undoes it, and returns every state shown along the way. */

@@ -6,6 +6,7 @@ import com.etatech.hashiya.core.data.mapping.readingStatusOf
 import com.etatech.hashiya.core.data.mapping.storedValue
 import com.etatech.hashiya.core.data.search.ftsMatch
 import com.etatech.hashiya.core.database.dao.PaperDao
+import com.etatech.hashiya.core.database.model.CollectionPaperEntity
 import com.etatech.hashiya.core.database.model.asEntity
 import com.etatech.hashiya.core.database.model.asPaperNotes
 import com.etatech.hashiya.core.model.LibraryPaper
@@ -22,13 +23,13 @@ internal class RoomLibraryRepository(private val paperDao: PaperDao, private val
     @Inject
     constructor(paperDao: PaperDao) : this(paperDao, System::currentTimeMillis, { UUID.randomUUID().toString() })
 
-    override fun observeLibrary(query: String, status: ReadingStatus?): Flow<List<LibraryPaper>> =
-        paperDao.observeLibrary(ftsMatch(query), status?.storedValue, null).map { rows ->
+    override fun observeLibrary(query: String, status: ReadingStatus?, collectionId: Long?): Flow<List<LibraryPaper>> =
+        paperDao.observeLibrary(ftsMatch(query), status?.storedValue, collectionId).map { rows ->
             rows.map { LibraryPaper(it.asPaper(), readingStatusOf(it.paper.readingStatus)) }
         }
 
-    override fun observeStatusCounts(query: String): Flow<Map<ReadingStatus, Int>> =
-        paperDao.observeStatusCounts(ftsMatch(query), null).map { rows ->
+    override fun observeStatusCounts(query: String, collectionId: Long?): Flow<Map<ReadingStatus, Int>> =
+        paperDao.observeStatusCounts(ftsMatch(query), collectionId).map { rows ->
             // Unknown stored values read as To read, so they are counted there too.
             val counts = ReadingStatus.entries.associateWith { 0 }.toMutableMap()
             rows.forEach { row -> counts.merge(readingStatusOf(row.readingStatus), row.count, Int::plus) }
@@ -64,7 +65,11 @@ internal class RoomLibraryRepository(private val paperDao: PaperDao, private val
             localId = row.paper.id,
             savedAt = row.paper.savedAt,
             status = readingStatusOf(row.paper.readingStatus),
-            notes = deleted.notes?.asPaperNotes() ?: PaperNotes()
+            notes = deleted.notes?.asPaperNotes() ?: PaperNotes(),
+            collectionIds = deleted.collectionLinks.map { it.collectionId }.toSet(),
+            citeKey = row.paper.citeKey,
+            detailsFetched = row.paper.detailsFetched,
+            collectionLinksAddedAt = deleted.collectionLinks.associate { it.collectionId to it.addedAt }
         )
     }
 
@@ -73,10 +78,15 @@ internal class RoomLibraryRepository(private val paperDao: PaperDao, private val
             localId = removed.localId,
             savedAt = removed.savedAt,
             status = removed.status,
-            notes = removed.notes
+            notes = removed.notes,
+            citeKey = removed.citeKey,
+            detailsFetched = removed.detailsFetched
         )
         // Nothing reads updated_at yet, so a restore doesn't need the original value.
         val notes = removed.notes.takeUnless { it.isEmpty }?.asEntity(removed.localId, updatedAt = now())
-        paperDao.insertPaperWithAuthors(entities.paper, entities.authors, entities.search, notes)
+        val links = removed.collectionIds.map { id ->
+            CollectionPaperEntity(collectionId = id, paperId = removed.localId, addedAt = removed.collectionLinksAddedAt[id] ?: now())
+        }
+        paperDao.insertPaperWithAuthors(entities.paper, entities.authors, entities.search, notes, links)
     }
 }

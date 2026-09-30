@@ -33,13 +33,14 @@ class FakeLibraryRepository : LibraryRepository {
     /** Every [saveNotes] call that didn't throw, in order, including those for papers that aren't saved. */
     val notesSaves = mutableListOf<Pair<String, PaperNotes>>()
 
-    override fun observeLibrary(query: String, status: ReadingStatus?): Flow<List<LibraryPaper>> = rows.map { list ->
+    // collectionId is ignored until the fake learns about collections.
+    override fun observeLibrary(query: String, status: ReadingStatus?, collectionId: Long?): Flow<List<LibraryPaper>> = rows.map { list ->
         list.filter { (status == null || it.status == status) && it.matches(query) }
             .sortedByDescending { it.savedAt }
             .map { LibraryPaper(it.paper, it.status) }
     }
 
-    override fun observeStatusCounts(query: String): Flow<Map<ReadingStatus, Int>> = rows.map { list ->
+    override fun observeStatusCounts(query: String, collectionId: Long?): Flow<Map<ReadingStatus, Int>> = rows.map { list ->
         val matching = list.filter { it.matches(query) }
         ReadingStatus.entries.associateWith { status -> matching.count { it.status == status } }
     }

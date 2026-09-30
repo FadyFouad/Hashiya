@@ -8,31 +8,47 @@ import com.etatech.hashiya.core.database.model.searchEntityFor
 import com.etatech.hashiya.core.model.Author
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperNotes
+import com.etatech.hashiya.core.model.PublicationDetails
 import com.etatech.hashiya.core.model.ReadingStatus
 
 internal data class PaperEntities(val paper: PaperEntity, val authors: List<PaperAuthorEntity>, val search: PaperSearchEntity)
 
-internal fun Paper.asEntities(localId: String, savedAt: Long, status: ReadingStatus, notes: PaperNotes? = null): PaperEntities =
-    PaperEntities(
-        paper = PaperEntity(
-            id = localId,
-            openAlexId = openAlexId,
-            doi = doi,
-            title = title,
-            year = year,
-            venue = venue,
-            abstract = abstract,
-            citationCount = citationCount,
-            isOpenAccess = isOpenAccess,
-            oaPdfUrl = openAccessPdfUrl,
-            savedAt = savedAt,
-            readingStatus = status.storedValue
-        ),
-        authors = authors.mapIndexed { index, author ->
-            PaperAuthorEntity(paperId = localId, position = index, name = author.name, openAlexAuthorId = author.openAlexId)
-        },
-        search = searchEntityFor(localId, title, authors.map { it.name }, abstract, venue, notes)
-    )
+internal fun Paper.asEntities(
+    localId: String,
+    savedAt: Long,
+    status: ReadingStatus,
+    notes: PaperNotes? = null,
+    citeKey: String? = null,
+    detailsFetched: Boolean = true
+): PaperEntities = PaperEntities(
+    paper = PaperEntity(
+        id = localId,
+        openAlexId = openAlexId,
+        doi = doi,
+        title = title,
+        year = year,
+        venue = venue,
+        abstract = abstract,
+        citationCount = citationCount,
+        isOpenAccess = isOpenAccess,
+        oaPdfUrl = openAccessPdfUrl,
+        savedAt = savedAt,
+        readingStatus = status.storedValue,
+        workType = publication.workType,
+        sourceType = publication.sourceType,
+        publisher = publication.publisher,
+        volume = publication.volume,
+        issue = publication.issue,
+        firstPage = publication.firstPage,
+        lastPage = publication.lastPage,
+        citeKey = citeKey,
+        detailsFetched = detailsFetched
+    ),
+    authors = authors.mapIndexed { index, author ->
+        PaperAuthorEntity(paperId = localId, position = index, name = author.name, openAlexAuthorId = author.openAlexId)
+    },
+    search = searchEntityFor(localId, title, authors.map { it.name }, abstract, venue, notes)
+)
 
 internal fun PaperWithAuthors.asPaper(): Paper = Paper(
     openAlexId = requireNotNull(paper.openAlexId) { "Papers without an OpenAlex ID are not supported yet" },
@@ -44,5 +60,14 @@ internal fun PaperWithAuthors.asPaper(): Paper = Paper(
     abstract = paper.abstract,
     citationCount = paper.citationCount,
     isOpenAccess = paper.isOpenAccess,
-    openAccessPdfUrl = paper.oaPdfUrl
+    openAccessPdfUrl = paper.oaPdfUrl,
+    publication = PublicationDetails(
+        workType = paper.workType,
+        sourceType = paper.sourceType,
+        publisher = paper.publisher,
+        volume = paper.volume,
+        issue = paper.issue,
+        firstPage = paper.firstPage,
+        lastPage = paper.lastPage
+    )
 )

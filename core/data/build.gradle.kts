@@ -11,6 +11,7 @@ dependencies {
     api(project(":core:model"))
     api(libs.androidx.paging.common)
     api(libs.kotlinx.coroutines.core)
+    implementation(project(":core:bibtex"))
     implementation(project(":core:network"))
     implementation(project(":core:database"))
     implementation(project(":core:datastore"))

@@ -2,6 +2,7 @@ package com.etatech.hashiya.core.data.di
 
 import com.etatech.hashiya.core.data.DataStoreUserApiKeySource
 import com.etatech.hashiya.core.data.repository.AppUpdateRepository
+import com.etatech.hashiya.core.data.repository.CitationRepository
 import com.etatech.hashiya.core.data.repository.CollectionsRepository
 import com.etatech.hashiya.core.data.repository.ConfigAppUpdateRepository
 import com.etatech.hashiya.core.data.repository.DataStoreUserPreferencesRepository
@@ -9,6 +10,7 @@ import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.OpenAlexPaperLookupRepository
 import com.etatech.hashiya.core.data.repository.OpenAlexSearchRepository
 import com.etatech.hashiya.core.data.repository.PaperLookupRepository
+import com.etatech.hashiya.core.data.repository.RoomCitationRepository
 import com.etatech.hashiya.core.data.repository.RoomCollectionsRepository
 import com.etatech.hashiya.core.data.repository.RoomLibraryRepository
 import com.etatech.hashiya.core.data.repository.SearchRepository
@@ -30,6 +32,9 @@ internal abstract class DataModule {
 
     @Binds
     abstract fun bindCollectionsRepository(impl: RoomCollectionsRepository): CollectionsRepository
+
+    @Binds
+    abstract fun bindCitationRepository(impl: RoomCitationRepository): CitationRepository
 
     @Binds
     abstract fun bindUserPreferencesRepository(impl: DataStoreUserPreferencesRepository): UserPreferencesRepository

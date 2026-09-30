@@ -83,13 +83,44 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Hashiya
+  HashiyaSnapshotTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: HashiyaSnapshotTests
+        excludes:
+          - "__Snapshots__/**"
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.etatech.hashiya.snapshottests
+        GENERATE_INFOPLIST_FILE: YES
+    dependencies:
+      - target: Hashiya
+      - package: HashiyaKit
+        products:
+          - HashiyaTesting
+          - HashiyaData
+          - HashiyaDesignSystem
+          - HashiyaModel
+          - FeatureSearch
+          - FeatureLibrary
+          - FeatureSettings
 schemes:
   Hashiya:
     build:
       targets:
         Hashiya: all
+        HashiyaSnapshotTests: [test]
         HashiyaUITests: [test]
     test:
+      environmentVariables:
+        # HashiyaSnapshotTests links the package products that its host app links, so Xcode builds them as dynamic
+        # frameworks, and a framework built from a package target doesn't carry that target's resource bundle. The
+        # unhosted package test bundles would then crash in `Bundle.module`; this points it at the built bundles.
+        PACKAGE_RESOURCE_BUNDLE_PATH: $(BUILT_PRODUCTS_DIR)
       targets:
         - package: HashiyaKit/HashiyaModelTests
         - package: HashiyaKit/HashiyaNetworkTests
@@ -99,4 +130,6 @@ schemes:
         - package: HashiyaKit/FeatureSearchTests
         - package: HashiyaKit/FeatureLibraryTests
         - package: HashiyaKit/FeatureSettingsTests
+        - name: HashiyaSnapshotTests
+          parallelizable: false
         - HashiyaUITests

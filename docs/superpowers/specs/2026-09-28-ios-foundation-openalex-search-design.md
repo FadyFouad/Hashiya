@@ -700,3 +700,65 @@ Test-first for all production code; Swift Testing with hand-written fakes, no mo
 | Snapshot baselines | Roborazzi on CI Linux | swift-snapshot-testing on CI macOS | Platform tooling |
 | Unused Android strings | — | `settings_back`, `settings_language_*`, `search_clear`, `search_year_error_number`, `search_year_error_range` not ported | No matching UI on iOS |
 | iOS-only strings | — | `settings.done`, `settings.languageFooter` | New UI elements |
+
+## 16. Liquid Glass (iOS 26)
+
+Added 2026-09-29 for iOS plan 4, after specs 1–3 were implemented. It changes how the app looks on iOS 26 and later, how it is built and how its snapshots are taken. Behaviour, strings and data are unchanged. Where this section and §3.4, §8.7 or §12 disagree, this section wins.
+
+### 16.1 Decisions
+
+| Topic | Decision |
+|---|---|
+| Minimum iOS | Still iOS 17. |
+| Where glass goes | Only on the app's own surfaces listed in §16.2, each behind `if #available(iOS 26, *)`. On iOS 17 and 18 they keep the teal styling of §8.7, pixel for pixel. |
+| System chrome | Built with the iOS 26 SDK, the tab bar, navigation bars, toolbar buttons (gear, Done), the `.searchable` field, menus, the segmented status selector and sheets take Liquid Glass from the system. The app adds no `.glassEffect` to them and does not set `UIDesignRequiresCompatibility`. |
+| Content | Paper cards, rows, their `StatusBadge`s (Open access, In library), the card's tonal Save button, empty and error states and the skeleton stay as they are: they are content, not controls floating above it. |
+| Shared code | One file in `HashiyaDesignSystem`, `Glass.swift`: `HashiyaGlassGroup` (a `GlassEffectContainer` on iOS 26, a plain wrapper before), the modifiers `hashiyaChip(isSelected:)`, `hashiyaProminentButton()` and `hashiyaSecondaryButton()`, and `hashiyaTopBar` (the Library and Search chip bar, §16.2). Screens use these; no other file calls `glassEffect` except the banner, the status pill and the chip modifier. |
+| Toolchain | CI builds with Xcode 26.3 on `macos-15` (Swift 6.2). Local builds use any Xcode 26 or later. |
+| Snapshots | Recorded on iOS 26 and iOS 18, in a test bundle hosted by the app (§16.5). |
+
+### 16.2 Surfaces
+
+| Surface | iOS 26 and later | iOS 17 and 18 |
+|---|---|---|
+| Search filter chips (Sort, Year, Open access) and the idle screen's three suggestions (`ChipLabel`) | Interactive regular glass capsule, `OnSurface` text. Selected: glass tinted `Primary`, `OnPrimary` text, plus the check (Open access) or the `Primary`-tinted menu. The row is one `HashiyaGlassGroup` (spacing 8). | §8.7: outlined (`Outline`), or `PrimaryContainer` fill when selected, radius 8 |
+| Library status chips (All · To read · Reading · Read with counts) | Same as the Search chips; the selected chip keeps its check and `.isSelected`. | Spec 3 styling |
+| Reading status badges in Library rows | Interactive regular glass capsule. Reading: tinted `Primary`, `OnPrimary` text. To read and Read: `OnSurface` text; Read keeps its check. | Spec 3: To read outlined, Reading `PrimaryContainer`, Read `SurfaceContainerHighest` with a check |
+| `HashiyaBanner` (Undo, Couldn't save/remove the paper, Couldn't update the status) | Regular glass, continuous rounded rectangle radius 16, `OnSurface` text, action in `Primary` | `OnSurface` fill, radius 12, `Surface` text, action in `InversePrimary` |
+| Add paper (Library, floating) | `.glassProminent`, tinted `Primary`, capsule, no extra shadow. It and the banners above it are one `HashiyaGlassGroup` (spacing 12), so they blend as banners come and go. | `.borderedProminent` capsule with its shadow |
+| Preview buttons (Open DOI, Save to library / Remove from library) | Open DOI `.glass`, Save/Remove `.glassProminent`, both tinted `Primary`, in one `HashiyaGlassGroup` (spacing 12) | `.bordered` and `.borderedProminent` |
+| Preview layout (app sheet and Share Extension) | The status selector and the buttons sit in a bottom bar (`safeAreaBar(edge: .bottom)`): the paper scrolls under them and the system's scroll edge effect keeps them legible. | A fixed area under the scrolling paper, as in §8.3 |
+| Share sheet | Uses the preview above when a paper is found, the glass banner, and the system's glass Done button; nothing else changes. | Unchanged |
+| Library and Search chip bars (`hashiyaTopBar`) | A plain `safeAreaInset(edge: .top)` with no background: content (the Library list, Search results) scrolls under the glass chips with no fade of its own, and the navigation bar keeps its own scroll edge effect. See the §16.4 resolution for why this isn't `safeAreaBar`. | Unchanged |
+
+Tints use `Primary` only, and only for a selected chip, the Reading badge and the prominent buttons, so glass stays neutral elsewhere.
+
+### 16.3 Accessibility
+
+- A status or selection is never told by colour or tint alone: labels always name the status or filter, Read and selected chips keep their check, chips keep `.isSelected`, and the badge keeps its VoiceOver label (spec 3).
+- Reduce Transparency, Increase Contrast and Reduce Motion are handled by the system's glass; the app adds no settings of its own. They are checked on a device (§16.6).
+- Hit targets and Dynamic Type are unchanged: glass shapes size to their padded content.
+
+### 16.4 Navigation titles on iOS 26
+
+Built with the iOS 26 SDK and run on iOS 26, the Library screen and Search with results show no large title: the title area stays empty above the search field. This is already true of `main` without any glass (seen on the iOS 26.4 simulator). The title must show on iOS 26 as it does on iOS 18.
+
+**Resolution.** On iOS 26, when the screen's content is a scroll view (the Library `List`, Search results), UIKit hosts the large title inside that scroll view, above the content and below the scroll view's own top scroll-edge effect. A `safeAreaBar(edge: .top)` chip bar extends that edge effect's pocket up over the title, and its luminance backdrop (about α 0.85) washed the title out to roughly 1.2:1 contrast at rest. So `hashiyaTopBar` uses a plain `safeAreaInset(edge: .top)` with no background instead (§16.2): the edge effect then stays confined to the navigation bar and search field, and the title renders at full contrast. The accepted trade-off is that rows scrolling up pass behind the glass chips with no fade of their own. Separately, while a search field is active (focused, showing the cancel affordance), iOS hides the navigation title by design on both iOS 18 and iOS 26 — that is not a bug, so the UI test that checks this large-title fix (§16.6) checks the Library screen only, where the field stays idle; Search's large title is confirmed instead by its idle-state snapshot image.
+
+### 16.5 Snapshots
+
+- A layer render (`layer.render(in:)`, what `assertSnapshot(... .image(on:))` does by default) draws nothing for a hierarchy that contains Liquid Glass: on the iOS 26.4 simulator, a glass capsule over red and blue stripes came out as an empty white image, stripes included. Only `drawHierarchy` in a window attached to a scene captures it, and a package test bundle has no application and no scene.
+- So the snapshot suites (`DesignSystemSnapshotTests`, `SearchSnapshotTests`, `ShareSnapshotTests`, `LibrarySnapshotTests`, `SettingsSnapshotTests`) move from the package test targets to a new XcodeGen target `HashiyaSnapshotTests` (`bundle.unit-test`, hosted by the `Hashiya` app, in the `Hashiya` scheme), and `assertHashiyaSnapshots` renders with `drawHierarchyInKeyWindow: true` on both iOS versions. `@testable import` of the package modules works from this bundle in Debug.
+- While it hosts that bundle (Debug, `XCTestConfigurationFilePath` in its environment) the app builds no container and shows an empty window, so tests never open the library or start tasks.
+- Baselines: `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/<Suite>/…` and `…/iOS18/<Suite>/…`, same file names as §12.1. The folder is chosen from the simulator's major version; on any other major version the helper records an issue and draws nothing.
+- CI (§12.2) runs on `macos-15` with Xcode 26.3: package and snapshot tests on `iPhone 16` with iOS 26.2 and with iOS 18.5, then erases the simulators, then the UI tests on both. The record workflow records both folders.
+- Glass renders in wide colour, so the helper forces sRGB rendering (`traits.displayGamut = .SRGB`) to compare against sRGB reference images; without it, unchanged screens differed by about 5 % of pixels against an sRGB reference. With sRGB forced, glass is still not perfectly pixel-stable between runs: across 9 full-suite iOS 26.4 runs against the committed images, the steady state showed small residual noise in a handful of dark-mode images (at most 4/255 per channel, up to about 0.16 % of pixels differing, perceptual-precision score as low as 0.9667). One of those 9 runs, immediately after a rebuild, also showed one image with a larger but still faint difference (about 6.7 % of pixels off by a few bytes each, 35 "strong" >30/255 pixels, match 0.99448, perceptual 0.848); it did not recur in the other 8 runs and reads as one-off build-cache noise rather than the steady-state floor. The iOS 26 tolerance, set from these measurements, is `(precision: 0.999, perceptualPrecision: 0.95)`: precision stays well above the ~0.995 level a real regression (like the iOS 18 chip-truncation bug this tolerance once let through, about 0.4 % of pixels strongly different) needs to fail at, while perceptualPrecision stays below the steady-state noise floor with margin. A recurrence of the one-off larger event would still fail this tolerance. iOS 18 keeps `(1, 0.98)`, an exact match. The suites must pass three verifications in a row on each version.
+- Until GitHub billing lets CI run again, no baselines are committed: the Search, Library and share baselines (and every other) are recorded by the record workflow once CI runs.
+
+### 16.6 Acceptance (on a device or simulator with iOS 26, and one with iOS 17 or 18)
+
+1. iOS 26: the chips, status badges, banners, Add paper and preview buttons are glass as in §16.2, in English and Arabic, light and dark; the paper scrolls under the preview's buttons.
+2. iOS 17/18: every screen looks as before this section (the iOS 18 snapshots of unchanged screens match the images recorded before the glass work).
+3. The Library and Search show their large titles on iOS 26.
+4. With Reduce Transparency and with Increase Contrast on, every glass surface stays legible; with Reduce Motion, banners and chips don't morph.
+5. The UI tests pass on iOS 26.2 and iOS 18.5; CI is green on Xcode 26.3.

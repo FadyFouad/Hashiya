@@ -26,8 +26,9 @@ struct ReadingStatusBadge: View {
     }
 }
 
-/// To read: outlined. Reading: filled with the primary container. Read: filled, with a check. The label always
-/// names the status, so it is never told by colour alone.
+/// iOS 26: a glass pill, tinted with the primary colour for Reading. Before: To read outlined, Reading filled with
+/// the primary container, Read filled. Read always adds a check, and the label always names the status, so it is
+/// never told by colour alone.
 struct ReadingStatusPill: View {
     let status: ReadingStatus
 
@@ -42,22 +43,38 @@ struct ReadingStatusPill: View {
                 .font(.hashiya(.label))
                 .lineLimit(1)
         }
-        .foregroundStyle(foreground)
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
-        .background {
-            if status == .toRead {
-                Self.shape.strokeBorder(HashiyaColors.outline, lineWidth: 1)
-            } else {
-                Self.shape.fill(fill)
-            }
-        }
-        .contentShape(Self.shape)
+        .modifier(PillSurface(status: status))
         .fixedSize()
     }
+}
+
+private struct PillSurface: ViewModifier {
+    let status: ReadingStatus
 
     /// A pill: just under half the default height. (A `Capsule`'s outline renders with seams in layer snapshots.)
     private static let shape = RoundedRectangle(cornerRadius: 11, style: .continuous)
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content
+                .foregroundStyle(status == .reading ? HashiyaColors.onPrimary : HashiyaColors.onSurface)
+                .glassEffect(status == .reading ? .regular.tint(HashiyaColors.primary).interactive() : .regular.interactive(), in: .capsule)
+                .contentShape(.capsule)
+        } else {
+            content
+                .foregroundStyle(foreground)
+                .background {
+                    if status == .toRead {
+                        Self.shape.strokeBorder(HashiyaColors.outline, lineWidth: 1)
+                    } else {
+                        Self.shape.fill(fill)
+                    }
+                }
+                .contentShape(Self.shape)
+        }
+    }
 
     private var foreground: Color {
         switch status {

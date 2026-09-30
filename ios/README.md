@@ -1,6 +1,6 @@
 # Hashiya for iOS
 
-The iOS app: SwiftUI, iOS 17 or later, English and Arabic with full right-to-left layouts. It behaves like the Android app — OpenAlex search with filters, adding a paper by DOI, arXiv ID or link (in Search, or with the Library's **Add paper** button), a preview sheet, an offline Library you can search by title, author, abstract or venue (Arabic search ignores tashkeel and letter variants) and track as To read, Reading or Read, and Settings. The Share Extension `HashiyaShare` looks up a page shared from Safari or any app and saves the paper from the share sheet.
+The iOS app: SwiftUI, iOS 17 or later, English and Arabic with full right-to-left layouts. It behaves like the Android app — OpenAlex search with filters, adding a paper by DOI, arXiv ID or link (in Search, or with the Library's **Add paper** button), a preview sheet, an offline Library you can search by title, author, abstract or venue (Arabic search ignores tashkeel and letter variants) and track as To read, Reading or Read, and Settings. The Share Extension `HashiyaShare` looks up a page shared from Safari or any app and saves the paper from the share sheet. On iOS 26 and later the chips, reading-status badges, banners, the preview's buttons and the Add paper button use Liquid Glass; iOS 17 and 18 keep the teal styling.
 
 ## Opening the project
 
@@ -36,20 +36,27 @@ Uncomment the `DEVELOPMENT_TEAM` line in `ios/Config/Secrets.xcconfig` and put y
 
 ```bash
 # Everything CI runs: package unit and snapshot tests, and the UI tests
+xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4'
+
+# The same on iOS 18 (the pre-Liquid Glass look)
 xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.2'
 
 # Package tests only (faster), from the package directory
-cd ios/HashiyaKit && xcodebuild test -scheme HashiyaKit-Package -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.2'
+cd ios/HashiyaKit && xcodebuild test -scheme HashiyaKit-Package -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.4'
 
 # Every String Catalog key has an Arabic translation
 python3 ios/scripts/check-translations.py
 ```
 
+Until CI records the snapshot baselines, these test commands record any missing images locally and fail (recording
+always fails, by design); the baselines come from CI's iOS 26.2 and 18.5 simulators, so a local iPhone 16 Pro iOS
+18.2 run may render slightly differently from them.
+
 The UI tests include sharing a link through a real share sheet: launched with `-ui-testing -ui-testing-share <url>`, a Debug app presents the share sheet for the URL and tells a Debug Share Extension (through the App Group) to use a stub lookup and the UI tests' own library file. Release builds contain none of these hooks.
 
 ## Snapshot baselines
 
-Snapshot tests render every screen in English and Arabic, light and dark. The baselines under `ios/HashiyaKit/Tests/*/__Snapshots__/` are recorded only on CI (`macos-15`, Xcode 16.4, iPhone 16 on iOS 18.5), which is the source of truth; images recorded on your Mac are for inspection only and are not committed. After an intended UI change:
+Snapshot tests render every screen in English and Arabic, light and dark, on iOS 26 (Liquid Glass) and on iOS 18 (the teal styling iOS 17 and 18 keep). They live in `ios/HashiyaSnapshotTests`, a test bundle hosted by the app, because only a window render captures Liquid Glass. Their baselines under `ios/HashiyaSnapshotTests/__Snapshots__/iOS26/` and `…/iOS18/` are recorded only on CI (`macos-15`, Xcode 26.3, iPhone 16 on iOS 26.2 and on iOS 18.5), which is the source of truth; images recorded on your Mac are for inspection only and are not committed. Building needs Xcode 26 or later. After an intended UI change:
 
 ```bash
 bash ios/scripts/record-snapshots-on-ci.sh   # 15–25 minutes; needs `gh` logged in

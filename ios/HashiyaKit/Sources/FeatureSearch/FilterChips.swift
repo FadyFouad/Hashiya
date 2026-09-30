@@ -14,44 +14,46 @@ struct FilterChips: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                Menu {
-                    ForEach(SearchSort.allCases, id: \.self) { sort in
-                        Button {
-                            onSort(sort)
-                        } label: {
-                            menuLabel(L10n.sortLabel(sort), checked: query.sort == sort)
+            HashiyaGlassGroup(spacing: 8) {
+                HStack(spacing: 8) {
+                    Menu {
+                        ForEach(SearchSort.allCases, id: \.self) { sort in
+                            Button {
+                                onSort(sort)
+                            } label: {
+                                menuLabel(L10n.sortLabel(sort), checked: query.sort == sort)
+                            }
                         }
-                    }
-                } label: {
-                    ChipLabel(text: L10n.sortLabel(query.sort), isSelected: query.sort != .relevance, trailingChevron: true)
-                }
-                Menu {
-                    Button {
-                        onYears(.anyTime)
                     } label: {
-                        menuLabel(L10n.string("search.yearAny"), checked: query.years == .anyTime)
+                        ChipLabel(text: L10n.sortLabel(query.sort), isSelected: query.sort != .relevance, trailingChevron: true)
                     }
-                    ForEach(Self.yearPresets, id: \.self) { year in
+                    Menu {
                         Button {
-                            onYears(.since(year))
+                            onYears(.anyTime)
                         } label: {
-                            menuLabel(L10n.yearLabel(.since(year)), checked: query.years == .since(year))
+                            menuLabel(L10n.string("search.yearAny"), checked: query.years == .anyTime)
                         }
+                        ForEach(Self.yearPresets, id: \.self) { year in
+                            Button {
+                                onYears(.since(year))
+                            } label: {
+                                menuLabel(L10n.yearLabel(.since(year)), checked: query.years == .since(year))
+                            }
+                        }
+                        Button(action: onCustomRange) {
+                            menuLabel(L10n.string("search.yearCustom"), checked: isCustomRange)
+                        }
+                    } label: {
+                        ChipLabel(text: L10n.yearLabel(query.years), isSelected: query.years != .anyTime, trailingChevron: true)
                     }
-                    Button(action: onCustomRange) {
-                        menuLabel(L10n.string("search.yearCustom"), checked: isCustomRange)
+                    Button {
+                        onOpenAccess(!query.openAccessOnly)
+                    } label: {
+                        ChipLabel(text: L10n.string("search.openAccess"), isSelected: query.openAccessOnly, leadingCheckmark: query.openAccessOnly)
                     }
-                } label: {
-                    ChipLabel(text: L10n.yearLabel(query.years), isSelected: query.years != .anyTime, trailingChevron: true)
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(query.openAccessOnly ? .isSelected : [])
                 }
-                Button {
-                    onOpenAccess(!query.openAccessOnly)
-                } label: {
-                    ChipLabel(text: L10n.string("search.openAccess"), isSelected: query.openAccessOnly, leadingCheckmark: query.openAccessOnly)
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(query.openAccessOnly ? .isSelected : [])
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 6)
@@ -77,7 +79,7 @@ struct FilterChips: View {
     }
 }
 
-/// A chip: outlined, or filled with the primary container colour when selected.
+/// A chip: glass on iOS 26 (tinted when selected); before, outlined or filled with the primary container colour.
 struct ChipLabel: View {
     let text: String
     let isSelected: Bool
@@ -94,12 +96,9 @@ struct ChipLabel: View {
                 Image(systemName: "chevron.down").font(.system(size: 10, weight: .semibold))
             }
         }
-        .foregroundStyle(isSelected ? HashiyaColors.onPrimaryContainer : HashiyaColors.onSurface)
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        .background(RoundedRectangle(cornerRadius: 8).fill(isSelected ? HashiyaColors.primaryContainer : Color.clear))
-        .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(isSelected ? Color.clear : HashiyaColors.outline, lineWidth: 1))
-        .contentShape(RoundedRectangle(cornerRadius: 8))
+        .hashiyaChip(isSelected: isSelected)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }

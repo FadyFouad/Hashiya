@@ -58,23 +58,19 @@ let package = Package(
         ),
         .testTarget(
             name: "HashiyaDesignSystemTests",
-            dependencies: ["HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"],
-            exclude: ["__Snapshots__"]
+            dependencies: ["HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
         ),
         .testTarget(
             name: "FeatureSearchTests",
-            dependencies: ["FeatureSearch", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"],
-            exclude: ["__Snapshots__"]
+            dependencies: ["FeatureSearch", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
         ),
         .testTarget(
             name: "FeatureLibraryTests",
-            dependencies: ["FeatureLibrary", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"],
-            exclude: ["__Snapshots__"]
+            dependencies: ["FeatureLibrary", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
         ),
         .testTarget(
             name: "FeatureSettingsTests",
-            dependencies: ["FeatureSettings", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"],
-            exclude: ["__Snapshots__"]
+            dependencies: ["FeatureSettings", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
         ),
     ]
 )

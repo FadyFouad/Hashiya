@@ -63,7 +63,7 @@ public struct SearchView: View {
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(HashiyaColors.surface)
-            .safeAreaInset(edge: .top, spacing: 0) {
+            .hashiyaTopBar {
                 // ID mode has no chips.
                 if viewModel.lookup == nil {
                     FilterChips(
@@ -73,7 +73,6 @@ public struct SearchView: View {
                         onCustomRange: { showsYearRange = true },
                         onOpenAccess: { viewModel.setOpenAccessOnly($0) }
                     )
-                    .background(HashiyaColors.surface)
                 }
             }
             .overlay(alignment: .bottom) {

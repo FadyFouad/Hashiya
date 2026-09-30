@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -247,7 +248,17 @@ class LibraryViewModel @Inject constructor(
         _pendingCollectionUndo.value = null
         // The collection was deleted meanwhile: there is nothing to put the paper back into.
         if (collections.value.none { it.id == removal.collection.id }) return
-        collectionChange { collectionsRepository.setMembership(removal.collection.id, removal.openAlexId, member = true) }
+        viewModelScope.launch {
+            try {
+                collectionsRepository.setMembership(removal.collection.id, removal.openAlexId, member = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Deleted before the list caught up: dropped silently. Any other failure gets the usual message.
+                val stillThere = collectionsRepository.observeCollections().first().any { it.id == removal.collection.id }
+                if (stillThere) _message.value = LibraryMessage.CollectionsUpdateFailed
+            }
+        }
     }
 
     fun onCollectionUndoDismissed() {

@@ -35,6 +35,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -403,7 +404,9 @@ private fun CollectionTitle(name: String, onClick: () -> Unit) {
     val chooseLabel = stringResource(R.string.library_choose_collection)
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clickable(onClickLabel = chooseLabel, role = Role.Button, onClick = onClick)
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .clickable(onClickLabel = chooseLabel, role = Role.Button, onClick = onClick)
     ) {
         Text(name, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         Icon(HashiyaIcons.ArrowDropDown, contentDescription = null)

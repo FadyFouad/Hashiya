@@ -200,7 +200,7 @@ In this order, each left out when empty:
 3. `year`.
 4. The venue field from 6.1, set to `Paper.venue`.
 5. `volume`, then `number` (from issue).
-6. `pages`: `first--last`, or `first` alone when there is no last page.
+6. `pages`: `first--last`, or `first` alone when there is no last page or both are the same.
 7. `publisher`: only for `@book`, `@incollection`, `@techreport` and `@misc`. Journal articles don't normally carry one.
 8. `doi`: bare, without `https://doi.org/`.
 9. `eprint` and `archivePrefix = {arXiv}`: when the DOI starts with `10.48550/arXiv.` (case-insensitive). `eprint` is the part after it; both are left out when that part is empty.
@@ -270,7 +270,7 @@ data class CitationResult(val bibtex: String, val complete: Boolean)
 Both methods follow the same three steps:
 
 1. **Refetch.** For papers with `details_fetched = 0`, call `getWork` through the existing lookup, at most 4 at a time. Store the publication details and set the flag. A paper OpenAlex no longer has gets the flag too, because asking again would never help. A failure leaves the flag at 0 and doesn't stop the export.
-2. **Assign keys.** For papers without a cite key, in `saved_at` order, call `CiteKeys.assign` against `allCiteKeys()`, and store the keys in one transaction.
+2. **Assign keys.** For every saved paper without a cite key (across the whole library, so a key never depends on which collection was exported first), in `saved_at` order, call `CiteKeys.assign` against `allCiteKeys()`, and store the keys in one transaction.
 3. **Build.** Call `BibTeX.entry` or `BibTeX.file`.
 
 Keys are assigned before building, so an entry never goes out without a stored key.

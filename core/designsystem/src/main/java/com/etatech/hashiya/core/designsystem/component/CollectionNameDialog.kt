@@ -1,5 +1,6 @@
 package com.etatech.hashiya.core.designsystem.component
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
@@ -18,6 +19,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.etatech.hashiya.core.designsystem.R
 import com.etatech.hashiya.core.model.isValidCollectionName
@@ -44,6 +46,8 @@ fun CollectionNameDialog(
         // The dialog sizes itself (280–560dp). The platform's default width, with a text field inside, never settles under
         // Robolectric at phone sizes, which hangs the tests that show this dialog.
         properties = DialogProperties(usePlatformDefaultWidth = false),
+        // Without the platform's insets, keep a margin in narrow windows.
+        modifier = Modifier.padding(horizontal = 16.dp),
         title = { Text(stringResource(if (initialName == null) R.string.collection_new_title else R.string.collection_rename_title)) },
         text = {
             OutlinedTextField(

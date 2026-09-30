@@ -190,7 +190,7 @@ Rule order matters. A conference paper that OpenAlex types as `article` must bec
 
 In this order, each left out when empty:
 
-1. `author`: the authors' display names joined with ` and `, unchanged. BibTeX parses "First von Last" itself.
+1. `author`: the authors' display names joined with ` and `, unchanged. BibTeX parses "First von Last" itself. A name containing ` and ` or a comma (an organisation, or "Last, First") is wrapped in braces so BibTeX keeps it as one author.
 2. `title`.
 3. `year`.
 4. The venue field from 6.1, set to `Paper.venue`.
@@ -198,8 +198,8 @@ In this order, each left out when empty:
 6. `pages`: `first--last`, or `first` alone when there is no last page.
 7. `publisher`: only for `@book`, `@incollection`, `@techreport` and `@misc`. Journal articles don't normally carry one.
 8. `doi`: bare, without `https://doi.org/`.
-9. `eprint` and `archivePrefix = {arXiv}`: when the DOI starts with `10.48550/arXiv.` (case-insensitive). `eprint` is the part after it.
-10. `url`: only when there is no DOI, set to `openAccessPdfUrl`.
+9. `eprint` and `archivePrefix = {arXiv}`: when the DOI starts with `10.48550/arXiv.` (case-insensitive). `eprint` is the part after it; both are left out when that part is empty.
+10. `url`: only when there is no DOI, set to `openAccessPdfUrl`, with `{` and `}` percent-encoded.
 
 Formatting: two-space indent, `field = {value},` on each line with no comma after the last field, and the closing `}` on its own line.
 

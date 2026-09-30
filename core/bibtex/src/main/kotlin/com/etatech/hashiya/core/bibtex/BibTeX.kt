@@ -7,6 +7,9 @@ data class CitablePaper(val paper: Paper, val citeKey: String)
 
 private const val ARXIV_DOI_PREFIX = "10.48550/arxiv."
 
+/** BibTeX splits authors on " and " and reads a comma as "Last, First", so names with either are kept whole in braces. */
+private val SPLITS_AUTHOR = Regex("""(?i)\sand\s|,""")
+
 object BibTeX {
     /** One entry, fields in a fixed order, empty ones left out, ending with a newline. */
     fun entry(paper: CitablePaper): String {
@@ -25,8 +28,14 @@ object BibTeX {
         val doi = paper.doi?.trim()?.takeIf { it.isNotEmpty() }
         val firstPage = text(details.firstPage)
         val lastPage = text(details.lastPage)
+        val arxivDoi = doi?.takeIf { it.startsWith(ARXIV_DOI_PREFIX, ignoreCase = true) }
+        val eprint = arxivDoi?.substring(ARXIV_DOI_PREFIX.length)?.takeIf { it.isNotEmpty() }
+        val url = paper.openAccessPdfUrl?.trim()?.takeIf { doi == null && it.isNotEmpty() }
+        val authors = paper.authors.mapNotNull { author ->
+            text(author.name)?.let { if (SPLITS_AUTHOR.containsMatchIn(it)) "{$it}" else it }
+        }
         return listOfNotNull(
-            paper.authors.mapNotNull { text(it.name) }.takeIf { it.isNotEmpty() }?.let { "author" to it.joinToString(" and ") },
+            authors.takeIf { it.isNotEmpty() }?.let { "author" to it.joinToString(" and ") },
             text(paper.title)?.let { "title" to protectCapitals(it) },
             paper.year?.let { "year" to it.toString() },
             type.venueField?.let { field ->
@@ -39,9 +48,10 @@ object BibTeX {
             firstPage?.let { "pages" to if (lastPage == null || lastPage == it) it else "$it--$lastPage" },
             text(details.publisher)?.takeIf { type.hasPublisher }?.let { "publisher" to it },
             doi?.let { "doi" to it },
-            doi?.takeIf { it.startsWith(ARXIV_DOI_PREFIX, ignoreCase = true) }?.let { "eprint" to it.substring(ARXIV_DOI_PREFIX.length) },
-            doi?.takeIf { it.startsWith(ARXIV_DOI_PREFIX, ignoreCase = true) }?.let { "archivePrefix" to "arXiv" },
-            paper.openAccessPdfUrl?.trim()?.takeIf { doi == null && it.isNotEmpty() }?.let { "url" to it }
+            eprint?.let { "eprint" to it },
+            eprint?.let { "archivePrefix" to "arXiv" },
+            // Not escaped (styles pass it to \url), but braces are percent-encoded so they can't unbalance the entry.
+            url?.let { "url" to it.replace("{", "%7B").replace("}", "%7D") }
         )
     }
 }

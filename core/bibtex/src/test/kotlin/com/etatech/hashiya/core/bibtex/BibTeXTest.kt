@@ -255,4 +255,25 @@ class BibTeXTest {
         assertEquals(true, file.endsWith("}\n"))
         assertEquals("", BibTeX.file(emptyList()))
     }
+
+    @Test
+    fun organisationAndCommaAuthorsStayWhole() {
+        val entry = BibTeX.entry(
+            CitablePaper(paper(authors = listOf("Bill and Melinda Gates Foundation", "Smith, Jane", "Anand Kumar")), "k")
+        )
+        assertEquals(true, entry.contains("  author = {{Bill and Melinda Gates Foundation} and {Smith, Jane} and Anand Kumar},"))
+    }
+
+    @Test
+    fun bareArxivPrefixHasNoEprint() {
+        val entry = BibTeX.entry(CitablePaper(paper(doi = "10.48550/arXiv."), "k"))
+        assertEquals(false, entry.contains("eprint"))
+        assertEquals(false, entry.contains("archivePrefix"))
+    }
+
+    @Test
+    fun urlBracesArePercentEncoded() {
+        val entry = BibTeX.entry(CitablePaper(paper(doi = null, pdf = "https://x.org/a{b}.pdf"), "k"))
+        assertEquals(true, entry.contains("  url = {https://x.org/a%7Bb%7D.pdf}"))
+    }
 }

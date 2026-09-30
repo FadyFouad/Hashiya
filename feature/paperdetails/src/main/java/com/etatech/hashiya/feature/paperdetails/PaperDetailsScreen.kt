@@ -96,8 +96,14 @@ internal fun PaperDetailsScreen(
     }
     LaunchedEffect(copied) {
         val entry = copied ?: return@LaunchedEffect
-        context.getSystemService(ClipboardManager::class.java).setPrimaryClip(ClipData.newPlainText("BibTeX", entry.text))
-        viewModel.onCopyHandled(copyConfirmation(entry.complete, Build.VERSION.SDK_INT))
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        val confirmation = try {
+            checkNotNull(clipboard).setPrimaryClip(ClipData.newPlainText("BibTeX", entry.text))
+            copyConfirmation(entry.complete, Build.VERSION.SDK_INT)
+        } catch (e: Exception) {
+            PaperDetailsMessage.CopyFailed
+        }
+        viewModel.onCopyHandled(confirmation)
     }
     PaperDetailsContent(
         uiState = uiState,
@@ -211,10 +217,11 @@ internal fun PaperDetailsContent(
             )
         },
         // While the checklist is open it shows the snackbar itself, above its scrim.
-        snackbarHost = { if (!checklistOpen) SnackbarHost(snackbarHostState) }
+        snackbarHost = { if (!(checklistOpen && uiState is PaperDetailsUiState.Loaded)) SnackbarHost(snackbarHostState) }
     ) { padding ->
         when (uiState) {
             PaperDetailsUiState.Loading -> LoadingSkeleton(Modifier.padding(padding))
+
             is PaperDetailsUiState.Loaded -> DetailsBody(
                 uiState,
                 actions,

@@ -43,11 +43,8 @@ internal fun CollectionChecklistSheet(
     snackbarHostState: SnackbarHostState
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(
-            Modifier
-                .verticalScroll(rememberScrollState())
-                .navigationBarsPadding()
-        ) {
+        // The rows scroll; the snackbar stays below them, in view.
+        Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
             if (collections.isEmpty()) {
                 Text(
                     stringResource(R.string.details_collections_hint),
@@ -71,7 +68,7 @@ internal fun CollectionChecklistSheet(
                 leadingContent = { Icon(HashiyaIcons.Add, contentDescription = null) },
                 modifier = Modifier.clickable(role = Role.Button, onClick = onNew)
             )
-            SnackbarHost(snackbarHostState)
         }
+        SnackbarHost(snackbarHostState, Modifier.navigationBarsPadding())
     }
 }

@@ -136,7 +136,8 @@ class PaperDetailsViewModel @Inject constructor(
                     _newCollectionDialog.value = null
                 }
 
-                CollectionResult.NameTaken -> _newCollectionDialog.value = NewCollectionDialog(nameTaken = true)
+                // Only while the dialog is still open: a second tap on Create must not reopen it.
+                CollectionResult.NameTaken -> _newCollectionDialog.update { it?.copy(nameTaken = true) }
 
                 // The dialog's button is disabled for invalid names, so this only happens on a race; keep the dialog open.
                 CollectionResult.InvalidName -> Unit

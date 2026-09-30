@@ -205,10 +205,10 @@ Formatting: two-space indent, `field = {value},` on each line with no comma afte
 
 ### 6.3 Escaping and title protection
 
-- In every value, `\` becomes `\textbackslash{}`, and `& % $ # _ { } ~ ^` become `\&`, `\%`, `\$`, `\#`, `\_`, `\{`, `\}`, `\textasciitilde{}` and `\textasciicircum{}`. The DOI and URL are not escaped, because BibTeX styles pass them to `\url`/`\doi`, which handle these characters themselves.
+- In every value, `\` becomes `\textbackslash{}`, and `& % $ # _ { } ~ ^` become `\&`, `\%`, `\$`, `\#`, `\_`, `\textbraceleft{}`, `\textbraceright{}`, `\textasciitilde{}` and `\textasciicircum{}`. Braces use commands because BibTeX counts braces without looking at backslashes, so a lone `\{` would unbalance the entry. The DOI and URL are not escaped, because BibTeX styles pass them to `\url`/`\doi`, which handle these characters themselves.
 - All other characters, including Arabic and accented letters, stay as UTF-8.
-- In `title`, `booktitle` and `journal`, a word with an uppercase letter after its first character (`BERT`, `ImageNet`, `COVID-19`, `iPhone`) is wrapped in braces so styles don't lowercase it.
-- Line breaks and runs of whitespace collapse to one space.
+- In `title`, `booktitle` and `journal`, a word with an uppercase letter after its first character (`BERT`, `ImageNet`, `COVID-19`, `iPhone`) is wrapped in braces so styles don't lowercase it. A word that starts with an escaped character (`\#MeToo`) gets double braces, because BibTeX treats a group starting with `{\` as one special character and lowercases the rest.
+- Line breaks and runs of whitespace (Unicode whitespace included) collapse to one space.
 
 ### 6.4 Cite keys
 

@@ -416,7 +416,7 @@ import org.junit.Test
 class LatexTextTest {
     @Test
     fun escapesEverySpecialCharacter() {
-        assertEquals("R\\&D 50\\% \\$5 \\#1 a\\_b \\{x\\}", escapeLatex("R&D 50% $5 #1 a_b {x}"))
+        assertEquals("R\\&D 50\\% \\$5 \\#1 a\\_b \\textbraceleft{}x", escapeLatex("R&D 50% $5 #1 a_b {x"))
         assertEquals("a\\textasciitilde{}b\\textasciicircum{}c", escapeLatex("a~b^c"))
         assertEquals("C:\\textbackslash{}dir", escapeLatex("C:\\dir"))
     }
@@ -826,7 +826,7 @@ class BibTeXTest {
         )
         assertEquals(true, entry.contains("  author = {A. O'Brien \\& Co},"))
         // "R&D" has a capital after its first character, so it is protected like an acronym.
-        assertEquals(true, entry.contains("  title = {{R\\&D} at 50\\%: the \\{x\\}\\_y case},"))
+        assertEquals(true, entry.contains("  title = {{R\\&D} at 50\\%: the \\textbraceleft{}x\\textbraceright{}\\_y case},"))
         assertEquals(true, entry.contains("  journal = {J. Stuff \\& Things},"))
         assertEquals(true, entry.contains("  doi = {10.1000/a_b%c}"))
     }

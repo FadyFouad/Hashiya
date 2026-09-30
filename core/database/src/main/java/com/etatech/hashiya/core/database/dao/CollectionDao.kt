@@ -27,9 +27,13 @@ abstract class CollectionDao {
         SELECT collection_papers.collection_id FROM collection_papers
         JOIN papers ON papers.id = collection_papers.paper_id
         WHERE papers.open_alex_id = :openAlexId
+        ORDER BY collection_papers.collection_id
         """
     )
     abstract fun observeCollectionIdsForPaper(openAlexId: String): Flow<List<Long>>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM collections WHERE id = :id)")
+    abstract suspend fun collectionExists(id: Long): Boolean
 
     @Query("SELECT id FROM collections WHERE name_key = :nameKey")
     protected abstract suspend fun idForNameKey(nameKey: String): Long?
@@ -38,7 +42,7 @@ abstract class CollectionDao {
     protected abstract suspend fun insert(collection: CollectionEntity): Long
 
     @Query("UPDATE collections SET name = :name, name_key = :nameKey WHERE id = :id")
-    protected abstract suspend fun updateName(id: Long, name: String, nameKey: String)
+    protected abstract suspend fun updateName(id: Long, name: String, nameKey: String): Int
 
     /** Returns the new id, or null when another collection already has [nameKey]. */
     @Transaction
@@ -48,14 +52,14 @@ abstract class CollectionDao {
     }
 
     /**
-     * Returns false, changing nothing, when another collection already has [nameKey]. Renaming to a new case of the same name is allowed.
+     * Returns false, changing nothing, when another collection already has [nameKey] or no collection has [id]. Renaming to a new case
+     * of the same name is allowed.
      */
     @Transaction
     open suspend fun renameCollection(id: Long, name: String, nameKey: String): Boolean {
         val owner = idForNameKey(nameKey)
         if (owner != null && owner != id) return false
-        updateName(id, name, nameKey)
-        return true
+        return updateName(id, name, nameKey) > 0
     }
 
     /** Its links cascade; its papers stay. */

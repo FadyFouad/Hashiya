@@ -71,6 +71,37 @@ class CollectionDaoTest {
     }
 
     @Test
+    fun renamingAMissingCollectionReportsFalse() = runTest {
+        val id = checkNotNull(dao.insertCollection("Thesis", "thesis", createdAt = 1))
+        dao.deleteCollection(id)
+
+        assertFalse(dao.renameCollection(id, "Chapter 2", "chapter 2"))
+        assertFalse(dao.renameCollection(id + 100, "Other", "other"))
+        assertEquals(0, count("collections"))
+    }
+
+    @Test
+    fun collectionExistsUntilDeleted() = runTest {
+        val id = checkNotNull(dao.insertCollection("A", "a", createdAt = 1))
+        assertTrue(dao.collectionExists(id))
+        dao.deleteCollection(id)
+        assertFalse(dao.collectionExists(id))
+    }
+
+    @Test
+    fun collectionIdsForAPaperAreInIdOrder() = runTest {
+        val a = checkNotNull(dao.insertCollection("A", "a", createdAt = 1))
+        val b = checkNotNull(dao.insertCollection("B", "b", createdAt = 1))
+        val c = checkNotNull(dao.insertCollection("C", "c", createdAt = 1))
+        savePaper("p1", "W1")
+        dao.addToCollection(c, "W1", addedAt = 2)
+        dao.addToCollection(a, "W1", addedAt = 3)
+        dao.addToCollection(b, "W1", addedAt = 4)
+
+        assertEquals(listOf(a, b, c), dao.observeCollectionIdsForPaper("W1").first())
+    }
+
+    @Test
     fun membershipIsIdempotentAndFollowsThePaper() = runTest {
         val id = checkNotNull(dao.insertCollection("A", "a", createdAt = 1))
         savePaper("p1", "W1")

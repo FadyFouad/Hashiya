@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.etatech.hashiya.core.database.HashiyaDatabase
 import com.etatech.hashiya.core.database.dao.PaperDao
 import com.etatech.hashiya.core.database.migration.MIGRATION_1_2
+import com.etatech.hashiya.core.database.migration.MIGRATION_2_3
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,7 +21,7 @@ internal object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): HashiyaDatabase =
         Room.databaseBuilder(context, HashiyaDatabase::class.java, "hashiya.db")
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
             .build()
 
     @Provides

@@ -94,13 +94,7 @@ internal fun CollectionSelectorSheet(
 }
 
 @Composable
-private fun SelectorRow(
-    name: String,
-    count: Int,
-    selected: Boolean,
-    onClick: () -> Unit,
-    menu: (@Composable () -> Unit)? = null
-) {
+private fun SelectorRow(name: String, count: Int, selected: Boolean, onClick: () -> Unit, menu: (@Composable () -> Unit)? = null) {
     ListItem(
         headlineContent = { Text(name) },
         supportingContent = { Text(pluralStringResource(R.plurals.library_paper_count, count, count)) },

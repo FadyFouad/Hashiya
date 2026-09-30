@@ -323,9 +323,8 @@ class LibraryViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                _message.value = LibraryMessage.ExportFailed
-            } finally {
                 exporting.value = false
+                _message.value = LibraryMessage.ExportFailed
             }
         }
     }
@@ -333,11 +332,14 @@ class LibraryViewModel @Inject constructor(
     fun onExportShared() {
         val shared = _exportReady.value ?: return
         _exportReady.value = null
+        // Still exporting until the file is shared, so a tap while it is written does nothing.
+        exporting.value = false
         if (!shared.complete) incompleteExportPending = true
     }
 
     fun onExportFailed() {
         _exportReady.value = null
+        exporting.value = false
         _message.value = LibraryMessage.ExportFailed
     }
 

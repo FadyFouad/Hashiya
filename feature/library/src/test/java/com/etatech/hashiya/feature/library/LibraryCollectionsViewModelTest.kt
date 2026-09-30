@@ -307,9 +307,14 @@ class LibraryCollectionsViewModelTest {
 
         assertEquals(listOf<Long?>(thesis.id), citations.exports)
         assertEquals(BibExport("Thesis.bib", citations.exportText, complete = true), viewModel.exportReady.value)
-        assertEquals(false, viewModel.header.value.exporting)
+        // The screen is still writing and sharing the file: another tap does nothing.
+        assertTrue(viewModel.header.value.exporting)
+        viewModel.onExport()
+        advanceUntilIdle()
+        assertEquals(listOf<Long?>(thesis.id), citations.exports)
         viewModel.onExportShared()
         assertNull(viewModel.exportReady.value)
+        assertEquals(false, viewModel.header.value.exporting)
         viewModel.onScreenResumed()
         assertNull(viewModel.message.value)
     }

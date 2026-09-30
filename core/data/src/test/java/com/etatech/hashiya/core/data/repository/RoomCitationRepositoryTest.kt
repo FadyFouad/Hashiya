@@ -131,7 +131,8 @@ class RoomCitationRepositoryTest {
         val online = repository().export(null)
         assertTrue(online.complete)
         assertTrue(online.bibtex.startsWith("@article{smith2020deep,"))
-        assertTrue(online.bibtex.contains("  pages = {436--444},"))
+        // pages is the last field here (no DOI or URL), so it has no trailing comma.
+        assertTrue(online.bibtex.contains("  pages = {436--444}\n}"))
         assertEquals(listOf("W1", "W1"), openAlex.workRequests)
         assertTrue(detailsFetched("W1"))
     }

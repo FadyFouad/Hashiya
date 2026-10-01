@@ -101,10 +101,11 @@ func cleanWhitespace(_ text: String) -> String {
 /// Wraps words with a capital after their first character in braces, so bibliography styles keep BERT, ImageNet, iPhone.
 /// A word starting with a command (`\#MeToo`) gets double braces: BibTeX treats `{\` as a special character and would
 /// lowercase the rest of the group. Uppercase is the Unicode `Uppercase` property, as Kotlin's `Char.isUpperCase`.
+/// Only BMP scalars count: Kotlin checks UTF-16 chars, and a surrogate half is never uppercase.
 func protectCapitals(_ text: String) -> String {
     splitOnSpace(text).map { word in
         let scalars = word.unicodeScalars
-        guard scalars.dropFirst().contains(where: { $0.properties.isUppercase }) else { return word }
+        guard scalars.dropFirst().contains(where: { $0.value <= 0xFFFF && $0.properties.isUppercase }) else { return word }
         return scalars.first == "\\" ? "{{\(word)}}" : "{\(word)}"
     }.joined(separator: " ")
 }

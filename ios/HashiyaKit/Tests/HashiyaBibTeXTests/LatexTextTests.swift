@@ -61,4 +61,10 @@ struct LatexTextTests {
         // "\" + U+0301 is one Swift Character; Android escapes the backslash and keeps the mark.
         #expect(escapeLatex("\\\u{0301}") == "\\textbackslash{}\u{0301}")
     }
+
+    // Swift-only.
+    @Test func capitalsOutsideTheBMPAreNotProtected() {
+        // Android checks UTF-16 chars, so a surrogate half is never uppercase.
+        #expect(protectCapitals("a\u{1D400}") == "a\u{1D400}")
+    }
 }

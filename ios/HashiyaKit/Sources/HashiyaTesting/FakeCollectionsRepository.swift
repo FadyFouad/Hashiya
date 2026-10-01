@@ -23,7 +23,8 @@ public struct MembershipCall: Equatable, Sendable {
 public final class FakeCollectionsRepository: CollectionsRepository {
     public struct Failure: Error {}
 
-    private struct State {
+    private struct State: DeferredYields {
+        var pending: [@Sendable () -> Void] = []
         var collections: [PaperCollection]
         /// Collection IDs per OpenAlex ID.
         var memberships: [String: Set<Int64>]
@@ -46,11 +47,15 @@ public final class FakeCollectionsRepository: CollectionsRepository {
             return collections.contains { $0.id != id && collectionNameKey($0.name) == key }
         }
 
-        func publish() {
+        /// Queues the emissions; `update` yields them once the lock is released (see `DeferredYields`).
+        mutating func publish() {
             let sorted = sorted
-            collectionSubscriptions.values.forEach { $0.yield(sorted) }
+            for continuation in collectionSubscriptions.values {
+                pending.append { continuation.yield(sorted) }
+            }
             for subscription in idSubscriptions.values {
-                subscription.continuation.yield(memberships[subscription.openAlexID] ?? [])
+                let value = memberships[subscription.openAlexID] ?? []
+                pending.append { subscription.continuation.yield(value) }
             }
         }
 
@@ -85,24 +90,24 @@ public final class FakeCollectionsRepository: CollectionsRepository {
     }
 
     /// The names of the creates that returned `.done`, as passed, in order.
-    public var createdNames: [String] { state.withLock { $0.createdNames } }
+    public var createdNames: [String] { state.update { $0.createdNames } }
     /// The last name each collection was renamed to.
-    public var renamed: [Int64: String] { state.withLock { $0.renamed } }
-    public var membershipCalls: [MembershipCall] { state.withLock { $0.membershipCalls } }
-    public var deletedIDs: [Int64] { state.withLock { $0.deletedIDs } }
+    public var renamed: [Int64: String] { state.update { $0.renamed } }
+    public var membershipCalls: [MembershipCall] { state.update { $0.membershipCalls } }
+    public var deletedIDs: [Int64] { state.update { $0.deletedIDs } }
     /// One paper's collection IDs, read synchronously for assertions.
-    public func collectionIDs(of openAlexID: String) -> Set<Int64> { state.withLock { $0.memberships[openAlexID] ?? [] } }
+    public func collectionIDs(of openAlexID: String) -> Set<Int64> { state.update { $0.memberships[openAlexID] ?? [] } }
     /// The creates waiting while creates are held.
-    public var heldCreates: Int { state.withLock { $0.heldCreates?.count ?? 0 } }
+    public var heldCreates: Int { state.update { $0.heldCreates?.count ?? 0 } }
 
     /// When true, every write (`create`, `rename`, `delete`, `setMembership`) throws and changes nothing.
-    public func setFailWrites(_ fail: Bool) { state.withLock { $0.failWrites = fail } }
+    public func setFailWrites(_ fail: Bool) { state.update { $0.failWrites = fail } }
     /// The next `create` or `rename` returns `result` without changing anything.
-    public func setNextResult(_ result: CollectionResult?) { state.withLock { $0.nextResult = result } }
+    public func setNextResult(_ result: CollectionResult?) { state.update { $0.nextResult = result } }
 
     /// Replaces the collections and re-emits.
     public func setCollections(_ collections: [PaperCollection]) {
-        state.withLock { state in
+        state.update { state in
             state.collections = collections
             state.nextID = max(state.nextID, (collections.map(\.id).max() ?? 0) + 1)
             state.publish()
@@ -111,7 +116,7 @@ public final class FakeCollectionsRepository: CollectionsRepository {
 
     /// Replaces one paper's collection IDs and re-emits (not mirrored into the library).
     public func setMemberships(openAlexID: String, _ ids: Set<Int64>) {
-        state.withLock { state in
+        state.update { state in
             state.memberships[openAlexID] = ids
             state.publish()
         }
@@ -119,12 +124,12 @@ public final class FakeCollectionsRepository: CollectionsRepository {
 
     /// From now on `create` waits until `releaseCreates()`, so a test can tap Create twice while one runs.
     public func holdCreates() {
-        state.withLock { if $0.heldCreates == nil { $0.heldCreates = [] } }
+        state.update { if $0.heldCreates == nil { $0.heldCreates = [] } }
     }
 
     /// Lets every held create run, in order, and stops holding.
     public func releaseCreates() {
-        let waiting = state.withLock { state -> [CheckedContinuation<Void, Never>] in
+        let waiting = state.update { state -> [CheckedContinuation<Void, Never>] in
             defer { state.heldCreates = nil }
             return state.heldCreates ?? []
         }
@@ -134,12 +139,12 @@ public final class FakeCollectionsRepository: CollectionsRepository {
     public func observeCollections() -> AsyncStream<[PaperCollection]> {
         let id = UUID()
         return AsyncStream { continuation in
-            state.withLock { state in
+            state.update { state in
                 state.collectionSubscriptions[id] = continuation
                 continuation.yield(state.sorted)
             }
             continuation.onTermination = { [weak self] _ in
-                _ = self?.state.withLock { $0.collectionSubscriptions.removeValue(forKey: id) }
+                _ = self?.state.update { $0.collectionSubscriptions.removeValue(forKey: id) }
             }
         }
     }
@@ -147,19 +152,19 @@ public final class FakeCollectionsRepository: CollectionsRepository {
     public func observeCollectionIDs(openAlexID: String) -> AsyncStream<Set<Int64>> {
         let id = UUID()
         return AsyncStream { continuation in
-            state.withLock { state in
+            state.update { state in
                 state.idSubscriptions[id] = (openAlexID, continuation)
                 continuation.yield(state.memberships[openAlexID] ?? [])
             }
             continuation.onTermination = { [weak self] _ in
-                _ = self?.state.withLock { $0.idSubscriptions.removeValue(forKey: id) }
+                _ = self?.state.update { $0.idSubscriptions.removeValue(forKey: id) }
             }
         }
     }
 
     public func create(name: String) async throws -> CollectionResult {
         await waitWhileHeld()
-        return try state.withLock { state in
+        return try state.update { state in
             if state.failWrites { throw Failure() }
             if let result = state.nextResult {
                 state.nextResult = nil
@@ -177,7 +182,7 @@ public final class FakeCollectionsRepository: CollectionsRepository {
     }
 
     public func rename(id: Int64, name: String) async throws -> CollectionResult {
-        try state.withLock { state in
+        try state.update { state in
             if state.failWrites { throw Failure() }
             if let result = state.nextResult {
                 state.nextResult = nil
@@ -195,7 +200,7 @@ public final class FakeCollectionsRepository: CollectionsRepository {
     }
 
     public func delete(id: Int64) async throws {
-        try state.withLock { state in
+        try state.update { state in
             if state.failWrites { throw Failure() }
             state.deletedIDs.append(id)
             state.collections.removeAll { $0.id == id }
@@ -210,10 +215,10 @@ public final class FakeCollectionsRepository: CollectionsRepository {
     public func setMembership(collectionID: Int64, openAlexID: String, member: Bool) async throws {
         // As the real repository: adding an unsaved paper does nothing at all.
         if member, let library, !library.isSaved(openAlexID: openAlexID) {
-            if state.withLock({ $0.failWrites }) { throw Failure() }
+            if state.update({ $0.failWrites }) { throw Failure() }
             return
         }
-        let changed = try state.withLock { state -> Bool in
+        let changed = try state.update { state -> Bool in
             if state.failWrites { throw Failure() }
             state.membershipCalls.append(MembershipCall(collectionID: collectionID, openAlexID: openAlexID, member: member))
             guard state.collections.contains(where: { $0.id == collectionID }) else { return false }
@@ -233,7 +238,7 @@ public final class FakeCollectionsRepository: CollectionsRepository {
 
     private func waitWhileHeld() async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            let held = state.withLock { state -> Bool in
+            let held = state.update { state -> Bool in
                 guard state.heldCreates != nil else { return false }
                 state.heldCreates?.append(continuation)
                 return true

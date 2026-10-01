@@ -270,3 +270,13 @@ All tests are written test-first and run on the JVM (Robolectric where Android i
 | A crash leaves partial or orphaned files | Temporary file plus rename; the startup sweep. |
 | Storage growth | Settings storage with Delete downloaded; the 100 MB limit per file. |
 | Removing a paper deletes a PDF the user wanted | The file survives the Undo window; deletion happens only when the removal is final. |
+
+## 15. Departures made during implementation
+
+The plan lists the departures decided while planning. These were made while building it:
+
+- **The failed row's overflow is empty.** §6 lists Attach PDF in the failed state's overflow when a link exists, but Attach PDF is already one of that state's buttons, so it isn't repeated.
+- **The reader's FileProvider is its own subclass**, `PdfFileProvider`. `feature/library` already declares `androidx.core.content.FileProvider` for exports, and the manifest merger matches providers by class name, so a second declaration of the same class would clash. The authority (`${applicationId}.pdfs`) and the `files-path pdfs/` paths are as planned.
+- **The startup sweep waits for downloads and attaches in progress.** A store that is writing its temporary file, or has stored a file but not yet recorded it, would otherwise lose it to the sweep. The sweep holds back new stores while it waits, so it can't miss one.
+- **A cancelled download can't clear the state of one started after it.** Each download only reports state while it's still the paper's current download.
+- **A stored file is synced to disk before it's renamed into place**, so a power loss right after the rename can't leave a partial `<id>.pdf`.

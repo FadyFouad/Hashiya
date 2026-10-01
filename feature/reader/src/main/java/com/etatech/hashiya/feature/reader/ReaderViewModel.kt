@@ -157,9 +157,13 @@ class ReaderViewModel @Inject constructor(
         }
     }
 
-    /** Remove PDF on the can't-open screen; the reader closes either way. */
+    /**
+     * Remove PDF on the can't-open screen; the reader closes either way. Typed notes are saved first, as on Back, because removing
+     * closes the reader at once and Details reads the notes again as soon as it is back on screen.
+     */
     fun onRemovePdf() {
         viewModelScope.launch {
+            if (!notesEditor.saveNow()) return@launch
             try {
                 pdfRepository.remove(openAlexId)
             } catch (e: CancellationException) {

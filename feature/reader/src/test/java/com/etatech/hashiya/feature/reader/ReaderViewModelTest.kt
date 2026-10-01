@@ -274,6 +274,21 @@ class ReaderViewModelTest {
     }
 
     @Test
+    fun removingThePdfSavesTypedNotesFirst() = runTest {
+        savedWithPdf()
+        val viewModel = viewModel(open = { throw IOException("damaged") })
+        advanceUntilIdle()
+        viewModel.onNoteChange(NoteSection.Thoughts, "Find a clean copy")
+
+        viewModel.onRemovePdf()
+        runCurrent()
+
+        assertEquals(listOf(id to PaperNotes(thoughts = "Find a clean copy")), library.notesSaves)
+        assertEquals(listOf(id), pdfs.removals)
+        assertEquals(ReaderExit.Closed, viewModel.exit.value)
+    }
+
+    @Test
     fun aPdfRemovedElsewhereClosesTheReader() = runTest {
         savedWithPdf()
         val viewModel = viewModel()

@@ -140,7 +140,7 @@ final class CollectionsFlowTests: XCTestCase {
         saveAttentionAndBERT(in: app)
         openFromTheLibrary("Attention Is All You Need", in: app)
 
-        app.buttons["More options"].tap()
+        app.navigationBars.buttons["More options"].tap()
         let copy = app.buttons["Copy BibTeX"]
         XCTAssertTrue(copy.waitForExistence(timeout: UITestTimeout.long))
         copy.tap()

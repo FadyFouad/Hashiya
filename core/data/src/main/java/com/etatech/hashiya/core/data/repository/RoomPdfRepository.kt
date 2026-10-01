@@ -28,6 +28,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -109,36 +110,43 @@ internal class RoomPdfRepository(
     }
 
     private suspend fun runDownload(openAlexId: String) {
+        val self = currentCoroutineContext()[Job]
+
+        // A cancelled download still winding down must not touch the state of one started after it.
+        fun report(state: DownloadState?) {
+            synchronized(lock) { if (jobs[openAlexId] === self) setState(openAlexId, state) }
+        }
+
         try {
-            val row = paperDao.getByOpenAlexId(openAlexId)?.paper ?: return setState(openAlexId, null)
-            val url = row.oaPdfUrl?.takeIf { it.isNotBlank() } ?: return setState(openAlexId, DownloadState.Failed(DownloadFailure.NoLink))
+            val row = paperDao.getByOpenAlexId(openAlexId)?.paper ?: return report(null)
+            val url = row.oaPdfUrl?.takeIf { it.isNotBlank() } ?: return report(DownloadState.Failed(DownloadFailure.NoLink))
             storing {
                 val result = try {
                     downloader.download(url) { body, length ->
-                        setState(openAlexId, DownloadState.Running(bytes = 0, totalBytes = length))
-                        fileStore.store(row.id, body, maxBytes) { bytes -> setState(openAlexId, DownloadState.Running(bytes, length)) }
+                        report(DownloadState.Running(bytes = 0, totalBytes = length))
+                        fileStore.store(row.id, body, maxBytes) { bytes -> report(DownloadState.Running(bytes, length)) }
                     }
                 } catch (e: NetworkException) {
                     val reason = if (e.failure == NetworkFailure.Connectivity) DownloadFailure.Offline else DownloadFailure.Http
-                    return@storing setState(openAlexId, DownloadState.Failed(reason))
+                    return@storing report(DownloadState.Failed(reason))
                 } catch (e: PdfWriteException) {
-                    return@storing setState(openAlexId, DownloadState.Failed(DownloadFailure.Http))
+                    return@storing report(DownloadState.Failed(DownloadFailure.Http))
                 }
                 when (result) {
                     is StoreResult.Stored -> {
                         paperDao.setPdf(row.id, PdfSource.Downloaded.storedValue, result.size, now())
                         // Removed in the moment between the file landing and the row being set: nothing points at the file.
                         if (paperDao.paperIdFor(openAlexId) != row.id) withContext(io) { fileStore.delete(row.id) }
-                        setState(openAlexId, null)
+                        report(null)
                     }
 
-                    StoreResult.NotPdf -> setState(openAlexId, DownloadState.Failed(DownloadFailure.NotPdf))
+                    StoreResult.NotPdf -> report(DownloadState.Failed(DownloadFailure.NotPdf))
 
-                    StoreResult.TooLarge -> setState(openAlexId, DownloadState.Failed(DownloadFailure.TooLarge))
+                    StoreResult.TooLarge -> report(DownloadState.Failed(DownloadFailure.TooLarge))
                 }
             }
         } catch (e: CancellationException) {
-            setState(openAlexId, null)
+            report(null)
             throw e
         }
     }

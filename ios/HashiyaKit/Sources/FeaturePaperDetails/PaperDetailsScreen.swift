@@ -74,6 +74,7 @@ public struct PaperDetailsScreen: View {
                 collections: viewModel.collections,
                 memberIDs: viewModel.memberIDs,
                 notes: viewModel.notesLoad == .failed ? nil : viewModel.notes,
+                notesVersion: viewModel.notesVersion,
                 saveState: viewModel.saveState,
                 // While the checklist is open its own banner shows the message; the screen behind shows none.
                 message: viewModel.showingChecklist ? nil : viewModel.message,

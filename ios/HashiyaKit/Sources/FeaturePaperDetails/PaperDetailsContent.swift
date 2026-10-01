@@ -24,11 +24,10 @@ public struct PaperDetailsContent: View {
     private let collections: [PaperCollection]
     private let memberIDs: Set<Int64>
     private let notes: PaperNotes?
+    private let notesVersion: Int
     private let saveState: NotesSaveState
     private let message: PaperDetailsMessage?
     private let actions: PaperDetailsActions
-
-    @FocusState private var focusedSection: NoteSection?
 
     /// - Parameters:
     ///   - collections: every collection; the row shows those in `memberIDs`, in this order.
@@ -38,6 +37,7 @@ public struct PaperDetailsContent: View {
         collections: [PaperCollection] = [],
         memberIDs: Set<Int64> = [],
         notes: PaperNotes?,
+        notesVersion: Int = 0,
         saveState: NotesSaveState,
         message: PaperDetailsMessage?,
         actions: PaperDetailsActions
@@ -46,6 +46,7 @@ public struct PaperDetailsContent: View {
         self.collections = collections
         self.memberIDs = memberIDs
         self.notes = notes
+        self.notesVersion = notesVersion
         self.saveState = saveState
         self.message = message
         self.actions = actions
@@ -77,14 +78,6 @@ public struct PaperDetailsContent: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { moreOptions }
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button {
-                    focusedSection = nil
-                } label: {
-                    Text(verbatim: L10n.string("details.doneEditing"))
-                }
-            }
         }
     }
 
@@ -161,25 +154,9 @@ public struct PaperDetailsContent: View {
 
     private var notesSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Text(verbatim: L10n.string("details.notesTitle"))
-                    .font(.hashiya(.stateTitle))
-                    .foregroundStyle(HashiyaColors.onSurface)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 0)
-                if let status = L10n.saveStatus(saveState) {
-                    Text(verbatim: status)
-                        .font(.hashiya(.meta))
-                        .foregroundStyle(saveState == .failed ? HashiyaColors.error : HashiyaColors.onSurfaceVariant)
-                        .accessibilityIdentifier("details.saveStatus")
-                }
-            }
+            NotesHeading(saveState: saveState)
             if let notes {
-                ForEach(NoteSection.allCases, id: \.self) { section in
-                    NoteField(section: section, initialText: notes[section], focus: $focusedSection) { text in
-                        actions.updateNote(section, text)
-                    }
-                }
+                NoteFields(notes: notes, version: notesVersion, onChange: actions.updateNote)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(verbatim: L10n.string("details.notesLoadFailed"))

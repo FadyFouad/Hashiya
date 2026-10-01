@@ -118,6 +118,19 @@ class RoomPdfRepositoryTest {
     }
 
     @Test
+    fun anHttpLinkIsDownloadedOverHttps() = runTest {
+        library.save(paper("W1", pdfUrl = "http://arxiv.org/pdf/1612.03928"))
+        library.save(paper("W2", pdfUrl = "HTTP://jsrse.edu.iq:8080/download/285/301"))
+
+        repository.download("W1")
+        awaitStored("W1")
+        repository.download("W2")
+        awaitStored("W2")
+
+        assertEquals(listOf("https://arxiv.org/pdf/1612.03928", "https://jsrse.edu.iq:8080/download/285/301"), downloader.urls)
+    }
+
+    @Test
     fun showsRunningWhileTheRequestIsOpen() = runTest {
         library.save(paper("W1"))
         downloader.gate = CompletableDeferred()

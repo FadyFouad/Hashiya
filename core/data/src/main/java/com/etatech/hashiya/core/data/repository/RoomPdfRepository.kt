@@ -88,7 +88,10 @@ internal class RoomPdfRepository(
 
     override fun download(openAlexId: String) {
         synchronized(lock) {
-            if (jobs[openAlexId]?.isActive == true) return
+            val current = jobs[openAlexId]
+            // A job that already reported a failure may still be winding down; Try again must replace it, not be ignored.
+            if (current?.isActive == true && downloads.value[openAlexId] !is DownloadState.Failed) return
+            current?.cancel()
             val job = scope.launch(start = CoroutineStart.LAZY) { runDownload(openAlexId) }
             jobs[openAlexId] = job
             // Removing the paper while its PDF downloads cancels the download, so no file outlives the paper.
@@ -119,7 +122,8 @@ internal class RoomPdfRepository(
 
         try {
             val row = paperDao.getByOpenAlexId(openAlexId)?.paper ?: return report(null)
-            val url = row.oaPdfUrl?.takeIf { it.isNotBlank() } ?: return report(DownloadState.Failed(DownloadFailure.NoLink))
+            val url = row.oaPdfUrl?.takeIf { it.isNotBlank() }?.let(::upgradeToHttps)
+                ?: return report(DownloadState.Failed(DownloadFailure.NoLink))
             storing {
                 val result = try {
                     downloader.download(url) { body, length ->
@@ -134,9 +138,11 @@ internal class RoomPdfRepository(
                 }
                 when (result) {
                     is StoreResult.Stored -> {
-                        paperDao.setPdf(row.id, PdfSource.Downloaded.storedValue, result.size, now())
-                        // Removed in the moment between the file landing and the row being set: nothing points at the file.
-                        if (paperDao.paperIdFor(openAlexId) != row.id) withContext(io) { fileStore.delete(row.id) }
+                        // Removed before the row was set: nothing points at the file. A removal after this point keeps
+                        // the file for Undo; discardRemoved deletes it once the removal is final.
+                        if (paperDao.setPdf(row.id, PdfSource.Downloaded.storedValue, result.size, now()) == 0) {
+                            withContext(io) { fileStore.delete(row.id) }
+                        }
                         report(null)
                     }
 
@@ -176,7 +182,11 @@ internal class RoomPdfRepository(
             } ?: return@storing AttachResult.Unreadable
             when (result) {
                 is StoreResult.Stored -> {
-                    paperDao.setPdf(paperId, PdfSource.Attached.storedValue, result.size, now())
+                    // Removed before the row was set: drop the copy instead of leaving it for the startup sweep.
+                    if (paperDao.setPdf(paperId, PdfSource.Attached.storedValue, result.size, now()) == 0) {
+                        withContext(io) { fileStore.delete(paperId) }
+                        return@storing AttachResult.Unreadable
+                    }
                     setState(openAlexId, null)
                     AttachResult.Done
                 }
@@ -231,3 +241,10 @@ internal class RoomPdfRepository(
         }
     }
 }
+
+/**
+ * OpenAlex often gives `http://` links. Android blocks cleartext traffic, and on some networks plain HTTP is intercepted by the
+ * provider's redirect page, so the PDF is always fetched over HTTPS. The hosts that serve PDFs (arXiv, journals) all offer it.
+ */
+internal fun upgradeToHttps(url: String): String =
+    if (url.startsWith("http://", ignoreCase = true)) "https://" + url.substring("http://".length) else url

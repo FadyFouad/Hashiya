@@ -47,6 +47,23 @@ public struct PaperDetailsScreen: View {
                 guard viewModel.message != nil, (try? await Task.sleep(for: HashiyaBanner.duration)) != nil else { return }
                 viewModel.message = nil
             }
+            .sheet(isPresented: $viewModel.showingChecklist) {
+                CollectionsChecklist(
+                    collections: viewModel.collections,
+                    memberIDs: viewModel.memberIDs,
+                    message: viewModel.message,
+                    actions: checklistActions
+                )
+                .presentationDetents([.medium, .large])
+                .sheet(isPresented: $viewModel.showingNameSheet, onDismiss: { viewModel.dismissNameSheet() }) {
+                    CollectionNameSheet(
+                        mode: .create,
+                        error: viewModel.nameSheetError,
+                        onSubmit: { name in Task { await viewModel.submitNewCollection(name) } },
+                        onCancel: { viewModel.dismissNameSheet() }
+                    )
+                }
+            }
     }
 
     @ViewBuilder
@@ -54,9 +71,12 @@ public struct PaperDetailsScreen: View {
         if let paper = viewModel.paper, viewModel.notesLoad != .loading {
             PaperDetailsContent(
                 paper: paper,
+                collections: viewModel.collections,
+                memberIDs: viewModel.memberIDs,
                 notes: viewModel.notesLoad == .failed ? nil : viewModel.notes,
                 saveState: viewModel.saveState,
-                message: viewModel.message,
+                // While the checklist is open its own banner shows the message; the screen behind shows none.
+                message: viewModel.showingChecklist ? nil : viewModel.message,
                 actions: actions
             )
         } else {
@@ -76,6 +96,17 @@ public struct PaperDetailsScreen: View {
         actions.remove = { Task { await viewModel.remove() } }
         actions.retrySave = { viewModel.flush() }
         actions.retryLoadNotes = { Task { await viewModel.retryLoadNotes() } }
+        actions.showCollections = { viewModel.showingChecklist = true }
+        actions.copyBibTeX = { Task { await viewModel.copyBibTeX() } }
+        return actions
+    }
+
+    private var checklistActions: CollectionsChecklistActions {
+        var actions = CollectionsChecklistActions()
+        let viewModel = viewModel
+        actions.toggle = { id in Task { await viewModel.toggleCollection(id) } }
+        actions.newCollection = { viewModel.showNewCollection() }
+        actions.done = { viewModel.showingChecklist = false }
         return actions
     }
 }

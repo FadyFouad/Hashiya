@@ -11,6 +11,8 @@ public struct PaperDetailsActions {
     public var remove: () -> Void = {}
     public var retrySave: () -> Void = {}
     public var retryLoadNotes: () -> Void = {}
+    public var showCollections: () -> Void = {}
+    public var copyBibTeX: () -> Void = {}
 
     public init() {}
 }
@@ -19,6 +21,8 @@ public struct PaperDetailsActions {
 /// and the navigation bar's More options. Put it in a `NavigationStack`.
 public struct PaperDetailsContent: View {
     private let paper: LibraryPaper
+    private let collections: [PaperCollection]
+    private let memberIDs: Set<Int64>
     private let notes: PaperNotes?
     private let saveState: NotesSaveState
     private let message: PaperDetailsMessage?
@@ -26,9 +30,21 @@ public struct PaperDetailsContent: View {
 
     @FocusState private var focusedSection: NoteSection?
 
-    /// - Parameter notes: the notes to seed the fields with; nil shows "Couldn't load your notes" and no fields.
-    public init(paper: LibraryPaper, notes: PaperNotes?, saveState: NotesSaveState, message: PaperDetailsMessage?, actions: PaperDetailsActions) {
+    /// - Parameters:
+    ///   - collections: every collection; the row shows those in `memberIDs`, in this order.
+    ///   - notes: the notes to seed the fields with; nil shows "Couldn't load your notes" and no fields.
+    public init(
+        paper: LibraryPaper,
+        collections: [PaperCollection] = [],
+        memberIDs: Set<Int64> = [],
+        notes: PaperNotes?,
+        saveState: NotesSaveState,
+        message: PaperDetailsMessage?,
+        actions: PaperDetailsActions
+    ) {
         self.paper = paper
+        self.collections = collections
+        self.memberIDs = memberIDs
         self.notes = notes
         self.saveState = saveState
         self.message = message
@@ -41,6 +57,8 @@ public struct PaperDetailsContent: View {
                 header
                 ReadingStatusSelector(status: paper.status, onChange: actions.setStatus)
                     .padding(.top, 20)
+                CollectionsRow(names: collections.filter { memberIDs.contains($0.id) }.map(\.name), action: actions.showCollections)
+                    .padding(.top, 16)
                 links
                 abstract
                     .padding(.top, 24)
@@ -54,7 +72,7 @@ public struct PaperDetailsContent: View {
         .scrollDismissesKeyboard(.interactively)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(HashiyaColors.surface)
-        .overlay(alignment: .bottom) { banner }
+        .overlay(alignment: .bottom) { PaperDetailsBanner(message: message, retrySave: actions.retrySave) }
         .animation(.default, value: message)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -180,6 +198,13 @@ public struct PaperDetailsContent: View {
 
     private var moreOptions: some View {
         Menu {
+            Button(action: actions.copyBibTeX) {
+                Label {
+                    Text(verbatim: L10n.string("details.copyBibtex"))
+                } icon: {
+                    Image(systemName: "doc.on.doc")
+                }
+            }
             Button(role: .destructive, action: actions.remove) {
                 Label {
                     Text(verbatim: DesignSystemStrings.removeFromLibrary)
@@ -191,21 +216,5 @@ public struct PaperDetailsContent: View {
             Image(systemName: "ellipsis.circle")
         }
         .accessibilityLabel(Text(verbatim: L10n.string("details.moreOptions")))
-    }
-
-    @ViewBuilder
-    private var banner: some View {
-        switch message {
-        case .notesSaveFailed:
-            HashiyaBanner(
-                text: L10n.string("details.notesSaveFailedMessage"),
-                actionTitle: L10n.string("details.retry"),
-                action: actions.retrySave
-            )
-        case .statusUpdateFailed:
-            HashiyaBanner(text: L10n.string("details.statusUpdateFailed"))
-        case nil:
-            EmptyView()
-        }
     }
 }

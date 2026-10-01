@@ -30,12 +30,16 @@ struct PaperDetailsContentTests {
 
     private func content(
         _ paper: Paper,
+        collections: [PaperCollection] = [],
+        memberIDs: Set<Int64> = [],
         notes: PaperNotes? = PaperNotes(),
         saveState: NotesSaveState = .idle,
         message: PaperDetailsMessage? = nil
     ) -> PaperDetailsContent {
         PaperDetailsContent(
             paper: LibraryPaper(paper: paper, status: .toRead),
+            collections: collections,
+            memberIDs: memberIDs,
             notes: notes,
             saveState: saveState,
             message: message,
@@ -87,5 +91,44 @@ struct PaperDetailsContentTests {
         #expect(rendered.contains("Couldn't load your notes"))
         #expect(rendered.contains("Retry"))
         #expect(!rendered.contains("Summary"))
+    }
+
+    @Test func theCollectionsRowSaysWhenThePaperIsInNone() {
+        let none = renderedStrings(of: content(SamplePapers.vit))
+        #expect(none.contains("Collections"))
+        #expect(none.contains("Not in any collection"))
+
+        let thesis = PaperCollection(id: 1, name: "Thesis", paperCount: 1)
+        let notMember = renderedStrings(of: content(SamplePapers.vit, collections: [thesis]))
+        #expect(notMember.contains("Not in any collection"))
+
+        let member = renderedStrings(of: content(SamplePapers.vit, collections: [thesis], memberIDs: [1]))
+        #expect(member.contains("Collections"))
+        #expect(!member.contains("Not in any collection"))
+    }
+
+    @Test func eachNewMessageShowsItsBanner() {
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .bibtexCopied)).contains("BibTeX copied"))
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .bibtexIncomplete))
+            .contains("Some details may be missing. Copy again when you're online."))
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .copyFailed)).contains("Couldn't copy BibTeX"))
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .collectionsUpdateFailed))
+            .contains("Couldn't update collections"))
+    }
+
+    @Test func theChecklistOffersNewCollectionAndExplainsWhenEmpty() {
+        let empty = renderedStrings(of: CollectionsChecklist(collections: [], memberIDs: [], message: nil, actions: CollectionsChecklistActions()))
+        #expect(empty.contains("New collection"))
+        #expect(empty.contains("Group papers for a chapter, a course or a project."))
+
+        let some = renderedStrings(of: CollectionsChecklist(
+            collections: [PaperCollection(id: 1, name: "Thesis", paperCount: 1)],
+            memberIDs: [1],
+            message: .collectionsUpdateFailed,
+            actions: CollectionsChecklistActions()
+        ))
+        #expect(some.contains("New collection"))
+        #expect(!some.contains("Group papers for a chapter, a course or a project."))
+        #expect(some.contains("Couldn't update collections"))
     }
 }

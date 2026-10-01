@@ -5,6 +5,7 @@ import FeatureSettings
 import Foundation
 import HashiyaData
 import HashiyaDesignSystem
+import UIKit
 
 /// Owns the long-lived objects and creates the view models. Built once per app launch.
 @MainActor
@@ -65,7 +66,14 @@ final class AppContainer {
     }
 
     func makePaperDetailsViewModel(openAlexID: String) -> PaperDetailsViewModel {
-        PaperDetailsViewModel(openAlexID: openAlexID, library: libraryRepository, pendingWrites: pendingWrites)
+        PaperDetailsViewModel(
+            openAlexID: openAlexID,
+            library: libraryRepository,
+            pendingWrites: pendingWrites,
+            collections: collectionsRepository,
+            citations: citationRepository,
+            copy: { UIPasteboard.general.string = $0 }
+        )
     }
 
     func makeSettingsViewModel() -> SettingsViewModel {

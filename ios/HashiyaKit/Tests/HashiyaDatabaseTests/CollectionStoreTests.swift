@@ -161,4 +161,19 @@ struct CollectionStoreTests {
 
         #expect(await iterator.next()?.map(\.name) == ["Z"])
     }
+
+    @Test(.timeLimit(.minutes(1)))
+    func anOpenMembershipObservationSeesADeletedCollection() async throws {
+        try await savePaper("p1", "W1")
+        let a = try await insert("A")
+        let b = try await insert("B")
+        try await store.addToCollection(collectionID: a, openAlexID: "W1", addedAt: 2)
+        try await store.addToCollection(collectionID: b, openAlexID: "W1", addedAt: 2)
+        var iterator = store.observeCollectionIDs(openAlexID: "W1").makeAsyncIterator()
+        #expect(await iterator.next() == [a, b])
+
+        try await store.deleteCollection(id: a)
+
+        #expect(await iterator.next() == [b])
+    }
 }

@@ -26,7 +26,16 @@ struct PaperMappingTests {
             abstract: "The dominant sequence transduction models are based on attention.",
             citationCount: 128_412,
             isOpenAccess: true,
-            openAccessPDFURL: "https://arxiv.org/pdf/1706.03762"
+            openAccessPDFURL: "https://arxiv.org/pdf/1706.03762",
+            publication: PublicationDetails(
+                workType: "preprint",
+                sourceType: "conference",
+                publisher: "Neural Information Processing Systems Foundation",
+                volume: "30",
+                issue: nil,
+                firstPage: "5998",
+                lastPage: "6008"
+            )
         ))
     }
 
@@ -56,6 +65,42 @@ struct PaperMappingTests {
 
     @Test func missingOpenAccessIsFalse() {
         #expect(NetworkWork(id: "https://openalex.org/W1", openAccess: nil).asPaper().isOpenAccess == false)
+    }
+
+    @Test func mapsPublicationDetails() {
+        let paper = NetworkWork(
+            id: "https://openalex.org/W1",
+            primaryLocation: NetworkLocation(source: NetworkSource(displayName: "Nature", type: "journal", hostOrganizationName: "Springer Nature")),
+            type: "article",
+            biblio: NetworkBiblio(volume: "521", issue: "7553", firstPage: "436", lastPage: "444")
+        ).asPaper()
+
+        #expect(paper.publication == PublicationDetails(
+            workType: "article",
+            sourceType: "journal",
+            publisher: "Springer Nature",
+            volume: "521",
+            issue: "7553",
+            firstPage: "436",
+            lastPage: "444"
+        ))
+    }
+
+    @Test func blankPublicationStringsBecomeNil() {
+        let paper = NetworkWork(
+            id: "https://openalex.org/W1",
+            primaryLocation: NetworkLocation(source: NetworkSource(displayName: "X", type: " ", hostOrganizationName: "")),
+            type: "",
+            biblio: NetworkBiblio(volume: " ", issue: nil, firstPage: "", lastPage: nil)
+        ).asPaper()
+
+        #expect(paper.publication == PublicationDetails())
+    }
+
+    @Test func publicationStringsAreTrimmed() {
+        let paper = NetworkWork(id: "https://openalex.org/W1", type: " article\n", biblio: NetworkBiblio(volume: " 12 ")).asPaper()
+        #expect(paper.publication.workType == "article")
+        #expect(paper.publication.volume == "12")
     }
 
     @Test func recordsRoundTripAPaperWithAuthorsInOrder() {

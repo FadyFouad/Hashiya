@@ -27,6 +27,12 @@ struct OpenAlexLookupClientTests {
         #expect(work?.displayName == "Deep learning")
     }
 
+    @Test func selectedFieldsIncludeTypeAndBiblio() {
+        let fields = OpenAlexSearchClient.selectFields.split(separator: ",").map(String.init)
+        #expect(fields.contains("type"))
+        #expect(fields.contains("biblio"))
+    }
+
     @Test(arguments: [404, 400])
     func notFoundAndBadRequestAreNil(code: Int) async throws {
         let server = URLProtocolStub.Server(always: .status(code, body: Data("{}".utf8)))

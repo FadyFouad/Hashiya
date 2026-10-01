@@ -9,6 +9,12 @@ private func shortOpenAlexID(_ id: String) -> String {
     id.hasPrefix(openAlexPrefix) ? String(id.dropFirst(openAlexPrefix.count)) : id
 }
 
+/// `value` trimmed, or nil when that leaves nothing.
+private func nilIfBlank(_ value: String?) -> String? {
+    guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
+    return trimmed
+}
+
 extension NetworkWork {
     public func asPaper() -> Paper {
         Paper(
@@ -25,7 +31,22 @@ extension NetworkWork {
             abstract: rebuildAbstract(abstractInvertedIndex),
             citationCount: citedByCount,
             isOpenAccess: openAccess?.isOA ?? false,
-            openAccessPDFURL: bestOALocation?.pdfURL
+            openAccessPDFURL: bestOALocation?.pdfURL,
+            publication: asPublicationDetails()
+        )
+    }
+
+    /// The citation details OpenAlex reports for this work; blank strings become nil.
+    func asPublicationDetails() -> PublicationDetails {
+        let source = primaryLocation?.source
+        return PublicationDetails(
+            workType: nilIfBlank(type),
+            sourceType: nilIfBlank(source?.type),
+            publisher: nilIfBlank(source?.hostOrganizationName),
+            volume: nilIfBlank(biblio?.volume),
+            issue: nilIfBlank(biblio?.issue),
+            firstPage: nilIfBlank(biblio?.firstPage),
+            lastPage: nilIfBlank(biblio?.lastPage)
         )
     }
 }

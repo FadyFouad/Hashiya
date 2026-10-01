@@ -13,10 +13,12 @@
       "doi": "https://doi.org/10.48550/arXiv.1706.03762",
       "display_name": "Attention Is All You Need",
       "publication_year": 2017,
+      "type": "preprint",
+      "biblio": { "volume": "30", "issue": null, "first_page": "5998", "last_page": "6008" },
       "primary_location": {
         "is_oa": true,
         "pdf_url": "https://arxiv.org/pdf/1706.03762",
-        "source": { "id": "https://openalex.org/S4306420609", "display_name": "Neural Information Processing Systems", "type": "conference" }
+        "source": { "id": "https://openalex.org/S4306420609", "display_name": "Neural Information Processing Systems", "type": "conference", "host_organization_name": "Neural Information Processing Systems Foundation" }
       },
       "authorships": [
         { "author_position": "first", "author": { "id": "https://openalex.org/A5103024730", "display_name": "Ashish Vaswani" } },

@@ -50,6 +50,9 @@ public struct NetworkWork: Decodable, Equatable, Sendable {
     public let openAccess: NetworkOpenAccess?
     public let bestOALocation: NetworkLocation?
     public let abstractInvertedIndex: [String: [Int]]?
+    /// OpenAlex's work type, e.g. "article", "preprint", "book-chapter".
+    public let type: String?
+    public let biblio: NetworkBiblio?
 
     public init(
         id: String,
@@ -61,7 +64,9 @@ public struct NetworkWork: Decodable, Equatable, Sendable {
         citedByCount: Int = 0,
         openAccess: NetworkOpenAccess? = nil,
         bestOALocation: NetworkLocation? = nil,
-        abstractInvertedIndex: [String: [Int]]? = nil
+        abstractInvertedIndex: [String: [Int]]? = nil,
+        type: String? = nil,
+        biblio: NetworkBiblio? = nil
     ) {
         self.id = id
         self.doi = doi
@@ -73,10 +78,12 @@ public struct NetworkWork: Decodable, Equatable, Sendable {
         self.openAccess = openAccess
         self.bestOALocation = bestOALocation
         self.abstractInvertedIndex = abstractInvertedIndex
+        self.type = type
+        self.biblio = biblio
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, doi, authorships
+        case id, doi, authorships, type, biblio
         case displayName = "display_name"
         case publicationYear = "publication_year"
         case primaryLocation = "primary_location"
@@ -98,6 +105,29 @@ public struct NetworkWork: Decodable, Equatable, Sendable {
         openAccess = try container.decodeIfPresent(NetworkOpenAccess.self, forKey: .openAccess)
         bestOALocation = try container.decodeIfPresent(NetworkLocation.self, forKey: .bestOALocation)
         abstractInvertedIndex = try container.decodeIfPresent([String: [Int]].self, forKey: .abstractInvertedIndex)
+        type = try container.decodeIfPresent(String.self, forKey: .type)
+        biblio = try container.decodeIfPresent(NetworkBiblio.self, forKey: .biblio)
+    }
+}
+
+/// A work's `biblio`: where it sits in its source. Every field may be missing or null.
+public struct NetworkBiblio: Decodable, Equatable, Sendable {
+    public let volume: String?
+    public let issue: String?
+    public let firstPage: String?
+    public let lastPage: String?
+
+    public init(volume: String? = nil, issue: String? = nil, firstPage: String? = nil, lastPage: String? = nil) {
+        self.volume = volume
+        self.issue = issue
+        self.firstPage = firstPage
+        self.lastPage = lastPage
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case volume, issue
+        case firstPage = "first_page"
+        case lastPage = "last_page"
     }
 }
 
@@ -118,13 +148,21 @@ public struct NetworkLocation: Decodable, Equatable, Sendable {
 
 public struct NetworkSource: Decodable, Equatable, Sendable {
     public let displayName: String?
+    /// e.g. "journal", "conference", "repository".
+    public let type: String?
+    /// The publisher, e.g. "Springer Nature".
+    public let hostOrganizationName: String?
 
-    public init(displayName: String?) {
+    public init(displayName: String?, type: String? = nil, hostOrganizationName: String? = nil) {
         self.displayName = displayName
+        self.type = type
+        self.hostOrganizationName = hostOrganizationName
     }
 
     enum CodingKeys: String, CodingKey {
+        case type
         case displayName = "display_name"
+        case hostOrganizationName = "host_organization_name"
     }
 }
 

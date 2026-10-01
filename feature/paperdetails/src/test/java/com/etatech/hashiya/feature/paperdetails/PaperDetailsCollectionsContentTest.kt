@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performTextInput
 import com.etatech.hashiya.core.designsystem.component.COLLECTION_NAME_FIELD_TAG
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.LibraryPaper
+import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.ReadingStatus

@@ -1,5 +1,7 @@
 package com.etatech.hashiya
 
+import android.content.Context
+import android.net.Uri
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -12,14 +14,19 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import androidx.test.core.app.ApplicationProvider
+import com.etatech.hashiya.core.data.repository.AttachResult
 import com.etatech.hashiya.core.data.repository.LibraryRepository
+import com.etatech.hashiya.core.data.repository.PdfRepository
 import com.etatech.hashiya.core.designsystem.component.COLLECTION_NAME_FIELD_TAG
 import com.etatech.hashiya.core.testing.SamplePapers
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.HiltTestApplication
+import java.io.File
 import javax.inject.Inject
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -96,6 +103,9 @@ class HashiyaAppNavigationTest {
     @Inject
     lateinit var libraryRepository: LibraryRepository
 
+    @Inject
+    lateinit var pdfRepository: PdfRepository
+
     @Before
     fun inject() = hiltRule.inject()
 
@@ -160,4 +170,36 @@ class HashiyaAppNavigationTest {
         }
         composeRule.onNodeWithText(SamplePapers.bert.title).assertIsDisplayed()
     }
+
+    @Test
+    fun detailsOpensTheReaderItsNotesAndBack() {
+        runBlocking { libraryRepository.save(SamplePapers.bert) }
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val pdf = File(context.cacheDir, "navigation-test.pdf").apply { writeText(MINIMAL_PDF) }
+        runBlocking { assertEquals(AttachResult.Done, pdfRepository.attach(SamplePapers.bert.openAlexId, Uri.fromFile(pdf))) }
+        waitForText(SamplePapers.bert.title)
+        composeRule.onNodeWithText(SamplePapers.bert.title).performClick()
+        waitForText("My notes")
+
+        // The stored row reads "PDF · <size> · Attached"; its tag is internal to feature/paperdetails.
+        composeRule.onNodeWithText("Attached", substring = true).performScrollTo().performClick()
+
+        // The reader: it shows pages, or "This PDF can't be opened." where Robolectric's PdfRenderer can't render; the toolbar is the same.
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithContentDescription("Notes").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithContentDescription("Notes").performClick()
+        waitForText("Summary")
+
+        composeRule.onNodeWithContentDescription("Close notes").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) { composeRule.onAllNodesWithText("Summary").fetchSemanticsNodes().isEmpty() }
+        composeRule.onNodeWithContentDescription("Back").performClick()
+
+        waitForText("My notes")
+    }
 }
+
+/** The smallest file PdfFileStore accepts: it starts with %PDF-. */
+private const val MINIMAL_PDF = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +
+    "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\n" +
+    "trailer<</Root 1 0 R>>\n%%EOF\n"

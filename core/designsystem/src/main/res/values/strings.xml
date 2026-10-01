@@ -26,4 +26,20 @@
     <string name="collection_save">Save</string>
     <string name="collection_cancel">Cancel</string>
     <string name="collection_name_taken">A collection with that name already exists</string>
+    <string name="designsystem_notes_title">My notes</string>
+    <string name="designsystem_notes_saving">Saving…</string>
+    <string name="designsystem_notes_saved">Saved</string>
+    <string name="designsystem_notes_save_failed">Couldn\'t save</string>
+    <string name="designsystem_note_summary">Summary</string>
+    <string name="designsystem_note_summary_hint">What is this paper about, in your own words?</string>
+    <string name="designsystem_note_research_question">Research question</string>
+    <string name="designsystem_note_research_question_hint">What question or problem does it address?</string>
+    <string name="designsystem_note_method">Method</string>
+    <string name="designsystem_note_method_hint">How did the authors approach it?</string>
+    <string name="designsystem_note_key_findings">Key findings</string>
+    <string name="designsystem_note_key_findings_hint">What did they find?</string>
+    <string name="designsystem_note_limitations">Limitations</string>
+    <string name="designsystem_note_limitations_hint">What are its weaknesses or open questions?</string>
+    <string name="designsystem_note_thoughts">My thoughts</string>
+    <string name="designsystem_note_thoughts_hint">How does it relate to your work?</string>
 </resources>

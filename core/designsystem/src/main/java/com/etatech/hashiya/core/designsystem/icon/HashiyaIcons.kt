@@ -3,16 +3,20 @@ package com.etatech.hashiya.core.designsystem.icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
+import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Settings
@@ -43,4 +47,8 @@ object HashiyaIcons {
     val Export: ImageVector = Icons.Outlined.Share
     val Copy: ImageVector = Icons.Outlined.ContentCopy
     val Collection: ImageVector = Icons.Outlined.FolderOpen
+    val Pdf: ImageVector = Icons.Outlined.PictureAsPdf
+    val Download: ImageVector = Icons.Outlined.Download
+    val Attach: ImageVector = Icons.Outlined.AttachFile
+    val Notes: ImageVector = Icons.AutoMirrored.Outlined.Notes
 }

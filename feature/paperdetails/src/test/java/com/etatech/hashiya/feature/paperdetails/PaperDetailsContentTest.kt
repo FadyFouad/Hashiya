@@ -14,9 +14,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import com.etatech.hashiya.core.designsystem.component.NOTE_FIELD_TAG_PREFIX
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NoteSection
+import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.ReadingStatus
@@ -77,20 +79,18 @@ class PaperDetailsContentTest {
     }
 
     @Test
-    fun linksOpenTheDoiAndThePdf() {
+    fun theDoiLinkOpensTheDoi() {
         show(loaded(SamplePapers.attention))
 
-        composeRule.onNodeWithText("Open DOI").performClick()
-        composeRule.onNodeWithText("Open PDF").performClick()
+        composeRule.onNodeWithText("Open DOI").performScrollTo().performClick()
 
-        assertEquals(listOf("open:https://doi.org/10.48550/arxiv.1706.03762", "open:https://arxiv.org/pdf/1706.03762"), events)
+        assertEquals(listOf("open:https://doi.org/10.48550/arxiv.1706.03762"), events)
     }
 
     @Test
-    fun noPdfButtonWithoutAnOpenAccessPdf() {
-        show(loaded(SamplePapers.bert))
+    fun thePdfLinkIsNoLongerAButton() {
+        show(loaded(SamplePapers.attention))
 
-        composeRule.onNodeWithText("Open DOI").assertIsDisplayed()
         composeRule.onNodeWithText("Open PDF").assertDoesNotExist()
     }
 

@@ -13,4 +13,20 @@
     <string name="settings_language_system">System default</string>
     <string name="settings_language_english" translatable="false">English</string>
     <string name="settings_language_arabic" translatable="false">العربية</string>
+    <string name="settings_storage">Storage</string>
+    <plurals name="settings_downloaded_pdfs">
+        <item quantity="one">Downloaded PDFs · %1$s · %2$d file</item>
+        <item quantity="other">Downloaded PDFs · %1$s · %2$d files</item>
+    </plurals>
+    <plurals name="settings_attached_pdfs">
+        <item quantity="one">Attached PDFs · %1$s · %2$d file</item>
+        <item quantity="other">Attached PDFs · %1$s · %2$d files</item>
+    </plurals>
+    <string name="settings_delete_downloaded">Delete downloaded PDFs</string>
+    <plurals name="settings_delete_downloaded_message">
+        <item quantity="one">Delete %1$d downloaded PDF? You can download it again. Attached PDFs are kept.</item>
+        <item quantity="other">Delete %1$d downloaded PDFs? You can download them again. Attached PDFs are kept.</item>
+    </plurals>
+    <string name="settings_delete">Delete</string>
+    <string name="settings_cancel">Cancel</string>
 </resources>

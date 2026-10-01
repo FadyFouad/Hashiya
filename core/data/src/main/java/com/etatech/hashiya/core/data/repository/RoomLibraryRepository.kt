@@ -9,6 +9,8 @@ import com.etatech.hashiya.core.database.dao.PaperDao
 import com.etatech.hashiya.core.database.model.CollectionPaperEntity
 import com.etatech.hashiya.core.database.model.asEntity
 import com.etatech.hashiya.core.database.model.asPaperNotes
+import com.etatech.hashiya.core.database.model.pdf
+import com.etatech.hashiya.core.database.model.withPdf
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperNotes
@@ -25,7 +27,7 @@ internal class RoomLibraryRepository(private val paperDao: PaperDao, private val
 
     override fun observeLibrary(query: String, status: ReadingStatus?, collectionId: Long?): Flow<List<LibraryPaper>> =
         paperDao.observeLibrary(ftsMatch(query), status?.storedValue, collectionId).map { rows ->
-            rows.map { LibraryPaper(it.asPaper(), readingStatusOf(it.paper.readingStatus)) }
+            rows.map { LibraryPaper(it.asPaper(), readingStatusOf(it.paper.readingStatus), hasPdf = it.paper.pdfSource != null) }
         }
 
     override fun observeStatusCounts(query: String, collectionId: Long?): Flow<Map<ReadingStatus, Int>> =
@@ -69,7 +71,8 @@ internal class RoomLibraryRepository(private val paperDao: PaperDao, private val
             collectionIds = deleted.collectionLinks.map { it.collectionId }.toSet(),
             citeKey = row.paper.citeKey,
             detailsFetched = row.paper.detailsFetched,
-            collectionLinksAddedAt = deleted.collectionLinks.associate { it.collectionId to it.addedAt }
+            collectionLinksAddedAt = deleted.collectionLinks.associate { it.collectionId to it.addedAt },
+            pdf = row.paper.pdf()
         )
     }
 
@@ -87,6 +90,6 @@ internal class RoomLibraryRepository(private val paperDao: PaperDao, private val
         val links = removed.collectionIds.map { id ->
             CollectionPaperEntity(collectionId = id, paperId = removed.localId, addedAt = removed.collectionLinksAddedAt[id] ?: now())
         }
-        paperDao.insertPaperWithAuthors(entities.paper, entities.authors, entities.search, notes, links)
+        paperDao.insertPaperWithAuthors(entities.paper.withPdf(removed.pdf), entities.authors, entities.search, notes, links)
     }
 }

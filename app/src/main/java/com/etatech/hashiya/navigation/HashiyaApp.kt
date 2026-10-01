@@ -32,6 +32,8 @@ import com.etatech.hashiya.feature.library.navigation.navigateToLibrary
 import com.etatech.hashiya.feature.library.navigation.requestLibraryRemove
 import com.etatech.hashiya.feature.paperdetails.navigation.navigateToPaperDetails
 import com.etatech.hashiya.feature.paperdetails.navigation.paperDetailsScreen
+import com.etatech.hashiya.feature.reader.navigation.navigateToReader
+import com.etatech.hashiya.feature.reader.navigation.readerScreen
 import com.etatech.hashiya.feature.search.navigation.SearchRoute
 import com.etatech.hashiya.feature.search.navigation.navigateToSearch
 import com.etatech.hashiya.feature.search.navigation.requestSearchRemove
@@ -91,11 +93,13 @@ fun HashiyaApp(
                 onOpenSettings = { navController.navigateToSettings() },
                 onOpenPaper = { openAlexId -> navController.navigateToPaperDetails(openAlexId) }
             )
-            // Not a top-level destination, so the navigation bar is hidden, as on Settings.
+            // Not top-level destinations, so the navigation bar is hidden, as on Settings.
             paperDetailsScreen(
                 onBack = { navController.popBackStack() },
-                onRemove = { openAlexId -> navController.removeFromDetails(openAlexId) }
+                onRemove = { openAlexId -> navController.removeFromDetails(openAlexId) },
+                onReadPdf = { openAlexId -> navController.navigateToReader(openAlexId) }
             )
+            readerScreen(onBack = { navController.popBackStack() })
             settingsScreen(onBack = { navController.popBackStack() })
         }
 

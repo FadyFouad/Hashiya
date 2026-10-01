@@ -63,6 +63,20 @@ class LibraryScreenshotTest(private val variant: ScreenshotVariant) {
     fun papers() = capture("library_papers", library, arabicText = "كل الأوراق")
 
     @Test
+    fun papersWithPdf() = capture(
+        "library_papers_pdf",
+        LibraryUiState.Papers(
+            listOf(
+                LibraryPaper(SamplePapers.attention, ReadingStatus.Reading, hasPdf = true),
+                LibraryPaper(SamplePapers.bert, ReadingStatus.Read),
+                LibraryPaper(SamplePapers.arabicTitled, ReadingStatus.ToRead, hasPdf = true)
+            ),
+            LibraryFilter(counts = mapOf(ReadingStatus.ToRead to 1, ReadingStatus.Reading to 1, ReadingStatus.Read to 1))
+        ),
+        arabicText = "كل الأوراق"
+    )
+
+    @Test
     fun filteredSearch() = capture(
         "library_search",
         LibraryUiState.Papers(

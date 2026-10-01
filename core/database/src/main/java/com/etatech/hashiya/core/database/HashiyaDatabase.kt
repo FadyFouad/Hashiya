@@ -21,7 +21,7 @@ import com.etatech.hashiya.core.database.model.PaperSearchEntity
         CollectionEntity::class,
         CollectionPaperEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class HashiyaDatabase : RoomDatabase() {

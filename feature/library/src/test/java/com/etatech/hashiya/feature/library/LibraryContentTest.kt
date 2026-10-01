@@ -15,6 +15,7 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.isPopup
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -284,5 +285,29 @@ class LibraryContentTest {
             "last row bottom (${lastRowBounds.bottom}) must be above the FAB top (${fabBounds.top})",
             lastRowBounds.bottom <= fabBounds.top
         )
+    }
+
+    @Test
+    fun aPaperWithAPdfShowsTheOfflineIconAndOneWithoutDoesNot() {
+        composeRule.setContent {
+            HashiyaTheme {
+                LibraryContent(
+                    uiState = LibraryUiState.Papers(
+                        listOf(
+                            LibraryPaper(SamplePapers.bert, ReadingStatus.ToRead, hasPdf = true),
+                            LibraryPaper(SamplePapers.vit, ReadingStatus.ToRead)
+                        ),
+                        LibraryFilter(counts = counts(2, 0, 0))
+                    ),
+                    pendingUndo = null,
+                    actions = actions,
+                    header = LibraryHeader(viewSize = 2, libraryCount = 2)
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("PDF available offline").assertIsDisplayed()
+        // The icon is merged into its clickable row, so its tag is only in the unmerged tree.
+        assertEquals(1, composeRule.onAllNodesWithTag(LIBRARY_PDF_ICON_TAG, useUnmergedTree = true).fetchSemanticsNodes().size)
     }
 }

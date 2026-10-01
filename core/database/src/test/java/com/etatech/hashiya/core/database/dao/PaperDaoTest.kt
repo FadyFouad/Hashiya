@@ -4,12 +4,20 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.etatech.hashiya.core.database.HashiyaDatabase
 import com.etatech.hashiya.core.database.model.CollectionPaperEntity
+import com.etatech.hashiya.core.database.model.PDF_SOURCE_ATTACHED
+import com.etatech.hashiya.core.database.model.PDF_SOURCE_DOWNLOADED
 import com.etatech.hashiya.core.database.model.PaperAuthorEntity
 import com.etatech.hashiya.core.database.model.PaperEntity
+import com.etatech.hashiya.core.database.model.PdfColumns
+import com.etatech.hashiya.core.database.model.PdfStorageRow
 import com.etatech.hashiya.core.database.model.StatusCount
 import com.etatech.hashiya.core.database.model.asPaperNotes
+import com.etatech.hashiya.core.database.model.pdf
 import com.etatech.hashiya.core.database.model.searchEntityFor
+import com.etatech.hashiya.core.database.model.withPdf
 import com.etatech.hashiya.core.model.PaperNotes
+import com.etatech.hashiya.core.model.PaperPdf
+import com.etatech.hashiya.core.model.PdfSource
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -427,5 +435,96 @@ class PaperDaoTest {
         assertEquals(100L, dao.observeByOpenAlexId("W1").first()?.paper?.savedAt)
         assertEquals("ada2020title", dao.observeByOpenAlexId("W1").first()?.paper?.citeKey)
         assertEquals(1, count("paper_authors"))
+    }
+
+    @Test
+    fun aStoredPdfIsObservedAndClearingItRemovesItAll() = runTest {
+        save(paper("a", "W1", 100), "Ada")
+        assertEquals("a", dao.paperIdFor("W1"))
+        assertNull(dao.observePdf("W1").first())
+
+        dao.setPdf("a", PDF_SOURCE_DOWNLOADED, size = 2_400_000, addedAt = 5)
+        assertEquals(PdfColumns(PDF_SOURCE_DOWNLOADED, 2_400_000, 5, 0), dao.observePdf("W1").first())
+
+        dao.clearPdf("a")
+        assertNull(dao.observePdf("W1").first())
+        val row = checkNotNull(dao.observeByOpenAlexId("W1").first()).paper
+        assertEquals(listOf(null, null, null, null), listOf(row.pdfSource, row.pdfSize, row.pdfAddedAt, row.pdfLastPage))
+    }
+
+    @Test
+    fun theLastPageIsStoredAndResetByANewPdf() = runTest {
+        save(paper("a", "W1", 100), "Ada")
+        dao.setPdf("a", PDF_SOURCE_DOWNLOADED, size = 10, addedAt = 5)
+
+        dao.setPdfLastPage("a", 11)
+        assertEquals(11, dao.observePdf("W1").first()?.lastPage)
+
+        // Replacing the PDF (an attach over a stored one) starts again on the first page.
+        dao.setPdf("a", PDF_SOURCE_ATTACHED, size = 20, addedAt = 6)
+        assertEquals(PdfColumns(PDF_SOURCE_ATTACHED, 20, 6, 0), dao.observePdf("W1").first())
+    }
+
+    @Test
+    fun pdfWritesForAnUnsavedPaperChangeNothing() = runTest {
+        save(paper("a", "W1", 100), "Ada")
+
+        assertNull(dao.paperIdFor("W9"))
+        dao.setPdf("missing", PDF_SOURCE_DOWNLOADED, size = 10, addedAt = 5)
+        dao.setPdfLastPage("missing", 3)
+
+        assertNull(dao.observePdf("W1").first())
+        assertEquals(emptyList<String>(), dao.pdfPaperIds())
+    }
+
+    @Test
+    fun pdfIdsAndStorageAreCountedBySource() = runTest {
+        save(paper("a", "W1", 100), "Ada")
+        save(paper("b", "W2", 200), "Grace")
+        save(paper("c", "W3", 300), "Alan")
+        save(paper("d", "W4", 400), "Edsger")
+        assertEquals(PdfStorageRow(0, 0, 0, 0), dao.pdfStorage())
+
+        dao.setPdf("a", PDF_SOURCE_DOWNLOADED, size = 100, addedAt = 1)
+        dao.setPdf("b", PDF_SOURCE_DOWNLOADED, size = 250, addedAt = 2)
+        dao.setPdf("c", PDF_SOURCE_ATTACHED, size = 4_000, addedAt = 3)
+
+        assertEquals(listOf("a", "b", "c"), dao.pdfPaperIds().sorted())
+        assertEquals(listOf("a", "b"), dao.downloadedPdfPaperIds().sorted())
+        assertEquals(PdfStorageRow(downloadedBytes = 350, downloadedCount = 2, attachedBytes = 4_000, attachedCount = 1), dao.pdfStorage())
+    }
+
+    @Test
+    fun deleteReturnsThePdfColumnsAndRestoreWritesThemBack() = runTest {
+        save(paper("a", "W1", 100), "Ada")
+        dao.setPdf("a", PDF_SOURCE_ATTACHED, size = 4_000, addedAt = 3)
+        dao.setPdfLastPage("a", 7)
+
+        val deleted = checkNotNull(dao.deleteByOpenAlexId("W1"))
+        assertEquals(PaperPdf(PdfSource.Attached, sizeBytes = 4_000, addedAt = 3, lastPage = 7), deleted.paper.paper.pdf())
+        assertEquals(emptyList<String>(), dao.pdfPaperIds())
+
+        val row = deleted.paper
+        assertTrue(
+            dao.insertPaperWithAuthors(
+                row.paper,
+                row.authors,
+                searchEntityFor(row.paper.id, row.paper.title, row.authors.map { it.name }, null, null)
+            )
+        )
+
+        assertEquals(PdfColumns(PDF_SOURCE_ATTACHED, 4_000, 3, 7), dao.observePdf("W1").first())
+    }
+
+    @Test
+    fun anEntityRoundTripsThroughPdfAndWithPdf() {
+        val bare = paper("a", "W1", 100)
+        assertNull(bare.pdf())
+
+        val pdf = PaperPdf(PdfSource.Downloaded, sizeBytes = 10, addedAt = 5, lastPage = 2)
+        val withPdf = bare.withPdf(pdf)
+        assertEquals(PDF_SOURCE_DOWNLOADED, withPdf.pdfSource)
+        assertEquals(pdf, withPdf.pdf())
+        assertEquals(bare, withPdf.withPdf(null))
     }
 }

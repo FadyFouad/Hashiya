@@ -35,4 +35,5 @@
     <string name="library_export_failed">Couldn\'t export</string>
     <string name="library_export_incomplete">Some entries may be incomplete. Export again when you\'re online.</string>
     <string name="library_collections_update_failed">Couldn\'t update collections</string>
+    <string name="library_has_pdf">PDF available offline</string>
 </resources>

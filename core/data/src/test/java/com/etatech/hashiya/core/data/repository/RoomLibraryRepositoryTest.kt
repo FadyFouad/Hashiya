@@ -7,6 +7,8 @@ import com.etatech.hashiya.core.model.Author
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperNotes
+import com.etatech.hashiya.core.model.PaperPdf
+import com.etatech.hashiya.core.model.PdfSource
 import com.etatech.hashiya.core.model.PublicationDetails
 import com.etatech.hashiya.core.model.ReadingStatus
 import kotlinx.coroutines.flow.first
@@ -363,5 +365,47 @@ class RoomLibraryRepositoryTest {
 
         assertEquals(setOf("W1", "W2"), repository.observeSavedIds().first())
         assertNull(checkNotNull(db.citationDao().getPaper("W1")).paper.citeKey)
+    }
+
+    @Test
+    fun aPaperWithAStoredPdfIsMarkedInTheLibrary() = runTest {
+        repository.save(paper("W1"))
+        repository.save(paper("W2"))
+        val dao = db.paperDao()
+
+        dao.setPdf(checkNotNull(dao.paperIdFor("W1")), "downloaded", size = 10, addedAt = 1)
+
+        assertEquals(
+            listOf("W2" to false, "W1" to true),
+            repository.observeLibrary("", null).first().map { it.paper.openAlexId to it.hasPdf }
+        )
+    }
+
+    @Test
+    fun removeAndRestoreKeepThePdf() = runTest {
+        repository.save(paper("W1"))
+        db.paperDao().setPdf(db.paperDao().paperIdFor("W1")!!, source = "downloaded", size = 2_048, addedAt = 5)
+        db.paperDao().setPdfLastPage(db.paperDao().paperIdFor("W1")!!, 3)
+
+        val removed = repository.remove("W1")!!
+        assertEquals(PaperPdf(PdfSource.Downloaded, sizeBytes = 2_048, addedAt = 5, lastPage = 3), removed.pdf)
+
+        repository.restore(removed)
+        val restored = db.paperDao().getByOpenAlexId("W1")!!.paper
+        assertEquals("downloaded", restored.pdfSource)
+        assertEquals(2_048L, restored.pdfSize)
+        assertEquals(5L, restored.pdfAddedAt)
+        assertEquals(3, restored.pdfLastPage)
+    }
+
+    @Test
+    fun aPaperWithoutAPdfRestoresWithout() = runTest {
+        repository.save(paper("W1"))
+
+        val removed = repository.remove("W1")!!
+        assertNull(removed.pdf)
+        repository.restore(removed)
+
+        assertNull(db.paperDao().getByOpenAlexId("W1")!!.paper.pdfSource)
     }
 }

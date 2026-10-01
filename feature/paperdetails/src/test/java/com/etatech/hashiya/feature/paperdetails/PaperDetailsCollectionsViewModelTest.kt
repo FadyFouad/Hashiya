@@ -6,6 +6,7 @@ import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
+import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
 import java.io.IOException
@@ -32,7 +33,7 @@ class PaperDetailsCollectionsViewModelTest {
 
     private fun TestScope.viewModel(): PaperDetailsViewModel {
         val handle = SavedStateHandle(mapOf(ARG_OPEN_ALEX_ID to id))
-        val viewModel = PaperDetailsViewModel(handle, library, collections, citations, backgroundScope)
+        val viewModel = PaperDetailsViewModel(handle, library, collections, citations, FakePdfRepository(), backgroundScope)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }

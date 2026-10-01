@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_back">Back</string>
+    <string name="reader_page">%1$d of %2$d</string>
+    <string name="reader_notes">Notes</string>
+    <string name="reader_close_notes">Close notes</string>
+    <string name="reader_share">Share</string>
+    <string name="reader_cant_open">This PDF can\'t be opened.</string>
+    <string name="reader_replace_pdf">Replace PDF</string>
+    <string name="reader_remove_pdf">Remove PDF</string>
+    <string name="reader_not_pdf">That file isn\'t a PDF.</string>
+    <string name="reader_too_large">The PDF is larger than 100 MB.</string>
+    <string name="reader_attach_failed">Couldn\'t read that file.</string>
+    <string name="reader_notes_save_failed">Couldn\'t save your notes</string>
+    <string name="reader_retry">Retry</string>
+</resources>

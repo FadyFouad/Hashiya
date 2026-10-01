@@ -39,4 +39,5 @@
     <string name="library_export_failed">تعذّر التصدير</string>
     <string name="library_export_incomplete">قد تكون بعض المداخل ناقصة. أعد التصدير عند الاتصال بالإنترنت.</string>
     <string name="library_collections_update_failed">تعذّر تحديث المجموعات</string>
+    <string name="library_has_pdf">ملف PDF متاح دون اتصال</string>
 </resources>

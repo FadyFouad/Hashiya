@@ -3,9 +3,13 @@ package com.etatech.hashiya.feature.paperdetails
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import com.etatech.hashiya.core.data.repository.DownloadFailure
 import com.etatech.hashiya.core.model.LibraryPaper
+import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.PaperNotes
+import com.etatech.hashiya.core.model.PaperPdf
+import com.etatech.hashiya.core.model.PdfSource
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
@@ -111,6 +115,54 @@ class PaperDetailsScreenshotTest(private val variant: ScreenshotVariant) {
         PaperDetailsContent(
             uiState = PaperDetailsUiState.Loaded(LibraryPaper(SamplePapers.vit, ReadingStatus.Reading), notes, NotesSaveState.Idle),
             actions = PaperDetailsActions()
+        )
+    }
+
+    private val link = "https://arxiv.org/pdf/1706.03762"
+    private val attention = LibraryPaper(SamplePapers.attention, ReadingStatus.Reading)
+
+    @Test
+    fun pdfAvailable() = composeRule.captureScreenshot(
+        "details_pdf_available",
+        variant,
+        arabicText = "ملف PDF متاح للتنزيل"
+    ) {
+        PaperDetailsContent(
+            uiState = PaperDetailsUiState.Loaded(attention, PaperNotes(), NotesSaveState.Idle),
+            actions = PaperDetailsActions(),
+            pdf = PdfRow(PdfRowState.Available, link)
+        )
+    }
+
+    @Test
+    fun pdfDownloading() = composeRule.captureScreenshot("details_pdf_downloading", variant, arabicText = "إلغاء") {
+        PaperDetailsContent(
+            uiState = PaperDetailsUiState.Loaded(attention, PaperNotes(), NotesSaveState.Idle),
+            actions = PaperDetailsActions(),
+            pdf = PdfRow(PdfRowState.Downloading(bytes = 1_200_000, totalBytes = 2_400_000), link)
+        )
+    }
+
+    // The stored line's own word: "ملف PDF" alone would also match the row's label.
+    @Test
+    fun pdfStored() = composeRule.captureScreenshot("details_pdf_stored", variant, arabicText = "مُنزَّل") {
+        PaperDetailsContent(
+            uiState = PaperDetailsUiState.Loaded(attention, PaperNotes(), NotesSaveState.Idle),
+            actions = PaperDetailsActions(),
+            pdf = PdfRow(PdfRowState.Stored(PaperPdf(PdfSource.Downloaded, sizeBytes = 2_400_000, addedAt = 1_000)), link)
+        )
+    }
+
+    @Test
+    fun pdfNotAPdf() = composeRule.captureScreenshot(
+        "details_pdf_not_pdf",
+        variant,
+        arabicText = "يفتح هذا الرابط صفحة ويب وليس ملف PDF."
+    ) {
+        PaperDetailsContent(
+            uiState = PaperDetailsUiState.Loaded(attention, PaperNotes(), NotesSaveState.Idle),
+            actions = PaperDetailsActions(),
+            pdf = PdfRow(PdfRowState.Failed(DownloadFailure.NotPdf), link)
         )
     }
 

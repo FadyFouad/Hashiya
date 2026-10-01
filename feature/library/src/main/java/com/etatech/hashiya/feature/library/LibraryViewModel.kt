@@ -7,6 +7,7 @@ import com.etatech.hashiya.core.data.repository.CitationRepository
 import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.data.repository.CollectionsRepository
 import com.etatech.hashiya.core.data.repository.LibraryRepository
+import com.etatech.hashiya.core.data.repository.PdfRepository
 import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
@@ -45,7 +46,8 @@ class LibraryViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val libraryRepository: LibraryRepository,
     private val collectionsRepository: CollectionsRepository,
-    private val citationRepository: CitationRepository
+    private val citationRepository: CitationRepository,
+    private val pdfRepository: PdfRepository
 ) : ViewModel() {
     /** The search text as typed. */
     private val query = MutableStateFlow(savedStateHandle.get<String>(KEY_QUERY).orEmpty())
@@ -229,7 +231,12 @@ class LibraryViewModel @Inject constructor(
 
     private fun remove(openAlexId: String) {
         viewModelScope.launch {
-            _pendingUndo.value = libraryRepository.remove(openAlexId)
+            val removed = libraryRepository.remove(openAlexId)
+            // Read after the removal, so a banner that went away meanwhile (and discarded its own PDF) isn't discarded twice.
+            val previous = _pendingUndo.value
+            _pendingUndo.value = removed
+            // The screen cancels the previous snackbar without a callback, so its removal is final now.
+            if (previous != null) discardPdf(previous)
         }
     }
 
@@ -239,8 +246,16 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch { libraryRepository.restore(removed) }
     }
 
+    /** The Undo snackbar timed out or was swiped away: the removal is final, so its PDF goes too. */
     fun onUndoDismissed() {
+        val removed = _pendingUndo.value ?: return
         _pendingUndo.value = null
+        discardPdf(removed)
+    }
+
+    /** Leaving the Library while Undo shows calls neither callback; the startup sweep deletes that file instead. */
+    private fun discardPdf(removed: RemovedPaper) {
+        viewModelScope.launch { pdfRepository.discardRemoved(removed) }
     }
 
     fun onUndoCollectionRemove() {

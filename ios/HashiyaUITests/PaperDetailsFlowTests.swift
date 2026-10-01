@@ -95,10 +95,8 @@ final class PaperDetailsFlowTests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Removed from library"].waitForExistence(timeout: UITestTimeout.long))
         XCTAssertTrue(app.staticTexts["No saved papers yet"].waitForExistence(timeout: UITestTimeout.long))
-        app.buttons["Undo"].tap()
-
         let row = attentionRow(in: app)
-        XCTAssertTrue(row.waitForExistence(timeout: UITestTimeout.long))
+        XCTAssertTrue(app.tapUndo(expecting: row))
         row.buttons.firstMatch.tap()
         XCTAssertTrue(noteField("summary", in: app).waitForExistence(timeout: UITestTimeout.long))
         XCTAssertEqual(noteField("summary", in: app).value as? String, "Keep this")

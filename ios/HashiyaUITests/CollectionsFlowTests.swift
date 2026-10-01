@@ -122,8 +122,7 @@ final class CollectionsFlowTests: XCTestCase {
         XCTAssertTrue(text(containing: "Removed from", in: app).waitForExistence(timeout: UITestTimeout.long))
         XCTAssertTrue(app.staticTexts["No papers in this collection yet. Add papers from their details screen."]
             .waitForExistence(timeout: UITestTimeout.long))
-        app.buttons["Undo"].tap()
-        XCTAssertTrue(row("Attention Is All You Need", in: app).waitForExistence(timeout: UITestTimeout.long))
+        XCTAssertTrue(app.tapUndo(expecting: row("Attention Is All You Need", in: app)))
 
         // Swipe again, no Undo: All papers still has both.
         row("Attention Is All You Need", in: app).swipeLeft()

@@ -36,8 +36,7 @@ final class LibraryFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Removed from library"].waitForExistence(timeout: UITestTimeout.long))
         XCTAssertTrue(app.staticTexts["No saved papers yet"].waitForExistence(timeout: UITestTimeout.long))
 
-        app.buttons["Undo"].tap()
-        XCTAssertTrue(row.waitForExistence(timeout: UITestTimeout.long))
+        XCTAssertTrue(app.tapUndo(expecting: row))
     }
 
     @MainActor

@@ -103,7 +103,10 @@ final class CollectionsFlowTests: XCTestCase {
         openTitleMenu(showing: "All papers", in: app)
         app.buttons["Thesis"].tap()
         XCTAssertTrue(row("Attention Is All You Need", in: app).waitForExistence(timeout: UITestTimeout.long))
-        XCTAssertFalse(row("BERT", in: app).exists)
+        let bertRow = row("BERT", in: app)
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: bertRow)
+        XCTAssertEqual(XCTWaiter().wait(for: [gone], timeout: UITestTimeout.long), .completed)
+        XCTAssertFalse(bertRow.exists)
 
         // Swipe removes it from Thesis only, with Undo.
         row("Attention Is All You Need", in: app).swipeLeft()

@@ -76,6 +76,12 @@ internal class PdfFileStore(private val dir: File) {
                     }
                     onProgress(total)
                 }
+                // Without this, a power loss just after the rename can leave an empty or partial `<paperId>.pdf`.
+                try {
+                    out.fd.sync()
+                } catch (e: IOException) {
+                    throw PdfWriteException(e)
+                }
             }
             if (!head.containsPdfHeader(headSize)) return StoreResult.NotPdf
             val target = file(paperId)

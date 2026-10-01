@@ -64,8 +64,8 @@ struct MigrationTests {
         return queue
     }
 
-    @Test func theMigrationsAreV1ThroughV4() {
-        #expect(HashiyaDatabase.migrator.migrations == ["v1", "v2", "v3", "v4"])
+    @Test func theMigrationsAreV1ThroughV5() {
+        #expect(HashiyaDatabase.migrator.migrations == ["v1", "v2", "v3", "v4", "v5"])
     }
 
     @Test func v1CreatesAndroidsVersion1Schema() throws {
@@ -250,7 +250,7 @@ struct MigrationTests {
         let second = try HashiyaDatabase.openPool(at: url)
         let titles = try await second.read { db in try String.fetchAll(db, sql: "SELECT title FROM papers") }
         #expect(titles == ["Kept"])
-        #expect(try await second.read { db in try HashiyaDatabase.migrator.appliedMigrations(db) } == ["v1", "v2", "v3", "v4"])
+        #expect(try await second.read { db in try HashiyaDatabase.migrator.appliedMigrations(db) } == ["v1", "v2", "v3", "v4", "v5"])
         let journalMode = try await second.read { db in try String.fetchOne(db, sql: "PRAGMA journal_mode") }
         #expect(journalMode == "wal")
     }
@@ -276,7 +276,7 @@ struct MigrationTests {
     @Test func v4AddsTheCitationColumnsAndTheCollectionTables() throws {
         try HashiyaDatabase.openInMemory().read { db in
             let papers = try db.columns(in: "papers")
-            let added = Array(papers.suffix(9))
+            let added = Array(papers.dropLast(4).suffix(9))
             #expect(added.map(\.name) == [
                 "work_type", "source_type", "publisher", "volume", "issue", "first_page", "last_page", "cite_key", "details_fetched",
             ])
@@ -368,5 +368,68 @@ struct MigrationTests {
             try String.fetchAll(db, sql: "SELECT id || ':' || reading_status || ':' || details_fetched FROM papers ORDER BY id")
         }
         #expect(rows == ["a:to_read:0", "b:to_read:0"])
+    }
+
+    /// Android's `MIGRATION_4_5`: four nullable columns, nothing else.
+    @Test func v5AddsTheFourPdfColumns() throws {
+        try HashiyaDatabase.openInMemory().read { db in
+            let added = Array(try db.columns(in: "papers").suffix(4))
+            #expect(added.map(\.name) == ["pdf_source", "pdf_size", "pdf_added_at", "pdf_last_page"])
+            #expect(added.map(\.type) == ["TEXT", "INTEGER", "INTEGER", "INTEGER"])
+            #expect(added.allSatisfy { !$0.isNotNull })
+            #expect(added.allSatisfy { $0.defaultValueSQL == nil })
+        }
+    }
+
+    /// A sub-project 5 install (Android's `migration4To5KeepsEverything`): papers, notes, search, cite keys and collections
+    /// are kept, and no paper has a PDF.
+    @Test func migratingFromV4KeepsEverythingAndNoPaperHasAPdf() throws {
+        let queue = try version3WithFixture()
+        try HashiyaDatabase.migrator.migrate(queue, upTo: "v4")
+        try queue.write { db in
+            try db.execute(sql: """
+                UPDATE papers SET cite_key = 'vaswani2017attention', details_fetched = 1 WHERE id = 'a';
+                INSERT INTO collections (id, name, name_key, created_at) VALUES (1, 'Thesis', 'thesis', 1);
+                INSERT INTO collection_papers (collection_id, paper_id, added_at) VALUES (1, 'a', 2);
+                """)
+        }
+
+        try HashiyaDatabase.migrator.migrate(queue)
+
+        let (rows, methods, search, links, pdfs) = try queue.read { db in
+            (
+                try String.fetchAll(
+                    db,
+                    sql: "SELECT id || ':' || reading_status || ':' || COALESCE(cite_key, '-') || ':' || details_fetched FROM papers ORDER BY id"
+                ),
+                try String.fetchAll(db, sql: "SELECT method FROM paper_notes"),
+                try String.fetchAll(db, sql: "SELECT paper_id || ':' || notes FROM paper_search ORDER BY paper_id"),
+                try String.fetchAll(db, sql: "SELECT collection_id || ':' || paper_id FROM collection_papers"),
+                try Int.fetchOne(
+                    db,
+                    sql: """
+                        SELECT COUNT(*) FROM papers
+                        WHERE pdf_source IS NOT NULL OR pdf_size IS NOT NULL OR pdf_added_at IS NOT NULL OR pdf_last_page IS NOT NULL
+                        """
+                )
+            )
+        }
+        #expect(rows == ["a:read:vaswani2017attention:1", "b:to_read:-:0"])
+        #expect(methods == ["Ablation study"])
+        #expect(search == ["a:transformers ablation study", "b:"])
+        #expect(links == ["1:a"])
+        #expect(pdfs == 0)
+    }
+
+    @Test func aV1LibraryMigratesAllTheWayToV5() throws {
+        let queue = try version1()
+        try insertVersion1Fixture(into: queue)
+
+        try HashiyaDatabase.migrator.migrate(queue)
+
+        let rows = try queue.read { db in
+            try String.fetchAll(db, sql: "SELECT id || ':' || reading_status || ':' || (pdf_source IS NULL) FROM papers ORDER BY id")
+        }
+        #expect(rows == ["a:to_read:1", "b:to_read:1"])
     }
 }

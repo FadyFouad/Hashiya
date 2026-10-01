@@ -33,6 +33,13 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
     public var citeKey: String?
     /// True once the columns above come from an OpenAlex response that included them; rows from before `v4` start false.
     public var detailsFetched: Bool
+    /// `downloaded` or `attached` while a PDF is stored, nil otherwise; the three below are set and cleared with it.
+    public var pdfSource: String?
+    public var pdfSize: Int64?
+    /// Epoch milliseconds.
+    public var pdfAddedAt: Int64?
+    /// Zero-based page the reader last showed.
+    public var pdfLastPage: Int?
 
     public init(
         id: String,
@@ -49,7 +56,8 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
         readingStatus: String = "to_read",
         publication: PublicationDetails = PublicationDetails(),
         citeKey: String? = nil,
-        detailsFetched: Bool = false
+        detailsFetched: Bool = false,
+        pdf: PaperPdf? = nil
     ) {
         self.id = id
         self.openAlexID = openAlexID
@@ -72,6 +80,10 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
         lastPage = publication.lastPage
         self.citeKey = citeKey
         self.detailsFetched = detailsFetched
+        pdfSource = pdf?.source.rawValue
+        pdfSize = pdf?.sizeBytes
+        pdfAddedAt = pdf?.addedAt
+        pdfLastPage = pdf?.lastPage
     }
 
     public var publication: PublicationDetails {
@@ -84,6 +96,18 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
             firstPage: firstPage,
             lastPage: lastPage
         )
+    }
+
+    /// The stored PDF, or nil. A source other than "downloaded" counts as attached, as on Android.
+    public var pdf: PaperPdf? {
+        pdfSource.map { source in
+            PaperPdf(
+                source: source == PdfSource.downloaded.rawValue ? .downloaded : .attached,
+                sizeBytes: pdfSize ?? 0,
+                addedAt: pdfAddedAt ?? 0,
+                lastPage: pdfLastPage ?? 0
+            )
+        }
     }
 
     enum CodingKeys: String, CodingKey {
@@ -100,6 +124,10 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
         case lastPage = "last_page"
         case citeKey = "cite_key"
         case detailsFetched = "details_fetched"
+        case pdfSource = "pdf_source"
+        case pdfSize = "pdf_size"
+        case pdfAddedAt = "pdf_added_at"
+        case pdfLastPage = "pdf_last_page"
     }
 }
 
@@ -357,5 +385,36 @@ public struct CollectionWithCount: Codable, Equatable, Sendable, FetchableRecord
     enum CodingKeys: String, CodingKey {
         case id, name
         case paperCount = "paper_count"
+    }
+}
+
+/// A saved paper's stored PDF, read by `PaperStore.observePdf`.
+public struct PdfColumns: Equatable, Sendable, FetchableRecord, Decodable {
+    /// `downloaded`, or anything else for attached.
+    public var source: String
+    public var size: Int64
+    public var addedAt: Int64
+    public var lastPage: Int
+
+    public init(source: String, size: Int64, addedAt: Int64, lastPage: Int) {
+        self.source = source
+        self.size = size
+        self.addedAt = addedAt
+        self.lastPage = lastPage
+    }
+
+    public var pdf: PaperPdf {
+        PaperPdf(
+            source: source == PdfSource.downloaded.rawValue ? .downloaded : .attached,
+            sizeBytes: size,
+            addedAt: addedAt,
+            lastPage: lastPage
+        )
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case source, size
+        case addedAt = "added_at"
+        case lastPage = "last_page"
     }
 }

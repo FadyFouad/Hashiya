@@ -54,7 +54,7 @@ extension NetworkWork {
 extension PaperWithAuthors {
     /// The paper with its stored status; an unknown stored value is To read.
     public func asLibraryPaper() -> LibraryPaper {
-        LibraryPaper(paper: asPaper(), status: ReadingStatus(stored: paper.readingStatus))
+        LibraryPaper(paper: asPaper(), status: ReadingStatus(stored: paper.readingStatus), hasPdf: paper.pdfSource != nil)
     }
 
     public func asPaper() -> Paper {
@@ -83,7 +83,8 @@ extension Paper {
         savedAt: Int64,
         status: ReadingStatus = .toRead,
         citeKey: String? = nil,
-        detailsFetched: Bool = true
+        detailsFetched: Bool = true,
+        pdf: PaperPdf? = nil
     ) -> PaperWithAuthors {
         PaperWithAuthors(
             paper: PaperRecord(
@@ -101,7 +102,8 @@ extension Paper {
                 readingStatus: status.storedValue,
                 publication: publication,
                 citeKey: citeKey,
-                detailsFetched: detailsFetched
+                detailsFetched: detailsFetched,
+                pdf: pdf
             ),
             authors: authors.enumerated().map { index, author in
                 PaperAuthorRecord(paperID: localID, position: index, name: author.name, openAlexAuthorID: author.openAlexID)

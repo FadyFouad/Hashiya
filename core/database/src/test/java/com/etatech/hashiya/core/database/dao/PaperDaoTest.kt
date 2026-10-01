@@ -470,7 +470,10 @@ class PaperDaoTest {
         save(paper("a", "W1", 100), "Ada")
 
         assertNull(dao.paperIdFor("W9"))
-        dao.setPdf("missing", PDF_SOURCE_DOWNLOADED, size = 10, addedAt = 5)
+        // The download and attach paths delete their file when no row took it.
+        assertEquals(0, dao.setPdf("missing", PDF_SOURCE_DOWNLOADED, size = 10, addedAt = 5))
+        assertEquals(1, dao.setPdf("a", PDF_SOURCE_DOWNLOADED, size = 10, addedAt = 5))
+        dao.clearPdf("a")
         dao.setPdfLastPage("missing", 3)
 
         assertNull(dao.observePdf("W1").first())

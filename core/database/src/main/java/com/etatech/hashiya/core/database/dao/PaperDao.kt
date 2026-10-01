@@ -88,14 +88,17 @@ abstract class PaperDao {
     )
     abstract fun observePdf(openAlexId: String): Flow<PdfColumns?>
 
-    /** Records a newly stored PDF, starting on its first page. Does nothing when [paperId] isn't saved. */
+    /**
+     * Records a newly stored PDF, starting on its first page. Returns how many rows took it: 0 when [paperId] isn't
+     * saved, so the caller can delete the file nothing points at.
+     */
     @Query(
         """
         UPDATE papers SET pdf_source = :source, pdf_size = :size, pdf_added_at = :addedAt, pdf_last_page = 0
         WHERE id = :paperId
         """
     )
-    abstract suspend fun setPdf(paperId: String, source: String, size: Long, addedAt: Long)
+    abstract suspend fun setPdf(paperId: String, source: String, size: Long, addedAt: Long): Int
 
     @Query("UPDATE papers SET pdf_source = NULL, pdf_size = NULL, pdf_added_at = NULL, pdf_last_page = NULL WHERE id = :paperId")
     abstract suspend fun clearPdf(paperId: String)

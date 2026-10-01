@@ -138,9 +138,11 @@ internal class RoomPdfRepository(
                 }
                 when (result) {
                     is StoreResult.Stored -> {
-                        paperDao.setPdf(row.id, PdfSource.Downloaded.storedValue, result.size, now())
-                        // Removed in the moment between the file landing and the row being set: nothing points at the file.
-                        if (paperDao.paperIdFor(openAlexId) != row.id) withContext(io) { fileStore.delete(row.id) }
+                        // Removed before the row was set: nothing points at the file. A removal after this point keeps
+                        // the file for Undo; discardRemoved deletes it once the removal is final.
+                        if (paperDao.setPdf(row.id, PdfSource.Downloaded.storedValue, result.size, now()) == 0) {
+                            withContext(io) { fileStore.delete(row.id) }
+                        }
                         report(null)
                     }
 
@@ -180,7 +182,11 @@ internal class RoomPdfRepository(
             } ?: return@storing AttachResult.Unreadable
             when (result) {
                 is StoreResult.Stored -> {
-                    paperDao.setPdf(paperId, PdfSource.Attached.storedValue, result.size, now())
+                    // Removed before the row was set: drop the copy instead of leaving it for the startup sweep.
+                    if (paperDao.setPdf(paperId, PdfSource.Attached.storedValue, result.size, now()) == 0) {
+                        withContext(io) { fileStore.delete(paperId) }
+                        return@storing AttachResult.Unreadable
+                    }
                     setState(openAlexId, null)
                     AttachResult.Done
                 }

@@ -88,7 +88,10 @@ internal class RoomPdfRepository(
 
     override fun download(openAlexId: String) {
         synchronized(lock) {
-            if (jobs[openAlexId]?.isActive == true) return
+            val current = jobs[openAlexId]
+            // A job that already reported a failure may still be winding down; Try again must replace it, not be ignored.
+            if (current?.isActive == true && downloads.value[openAlexId] !is DownloadState.Failed) return
+            current?.cancel()
             val job = scope.launch(start = CoroutineStart.LAZY) { runDownload(openAlexId) }
             jobs[openAlexId] = job
             // Removing the paper while its PDF downloads cancels the download, so no file outlives the paper.

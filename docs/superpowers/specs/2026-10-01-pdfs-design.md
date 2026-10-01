@@ -1,7 +1,7 @@
 # Sub-project 6: PDFs — Design
 
 - **Date:** 2026-10-01
-- **Status:** Awaiting review
+- **Status:** Approved
 - **Scope:** Sixth MVP sub-project for Hashiya, Android only, building on sub-projects 1–5 (sub-project 5 merged in `7ad31b4`). The iOS version gets its own spec once this one is merged.
 
 ## 1. Context

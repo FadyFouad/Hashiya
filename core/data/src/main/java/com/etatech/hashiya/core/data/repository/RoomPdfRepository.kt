@@ -119,7 +119,8 @@ internal class RoomPdfRepository(
 
         try {
             val row = paperDao.getByOpenAlexId(openAlexId)?.paper ?: return report(null)
-            val url = row.oaPdfUrl?.takeIf { it.isNotBlank() } ?: return report(DownloadState.Failed(DownloadFailure.NoLink))
+            val url = row.oaPdfUrl?.takeIf { it.isNotBlank() }?.let(::upgradeToHttps)
+                ?: return report(DownloadState.Failed(DownloadFailure.NoLink))
             storing {
                 val result = try {
                     downloader.download(url) { body, length ->
@@ -231,3 +232,10 @@ internal class RoomPdfRepository(
         }
     }
 }
+
+/**
+ * OpenAlex often gives `http://` links. Android blocks cleartext traffic, and on some networks plain HTTP is intercepted by the
+ * provider's redirect page, so the PDF is always fetched over HTTPS. The hosts that serve PDFs (arXiv, journals) all offer it.
+ */
+internal fun upgradeToHttps(url: String): String =
+    if (url.startsWith("http://", ignoreCase = true)) "https://" + url.substring("http://".length) else url

@@ -434,6 +434,26 @@ struct PaperDetailsViewModelTests {
         #expect(collections.membershipCalls == [MembershipCall(collectionID: chapter, openAlexID: id, member: true)])
     }
 
+    @Test func theSameClashTwiceShowsTheErrorAgain() async {
+        collections.setCollections([PaperCollection(id: 1, name: "Thesis", paperCount: 0)])
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        defer { task.cancel() }
+        viewModel.showNewCollection()
+        collections.setNextResult(.nameTaken)
+        await viewModel.submitNewCollection("Thesis")
+        #expect(viewModel.nameSheetError == DesignSystemStrings.collectionNameTaken)
+
+        // The error is cleared while the second create runs, so the sheet sees a change when it comes back.
+        collections.holdCreates()
+        collections.setNextResult(.nameTaken)
+        let second = Task { await viewModel.submitNewCollection("Thesis") }
+        #expect(await eventually { viewModel.creatingCollection })
+        #expect(viewModel.nameSheetError == nil)
+        collections.releaseCreates()
+        await second.value
+        #expect(viewModel.nameSheetError == DesignSystemStrings.collectionNameTaken)
+    }
+
     @Test func aFailedNewCollectionClosesTheSheetAndSaysSo() async {
         let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
         defer { task.cancel() }

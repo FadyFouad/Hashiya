@@ -109,6 +109,7 @@ public final class PaperDetailsViewModel {
     public func start() async {
         guard !hasStarted else { return }
         hasStarted = true
+        // An `async let` next to the observation task group hung (notes stuck at `.loading`), so this stays unstructured.
         let notesRead = Task { await self.loadNotes() }
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.followCollections() }
@@ -267,6 +268,8 @@ public final class PaperDetailsViewModel {
         guard !creatingCollection else { return }
         creatingCollection = true
         defer { creatingCollection = false }
+        // Cleared first, so the same clash again shows the error again.
+        nameSheetError = nil
         do {
             switch try await collectionsRepository.create(name: name) {
             case .done(let id):

@@ -317,6 +317,88 @@ public struct PaperStore: Sendable {
         }
     }
 
+    // MARK: - Citations
+
+    /// Every saved paper, or those in `collectionID`, oldest saved first: the order cite keys are assigned in. Papers saved in
+    /// the same millisecond keep their save order (`rowid`).
+    public func citablePapers(collectionID: Int64?) async throws -> [PaperWithAuthors] {
+        try await writer.read { db in
+            let papers = try PaperRecord.fetchAll(
+                db,
+                sql: """
+                    SELECT * FROM papers
+                    WHERE (:collection IS NULL OR id IN (SELECT paper_id FROM collection_papers WHERE collection_id = :collection))
+                    ORDER BY saved_at ASC, rowid ASC
+                    """,
+                arguments: ["collection": collectionID]
+            )
+            return try Self.withAuthors(db, papers)
+        }
+    }
+
+    /// The saved paper with its authors, read once; nil when it isn't saved.
+    public func citablePaper(openAlexID: String) async throws -> PaperWithAuthors? {
+        try await writer.read { db in try Self.paper(db, openAlexID: openAlexID) }
+    }
+
+    /// Every saved paper without a cite key, across the whole library, in the same order as `citablePapers`.
+    public func papersWithoutCiteKeys() async throws -> [PaperWithAuthors] {
+        try await writer.read { db in
+            let papers = try PaperRecord.fetchAll(
+                db,
+                sql: "SELECT * FROM papers WHERE cite_key IS NULL ORDER BY saved_at ASC, rowid ASC"
+            )
+            return try Self.withAuthors(db, papers)
+        }
+    }
+
+    /// Stores the paper's publication details, nil fields included, and marks them fetched.
+    public func updatePublicationDetails(paperID: String, details: PublicationDetails) async throws {
+        try await writer.write { db in
+            try db.execute(
+                sql: """
+                    UPDATE papers SET work_type = ?, source_type = ?, publisher = ?, volume = ?, issue = ?, first_page = ?,
+                        last_page = ?, details_fetched = 1
+                    WHERE id = ?
+                    """,
+                arguments: [
+                    details.workType, details.sourceType, details.publisher, details.volume, details.issue,
+                    details.firstPage, details.lastPage, paperID,
+                ]
+            )
+        }
+    }
+
+    /// For a paper OpenAlex no longer has: asking again would never help.
+    public func markDetailsFetched(paperID: String) async throws {
+        try await writer.write { db in
+            try db.execute(sql: "UPDATE papers SET details_fetched = 1 WHERE id = ?", arguments: [paperID])
+        }
+    }
+
+    /// Stores every key (paper id → key) or none. Only a paper without a key gets one: a stored key is never changed.
+    /// Throws `CiteKeyTakenError` when another paper already holds one of the keys.
+    public func assignCiteKeys(_ keys: [String: String]) async throws {
+        do {
+            try await writer.write { db in
+                for (paperID, key) in keys {
+                    try db.execute(
+                        sql: "UPDATE papers SET cite_key = ? WHERE id = ? AND cite_key IS NULL",
+                        arguments: [key, paperID]
+                    )
+                }
+            }
+        } catch let error as DatabaseError where error.extendedResultCode == .SQLITE_CONSTRAINT_UNIQUE {
+            throw CiteKeyTakenError()
+        }
+    }
+
+    public func allCiteKeys() async throws -> Set<String> {
+        try await writer.read { db in
+            try String.fetchSet(db, sql: "SELECT cite_key FROM papers WHERE cite_key IS NOT NULL")
+        }
+    }
+
     /// Makes every observation fetch again. Observations only see writes made through this store's own
     /// database connection, not those of another process (the Share Extension).
     public func notifyExternalChanges() async throws {
@@ -349,4 +431,9 @@ public struct PaperStore: Sendable {
     }
 
     private static let logger = Logger(subsystem: "com.etatech.hashiya", category: "database")
+}
+
+/// `PaperStore.assignCiteKeys` was given a key another paper already holds. Nothing was stored.
+public struct CiteKeyTakenError: Error, Equatable {
+    public init() {}
 }

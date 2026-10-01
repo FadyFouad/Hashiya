@@ -94,6 +94,8 @@ public struct PdfFileStore: Sendable {
     }
 
     /// Deletes every PDF whose paper ID isn't in `keep`, and every `.part` file a store never finished. Other files stay.
+    /// It deletes a `.part` file that is still being written too, so it must not run while a store is in flight:
+    /// `GRDBPdfRepository.sweepOrphans` keeps the two apart.
     public func sweep(keeping keep: Set<String>) {
         guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path) else { return }
         for name in names {

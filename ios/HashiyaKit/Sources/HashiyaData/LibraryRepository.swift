@@ -72,6 +72,8 @@ public struct RemovedPaper: Equatable, Sendable {
     public var detailsFetched: Bool
     /// When the paper was added to each of `collectionIDs`; restored as-is.
     public var collectionLinksAddedAt: [Int64: Int64]
+    /// The paper's PDF, put back on restore; the file itself stays on disk until `PdfRepository.discardRemoved`.
+    public var pdf: PaperPdf?
 
     public init(
         paper: Paper,
@@ -82,7 +84,8 @@ public struct RemovedPaper: Equatable, Sendable {
         collectionIDs: Set<Int64> = [],
         citeKey: String? = nil,
         detailsFetched: Bool = true,
-        collectionLinksAddedAt: [Int64: Int64] = [:]
+        collectionLinksAddedAt: [Int64: Int64] = [:],
+        pdf: PaperPdf? = nil
     ) {
         self.paper = paper
         self.localID = localID
@@ -93,6 +96,7 @@ public struct RemovedPaper: Equatable, Sendable {
         self.citeKey = citeKey
         self.detailsFetched = detailsFetched
         self.collectionLinksAddedAt = collectionLinksAddedAt
+        self.pdf = pdf
     }
 }
 
@@ -161,7 +165,8 @@ public struct GRDBLibraryRepository: LibraryRepository {
             collectionLinksAddedAt: Dictionary(
                 deleted.collectionLinks.map { ($0.collectionID, $0.addedAt) },
                 uniquingKeysWith: { first, _ in first }
-            )
+            ),
+            pdf: deleted.saved.paper.pdf
         )
     }
 
@@ -171,7 +176,8 @@ public struct GRDBLibraryRepository: LibraryRepository {
             savedAt: removed.savedAt,
             status: removed.status,
             citeKey: removed.citeKey,
-            detailsFetched: removed.detailsFetched
+            detailsFetched: removed.detailsFetched,
+            pdf: removed.pdf
         )
         let notes = removed.notes.isEmpty ? nil : removed.notes
         // Nothing reads added_at's exact value for a link without one, so now() stands in.
@@ -245,5 +251,13 @@ extension AsyncStream where Element: Sendable {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+}
+
+extension AsyncStream where Element: Sendable {
+    /// The stream's first value, or nil when it ends first.
+    func firstElement() async -> Element? {
+        for await element in self { return element }
+        return nil
     }
 }

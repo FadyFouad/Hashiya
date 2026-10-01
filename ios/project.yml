@@ -39,6 +39,8 @@ targets:
           - HashiyaData
           - HashiyaDesignSystem
           - HashiyaModel
+          # UITestingStubs' PDF downloader implements its `PdfDownloading`.
+          - HashiyaNetwork
           - FeatureSearch
           - FeatureLibrary
           - FeaturePaperDetails

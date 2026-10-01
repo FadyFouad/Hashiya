@@ -2,7 +2,9 @@
 import Foundation
 import HashiyaData
 import HashiyaModel
+import HashiyaNetwork
 import os
+import UIKit
 
 /// Launched with `-ui-testing` (Debug only): an empty library in its own App Group file (which the Share
 /// Extension also uses while stubbed), an in-memory key, a search that returns the same three papers for any
@@ -12,8 +14,14 @@ enum UITestingStubs {
     static let appUpdateRepository: any AppUpdateRepository = NoUpdateRequired()
 
     static func dependencies() -> LiveDependencies {
-        // One store for the library, collections and citations; no lookup, so Copy BibTeX never touches the network.
-        let repositories = try! LibraryRepositories.shared(fileName: UITestingFlags.databaseFileName, fresh: true)
+        // One store for the library, collections, citations and PDFs; no lookup, so Copy BibTeX never touches the network,
+        // and a downloader that serves a small PDF for any link.
+        let pdf = PdfDependencies(
+            files: try! PdfFileStore.live(folderName: "ui-testing-pdfs"),
+            downloader: StubPdfDownloader(),
+            background: NoBackgroundTime()
+        )
+        let repositories = try! LibraryRepositories.shared(fileName: UITestingFlags.databaseFileName, fresh: true, pdf: pdf)
         return LiveDependencies(
             libraryRepository: repositories.library,
             searchRepository: StubSearchRepository(),
@@ -21,7 +29,8 @@ enum UITestingStubs {
             preferences: KeychainUserPreferencesRepository(keychain: InMemoryKeychain()),
             collections: repositories.collections,
             citations: repositories.citations,
-            exportFiles: .live
+            exportFiles: .live,
+            pdfs: repositories.pdfs
         )
     }
 
@@ -88,6 +97,22 @@ private final class InMemoryKeychain: KeychainStore {
 
     func delete(service: String, account: String) throws {
         _ = items.withLock { $0.removeValue(forKey: service + "/" + account) }
+    }
+}
+
+/// Serves a two-page PDF for any link, so the UI tests can Download and Read without the network.
+struct StubPdfDownloader: PdfDownloading {
+    func download(url: URL) async throws -> PdfDownload {
+        let body = await Self.pdf
+        return PdfDownload(chunks: AsyncThrowingStream { $0.yield(body); $0.finish() }, expectedLength: Int64(body.count))
+    }
+
+    @MainActor static let pdf: Data = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 612, height: 792)).pdfData { context in
+        for shade in [0.85, 0.7] {
+            context.beginPage()
+            context.cgContext.setFillColor(gray: shade, alpha: 1)
+            context.cgContext.fill(CGRect(x: 72, y: 72, width: 468, height: 120))
+        }
     }
 }
 #endif

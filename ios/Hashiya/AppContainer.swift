@@ -19,6 +19,7 @@ final class AppContainer {
     let citationRepository: any CitationRepository
     /// Where Export .bib writes its file before sharing it.
     let exportFiles: ExportFiles
+    let pdfRepository: any PdfRepository
     /// Note writes the app waits for before it suspends the shared database in the background.
     let pendingWrites = PendingWrites()
 
@@ -30,6 +31,9 @@ final class AppContainer {
         collectionsRepository = dependencies.collections
         citationRepository = dependencies.citations
         exportFiles = dependencies.exportFiles
+        pdfRepository = dependencies.pdfs
+        // Files whose paper is gone (an Undo window the app didn't outlive) and unfinished downloads.
+        Task { [pdfs = dependencies.pdfs] in await pdfs.sweepOrphans() }
         self.appUpdateRepository = appUpdateRepository
     }
 
@@ -45,7 +49,7 @@ final class AppContainer {
         }
         #endif
         do {
-            return AppContainer(dependencies: try LiveDependencies.live(), appUpdateRepository: ConfigAppUpdateRepository.live())
+            return AppContainer(dependencies: try LiveDependencies.live(background: UIKitBackgroundTime()), appUpdateRepository: ConfigAppUpdateRepository.live())
         } catch {
             fatalError("Could not open the library database: \(error)")
         }

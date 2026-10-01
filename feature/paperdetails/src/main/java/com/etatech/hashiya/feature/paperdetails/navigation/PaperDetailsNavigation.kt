@@ -12,6 +12,11 @@ data class PaperDetailsRoute(val openAlexId: String)
 
 fun NavController.navigateToPaperDetails(openAlexId: String) = navigate(PaperDetailsRoute(openAlexId))
 
-fun NavGraphBuilder.paperDetailsScreen(onBack: () -> Unit, onRemove: (openAlexId: String) -> Unit) {
-    composable<PaperDetailsRoute> { PaperDetailsScreen(onBack = onBack, onRemove = onRemove) }
+/** [onReadPdf] opens the reader for this paper's PDF; Task 6 wires it to ReaderRoute. */
+fun NavGraphBuilder.paperDetailsScreen(
+    onBack: () -> Unit,
+    onRemove: (openAlexId: String) -> Unit,
+    onReadPdf: (openAlexId: String) -> Unit = {}
+) {
+    composable<PaperDetailsRoute> { PaperDetailsScreen(onBack = onBack, onRemove = onRemove, onReadPdf = onReadPdf) }
 }

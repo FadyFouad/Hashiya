@@ -3,6 +3,8 @@ package com.etatech.hashiya.feature.paperdetails
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -34,6 +37,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -76,6 +80,7 @@ internal const val NOTE_FIELD_TAG_PREFIX = "note_field_"
 internal fun PaperDetailsScreen(
     onBack: () -> Unit,
     onRemove: (openAlexId: String) -> Unit,
+    onReadPdf: (openAlexId: String) -> Unit = {},
     viewModel: PaperDetailsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -83,6 +88,10 @@ internal fun PaperDetailsScreen(
     val exit by viewModel.exit.collectAsStateWithLifecycle()
     val newCollectionDialog by viewModel.newCollectionDialog.collectAsStateWithLifecycle()
     val copied by viewModel.copied.collectAsStateWithLifecycle()
+    val pdf by viewModel.pdf.collectAsStateWithLifecycle()
+    val pickPdf = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) viewModel.attachPdf(uri)
+    }
     val uriHandler = LocalUriHandler.current
     val context = LocalContext.current
     // Backgrounding the app or leaving the screen writes what was typed without waiting for the pause.
@@ -109,6 +118,7 @@ internal fun PaperDetailsScreen(
         uiState = uiState,
         message = message,
         newCollectionDialog = newCollectionDialog,
+        pdf = pdf,
         actions = PaperDetailsActions(
             onBack = onBack,
             onRemove = viewModel::onRemove,
@@ -122,7 +132,12 @@ internal fun PaperDetailsScreen(
             onNewCollection = viewModel::onNewCollection,
             onNewCollectionNameEdited = viewModel::onNewCollectionNameEdited,
             onNewCollectionConfirm = viewModel::onNewCollectionConfirm,
-            onNewCollectionDismiss = viewModel::onNewCollectionDismiss
+            onNewCollectionDismiss = viewModel::onNewCollectionDismiss,
+            onReadPdf = { onReadPdf(viewModel.openAlexId) },
+            onDownloadPdf = viewModel::downloadPdf,
+            onCancelPdfDownload = viewModel::cancelPdfDownload,
+            onAttachPdf = { pickPdf.launch(arrayOf("application/pdf")) },
+            onRemovePdf = viewModel::removePdf
         )
     )
 }
@@ -134,7 +149,8 @@ internal fun PaperDetailsContent(
     actions: PaperDetailsActions,
     modifier: Modifier = Modifier,
     message: PaperDetailsMessage? = null,
-    newCollectionDialog: NewCollectionDialog? = null
+    newCollectionDialog: NewCollectionDialog? = null,
+    pdf: PdfRow = PdfRow(PdfRowState.None, null)
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailed = stringResource(R.string.details_notes_save_failed_message)
@@ -144,6 +160,9 @@ internal fun PaperDetailsContent(
     val bibtexCopied = stringResource(R.string.details_bibtex_copied)
     val bibtexIncomplete = stringResource(R.string.details_bibtex_incomplete)
     val copyFailed = stringResource(R.string.details_copy_failed)
+    val attachNotPdf = stringResource(R.string.details_pdf_attach_not_pdf)
+    val attachTooLarge = stringResource(R.string.details_pdf_too_large)
+    val attachFailed = stringResource(R.string.details_pdf_attach_failed)
     LaunchedEffect(message) {
         when (message) {
             PaperDetailsMessage.NotesSaveFailed -> {
@@ -177,6 +196,21 @@ internal fun PaperDetailsContent(
                 actions.onMessageShown()
             }
 
+            PaperDetailsMessage.PdfAttachNotPdf -> {
+                snackbarHostState.showSnackbar(attachNotPdf)
+                actions.onMessageShown()
+            }
+
+            PaperDetailsMessage.PdfAttachTooLarge -> {
+                snackbarHostState.showSnackbar(attachTooLarge)
+                actions.onMessageShown()
+            }
+
+            PaperDetailsMessage.PdfAttachFailed -> {
+                snackbarHostState.showSnackbar(attachFailed)
+                actions.onMessageShown()
+            }
+
             null -> Unit
         }
     }
@@ -202,6 +236,36 @@ internal fun PaperDetailsContent(
             onDismiss = actions.onNewCollectionDismiss
         )
     }
+    // Replace and Remove ask first (spec §6); Replace then opens the picker.
+    var confirming by rememberSaveable { mutableStateOf<PdfAction?>(null) }
+    confirming?.let { action ->
+        val replace = action == PdfAction.Replace
+        AlertDialog(
+            onDismissRequest = { confirming = null },
+            title = { Text(stringResource(if (replace) R.string.details_pdf_replace_title else R.string.details_pdf_remove_title)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = null
+                    if (replace) actions.onAttachPdf() else actions.onRemovePdf()
+                }) {
+                    Text(stringResource(if (replace) R.string.details_pdf_replace else R.string.details_pdf_remove))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = null }) { Text(stringResource(R.string.details_pdf_cancel)) }
+            }
+        )
+    }
+    val onPdfAction: (PdfAction) -> Unit = { action ->
+        when (action) {
+            PdfAction.Read -> actions.onReadPdf()
+            PdfAction.Download, PdfAction.TryAgain -> actions.onDownloadPdf()
+            PdfAction.Cancel -> actions.onCancelPdfDownload()
+            PdfAction.Attach -> actions.onAttachPdf()
+            PdfAction.Replace, PdfAction.Remove -> confirming = action
+            PdfAction.OpenInBrowser, PdfAction.OpenLink -> pdf.link?.let(actions.onOpenLink)
+        }
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -225,6 +289,8 @@ internal fun PaperDetailsContent(
             is PaperDetailsUiState.Loaded -> DetailsBody(
                 uiState,
                 actions,
+                pdf = pdf,
+                onPdfAction = onPdfAction,
                 onOpenCollections = { checklistOpen = true },
                 modifier = Modifier.padding(padding)
             )
@@ -265,6 +331,8 @@ private fun OverflowMenu(onCopyBibTeX: () -> Unit, onRemove: () -> Unit) {
 private fun DetailsBody(
     state: PaperDetailsUiState.Loaded,
     actions: PaperDetailsActions,
+    pdf: PdfRow,
+    onPdfAction: (PdfAction) -> Unit,
     onOpenCollections: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -281,6 +349,7 @@ private fun DetailsBody(
         ReadingStatusSelector(state.paper.status, actions.onStatusChange)
         Spacer(Modifier.height(8.dp))
         CollectionsRow(state.collections, state.memberOf, onClick = onOpenCollections)
+        PdfRowView(pdf, onPdfAction)
         PaperLinks(paper, actions.onOpenLink)
         Spacer(Modifier.height(16.dp))
         PaperAbstract(paper)
@@ -297,19 +366,12 @@ private fun DetailsBody(
 
 @Composable
 private fun PaperLinks(paper: Paper, onOpenLink: (String) -> Unit) {
-    val doi = paper.doi
-    val pdfUrl = paper.openAccessPdfUrl
-    if (doi == null && pdfUrl == null) return
+    val doi = paper.doi ?: return
     Spacer(Modifier.height(12.dp))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (doi != null) {
-            LinkButton(stringResource(DesignR.string.designsystem_open_doi), Modifier.weight(1f), onClick = {
-                onOpenLink("https://doi.org/$doi")
-            })
-        }
-        if (pdfUrl != null) {
-            LinkButton(stringResource(R.string.details_open_pdf), Modifier.weight(1f), onClick = { onOpenLink(pdfUrl) })
-        }
+        LinkButton(stringResource(DesignR.string.designsystem_open_doi), Modifier.weight(1f), onClick = {
+            onOpenLink("https://doi.org/$doi")
+        })
     }
 }
 

@@ -2,14 +2,19 @@ package com.etatech.hashiya.feature.paperdetails
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelStore
+import com.etatech.hashiya.core.data.repository.DownloadFailure
+import com.etatech.hashiya.core.data.repository.DownloadState
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NoteSection
 import com.etatech.hashiya.core.model.PaperNotes
+import com.etatech.hashiya.core.model.PaperPdf
+import com.etatech.hashiya.core.model.PdfSource
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
+import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -25,6 +30,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -36,6 +42,7 @@ class PaperDetailsViewModelTest {
     val mainDispatcherRule = MainDispatcherRule()
 
     private val repository = FakeLibraryRepository()
+    private val pdfs = FakePdfRepository()
     private val paper = SamplePapers.bert
     private val id = paper.openAlexId
 
@@ -46,9 +53,11 @@ class PaperDetailsViewModelTest {
             libraryRepository,
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
+            pdfs,
             backgroundScope
         )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.pdf.collect() }
         return viewModel
     }
 
@@ -331,6 +340,134 @@ class PaperDetailsViewModelTest {
         viewModel.onRemove()
         runCurrent()
         assertEquals(PaperDetailsExit.Removed, viewModel.exit.value)
+    }
+
+    private val linked = SamplePapers.attention
+    private val linkedId = linked.openAlexId
+    private val link = "https://arxiv.org/pdf/1706.03762"
+    private val storedPdf = PaperPdf(PdfSource.Downloaded, sizeBytes = 2_400_000, addedAt = 1_000)
+
+    /** The view model for [linked], the paper with an open-access link. */
+    private fun TestScope.linkedViewModel(): PaperDetailsViewModel {
+        val viewModel = PaperDetailsViewModel(
+            SavedStateHandle(mapOf(ARG_OPEN_ALEX_ID to linkedId)),
+            repository,
+            FakeCollectionsRepository(repository),
+            FakeCitationRepository(),
+            pdfs,
+            backgroundScope
+        )
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.pdf.collect() }
+        return viewModel
+    }
+
+    @Test
+    fun aPaperWithALinkAndNoPdfOffersDownloadAndAttach() = runTest {
+        repository.save(linked)
+        val viewModel = linkedViewModel()
+        advanceUntilIdle()
+
+        assertEquals(PdfRow(PdfRowState.Available, link), viewModel.pdf.value)
+        assertEquals(listOf(PdfAction.Download), viewModel.pdf.value.primary)
+        assertEquals(listOf(PdfAction.Attach), viewModel.pdf.value.overflow)
+    }
+
+    @Test
+    fun aPaperWithoutALinkOffersAttachOnly() = runTest {
+        repository.save(paper)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        assertEquals(PdfRow(PdfRowState.None, null), viewModel.pdf.value)
+        assertEquals(listOf(PdfAction.Attach), viewModel.pdf.value.primary)
+        assertEquals(emptyList<PdfAction>(), viewModel.pdf.value.overflow)
+    }
+
+    @Test
+    fun aRunningDownloadShowsItsProgressAndOffersCancel() = runTest {
+        repository.save(linked)
+        val viewModel = linkedViewModel()
+        pdfs.setDownload(linkedId, DownloadState.Running(bytes = 500_000, totalBytes = 2_000_000))
+        advanceUntilIdle()
+
+        assertEquals(PdfRowState.Downloading(500_000, 2_000_000), viewModel.pdf.value.state)
+        assertEquals(listOf(PdfAction.Cancel), viewModel.pdf.value.primary)
+    }
+
+    @Test
+    fun aStoredPdfOpensTheReaderAndOffersReplaceRemoveAndTheLink() = runTest {
+        repository.save(linked)
+        pdfs.setPdf(linkedId, storedPdf)
+        val viewModel = linkedViewModel()
+        advanceUntilIdle()
+
+        assertEquals(PdfRowState.Stored(storedPdf), viewModel.pdf.value.state)
+        assertEquals(listOf(PdfAction.Read), viewModel.pdf.value.primary)
+        assertEquals(listOf(PdfAction.Replace, PdfAction.Remove, PdfAction.OpenLink), viewModel.pdf.value.overflow)
+    }
+
+    @Test
+    fun aStoredPdfWithoutALinkHasNoOpenLink() = runTest {
+        repository.save(paper)
+        pdfs.setPdf(id, storedPdf.copy(source = PdfSource.Attached))
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        assertEquals(listOf(PdfAction.Replace, PdfAction.Remove), viewModel.pdf.value.overflow)
+    }
+
+    @Test
+    fun aNotPdfDownloadOffersBrowserAndAttach() = runTest {
+        repository.save(linked)
+        val viewModel = linkedViewModel()
+        pdfs.setDownload(linkedId, DownloadState.Failed(DownloadFailure.NotPdf))
+        advanceUntilIdle()
+
+        assertEquals(PdfRowState.Failed(DownloadFailure.NotPdf), viewModel.pdf.value.state)
+        assertEquals(link, viewModel.pdf.value.link)
+        val actions = viewModel.pdf.value.primary
+        assertTrue(PdfAction.OpenInBrowser in actions)
+        assertTrue(PdfAction.Attach in actions)
+        assertEquals(listOf(PdfAction.TryAgain, PdfAction.OpenInBrowser, PdfAction.Attach), actions)
+    }
+
+    @Test
+    fun aNoLinkFailureFallsBackToNoPdf() = runTest {
+        repository.save(paper)
+        val viewModel = viewModel()
+        pdfs.setDownload(id, DownloadState.Failed(DownloadFailure.NoLink))
+        advanceUntilIdle()
+
+        assertEquals(PdfRowState.None, viewModel.pdf.value.state)
+    }
+
+    @Test
+    fun aRunningDownloadWinsOverAnEarlierFailure() = runTest {
+        repository.save(linked)
+        val viewModel = linkedViewModel()
+        pdfs.setDownload(linkedId, DownloadState.Failed(DownloadFailure.Offline))
+        advanceUntilIdle()
+        pdfs.setDownload(linkedId, DownloadState.Running(bytes = 0, totalBytes = null))
+        advanceUntilIdle()
+
+        assertEquals(PdfRowState.Downloading(0, null), viewModel.pdf.value.state)
+    }
+
+    @Test
+    fun downloadCancelAndRemoveReachTheRepository() = runTest {
+        repository.save(linked)
+        pdfs.setPdf(linkedId, storedPdf)
+        val viewModel = linkedViewModel()
+
+        viewModel.downloadPdf()
+        viewModel.cancelPdfDownload()
+        viewModel.removePdf()
+        advanceUntilIdle()
+
+        assertEquals(listOf(linkedId), pdfs.downloads)
+        assertEquals(listOf(linkedId), pdfs.cancels)
+        assertEquals(listOf(linkedId), pdfs.removals)
     }
 }
 

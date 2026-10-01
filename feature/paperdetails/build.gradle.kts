@@ -5,3 +5,7 @@ plugins {
 android {
     namespace = "com.etatech.hashiya.feature.paperdetails"
 }
+
+dependencies {
+    implementation(libs.androidx.activity.compose)
+}

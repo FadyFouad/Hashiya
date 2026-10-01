@@ -21,7 +21,17 @@ sealed interface PaperDetailsUiState {
 /** What the line beside "My notes" shows: nothing, Saving…, Saved or Couldn't save. */
 enum class NotesSaveState { Idle, Saving, Saved, Failed }
 
-enum class PaperDetailsMessage { NotesSaveFailed, StatusUpdateFailed, CollectionsUpdateFailed, BibTeXCopied, BibTeXIncomplete, CopyFailed }
+enum class PaperDetailsMessage {
+    NotesSaveFailed,
+    StatusUpdateFailed,
+    CollectionsUpdateFailed,
+    BibTeXCopied,
+    BibTeXIncomplete,
+    CopyFailed,
+    PdfAttachNotPdf,
+    PdfAttachTooLarge,
+    PdfAttachFailed
+}
 
 /** Tells the screen to leave: [Closed] when the paper is gone, [Removed] once the user removed it and its notes are saved. */
 enum class PaperDetailsExit { Closed, Removed }

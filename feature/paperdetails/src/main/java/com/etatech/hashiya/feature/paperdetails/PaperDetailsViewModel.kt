@@ -1,13 +1,16 @@
 package com.etatech.hashiya.feature.paperdetails
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etatech.hashiya.core.data.di.ApplicationScope
+import com.etatech.hashiya.core.data.repository.AttachResult
 import com.etatech.hashiya.core.data.repository.CitationRepository
 import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.data.repository.CollectionsRepository
 import com.etatech.hashiya.core.data.repository.LibraryRepository
+import com.etatech.hashiya.core.data.repository.PdfRepository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NoteSection
 import com.etatech.hashiya.core.model.PaperNotes
@@ -44,6 +47,7 @@ class PaperDetailsViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val collectionsRepository: CollectionsRepository,
     private val citationRepository: CitationRepository,
+    private val pdfRepository: PdfRepository,
     @ApplicationScope private val applicationScope: CoroutineScope
 ) : ViewModel() {
     val openAlexId: String = checkNotNull(savedStateHandle[ARG_OPEN_ALEX_ID]) { "PaperDetailsRoute needs an openAlexId" }
@@ -85,6 +89,16 @@ class PaperDetailsViewModel @Inject constructor(
     ) { current, typed, state, collections, memberOf ->
         PaperDetailsUiState.Loaded(current, typed, state, collections, memberOf)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PaperDetailsUiState.Loading)
+
+    /** The PDF row: the stored file, a running or failed download, and the paper's open-access link. */
+    val pdf: StateFlow<PdfRow> = combine(
+        pdfRepository.observePdf(openAlexId),
+        pdfRepository.observeDownload(openAlexId),
+        paper
+    ) { stored, download, current ->
+        val link = current?.paper?.openAccessPdfUrl
+        PdfRow(pdfRowState(stored, download, link), link)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PdfRow(PdfRowState.None, null))
 
     init {
         viewModelScope.launch {
@@ -168,6 +182,47 @@ class PaperDetailsViewModel @Inject constructor(
     fun onCopyHandled(confirmation: PaperDetailsMessage?) {
         _copied.value = null
         if (confirmation != null) _message.value = confirmation
+    }
+
+    /** Starts the download in the application scope (the repository's), so leaving Details doesn't stop it. Also Try again. */
+    fun downloadPdf() {
+        pdfRepository.download(openAlexId)
+    }
+
+    fun cancelPdfDownload() {
+        pdfRepository.cancelDownload(openAlexId)
+    }
+
+    /** Copies the chosen file in, replacing any stored PDF. Says why when it isn't stored; nothing changes then. */
+    fun attachPdf(uri: Uri) {
+        viewModelScope.launch {
+            val result = try {
+                pdfRepository.attach(openAlexId, uri)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AttachResult.Unreadable
+            }
+            _message.value = when (result) {
+                AttachResult.Done -> return@launch
+                AttachResult.NotPdf -> PaperDetailsMessage.PdfAttachNotPdf
+                AttachResult.TooLarge -> PaperDetailsMessage.PdfAttachTooLarge
+                AttachResult.Unreadable -> PaperDetailsMessage.PdfAttachFailed
+            }
+        }
+    }
+
+    /** On failure the row keeps showing the stored PDF; the spec has no message for it. */
+    fun removePdf() {
+        viewModelScope.launch {
+            try {
+                pdfRepository.remove(openAlexId)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Unit
+            }
+        }
     }
 
     fun onRetrySave() {

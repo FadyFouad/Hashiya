@@ -7,6 +7,8 @@ import UniformTypeIdentifiers
 /// disappears and when the app leaves the foreground, and reports when it should go away.
 public struct PaperDetailsScreen: View {
     @State private var viewModel: PaperDetailsViewModel
+    /// The last Replace or Remove asked, so the dialog keeps its title while it closes (the answer is nil by then).
+    @State private var lastConfirmation: PdfConfirmation?
     private let onClose: () -> Void
     private let onRemove: (String) -> Void
     private let onReadPdf: (String) -> Void
@@ -60,8 +62,11 @@ public struct PaperDetailsScreen: View {
                 case .failure: viewModel.message = .pdfAttachFailed
                 }
             }
+            .onChange(of: viewModel.pdfConfirmation) { _, confirmation in
+                if let confirmation { lastConfirmation = confirmation }
+            }
             .confirmationDialog(
-                Text(verbatim: L10n.string(viewModel.pdfConfirmation == .remove ? "details.pdfRemoveTitle" : "details.pdfReplaceTitle")),
+                Text(verbatim: Self.confirmationTitle(viewModel.pdfConfirmation ?? lastConfirmation)),
                 isPresented: Binding(get: { viewModel.pdfConfirmation != nil }, set: { if !$0 { viewModel.pdfConfirmation = nil } }),
                 titleVisibility: .visible,
                 // The dialog can clear its binding before a button's action runs, so the action gets the answer from here.
@@ -147,6 +152,10 @@ public struct PaperDetailsScreen: View {
             if let link = viewModel.handle(action) { openURL(link) }
         }
         return actions
+    }
+
+    static func confirmationTitle(_ confirmation: PdfConfirmation?) -> String {
+        L10n.string(confirmation == .remove ? "details.pdfRemoveTitle" : "details.pdfReplaceTitle")
     }
 
     private var checklistActions: CollectionsChecklistActions {

@@ -14,7 +14,7 @@ public enum PaperFormat {
         Int64(value).formatted(.number.locale(HashiyaLanguage.locale))
     }
 
-    /// A file's size the way Files shows it, in the language's digits: "2.4 MB", "٢٫٤ م.ب".
+    /// A file's size the way Files shows it, with the language's units: "2.4 MB", "2.4 م.ب".
     public static func fileSize(_ bytes: Int64) -> String {
         bytes.formatted(.byteCount(style: .file).locale(HashiyaLanguage.locale))
     }

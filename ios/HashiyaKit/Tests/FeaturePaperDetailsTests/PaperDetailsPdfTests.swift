@@ -73,6 +73,21 @@ struct PaperDetailsPdfTests {
         #expect(await eventually { viewModel.pdf.state == .stored(stored) })
     }
 
+    /// A push cancels the screen's `.task`; on Back it runs `start()` again, and the row must follow the store again.
+    @Test func startingAgainAfterACancelFollowsThePdfAgain() async {
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        task.cancel()
+        await task.value
+        let again = Task { await viewModel.start() }
+        defer { again.cancel() }
+
+        pdfs.setDownload(id, .running(bytes: 5, total: 50))
+        #expect(await eventually { viewModel.pdf.state == .downloading(bytes: 5, total: 50) })
+        pdfs.setDownload(id, nil)
+        pdfs.setPdf(id, stored)
+        #expect(await eventually { viewModel.pdf.state == .stored(stored) })
+    }
+
     @Test func aPaperWithoutALinkOffersAttach() async {
         let bert = SamplePapers.bert.openAlexID
         let viewModel = PaperDetailsViewModel(

@@ -80,7 +80,10 @@ public final class PaperDetailsViewModel {
     @ObservationIgnored private var savingForReader = false
     @ObservationIgnored private let copy: @MainActor (String) -> Void
     @ObservationIgnored private let notesEditor: NotesEditor
-    @ObservationIgnored private var hasStarted = false
+    /// The one read of the notes; a later `start()` waits for it instead of reading again.
+    @ObservationIgnored private var notesRead: Task<Void, Never>?
+    /// The current run of the followers; a new `start()` stops it first.
+    @ObservationIgnored private var followers: Task<Void, Never>?
 
     /// Stores its dependencies only; `start()` does the work. SwiftUI may build and discard several instances.
     /// - Parameter copy: puts text on the clipboard (the app passes `UIPasteboard.general`).
@@ -113,13 +116,25 @@ public final class PaperDetailsViewModel {
         PdfRow(pdf: storedPdf, download: download, link: paper?.paper.openAccessPDFURL.flatMap(URL.init(string:)))
     }
 
-    /// Reads the notes once and follows the paper, the collections and the paper's membership until the paper stops
-    /// being saved or the calling task is cancelled. Later calls do nothing.
+    /// Reads the notes once and follows the paper, the collections, the paper's membership, its PDF and its download
+    /// until the paper stops being saved or the calling task is cancelled. A push cancels the screen's `.task` and Back
+    /// runs it again, so every call follows the store again (stopping an earlier run still going), but the notes are
+    /// read only by the first: what is typed is never replaced.
     public func start() async {
-        guard !hasStarted else { return }
-        hasStarted = true
         // An `async let` next to the observation task group hung (notes stuck at `.loading`), so this stays unstructured.
-        let notesRead = Task { await self.notesEditor.load() }
+        if notesRead == nil { notesRead = Task { await self.notesEditor.load() } }
+        followers?.cancel()
+        let run = Task { await self.follow() }
+        followers = run
+        await withTaskCancellationHandler {
+            await run.value
+        } onCancel: {
+            run.cancel()
+        }
+        await notesRead?.value
+    }
+
+    private func follow() async {
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.followCollections() }
             group.addTask { await self.followMembership() }
@@ -128,7 +143,6 @@ public final class PaperDetailsViewModel {
             await self.followPaper()
             group.cancelAll()
         }
-        await notesRead.value
     }
 
     private func followPaper() async {

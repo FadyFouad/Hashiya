@@ -43,6 +43,8 @@ public final class FakeLibraryRepository: LibraryRepository {
         var failNotesRead = false
         /// Non-nil while saves are held: the waiting saves.
         var heldSaves: [CheckedContinuation<Void, Never>]?
+        /// Non-nil while notes reads are held: the waiting reads.
+        var heldReads: [CheckedContinuation<Void, Never>]?
         var notesWriteAttempts: [PaperNotes] = []
         var subscriptions: [UUID: Subscription] = [:]
         var paperSubscriptions: [UUID: PaperSubscription] = [:]
@@ -144,6 +146,8 @@ public final class FakeLibraryRepository: LibraryRepository {
     public var notesWriteAttempts: [PaperNotes] { state.update { $0.notesWriteAttempts } }
     /// The saves waiting while saves are held.
     public var heldNotesSaves: Int { state.update { $0.heldSaves?.count ?? 0 } }
+    /// The notes reads waiting while reads are held.
+    public var heldNotesReads: Int { state.update { $0.heldReads?.count ?? 0 } }
 
     /// When true, `save` and `restore` throw.
     public func setFailSaves(_ fail: Bool) { state.update { $0.failSaves = fail } }
@@ -183,6 +187,21 @@ public final class FakeLibraryRepository: LibraryRepository {
         let waiting = state.update { state -> [CheckedContinuation<Void, Never>] in
             defer { state.heldSaves = nil }
             return state.heldSaves ?? []
+        }
+        waiting.forEach { $0.resume() }
+    }
+
+    /// From now on `notes(openAlexID:)` reads the stored notes at once but returns them only after
+    /// `releaseNotesReads()`, so a test can change the store while a read's answer is on its way.
+    public func holdNotesReads() {
+        state.update { if $0.heldReads == nil { $0.heldReads = [] } }
+    }
+
+    /// Lets every held read return what it read, and stops holding.
+    public func releaseNotesReads() {
+        let waiting = state.update { state -> [CheckedContinuation<Void, Never>] in
+            defer { state.heldReads = nil }
+            return state.heldReads ?? []
         }
         waiting.forEach { $0.resume() }
     }
@@ -250,10 +269,20 @@ public final class FakeLibraryRepository: LibraryRepository {
     }
 
     public func notes(openAlexID: String) async throws -> PaperNotes {
-        try state.update { state in
+        let (notes, held) = try state.update { state in
             if state.failNotesRead { throw Failure() }
-            return state.entries.first { $0.paper.openAlexID == openAlexID }?.notes ?? PaperNotes()
+            return (state.entries.first { $0.paper.openAlexID == openAlexID }?.notes ?? PaperNotes(), state.heldReads != nil)
         }
+        guard held else { return notes }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            let held = state.update { state -> Bool in
+                guard state.heldReads != nil else { return false }
+                state.heldReads?.append(continuation)
+                return true
+            }
+            if !held { continuation.resume() }
+        }
+        return notes
     }
 
     public func saveNotes(openAlexID: String, notes: PaperNotes) async throws {

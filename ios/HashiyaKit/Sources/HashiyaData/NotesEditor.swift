@@ -26,6 +26,8 @@ public final class NotesEditor {
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
     /// What the database holds, as far as this editor knows: the notes read, then each successful write.
     @ObservationIgnored private var savedNotes = PaperNotes()
+    /// Grows with each successful write, so `reload()` can tell that one ended while it read.
+    @ObservationIgnored private var writesSaved = 0
     @ObservationIgnored private var lastWrite: Task<Bool, Never>?
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
 
@@ -106,9 +108,12 @@ public final class NotesEditor {
     public func reload() async {
         guard notesLoad == .loaded, !hasUnsavedChanges else { return }
         await pendingWrites.drained()
-        guard !hasUnsavedChanges, let stored = try? await library.notes(openAlexID: openAlexID) else { return }
-        // Typing that started while the read ran wins.
         guard !hasUnsavedChanges else { return }
+        let writesBefore = writesSaved
+        guard let stored = try? await library.notes(openAlexID: openAlexID) else { return }
+        // Typing that started while the read ran wins, and so does a write of it that ended meanwhile: the read
+        // may have come before that write, so its answer can be older than what is stored now.
+        guard !hasUnsavedChanges, writesSaved == writesBefore else { return }
         savedNotes = stored
         if stored != notes {
             notes = stored
@@ -137,6 +142,7 @@ public final class NotesEditor {
         do {
             try await library.saveNotes(openAlexID: openAlexID, notes: value)
             savedNotes = value
+            writesSaved += 1
             saveState = .saved
             return true
         } catch {

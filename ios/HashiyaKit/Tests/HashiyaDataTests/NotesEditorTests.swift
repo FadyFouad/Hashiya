@@ -109,4 +109,57 @@ struct NotesEditorTests {
         #expect(editor.notes == PaperNotes(thoughts: "Typing"))
         #expect(editor.version == 0)
     }
+
+    @Test func reloadWaitsForAnotherEditorsWrite() async {
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention], notes: [id: PaperNotes(summary: "Before")])
+        let details = await loaded(library)
+        let reader = await loaded(library)
+        library.holdNotesSaves()
+        reader.onNoteChange(section: .summary, text: "From the reader")
+        reader.flush()
+        #expect(await eventually { library.heldNotesSaves == 1 })
+
+        let reload = Task { await details.reload() }
+        // The reader's write is still held, so the reload must not have read the older notes yet.
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(details.notes == PaperNotes(summary: "Before"))
+        library.releaseNotesSaves()
+        await reload.value
+
+        #expect(details.notes == PaperNotes(summary: "From the reader"))
+        #expect(details.version == 1)
+    }
+
+    @Test func anEditAfterAReloadSavesOnTopOfTheReloadedNotes() async throws {
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention], notes: [id: PaperNotes(summary: "Before")])
+        let editor = await loaded(library)
+        try await library.saveNotes(openAlexID: id, notes: PaperNotes(summary: "From the reader"))
+        await editor.reload()
+
+        editor.onNoteChange(section: .method, text: "Typed after")
+        await pauseEnds()
+
+        #expect(await eventually { editor.saveState == .saved })
+        #expect(library.notes(of: id) == PaperNotes(summary: "From the reader", method: "Typed after"))
+    }
+
+    @Test func aSaveThatEndsWhileTheReloadReadsIsKept() async {
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention], notes: [id: PaperNotes(summary: "Before")])
+        let editor = await loaded(library)
+        library.holdNotesReads()
+        let reload = Task { await editor.reload() }
+        #expect(await eventually { library.heldNotesReads == 1 })
+
+        // Typed and saved while the read's answer, "Before", is on its way.
+        editor.onNoteChange(section: .summary, text: "Typed during the read")
+        await pauseEnds()
+        #expect(await eventually { editor.saveState == .saved })
+        #expect(!editor.hasUnsavedChanges)
+        library.releaseNotesReads()
+        await reload.value
+
+        #expect(editor.notes == PaperNotes(summary: "Typed during the read"))
+        #expect(editor.version == 0)
+        #expect(library.notes(of: id) == PaperNotes(summary: "Typed during the read"))
+    }
 }

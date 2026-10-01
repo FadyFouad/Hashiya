@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Shares the stored PDF from filesDir/pdfs without a storage permission. A subclass, because the merged
+             manifest keys providers by class name and feature:library already declares androidx.core's FileProvider. -->
+        <provider
+            android:name="com.etatech.hashiya.feature.reader.share.PdfFileProvider"
+            android:authorities="${applicationId}.pdfs"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/pdf_paths" />
+        </provider>
+    </application>
+
+</manifest>

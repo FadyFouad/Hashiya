@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etatech.hashiya.core.data.di.ApplicationScope
+import com.etatech.hashiya.core.data.notes.NotesEditor
 import com.etatech.hashiya.core.data.repository.AttachResult
 import com.etatech.hashiya.core.data.repository.CitationRepository
 import com.etatech.hashiya.core.data.repository.CollectionResult
@@ -13,34 +14,27 @@ import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.PdfRepository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NoteSection
-import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.ReadingStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
-internal const val NOTES_SAVE_DEBOUNCE_MS = 500L
+internal const val NOTES_SAVE_DEBOUNCE_MS = NotesEditor.SAVE_DEBOUNCE_MS
 
 /** The route's argument: PaperDetailsRoute.openAlexId. */
 internal const val ARG_OPEN_ALEX_ID = "openAlexId"
 
-@OptIn(FlowPreview::class)
 @HiltViewModel
 class PaperDetailsViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
@@ -52,19 +46,20 @@ class PaperDetailsViewModel @Inject constructor(
 ) : ViewModel() {
     val openAlexId: String = checkNotNull(savedStateHandle[ARG_OPEN_ALEX_ID]) { "PaperDetailsRoute needs an openAlexId" }
 
-    /** The notes as typed; null until the stored notes are read. Read once: later database emissions never replace typing. */
-    private val notes = MutableStateFlow<PaperNotes?>(null)
-
-    /** Every write goes through [save], one at a time, so writes land in order and a flush can't be overtaken. */
-    private val saveMutex = Mutex()
-
-    /** The notes last read or written. Guarded by [saveMutex]. */
-    private var storedNotes: PaperNotes? = null
-
-    private val saveState = MutableStateFlow(NotesSaveState.Idle)
-
     private val _message = MutableStateFlow<PaperDetailsMessage?>(null)
     val message: StateFlow<PaperDetailsMessage?> = _message.asStateFlow()
+
+    private val notesEditor = NotesEditor(openAlexId, libraryRepository, viewModelScope, applicationScope) {
+        _message.value = PaperDetailsMessage.NotesSaveFailed
+    }
+
+    /** Grows when notes written in the reader replace the ones on screen; the fields re-seed. */
+    val notesVersion: StateFlow<Int> = notesEditor.version
+
+    private val _openReader = MutableStateFlow(false)
+
+    /** True once typed notes are saved and the reader can open; the screen navigates, then calls onReaderOpened. */
+    val openReader: StateFlow<Boolean> = _openReader.asStateFlow()
 
     private val _exit = MutableStateFlow<PaperDetailsExit?>(null)
     val exit: StateFlow<PaperDetailsExit?> = _exit.asStateFlow()
@@ -82,8 +77,8 @@ class PaperDetailsViewModel @Inject constructor(
 
     val uiState: StateFlow<PaperDetailsUiState> = combine(
         paper.filterNotNull(),
-        notes.filterNotNull(),
-        saveState,
+        notesEditor.notes.filterNotNull(),
+        notesEditor.saveState,
         collectionsRepository.observeCollections(),
         collectionsRepository.observeCollectionIds(openAlexId)
     ) { current, typed, state, collections, memberOf ->
@@ -100,21 +95,7 @@ class PaperDetailsViewModel @Inject constructor(
         PdfRow(pdfRowState(stored, download, link), link)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PdfRow(PdfRowState.None, null))
 
-    init {
-        viewModelScope.launch {
-            val stored = libraryRepository.observeNotes(openAlexId).first()
-            saveMutex.withLock { storedNotes = stored }
-            notes.value = stored
-        }
-        viewModelScope.launch {
-            // collect is sequential: each write finishes before the next starts, and a burst of typing is one write.
-            notes.filterNotNull().debounce(NOTES_SAVE_DEBOUNCE_MS).collect { save(it) }
-        }
-    }
-
-    fun onNoteChange(section: NoteSection, text: String) {
-        notes.update { current -> current?.with(section, text) }
-    }
+    fun onNoteChange(section: NoteSection, text: String) = notesEditor.onNoteChange(section, text)
 
     fun onStatusChange(status: ReadingStatus) {
         viewModelScope.launch {
@@ -225,19 +206,14 @@ class PaperDetailsViewModel @Inject constructor(
         }
     }
 
-    fun onRetrySave() {
-        viewModelScope.launch { notes.value?.let { save(it) } }
-    }
+    fun onRetrySave() = notesEditor.retry()
 
     fun onMessageShown() {
         _message.value = null
     }
 
     /** Writes unsaved notes now, on the application scope, so leaving the screen can't cancel the write. */
-    fun flushNotes() {
-        val current = notes.value ?: return
-        applicationScope.launch { save(current) }
-    }
+    fun flushNotes() = notesEditor.flush()
 
     /**
      * Saves unsaved notes first, so Undo on the screen below restores what was just typed, then asks to leave.
@@ -245,9 +221,26 @@ class PaperDetailsViewModel @Inject constructor(
      */
     fun onRemove() {
         viewModelScope.launch {
-            val saved = notes.value?.let { save(it) } ?: true
+            val saved = notesEditor.saveNow()
             if (saved) _exit.value = PaperDetailsExit.Removed
         }
+    }
+
+    /**
+     * Read on the PDF row: saves typed notes first, so the reader's Notes sheet reads them and can never overwrite them with
+     * older ones. If that save fails, Details stays, showing Couldn't save with Retry, as Remove does.
+     */
+    fun onReadPdf() {
+        viewModelScope.launch { if (notesEditor.saveNow()) _openReader.value = true }
+    }
+
+    fun onReaderOpened() {
+        _openReader.value = false
+    }
+
+    /** Back from the reader, whose Notes sheet may have written these notes. Never replaces unsaved typing. */
+    fun reloadNotes() {
+        viewModelScope.launch { notesEditor.reload() }
     }
 
     override fun onCleared() {
@@ -264,24 +257,6 @@ class PaperDetailsViewModel @Inject constructor(
                 if (closeDialogOnFailure) _newCollectionDialog.value = null
                 _message.value = PaperDetailsMessage.CollectionsUpdateFailed
             }
-        }
-    }
-
-    /** Returns false only when the write failed. */
-    private suspend fun save(value: PaperNotes): Boolean = saveMutex.withLock {
-        if (value == storedNotes) return@withLock true
-        saveState.value = NotesSaveState.Saving
-        try {
-            libraryRepository.saveNotes(openAlexId, value)
-            storedNotes = value
-            saveState.value = NotesSaveState.Saved
-            true
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            saveState.value = NotesSaveState.Failed
-            _message.value = PaperDetailsMessage.NotesSaveFailed
-            false
         }
     }
 }

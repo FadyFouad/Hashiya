@@ -26,4 +26,20 @@
     <string name="collection_save">حفظ</string>
     <string name="collection_cancel">إلغاء</string>
     <string name="collection_name_taken">توجد مجموعة بهذا الاسم بالفعل</string>
+    <string name="designsystem_notes_title">ملاحظاتي</string>
+    <string name="designsystem_notes_saving">جارٍ الحفظ…</string>
+    <string name="designsystem_notes_saved">تم الحفظ</string>
+    <string name="designsystem_notes_save_failed">تعذّر الحفظ</string>
+    <string name="designsystem_note_summary">الخلاصة</string>
+    <string name="designsystem_note_summary_hint">عمّ تتحدث هذه الورقة، بكلماتك أنت؟</string>
+    <string name="designsystem_note_research_question">سؤال البحث</string>
+    <string name="designsystem_note_research_question_hint">ما السؤال أو المشكلة التي تعالجها؟</string>
+    <string name="designsystem_note_method">المنهجية</string>
+    <string name="designsystem_note_method_hint">كيف تناولها المؤلفون؟</string>
+    <string name="designsystem_note_key_findings">أهم النتائج</string>
+    <string name="designsystem_note_key_findings_hint">ما الذي توصّلوا إليه؟</string>
+    <string name="designsystem_note_limitations">القيود</string>
+    <string name="designsystem_note_limitations_hint">ما نقاط ضعفها أو الأسئلة التي تتركها مفتوحة؟</string>
+    <string name="designsystem_note_thoughts">أفكاري</string>
+    <string name="designsystem_note_thoughts_hint">ما علاقتها ببحثك؟</string>
 </resources>

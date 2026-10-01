@@ -14,9 +14,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
+import com.etatech.hashiya.core.designsystem.component.NOTE_FIELD_TAG_PREFIX
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NoteSection
+import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.ReadingStatus

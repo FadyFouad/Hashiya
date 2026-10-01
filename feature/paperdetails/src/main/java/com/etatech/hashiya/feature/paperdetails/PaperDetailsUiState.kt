@@ -1,6 +1,7 @@
 package com.etatech.hashiya.feature.paperdetails
 
 import com.etatech.hashiya.core.model.LibraryPaper
+import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.PaperNotes
 
@@ -17,9 +18,6 @@ sealed interface PaperDetailsUiState {
         val memberOf: Set<Long> = emptySet()
     ) : PaperDetailsUiState
 }
-
-/** What the line beside "My notes" shows: nothing, Saving…, Saved or Couldn't save. */
-enum class NotesSaveState { Idle, Saving, Saved, Failed }
 
 enum class PaperDetailsMessage {
     NotesSaveFailed,

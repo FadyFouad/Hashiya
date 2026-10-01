@@ -5,6 +5,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import com.etatech.hashiya.core.data.repository.DownloadFailure
 import com.etatech.hashiya.core.model.LibraryPaper
+import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.PaperPdf

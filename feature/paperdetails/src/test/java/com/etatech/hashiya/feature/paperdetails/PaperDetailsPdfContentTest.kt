@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performScrollTo
 import com.etatech.hashiya.core.data.repository.DownloadFailure
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.LibraryPaper
+import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.PaperPdf
 import com.etatech.hashiya.core.model.PdfSource

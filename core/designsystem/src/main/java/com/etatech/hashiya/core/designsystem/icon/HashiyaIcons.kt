@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.designsystem.icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
+import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDropDown
@@ -49,4 +50,5 @@ object HashiyaIcons {
     val Pdf: ImageVector = Icons.Outlined.PictureAsPdf
     val Download: ImageVector = Icons.Outlined.Download
     val Attach: ImageVector = Icons.Outlined.AttachFile
+    val Notes: ImageVector = Icons.AutoMirrored.Outlined.Notes
 }

@@ -7,6 +7,7 @@ import com.etatech.hashiya.core.data.repository.DownloadState
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NoteSection
+import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.PaperPdf
 import com.etatech.hashiya.core.model.PdfSource
@@ -340,6 +341,66 @@ class PaperDetailsViewModelTest {
         viewModel.onRemove()
         runCurrent()
         assertEquals(PaperDetailsExit.Removed, viewModel.exit.value)
+    }
+
+    @Test
+    fun readingThePdfSavesTypedNotesFirst() = runTest {
+        repository.save(paper)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.onNoteChange(NoteSection.Summary, "Read the method twice")
+
+        viewModel.onReadPdf()
+        runCurrent()
+
+        // Saved before the reader opens, so the reader reads these notes and never overwrites them with older ones.
+        assertEquals(listOf(id to PaperNotes(summary = "Read the method twice")), repository.notesSaves)
+        assertEquals(true, viewModel.openReader.value)
+    }
+
+    @Test
+    fun aFailedSaveKeepsDetailsOpenInsteadOfOpeningTheReader() = runTest {
+        repository.save(paper)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        repository.failOnSaveNotes = true
+        viewModel.onNoteChange(NoteSection.Summary, "Not saved yet")
+
+        viewModel.onReadPdf()
+        runCurrent()
+
+        assertEquals(false, viewModel.openReader.value)
+        assertEquals(PaperDetailsMessage.NotesSaveFailed, viewModel.message.value)
+    }
+
+    @Test
+    fun notesWrittenInTheReaderAppearAfterReload() = runTest {
+        repository.save(paper)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        val versionBefore = viewModel.notesVersion.value
+        // The reader's Notes sheet writes through the same repository.
+        repository.saveNotes(id, PaperNotes(summary = "Written while reading"))
+
+        viewModel.reloadNotes()
+        advanceUntilIdle()
+
+        assertEquals(PaperNotes(summary = "Written while reading"), viewModel.loaded().notes)
+        assertEquals(versionBefore + 1, viewModel.notesVersion.value)
+    }
+
+    @Test
+    fun reloadNeverReplacesUnsavedTyping() = runTest {
+        repository.save(paper)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.onNoteChange(NoteSection.Method, "Still typing")
+        repository.saveNotes(id, PaperNotes(summary = "Written elsewhere"))
+
+        viewModel.reloadNotes()
+        runCurrent()
+
+        assertEquals(PaperNotes(method = "Still typing"), viewModel.loaded().notes)
     }
 
     private val linked = SamplePapers.attention

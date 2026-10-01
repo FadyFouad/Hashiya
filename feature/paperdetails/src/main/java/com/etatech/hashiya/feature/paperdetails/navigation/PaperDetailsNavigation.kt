@@ -12,7 +12,7 @@ data class PaperDetailsRoute(val openAlexId: String)
 
 fun NavController.navigateToPaperDetails(openAlexId: String) = navigate(PaperDetailsRoute(openAlexId))
 
-/** [onReadPdf] opens the reader for this paper's PDF; Task 6 wires it to ReaderRoute. */
+/** [onReadPdf] opens the reader for this paper's PDF, once Details has saved its typed notes. */
 fun NavGraphBuilder.paperDetailsScreen(
     onBack: () -> Unit,
     onRemove: (openAlexId: String) -> Unit,

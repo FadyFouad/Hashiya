@@ -46,6 +46,7 @@ public final class FakeLibraryRepository: LibraryRepository {
         /// Non-nil while notes reads are held: the waiting reads.
         var heldReads: [CheckedContinuation<Void, Never>]?
         var notesWriteAttempts: [PaperNotes] = []
+        var notesReads = 0
         var subscriptions: [UUID: Subscription] = [:]
         var paperSubscriptions: [UUID: PaperSubscription] = [:]
         var idContinuations: [UUID: AsyncStream<Set<String>>.Continuation] = [:]
@@ -144,6 +145,8 @@ public final class FakeLibraryRepository: LibraryRepository {
     }
     /// Every `saveNotes` call in order once it runs (after any hold), failed ones included.
     public var notesWriteAttempts: [PaperNotes] { state.update { $0.notesWriteAttempts } }
+    /// How many times `notes(openAlexID:)` was called, failed reads included.
+    public var notesReads: Int { state.update { $0.notesReads } }
     /// The saves waiting while saves are held.
     public var heldNotesSaves: Int { state.update { $0.heldSaves?.count ?? 0 } }
     /// The notes reads waiting while reads are held.
@@ -270,6 +273,7 @@ public final class FakeLibraryRepository: LibraryRepository {
 
     public func notes(openAlexID: String) async throws -> PaperNotes {
         let (notes, held) = try state.update { state in
+            state.notesReads += 1
             if state.failNotesRead { throw Failure() }
             return (state.entries.first { $0.paper.openAlexID == openAlexID }?.notes ?? PaperNotes(), state.heldReads != nil)
         }

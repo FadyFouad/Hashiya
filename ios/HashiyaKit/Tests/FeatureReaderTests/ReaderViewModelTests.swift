@@ -6,7 +6,7 @@ import HashiyaTesting
 import Testing
 
 @MainActor
-@Suite(.serialized)
+@Suite(.serialized, .timeLimit(.minutes(1)))
 struct ReaderViewModelTests {
     private let library = FakeLibraryRepository(saved: [SamplePapers.attention])
     private let pdfs = FakePdfRepository()
@@ -15,12 +15,14 @@ struct ReaderViewModelTests {
     private let pendingWrites = PendingWrites()
     private let id = SamplePapers.attention.openAlexID
 
-    private func viewModel() -> ReaderViewModel {
-        ReaderViewModel(
+    private func viewModel(library: FakeLibraryRepository? = nil) -> ReaderViewModel {
+        let library = library ?? self.library
+        return ReaderViewModel(
             openAlexID: id,
             pdfs: pdfs,
             library: library,
             notes: NotesEditor(openAlexID: id, library: library, pendingWrites: pendingWrites, sleep: notesSleeper.sleep),
+            pendingWrites: pendingWrites,
             sleep: sleeper.sleep
         )
     }
@@ -291,6 +293,81 @@ struct ReaderViewModelTests {
         viewModel.showNotes()
 
         #expect(await eventually { viewModel.notes.notesLoad == .loaded })
+        task.cancel()
+    }
+
+    @Test func leavingTracksThePageWriteBeforeTheTurnEnds() async throws {
+        try storePdf()
+        let viewModel = viewModel()
+        let task = await started(viewModel)
+
+        viewModel.onPageChanged(3)
+        viewModel.onDisappear()
+
+        // RootView suspends the database once these writes drain: the page must be among them.
+        #expect(!pendingWrites.isIdle)
+        await pendingWrites.drained()
+        #expect(pagesSaved() == [3])
+        task.cancel()
+    }
+
+    @Test func backWritesTheCurrentPage() async throws {
+        try storePdf()
+        let viewModel = viewModel()
+        let task = await started(viewModel)
+
+        viewModel.onPageChanged(4)
+        await viewModel.back()
+
+        #expect(viewModel.exit == .back)
+        await pendingWrites.drained()
+        #expect(pagesSaved() == [4])
+        task.cancel()
+    }
+
+    @Test func theNotesAreReadOnceAcrossOpeningAndClosingTheSheet() async throws {
+        try storePdf()
+        let viewModel = viewModel()
+        let task = await started(viewModel)
+        #expect(library.notesReads == 1)
+
+        viewModel.showNotes()
+        viewModel.notes.onNoteChange(section: .summary, text: "Self-attention.")
+        viewModel.notesClosed()
+        await pendingWrites.drained()
+        viewModel.showNotes()
+
+        #expect(viewModel.notes.notes.summary == "Self-attention.")
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(library.notesReads == 1)
+        task.cancel()
+    }
+
+    @Test func startingAgainAfterACancelStillNoticesARemoval() async throws {
+        try storePdf()
+        let viewModel = viewModel()
+        let first = await started(viewModel)
+        first.cancel()
+        await first.value
+
+        let second = Task { await viewModel.start() }
+        try await Task.sleep(for: .milliseconds(50))
+        pdfs.setPdf(id, nil)
+
+        #expect(await eventually { viewModel.exit == .closed })
+        #expect(library.notesReads == 1)
+        second.cancel()
+    }
+
+    @Test func anUntitledPaperIsCalledUntitled() async throws {
+        var untitled = SamplePapers.attention
+        untitled.title = ""
+        let library = FakeLibraryRepository(saved: [untitled])
+        try storePdf()
+        let viewModel = viewModel(library: library)
+        let task = await started(viewModel)
+
+        #expect(viewModel.title == "Untitled")
         task.cancel()
     }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import HashiyaData
+import HashiyaDesignSystem
 import HashiyaModel
 import Observation
 import PDFKit
@@ -57,46 +58,50 @@ public final class ReaderViewModel {
 
     @ObservationIgnored private let pdfs: any PdfRepository
     @ObservationIgnored private let library: any LibraryRepository
+    @ObservationIgnored private let pendingWrites: PendingWrites
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
     /// The page last read from or written to the database.
     @ObservationIgnored private var savedPage: Int?
     @ObservationIgnored private var pageSave: Task<Void, Never>?
-    @ObservationIgnored private var hasStarted = false
+    /// The last page write; the next one runs after it, so pages are written in order.
+    @ObservationIgnored private var lastPageWrite: Task<Void, Never>?
+    /// Opening runs once, whichever `start()` comes first; later calls wait for it.
+    @ObservationIgnored private var opening: Task<Void, Never>?
+    /// The current `start()`'s follower of the stored PDF.
+    @ObservationIgnored private var follower: Task<Void, Never>?
 
     public init(
         openAlexID: String,
         pdfs: any PdfRepository,
         library: any LibraryRepository,
         notes: NotesEditor,
+        pendingWrites: PendingWrites,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {
         self.openAlexID = openAlexID
         self.pdfs = pdfs
         self.library = library
         self.notes = notes
+        self.pendingWrites = pendingWrites
         self.sleep = sleep
     }
 
-    /// Opens the stored PDF and then follows it: a PDF removed elsewhere (Details, Settings, the paper's removal) closes
-    /// the reader. Runs for as long as the screen's `.task`.
+    /// Opens the stored PDF once, then follows it: a PDF removed elsewhere (Details, Settings, the paper's removal)
+    /// closes the reader. Runs for as long as the screen's `.task`; a `.task` that is cancelled and runs again (the
+    /// screen came back) follows the PDF again without opening it or reading the notes again.
     public func start() async {
-        guard !hasStarted else { return }
-        hasStarted = true
-        for await paper in library.observePaper(openAlexID: openAlexID) {
-            title = paper?.paper.title ?? ""
-            break
+        if opening == nil {
+            opening = Task { await self.open() }
         }
-        var opened = false
-        for await pdf in pdfs.observePdf(openAlexID: openAlexID) {
-            if !opened {
-                opened = true
-                guard let pdf, let url = await pdfs.pdfFile(openAlexID: openAlexID) else { return close() }
-                savedPage = pdf.lastPage
-                open(url, page: pdf.lastPage)
-                await notes.load()
-            } else if pdf == nil {
-                return close()
-            }
+        await opening?.value
+        guard !Task.isCancelled, exit == nil else { return }
+        follower?.cancel()
+        let run = Task { await self.follow() }
+        follower = run
+        await withTaskCancellationHandler {
+            await run.value
+        } onCancel: {
+            run.cancel()
         }
     }
 
@@ -107,7 +112,7 @@ public final class ReaderViewModel {
         let sleep = sleep
         pageSave = Task { [weak self] in
             guard (try? await sleep(Self.pageSaveDelay)) != nil else { return }
-            await self?.savePage(page)
+            self?.savePage(page)
         }
     }
 
@@ -160,6 +165,30 @@ public final class ReaderViewModel {
         close()
     }
 
+    /// The title, the stored PDF on its last page, then the notes. No PDF closes the reader.
+    private func open() async {
+        for await paper in library.observePaper(openAlexID: openAlexID) {
+            title = paper.map { PaperFormat.title($0.paper) } ?? ""
+            break
+        }
+        var stored: PaperPdf?
+        for await pdf in pdfs.observePdf(openAlexID: openAlexID) {
+            stored = pdf
+            break
+        }
+        guard let stored, let url = await pdfs.pdfFile(openAlexID: openAlexID) else { return close() }
+        savedPage = stored.lastPage
+        open(url, page: stored.lastPage)
+        await notes.load()
+    }
+
+    /// Closes the reader once the PDF is gone. Its first value is the current one.
+    private func follow() async {
+        for await pdf in pdfs.observePdf(openAlexID: openAlexID) where pdf == nil {
+            return close()
+        }
+    }
+
     private func open(_ url: URL, page: Int) {
         fileURL = url
         guard let document = PDFDocument(url: url), !document.isLocked, document.pageCount > 0 else {
@@ -173,19 +202,29 @@ public final class ReaderViewModel {
         state = .ready(pageCount: document.pageCount, startPage: start)
     }
 
-    private func savePage(_ page: Int) async {
+    private func savePage(_ page: Int) {
         guard page != savedPage else { return }
         savedPage = page
-        try? await pdfs.setLastPage(openAlexID: openAlexID, page: page)
+        writePage(page)
     }
 
     private func flushPage() {
         pageSave?.cancel()
         pageSave = nil
         guard case .ready = state, currentPage != savedPage else { return }
-        let page = currentPage
-        savedPage = page
-        Task { [pdfs, openAlexID] in try? await pdfs.setLastPage(openAlexID: openAlexID, page: page) }
+        savePage(currentPage)
+    }
+
+    /// Writes the page after the previous write, tracked on `PendingWrites` from this turn on, so the app waits for it
+    /// before it suspends the database in the background.
+    private func writePage(_ page: Int) {
+        let previous = lastPageWrite
+        let task = Task { [pdfs, openAlexID] in
+            _ = await previous?.value
+            try? await pdfs.setLastPage(openAlexID: openAlexID, page: page)
+        }
+        lastPageWrite = task
+        pendingWrites.track(task)
     }
 
     /// Nothing left to read (the PDF is gone). Typed notes are written first, so Details, reappearing, reads them.

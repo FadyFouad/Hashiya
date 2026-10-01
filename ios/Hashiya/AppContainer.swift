@@ -82,13 +82,15 @@ final class AppContainer {
         )
     }
 
-    /// The reader's notes go through the same `PendingWrites` as Details', so Details waits for them before it reads.
+    /// The reader's notes and page writes go through the same `PendingWrites` as Details', so Details waits for the
+    /// notes before it reads them and the app waits for both before it suspends the database.
     func makeReaderViewModel(openAlexID: String) -> ReaderViewModel {
         ReaderViewModel(
             openAlexID: openAlexID,
             pdfs: pdfRepository,
             library: libraryRepository,
-            notes: NotesEditor(openAlexID: openAlexID, library: libraryRepository, pendingWrites: pendingWrites)
+            notes: NotesEditor(openAlexID: openAlexID, library: libraryRepository, pendingWrites: pendingWrites),
+            pendingWrites: pendingWrites
         )
     }
 

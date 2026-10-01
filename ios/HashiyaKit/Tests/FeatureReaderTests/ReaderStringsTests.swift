@@ -3,6 +3,7 @@ import HashiyaDesignSystem
 import Testing
 
 @MainActor
+@Suite(.timeLimit(.minutes(1)))
 struct ReaderStringsTests {
     private func inLanguage<T>(_ language: String, _ body: () -> T) -> T {
         let previous = HashiyaLanguage.override

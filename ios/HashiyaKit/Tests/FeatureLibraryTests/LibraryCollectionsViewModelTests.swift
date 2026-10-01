@@ -171,9 +171,11 @@ struct LibraryCollectionsViewModelTests {
         #expect(await eventually { viewModel.papers.count == 2 && viewModel.selectedCollection != nil })
 
         try await collections.delete(id: thesis.id)
+        #expect(await eventually { viewModel.collections.isEmpty })
         await viewModel.removeFromCollection(openAlexID: SamplePapers.bert.openAlexID)
 
         #expect(viewModel.pendingUndo == nil)
+        #expect(viewModel.pendingCollectionUndo == nil)
         #expect(library.savedPapers.contains(SamplePapers.bert))
         #expect(await eventually { viewModel.collectionID == nil && viewModel.papers.count == 3 })
 
@@ -199,6 +201,50 @@ struct LibraryCollectionsViewModelTests {
         #expect(viewModel.message == nil)
         #expect(collections.collectionIDs(of: SamplePapers.bert.openAlexID).isEmpty)
         #expect(await eventually { viewModel.papers.count == 3 })
+    }
+
+    /// The collection list can handle the new id before the submit resumes; a later delete must still fall back.
+    @Test func aCreatedCollectionDeletedLaterFallsBackToAllPapers() async throws {
+        let viewModel = makeViewModel()
+        viewModel.showNewCollection()
+        await viewModel.submitName("Chapter 2")
+        #expect(await eventually { viewModel.selectedCollection != nil })
+        let chapter = try #require(viewModel.selectedCollection)
+
+        try await collections.delete(id: chapter.id)
+
+        #expect(await eventually { viewModel.collectionID == nil && viewModel.collections.isEmpty })
+    }
+
+    @Test func theTitleKeepsTheNewCollectionsNameAndDropsItWithAllPapers() async throws {
+        let thesis = try await thesis()
+        let viewModel = makeViewModel()
+        #expect(viewModel.collectionTitle == nil)
+        viewModel.showNewCollection()
+        await viewModel.submitName(" Chapter 2 ")
+        #expect(viewModel.collectionTitle == "Chapter 2")
+        #expect(await eventually { viewModel.selectedCollection != nil })
+        #expect(viewModel.collectionTitle == "Chapter 2")
+
+        viewModel.selectCollection(thesis.id)
+        #expect(viewModel.collectionTitle == "Thesis")
+        viewModel.selectCollection(nil)
+        #expect(viewModel.collectionTitle == nil)
+    }
+
+    @Test func aFailedUndoShowsTheMessage() async throws {
+        let thesis = try await thesis()
+        let viewModel = makeViewModel()
+        viewModel.selectCollection(thesis.id)
+        #expect(await eventually { viewModel.papers.count == 2 && viewModel.selectedCollection != nil })
+        await viewModel.removeFromCollection(openAlexID: SamplePapers.bert.openAlexID)
+        #expect(viewModel.pendingCollectionUndo != nil)
+        collections.setFailWrites(true)
+
+        await viewModel.undoCollectionRemoval()
+
+        #expect(viewModel.message == .collectionsUpdateFailed)
+        #expect(viewModel.pendingCollectionUndo == nil)
     }
 
     @Test func aCollectionSwipeInAllPapersDoesNothing() async throws {

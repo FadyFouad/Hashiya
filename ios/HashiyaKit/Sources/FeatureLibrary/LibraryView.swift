@@ -142,7 +142,8 @@ public struct LibraryView: View {
         case .loading, .empty:
             L10n.string("library.title")
         case .emptyCollection, .noMatches, .papers:
-            viewModel.selectedCollection?.name ?? L10n.string("library.allPapers")
+            // A collection the list doesn't have yet keeps its last name, never "All papers" over its contents.
+            viewModel.collectionTitle ?? L10n.string(viewModel.collectionID == nil ? "library.allPapers" : "library.title")
         }
     }
 

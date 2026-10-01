@@ -136,6 +136,8 @@ public final class LibraryViewModel {
     /// A collection just created and selected, not yet in `collections`: the fallback leaves it alone until it appears.
     @ObservationIgnored private var awaitedCollectionID: Int64?
     @ObservationIgnored private var isSubmittingName = false
+    /// The shown collection's last known name, kept for the title while the list doesn't have it (right after Create).
+    @ObservationIgnored private var lastCollectionName: String?
 
     /// - Parameter share: presents the share sheet for the exported file and returns when it closes.
     public init(
@@ -186,6 +188,13 @@ public final class LibraryViewModel {
     /// The selected collection, once the collection list has it.
     public var selectedCollection: PaperCollection? {
         collectionID.flatMap { id in collections.first { $0.id == id } }
+    }
+
+    /// The title's collection name: the shown collection's, or its last known name while the list lacks it; nil for
+    /// All papers, or when the name isn't known yet (a restored selection).
+    public var collectionTitle: String? {
+        guard collectionID != nil else { return nil }
+        return selectedCollection?.name ?? lastCollectionName
     }
 
     /// Export .bib shows when the current view has papers, whatever the search and chip.
@@ -315,6 +324,7 @@ public final class LibraryViewModel {
     private func showCollections(_ list: [PaperCollection]) {
         collections = list
         collectionsLoaded = true
+        lastCollectionName = selectedCollection?.name ?? lastCollectionName
         if let awaited = awaitedCollectionID, list.contains(where: { $0.id == awaited }) {
             awaitedCollectionID = nil
         }
@@ -358,7 +368,9 @@ public final class LibraryViewModel {
             case let .done(id):
                 nameSheet = nil
                 if sheet.mode == .create {
-                    awaitedCollectionID = id
+                    // Not awaited when the list with it was handled before this resumed: nothing would clear it.
+                    awaitedCollectionID = collections.contains { $0.id == id } ? nil : id
+                    lastCollectionName = name.trimmingCharacters(in: .whitespacesAndNewlines)
                     collectionID = id
                     observeFilter()
                 }

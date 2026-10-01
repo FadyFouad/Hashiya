@@ -14,6 +14,8 @@ public struct Paper: Equatable, Hashable, Sendable, Identifiable {
     public var citationCount: Int
     public var isOpenAccess: Bool
     public var openAccessPDFURL: String?
+    /// Bibliographic details for citations. Empty for papers saved before schema v4 until they are refetched.
+    public var publication: PublicationDetails
 
     public var id: String { openAlexID }
 
@@ -27,7 +29,8 @@ public struct Paper: Equatable, Hashable, Sendable, Identifiable {
         abstract: String? = nil,
         citationCount: Int = 0,
         isOpenAccess: Bool = false,
-        openAccessPDFURL: String? = nil
+        openAccessPDFURL: String? = nil,
+        publication: PublicationDetails = PublicationDetails()
     ) {
         self.openAlexID = openAlexID
         self.doi = doi
@@ -39,6 +42,7 @@ public struct Paper: Equatable, Hashable, Sendable, Identifiable {
         self.citationCount = citationCount
         self.isOpenAccess = isOpenAccess
         self.openAccessPDFURL = openAccessPDFURL
+        self.publication = publication
     }
 }
 

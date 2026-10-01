@@ -59,14 +59,22 @@ final class CollectionsFlowTests: XCTestCase {
         }
     }
 
-    /// The share sheet's own close control: a `Close` button where the OS draws one, otherwise the tap-outside region
-    /// of the sheet's popover (iOS 26 exposes only that).
+    /// The share sheet's own close control. iOS 18's sheet has a Close button; iOS 26 shows a popover without one, closed by tapping outside it. Waits for
+    /// either for as long as other steps wait: on a slow CI runner the button can appear seconds after the sheet's rows.
     private func closeShareSheet(in app: XCUIApplication) {
         let close = app.buttons["Close"].firstMatch
-        if close.waitForExistence(timeout: 2) {
+        let outside = app.otherElements["PopoverDismissRegion"].firstMatch
+        let either = XCTNSPredicateExpectation(
+            predicate: NSPredicate { _, _ in close.exists || outside.exists },
+            object: nil
+        )
+        guard XCTWaiter().wait(for: [either], timeout: UITestTimeout.long) == .completed else {
+            return XCTFail("The share sheet showed neither a Close button nor a dismiss region")
+        }
+        if close.exists {
             close.tap()
         } else {
-            app.otherElements["PopoverDismissRegion"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
+            outside.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.1)).tap()
         }
     }
 

@@ -20,10 +20,12 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -66,7 +68,8 @@ class RoomPdfRepositoryTest {
 
     @After
     fun tearDown() {
-        scope.cancel()
+        // Waits for the repository's own coroutines to stop, so none of them touches the closed database or fails in a later test.
+        runBlocking { scope.coroutineContext.job.cancelAndJoin() }
         db.close()
     }
 

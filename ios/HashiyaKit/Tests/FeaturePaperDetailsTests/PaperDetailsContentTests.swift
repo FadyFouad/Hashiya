@@ -34,12 +34,14 @@ struct PaperDetailsContentTests {
         memberIDs: Set<Int64> = [],
         notes: PaperNotes? = PaperNotes(),
         saveState: NotesSaveState = .idle,
-        message: PaperDetailsMessage? = nil
+        message: PaperDetailsMessage? = nil,
+        pdf: PdfRow? = nil
     ) -> PaperDetailsContent {
         PaperDetailsContent(
             paper: LibraryPaper(paper: paper, status: .toRead),
             collections: collections,
             memberIDs: memberIDs,
+            pdf: pdf,
             notes: notes,
             saveState: saveState,
             message: message,
@@ -57,13 +59,45 @@ struct PaperDetailsContentTests {
         #expect(rendered.contains("What is this paper about, in your own words?"))
     }
 
-    @Test func openPDFShowsOnlyWithAPDF() {
+    @Test func thePdfRowReplacesOpenPDF() {
         let attention = renderedStrings(of: content(SamplePapers.attention))
         let bert = renderedStrings(of: content(SamplePapers.bert))
-        #expect(attention.contains("Open PDF"))
+        #expect(!attention.contains("Open PDF"))
+        #expect(attention.contains("PDF available to download"))
+        #expect(attention.contains("Download PDF"))
         #expect(attention.contains("Open DOI"))
-        #expect(!bert.contains("Open PDF"))
+        #expect(bert.contains("No PDF"))
+        #expect(bert.contains("Attach PDF"))
         #expect(bert.contains("Open DOI"))
+    }
+
+    @Test func thePdfRowShowsEachState() {
+        let stored = PaperPdf(source: .attached, sizeBytes: 2_400_000, addedAt: 1)
+        let storedRow = renderedStrings(of: content(SamplePapers.attention, pdf: PdfRow(state: .stored(stored), link: nil)))
+        #expect(storedRow.contains("PDF · 2.4 MB · Attached"))
+
+        let downloading = renderedStrings(of: content(
+            SamplePapers.attention,
+            pdf: PdfRow(state: .downloading(bytes: 1_000_000, total: 4_000_000), link: nil)
+        ))
+        #expect(downloading.contains("1 MB of 4 MB"))
+        #expect(downloading.contains("Cancel"))
+
+        let failed = renderedStrings(of: content(
+            SamplePapers.attention,
+            pdf: PdfRow(state: .failed(.notPDF), link: URL(string: "https://example.org/paper"))
+        ))
+        #expect(failed.contains("Couldn't get the PDF"))
+        #expect(failed.contains("This link opens a web page, not a PDF."))
+        #expect(failed.contains("Try again"))
+        #expect(failed.contains("Open in browser"))
+        #expect(failed.contains("Attach PDF"))
+    }
+
+    @Test func theAttachMessagesShowTheirBanners() {
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .pdfAttachNotPdf)).contains("That file isn't a PDF."))
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .pdfAttachTooLarge)).contains("The PDF is larger than 100 MB."))
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .pdfAttachFailed)).contains("Couldn't read that file."))
     }
 
     @Test func untitledAndNoAbstractRender() {

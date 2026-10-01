@@ -14,6 +14,11 @@ public enum PaperFormat {
         Int64(value).formatted(.number.locale(HashiyaLanguage.locale))
     }
 
+    /// A file's size the way Files shows it, in the language's digits: "2.4 MB", "٢٫٤ م.ب".
+    public static func fileSize(_ bytes: Int64) -> String {
+        bytes.formatted(.byteCount(style: .file).locale(HashiyaLanguage.locale))
+    }
+
     /// A year without grouping: "2024", never "2,024".
     public static func year(_ year: Int) -> String {
         year.formatted(.number.grouping(.never).locale(HashiyaLanguage.locale))

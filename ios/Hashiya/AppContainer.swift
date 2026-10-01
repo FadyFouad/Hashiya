@@ -76,6 +76,7 @@ final class AppContainer {
             pendingWrites: pendingWrites,
             collections: collectionsRepository,
             citations: citationRepository,
+            pdfs: pdfRepository,
             copy: { UIPasteboard.general.string = $0 }
         )
     }

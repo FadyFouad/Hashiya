@@ -10,6 +10,7 @@ struct PaperDetailsViewModelTests {
     private let sleeper = ManualSleeper()
     private let pendingWrites = PendingWrites()
     private let collections = FakeCollectionsRepository()
+    private let pdfs = FakePdfRepository()
     private let clipboard = Clipboard()
     private let id = SamplePapers.attention.openAlexID
 
@@ -31,6 +32,7 @@ struct PaperDetailsViewModelTests {
             pendingWrites: pendingWrites,
             collections: collections,
             citations: citations,
+            pdfs: pdfs,
             copy: { clipboard.texts.append($0) },
             sleep: sleeper.sleep
         )

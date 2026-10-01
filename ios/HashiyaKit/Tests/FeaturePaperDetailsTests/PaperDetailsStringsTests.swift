@@ -26,4 +26,24 @@ struct PaperDetailsStringsTests {
         #expect(inLanguage("ar") { L10n.string("details.copyBibtex") } == "نسخ BibTeX")
         #expect(inLanguage("ar") { L10n.string("details.noCollections") } == "ليست في أي مجموعة")
     }
+
+    @Test func thePdfStringsResolveInBothLanguages() {
+        let keys = [
+            "details.pdf", "details.pdfAvailable", "details.pdfNone", "details.pdfDownload", "details.pdfAttach",
+            "details.pdfReplace", "details.pdfRemove", "details.pdfCancel", "details.pdfProgress", "details.pdfDownloaded",
+            "details.pdfAttached", "details.pdfFailed", "details.pdfOffline", "details.pdfNotPdf", "details.pdfTooLarge",
+            "details.pdfHttp", "details.pdfTryAgain", "details.pdfOpenBrowser", "details.pdfOpenLink",
+            "details.pdfReplaceTitle", "details.pdfRemoveTitle", "details.pdfAttachNotPdf", "details.pdfAttachFailed",
+        ]
+        for key in keys {
+            #expect(inLanguage("en") { L10n.string(key) } != key)
+            #expect(inLanguage("ar") { L10n.string(key) } != inLanguage("en") { L10n.string(key) })
+        }
+        #expect(inLanguage("en") { L10n.format("details.pdfDownloaded", "2.4 MB") } == "PDF · 2.4 MB · Downloaded")
+        // Arabic wraps the argument in bidi isolates (U+2068 … U+2069), as every Arabic format does.
+        #expect(inLanguage("ar") { L10n.format("details.pdfDownloaded", "٢٫٤ م.ب") } == "ملف PDF · \u{2068}٢٫٤ م.ب\u{2069} · مُنزَّل")
+        #expect(inLanguage("en") { L10n.format("details.pdfProgress", "1 MB", "4 MB") } == "1 MB of 4 MB")
+        #expect(inLanguage("ar") { L10n.string("details.pdfNotPdf") } == "يفتح هذا الرابط صفحة ويب وليس ملف PDF.")
+        #expect(inLanguage("en") { L10n.string("details.openPDF") } == "details.openPDF")
+    }
 }

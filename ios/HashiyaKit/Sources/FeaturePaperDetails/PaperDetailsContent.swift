@@ -13,16 +13,18 @@ public struct PaperDetailsActions {
     public var retryLoadNotes: () -> Void = {}
     public var showCollections: () -> Void = {}
     public var copyBibTeX: () -> Void = {}
+    public var pdfAction: (PdfAction) -> Void = { _ in }
 
     public init() {}
 }
 
-/// A loaded paper's Details: the header, the status, the links, the abstract and the notes form, with the banners
-/// and the navigation bar's More options. Put it in a `NavigationStack`.
+/// A loaded paper's Details: the header, the status, the collections, the PDF row, Open DOI, the abstract and the
+/// notes form, with the banners and the navigation bar's More options. Put it in a `NavigationStack`.
 public struct PaperDetailsContent: View {
     private let paper: LibraryPaper
     private let collections: [PaperCollection]
     private let memberIDs: Set<Int64>
+    private let pdf: PdfRow
     private let notes: PaperNotes?
     private let notesVersion: Int
     private let saveState: NotesSaveState
@@ -31,11 +33,13 @@ public struct PaperDetailsContent: View {
 
     /// - Parameters:
     ///   - collections: every collection; the row shows those in `memberIDs`, in this order.
+    ///   - pdf: the PDF row; nil shows the paper with no PDF stored and no download.
     ///   - notes: the notes to seed the fields with; nil shows "Couldn't load your notes" and no fields.
     public init(
         paper: LibraryPaper,
         collections: [PaperCollection] = [],
         memberIDs: Set<Int64> = [],
+        pdf: PdfRow? = nil,
         notes: PaperNotes?,
         notesVersion: Int = 0,
         saveState: NotesSaveState,
@@ -45,6 +49,7 @@ public struct PaperDetailsContent: View {
         self.paper = paper
         self.collections = collections
         self.memberIDs = memberIDs
+        self.pdf = pdf ?? PdfRow(pdf: nil, download: nil, link: paper.paper.openAccessPDFURL.flatMap(URL.init(string:)))
         self.notes = notes
         self.notesVersion = notesVersion
         self.saveState = saveState
@@ -59,6 +64,8 @@ public struct PaperDetailsContent: View {
                 ReadingStatusSelector(status: paper.status, onChange: actions.setStatus)
                     .padding(.top, 20)
                 CollectionsRow(names: collections.filter { memberIDs.contains($0.id) }.map(\.name), action: actions.showCollections)
+                    .padding(.top, 16)
+                PdfRowView(row: pdf, onAction: actions.pdfAction)
                     .padding(.top, 16)
                 links
                 abstract
@@ -100,20 +107,12 @@ public struct PaperDetailsContent: View {
         }
     }
 
+    /// Open DOI; the PDF row above replaces Open PDF.
     @ViewBuilder
     private var links: some View {
-        let doi = paper.paper.doi.flatMap(DOILink.url(for:))
-        let pdf = paper.paper.openAccessPDFURL.flatMap(URL.init(string:))
-        if doi != nil || pdf != nil {
+        if let doi = paper.paper.doi.flatMap(DOILink.url(for:)) {
             HashiyaGlassGroup(spacing: 12) {
-                HStack(spacing: 12) {
-                    if let doi {
-                        linkButton(DesignSystemStrings.openDOI, icon: "arrow.up.forward.square") { actions.openURL(doi) }
-                    }
-                    if let pdf {
-                        linkButton(L10n.string("details.openPDF"), icon: "doc.richtext") { actions.openURL(pdf) }
-                    }
-                }
+                linkButton(DesignSystemStrings.openDOI, icon: "arrow.up.forward.square") { actions.openURL(doi) }
             }
             .controlSize(.large)
             .padding(.top, 16)

@@ -17,6 +17,7 @@ public enum PaperDetailsMessage: Equatable, Sendable {
     case notesSaveFailed, statusUpdateFailed
     case collectionsUpdateFailed
     case bibtexCopied, bibtexIncomplete, copyFailed
+    case pdfAttachNotPdf, pdfAttachTooLarge, pdfAttachFailed
 }
 
 /// Why the screen should go away: the paper stopped being saved, or the user removed it (after its notes saved).
@@ -57,11 +58,26 @@ public final class PaperDetailsViewModel {
     public private(set) var creatingCollection = false
     /// Copy BibTeX is running; another tap is ignored until it ends.
     public private(set) var copying = false
+    /// The stored PDF, as the store has it.
+    public private(set) var storedPdf: PaperPdf?
+    /// A running or failed download, or nil.
+    public private(set) var download: DownloadState?
+    /// Replace or Remove waiting for the user's answer.
+    public var pdfConfirmation: PdfConfirmation?
+    /// The Files picker for Attach and Replace.
+    public var showingFileImporter = false
+    /// The notes are saved and the screen should push the reader; `readerOpened()` resets it.
+    public private(set) var openReader = false
 
     @ObservationIgnored private let library: any LibraryRepository
     @ObservationIgnored private let pendingWrites: PendingWrites
     @ObservationIgnored private let collectionsRepository: any CollectionsRepository
     @ObservationIgnored private let citations: any CitationRepository
+    @ObservationIgnored private let pdfs: any PdfRepository
+    /// The reader was pushed from here; on return, the notes are read again.
+    @ObservationIgnored private var readerShown = false
+    /// Read is saving the notes; another tap is ignored until it ends.
+    @ObservationIgnored private var savingForReader = false
     @ObservationIgnored private let copy: @MainActor (String) -> Void
     @ObservationIgnored private let notesEditor: NotesEditor
     @ObservationIgnored private var hasStarted = false
@@ -74,6 +90,7 @@ public final class PaperDetailsViewModel {
         pendingWrites: PendingWrites,
         collections: any CollectionsRepository,
         citations: any CitationRepository,
+        pdfs: any PdfRepository,
         copy: @escaping @MainActor (String) -> Void,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {
@@ -82,6 +99,7 @@ public final class PaperDetailsViewModel {
         self.pendingWrites = pendingWrites
         self.collectionsRepository = collections
         self.citations = citations
+        self.pdfs = pdfs
         self.copy = copy
         notesEditor = NotesEditor(openAlexID: openAlexID, library: library, pendingWrites: pendingWrites, sleep: sleep)
         notesEditor.onSaveFailed = { [weak self] in self?.message = .notesSaveFailed }
@@ -89,6 +107,11 @@ public final class PaperDetailsViewModel {
 
     /// The paper is in and the notes were read (or failed to be).
     public var isLoaded: Bool { paper != nil && notesLoad != .loading }
+
+    /// The PDF row: the stored file, a running or failed download, and the paper's open-access link.
+    public var pdf: PdfRow {
+        PdfRow(pdf: storedPdf, download: download, link: paper?.paper.openAccessPDFURL.flatMap(URL.init(string:)))
+    }
 
     /// Reads the notes once and follows the paper, the collections and the paper's membership until the paper stops
     /// being saved or the calling task is cancelled. Later calls do nothing.
@@ -100,6 +123,8 @@ public final class PaperDetailsViewModel {
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.followCollections() }
             group.addTask { await self.followMembership() }
+            group.addTask { await self.followPdf() }
+            group.addTask { await self.followDownload() }
             await self.followPaper()
             group.cancelAll()
         }
@@ -125,6 +150,18 @@ public final class PaperDetailsViewModel {
     private func followMembership() async {
         for await ids in collectionsRepository.observeCollectionIDs(openAlexID: openAlexID) {
             memberIDs = ids
+        }
+    }
+
+    private func followPdf() async {
+        for await pdf in pdfs.observePdf(openAlexID: openAlexID) {
+            storedPdf = pdf
+        }
+    }
+
+    private func followDownload() async {
+        for await state in pdfs.observeDownload(openAlexID: openAlexID) {
+            download = state
         }
     }
 
@@ -207,6 +244,82 @@ public final class PaperDetailsViewModel {
             dismissNameSheet()
             message = .collectionsUpdateFailed
         }
+    }
+
+    // MARK: PDF
+
+    /// One of the PDF row's actions. Returns a link for the screen to open in the browser, or nil.
+    public func handle(_ action: PdfAction) -> URL? {
+        switch action {
+        case .read:
+            Task { await readPdf() }
+        case .download, .tryAgain:
+            downloadPdf()
+        case .cancel:
+            cancelPdfDownload()
+        case .attach:
+            showingFileImporter = true
+        case .replace:
+            pdfConfirmation = .replace
+        case .remove:
+            pdfConfirmation = .remove
+        case .openInBrowser, .openLink:
+            return pdf.link
+        }
+        return nil
+    }
+
+    public func downloadPdf() {
+        pdfs.download(openAlexID: openAlexID)
+    }
+
+    public func cancelPdfDownload() {
+        pdfs.cancelDownload(openAlexID: openAlexID)
+    }
+
+    /// Replace confirmed: pick the new file.
+    public func confirmReplace() {
+        pdfConfirmation = nil
+        showingFileImporter = true
+    }
+
+    /// Copies the picked file in, replacing any stored PDF. Says why when it isn't stored; nothing changes then.
+    public func attachPdf(from url: URL) async {
+        switch await pdfs.attach(openAlexID: openAlexID, from: url) {
+        case .done: break
+        case .notPDF: message = .pdfAttachNotPdf
+        case .tooLarge: message = .pdfAttachTooLarge
+        case .unreadable: message = .pdfAttachFailed
+        }
+    }
+
+    /// Remove confirmed. On failure the row keeps showing the stored PDF; the spec has no message for it.
+    public func removePdf() async {
+        pdfConfirmation = nil
+        try? await pdfs.remove(openAlexID: openAlexID)
+    }
+
+    /// Read: saves typed notes first, so the reader's Notes sheet reads them and can never overwrite them with older
+    /// ones. If that save fails, the screen stays with Couldn't save and Retry.
+    public func readPdf() async {
+        guard !openReader, !savingForReader else { return }
+        savingForReader = true
+        defer { savingForReader = false }
+        if await notesEditor.saveNow() { openReader = true }
+    }
+
+    /// The screen pushed the reader.
+    public func readerOpened() {
+        openReader = false
+        readerShown = true
+    }
+
+    /// The screen appeared. After the reader, its Notes sheet may have written the notes: read them again, unless
+    /// something typed here is unsaved.
+    public func onReaderClosed() async {
+        guard readerShown else { return }
+        readerShown = false
+        await notesEditor.reload()
     }
 
     // MARK: Copy BibTeX

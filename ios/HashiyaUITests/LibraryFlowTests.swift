@@ -158,8 +158,8 @@ final class LibraryFlowTests: XCTestCase {
     func testTheLibraryShowsItsLargeTitle() {
         let app = launchApp()
         saveTwoPapers(in: app)
-        XCTAssertTrue(app.navigationBars.staticTexts["Library"].waitForExistence(timeout: UITestTimeout.long))
-        XCTAssertTrue(app.navigationBars.staticTexts["Library"].isHittable)
+        XCTAssertTrue(app.navigationBars.staticTexts["All papers"].waitForExistence(timeout: UITestTimeout.long))
+        XCTAssertTrue(app.navigationBars.staticTexts["All papers"].isHittable)
     }
 
     @MainActor

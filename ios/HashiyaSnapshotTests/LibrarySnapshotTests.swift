@@ -1,4 +1,6 @@
 @testable import FeatureLibrary
+import Foundation
+import HashiyaData
 import HashiyaDesignSystem
 import HashiyaModel
 import HashiyaTesting
@@ -24,20 +26,31 @@ struct LibrarySnapshotTests {
         )
     }
 
+    private func makeViewModel(_ library: FakeLibraryRepository, collections: FakeCollectionsRepository? = nil) -> LibraryViewModel {
+        LibraryViewModel(
+            library: library,
+            collections: collections ?? FakeCollectionsRepository(library: library),
+            citations: FakeCitationRepository(),
+            exportFiles: ExportFiles(directory: FileManager.default.temporaryDirectory.appendingPathComponent("library-snapshots")),
+            share: { _ in },
+            sleep: sleeper.sleep
+        )
+    }
+
     @Test func empty() async {
-        let viewModel = LibraryViewModel(library: FakeLibraryRepository())
+        let viewModel = makeViewModel(FakeLibraryRepository())
         _ = await eventually { viewModel.isLoaded }
         assertHashiyaSnapshots(of: screen(viewModel), named: "empty", arabicText: "الذهاب إلى البحث")
     }
 
     @Test func papersWithChipsAndBadges() async {
-        let viewModel = LibraryViewModel(library: library())
+        let viewModel = makeViewModel(library())
         _ = await eventually { viewModel.papers.count == 4 }
         assertHashiyaSnapshots(of: screen(viewModel), named: "papers", arabicText: "قيد القراءة")
     }
 
     @Test func aFilteredSearch() async {
-        let viewModel = LibraryViewModel(library: library(), sleep: sleeper.sleep)
+        let viewModel = makeViewModel(library())
         viewModel.setStatusFilter(.toRead)
         viewModel.updateText("transformers")
         viewModel.submitNow()
@@ -46,7 +59,7 @@ struct LibrarySnapshotTests {
     }
 
     @Test func noMatches() async {
-        let viewModel = LibraryViewModel(library: library(), sleep: sleeper.sleep)
+        let viewModel = makeViewModel(library())
         viewModel.updateText("quantum")
         viewModel.submitNow()
         _ = await eventually { viewModel.state != .loading && viewModel.papers.isEmpty }
@@ -68,7 +81,7 @@ struct LibrarySnapshotTests {
     }
 
     @Test func undoBanner() async {
-        let viewModel = LibraryViewModel(library: FakeLibraryRepository(saved: [SamplePapers.attention, SamplePapers.bert]))
+        let viewModel = makeViewModel(FakeLibraryRepository(saved: [SamplePapers.attention, SamplePapers.bert]))
         _ = await eventually { viewModel.papers.count == 2 }
         await viewModel.remove(SamplePapers.bert)
         _ = await eventually { viewModel.papers.count == 1 }
@@ -78,9 +91,49 @@ struct LibrarySnapshotTests {
     @Test func statusUpdateFailedBanner() async {
         let library = library()
         library.setFailStatusUpdates(true)
-        let viewModel = LibraryViewModel(library: library)
+        let viewModel = makeViewModel(library)
         _ = await eventually { viewModel.papers.count == 4 }
         await viewModel.setStatus(of: SamplePapers.vit, to: .read)
         assertHashiyaSnapshots(of: screen(viewModel), named: "statusFailed", arabicText: "تعذّر تحديث الحالة")
+    }
+
+    @Test func aCollection() async throws {
+        let library = library()
+        let collections = FakeCollectionsRepository(library: library)
+        guard case let .done(id) = try await collections.create(name: "Thesis") else { return }
+        try await collections.setMembership(collectionID: id, openAlexID: SamplePapers.attention.openAlexID, member: true)
+        try await collections.setMembership(collectionID: id, openAlexID: SamplePapers.arabicTitled.openAlexID, member: true)
+        let viewModel = makeViewModel(library, collections: collections)
+        viewModel.selectCollection(id)
+        _ = await eventually { viewModel.papers.count == 2 && viewModel.selectedCollection != nil }
+        assertHashiyaSnapshots(of: screen(viewModel), named: "collection", arabicText: "قيد القراءة")
+    }
+
+    @Test func anEmptyCollection() async throws {
+        let library = library()
+        let collections = FakeCollectionsRepository(library: library)
+        guard case let .done(id) = try await collections.create(name: "Thesis") else { return }
+        let viewModel = makeViewModel(library, collections: collections)
+        viewModel.selectCollection(id)
+        _ = await eventually { viewModel.state == .emptyCollection && viewModel.selectedCollection != nil }
+        assertHashiyaSnapshots(
+            of: screen(viewModel),
+            named: "collectionEmpty",
+            arabicText: "لا توجد أوراق في هذه المجموعة بعد. أضف الأوراق من شاشة تفاصيلها."
+        )
+    }
+
+    @Test func removedFromCollectionBanner() async throws {
+        let library = library()
+        let collections = FakeCollectionsRepository(library: library)
+        guard case let .done(id) = try await collections.create(name: "Thesis") else { return }
+        try await collections.setMembership(collectionID: id, openAlexID: SamplePapers.attention.openAlexID, member: true)
+        try await collections.setMembership(collectionID: id, openAlexID: SamplePapers.vit.openAlexID, member: true)
+        let viewModel = makeViewModel(library, collections: collections)
+        viewModel.selectCollection(id)
+        _ = await eventually { viewModel.papers.count == 2 && viewModel.selectedCollection != nil }
+        await viewModel.removeFromCollection(openAlexID: SamplePapers.vit.openAlexID)
+        _ = await eventually { viewModel.papers.count == 1 }
+        assertHashiyaSnapshots(of: screen(viewModel), named: "removedFromCollection", arabicText: "تراجع")
     }
 }

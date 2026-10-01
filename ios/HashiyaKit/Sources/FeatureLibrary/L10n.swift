@@ -39,4 +39,30 @@ enum L10n {
         }
         return [author, paper.year.map(PaperFormat.year), paper.venue].compactMap { $0 }.joined(separator: " · ")
     }
+
+    /// A collection's name inside a sentence, isolated (FSI…PDI) so an Arabic name in the English UI keeps its place.
+    /// Arabic formatting isolates every argument itself, so Arabic gets the name as it is.
+    static func isolated(_ name: String) -> String {
+        HashiyaLanguage.isArabic ? name : "\u{2068}" + name + "\u{2069}"
+    }
+
+    /// The Undo banner after a swipe in a collection: "Removed from Thesis".
+    static func removedFromCollection(_ name: String) -> String {
+        format("library.removedFromCollection", isolated(name))
+    }
+
+    /// The title menu's Rename item: "Rename "Thesis"".
+    static func renameCollection(_ name: String) -> String {
+        format("library.renameCollection", isolated(name))
+    }
+
+    /// The title menu's Delete item: "Delete "Thesis"…".
+    static func deleteCollection(_ name: String) -> String {
+        format("library.deleteCollection", isolated(name))
+    }
+
+    /// The delete confirmation's title: "Delete "Thesis"?".
+    static func deleteCollectionTitle(_ name: String) -> String {
+        format("library.deleteCollectionTitle", isolated(name))
+    }
 }

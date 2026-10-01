@@ -14,6 +14,10 @@ final class AppContainer {
     let lookupRepository: any PaperLookupRepository
     let preferences: any UserPreferencesRepository
     let appUpdateRepository: any AppUpdateRepository
+    let collectionsRepository: any CollectionsRepository
+    let citationRepository: any CitationRepository
+    /// Where Export .bib writes its file before sharing it.
+    let exportFiles: ExportFiles
     /// Note writes the app waits for before it suspends the shared database in the background.
     let pendingWrites = PendingWrites()
 
@@ -22,6 +26,9 @@ final class AppContainer {
         searchRepository = dependencies.searchRepository
         lookupRepository = dependencies.lookupRepository
         preferences = dependencies.preferences
+        collectionsRepository = dependencies.collections
+        citationRepository = dependencies.citations
+        exportFiles = dependencies.exportFiles
         self.appUpdateRepository = appUpdateRepository
     }
 
@@ -48,7 +55,13 @@ final class AppContainer {
     }
 
     func makeLibraryViewModel() -> LibraryViewModel {
-        LibraryViewModel(library: libraryRepository)
+        LibraryViewModel(
+            library: libraryRepository,
+            collections: collectionsRepository,
+            citations: citationRepository,
+            exportFiles: exportFiles,
+            share: { await ShareSheet.present(fileURL: $0) }
+        )
     }
 
     func makePaperDetailsViewModel(openAlexID: String) -> PaperDetailsViewModel {

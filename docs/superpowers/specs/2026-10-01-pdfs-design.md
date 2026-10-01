@@ -280,3 +280,5 @@ The plan lists the departures decided while planning. These were made while buil
 - **The startup sweep waits for downloads and attaches in progress.** A store that is writing its temporary file, or has stored a file but not yet recorded it, would otherwise lose it to the sweep. The sweep holds back new stores while it waits, so it can't miss one.
 - **A cancelled download can't clear the state of one started after it.** Each download only reports state while it's still the paper's current download.
 - **A stored file is synced to disk before it's renamed into place**, so a power loss right after the rename can't leave a partial `<id>.pdf`.
+- **Pages render sharper only up to 2.5× zoom.** Past that the page bitmap is scaled rather than rendered again, which keeps each page within the memory budget; §7's 4× zoom still applies to the view.
+- **The English file counts have singular forms** ("1 file", "Delete 1 downloaded PDF?") next to §10's plural ones.

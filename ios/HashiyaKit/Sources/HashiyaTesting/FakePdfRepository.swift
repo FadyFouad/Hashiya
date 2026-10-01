@@ -107,9 +107,15 @@ public final class FakePdfRepository: PdfRepository {
         }
     }
 
-    /// Records the call; tests drive what follows with `setDownload` and `setPdf`.
+    /// Records the call and, like the real one, shows `.running(bytes: 0, total: nil)` unless a download is already running
+    /// (a running state set with `setDownload` stays). Tests drive what follows with `setDownload` and `setPdf`.
     public func download(openAlexID: String) {
-        state.update { $0.downloads.append(openAlexID) }
+        state.update { state in
+            state.downloads.append(openAlexID)
+            if case .running = state.downloadStates[openAlexID] { return }
+            state.downloadStates[openAlexID] = .running(bytes: 0, total: nil)
+            state.publishDownload(openAlexID)
+        }
     }
 
     public func cancelDownload(openAlexID: String) {
@@ -133,8 +139,13 @@ public final class FakePdfRepository: PdfRepository {
         }
     }
 
+    /// Like the real one, stops the paper's download first (its state clears), even when the write then fails.
     public func remove(openAlexID: String) async throws {
         try state.update { state in
+            if state.downloadStates[openAlexID] != nil {
+                state.downloadStates[openAlexID] = nil
+                state.publishDownload(openAlexID)
+            }
             if state.failWrites { throw Failure() }
             state.removals.append(openAlexID)
             state.pdfs[openAlexID] = nil

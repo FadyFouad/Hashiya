@@ -355,17 +355,23 @@ struct GRDBPdfRepositoryTests {
 
     @Test func backgroundExpiryCancelsAndCleansUp() async throws {
         try await library.save(paper("W1"))
-        downloader.hold()
+        // Expiry interrupts a store mid-write: its `.part` file exists.
+        downloader.holdBodies()
         repository.download(openAlexID: "W1")
-        #expect(await eventually { downloader.urls.count == 1 && background.grants == 1 })
+        #expect(await eventually { names().contains { $0.hasSuffix(".part") } && background.grants == 1 })
 
         background.expire()
-        downloader.release()
 
         #expect(await awaitDownload("W1") { $0 == nil } != nil)
-        #expect(await repository.pdfFile(openAlexID: "W1") == nil)
         #expect(await eventually { background.endCount == 1 })
-        #expect(!names().contains { $0.hasSuffix(".part") || $0.hasSuffix(".pdf") })
+        #expect(await repository.pdfFile(openAlexID: "W1") == nil)
+        #expect(names().isEmpty)
+
+        // Nothing is left running: the paper can be downloaded again.
+        downloader.releaseBodies()
+        repository.download(openAlexID: "W1")
+        #expect(await awaitStored("W1") != nil)
+        #expect(names() == ["local-1.pdf"])
     }
 
     @Test func aFinishedDownloadEndsItsBackgroundTime() async throws {
@@ -379,15 +385,16 @@ struct GRDBPdfRepositoryTests {
 
     @Test func removingAPaperCancelsItsDownload() async throws {
         try await library.save(paper("W1"))
-        downloader.hold()
+        // The body never finishes on its own: only cancelling ends the store.
+        downloader.holdBodies()
         repository.download(openAlexID: "W1")
-        #expect(await eventually { downloader.urls.count == 1 })
+        #expect(await eventually { names().contains { $0.hasSuffix(".part") } })
 
         _ = try await library.remove(openAlexID: "W1")
-        downloader.release()
 
         #expect(await awaitDownload("W1") { $0 == nil } != nil)
-        #expect(names().isEmpty)
+        #expect(await eventually { names().isEmpty })
+        downloader.releaseBodies()
     }
 
     @Test func attachStoresTheFileAsAttached() async throws {
@@ -494,6 +501,25 @@ struct GRDBPdfRepositoryTests {
         #expect(names() == ["local-1.pdf"])
 
         // A final removal: the file goes.
+        let final = try #require(try await library.remove(openAlexID: "W1"))
+        await repository.discardRemoved(final)
+        #expect(names().isEmpty)
+    }
+
+    @Test func aRemovalRightAfterADownloadKeepsTheFileForUndo() async throws {
+        try await library.save(paper("W1"))
+        repository.download(openAlexID: "W1")
+        #expect(await awaitStored("W1")?.source == .downloaded)
+
+        let removed = try #require(try await library.remove(openAlexID: "W1"))
+        #expect(removed.pdf?.source == .downloaded)
+        #expect(await awaitDownload("W1") { $0 == nil } != nil)
+        #expect(names() == ["local-1.pdf"])
+
+        try await library.restore(removed)
+        #expect(await awaitStored("W1")?.source == .downloaded)
+        #expect(try Data(contentsOf: #require(await repository.pdfFile(openAlexID: "W1"))) == Self.pdf)
+
         let final = try #require(try await library.remove(openAlexID: "W1"))
         await repository.discardRemoved(final)
         #expect(names().isEmpty)

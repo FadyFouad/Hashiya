@@ -30,6 +30,39 @@ struct FakePdfRepositoryTests {
         #expect(await fake.pdfFile(openAlexID: "W1") == nil)
     }
 
+    @Test func downloadShowsRunningUnlessOneIsAlreadyRunning() async {
+        let fake = FakePdfRepository()
+        var downloads = fake.observeDownload(openAlexID: "W1").makeAsyncIterator()
+        #expect(await downloads.next() == .some(nil))
+
+        fake.download(openAlexID: "W1")
+        #expect(await downloads.next() == .some(.running(bytes: 0, total: nil)))
+
+        fake.setDownload("W1", .running(bytes: 3, total: 10))
+        #expect(await downloads.next() == .some(.running(bytes: 3, total: 10)))
+        fake.download(openAlexID: "W1")
+
+        fake.setDownload("W1", .failed(.offline))
+        #expect(await downloads.next() == .some(.failed(.offline)))
+        // Try again after a failure starts over.
+        fake.download(openAlexID: "W1")
+        #expect(await downloads.next() == .some(.running(bytes: 0, total: nil)))
+        #expect(fake.downloads == ["W1", "W1", "W1"])
+    }
+
+    @Test func removeStopsTheDownloadEvenWhenTheWriteFails() async {
+        let fake = FakePdfRepository()
+        fake.setPdf("W1", PaperPdf(source: .downloaded, sizeBytes: 1, addedAt: 1))
+        fake.setDownload("W1", .running(bytes: 1, total: 2))
+        fake.setFailWrites(true)
+
+        await #expect(throws: FakePdfRepository.Failure.self) { try await fake.remove(openAlexID: "W1") }
+
+        var downloads = fake.observeDownload(openAlexID: "W1").makeAsyncIterator()
+        #expect(await downloads.next() == .some(nil))
+        #expect(fake.removals.isEmpty)
+    }
+
     @Test func pdfFileHasAPlaceholderWhileAPdfIsSet() async {
         let fake = FakePdfRepository()
         fake.setPdf("W1", PaperPdf(source: .attached, sizeBytes: 1, addedAt: 1))

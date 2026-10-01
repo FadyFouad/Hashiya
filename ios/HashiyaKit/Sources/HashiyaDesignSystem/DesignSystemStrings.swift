@@ -7,6 +7,9 @@ public enum DesignSystemStrings {
     public static var openDOI: String { L10n.string("designsystem.openDOI") }
     public static var removeFromLibrary: String { L10n.string("designsystem.removeFromLibrary") }
 
+    /// The name sheet's error, which the Library and Details pass back on a clash.
+    public static var collectionNameTaken: String { L10n.string("collection.nameTaken") }
+
     /// The open-access badge: "Open access", or "Open access · PDF available" when there is a PDF.
     public static func openAccess(hasPDF: Bool) -> String {
         L10n.string(hasPDF ? "designsystem.openAccessPDF" : "designsystem.openAccess")

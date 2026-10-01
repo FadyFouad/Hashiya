@@ -92,3 +92,14 @@ internal val MIGRATION_3_4: Migration = object : Migration(3, 4) {
         db.execSQL("CREATE INDEX IF NOT EXISTS `index_collection_papers_paper_id` ON `collection_papers` (`paper_id`)")
     }
 }
+
+/** Adds the stored PDF of a saved paper. Every existing paper starts with none; nothing is rewritten. */
+internal val MIGRATION_4_5: Migration = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // Types as Room declares them for the nullable entity fields (schemas/…/5.json), so the schema validates.
+        db.execSQL("ALTER TABLE papers ADD COLUMN `pdf_source` TEXT")
+        db.execSQL("ALTER TABLE papers ADD COLUMN `pdf_size` INTEGER")
+        db.execSQL("ALTER TABLE papers ADD COLUMN `pdf_added_at` INTEGER")
+        db.execSQL("ALTER TABLE papers ADD COLUMN `pdf_last_page` INTEGER")
+    }
+}

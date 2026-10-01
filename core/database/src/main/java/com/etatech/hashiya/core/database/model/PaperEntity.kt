@@ -40,5 +40,14 @@ data class PaperEntity(
     /** Assigned the first time the paper is exported or copied, then never changed. */
     @ColumnInfo(name = "cite_key") val citeKey: String? = null,
     /** True once the columns above come from an OpenAlex response that included them; rows from before v4 start false. */
-    @ColumnInfo(name = "details_fetched", defaultValue = "0") val detailsFetched: Boolean = false
+    @ColumnInfo(name = "details_fetched", defaultValue = "0") val detailsFetched: Boolean = false,
+    /**
+     * "downloaded" or "attached" ([PDF_SOURCE_DOWNLOADED], [PDF_SOURCE_ATTACHED]); null when no PDF is stored.
+     * The four pdf_ columns are set and cleared together.
+     */
+    @ColumnInfo(name = "pdf_source") val pdfSource: String? = null,
+    @ColumnInfo(name = "pdf_size") val pdfSize: Long? = null,
+    @ColumnInfo(name = "pdf_added_at") val pdfAddedAt: Long? = null,
+    /** Zero-based page the reader last showed. */
+    @ColumnInfo(name = "pdf_last_page") val pdfLastPage: Int? = null
 )

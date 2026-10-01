@@ -25,7 +25,7 @@ internal class RoomLibraryRepository(private val paperDao: PaperDao, private val
 
     override fun observeLibrary(query: String, status: ReadingStatus?, collectionId: Long?): Flow<List<LibraryPaper>> =
         paperDao.observeLibrary(ftsMatch(query), status?.storedValue, collectionId).map { rows ->
-            rows.map { LibraryPaper(it.asPaper(), readingStatusOf(it.paper.readingStatus)) }
+            rows.map { LibraryPaper(it.asPaper(), readingStatusOf(it.paper.readingStatus), hasPdf = it.paper.pdfSource != null) }
         }
 
     override fun observeStatusCounts(query: String, collectionId: Long?): Flow<Map<ReadingStatus, Int>> =

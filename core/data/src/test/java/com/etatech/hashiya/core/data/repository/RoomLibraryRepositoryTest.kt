@@ -364,4 +364,18 @@ class RoomLibraryRepositoryTest {
         assertEquals(setOf("W1", "W2"), repository.observeSavedIds().first())
         assertNull(checkNotNull(db.citationDao().getPaper("W1")).paper.citeKey)
     }
+
+    @Test
+    fun aPaperWithAStoredPdfIsMarkedInTheLibrary() = runTest {
+        repository.save(paper("W1"))
+        repository.save(paper("W2"))
+        val dao = db.paperDao()
+
+        dao.setPdf(checkNotNull(dao.paperIdFor("W1")), "downloaded", size = 10, addedAt = 1)
+
+        assertEquals(
+            listOf("W2" to false, "W1" to true),
+            repository.observeLibrary("", null).first().map { it.paper.openAlexId to it.hasPdf }
+        )
+    }
 }

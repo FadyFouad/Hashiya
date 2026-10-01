@@ -6,6 +6,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import com.etatech.hashiya.core.database.HashiyaDatabase
+import com.etatech.hashiya.core.database.model.PDF_SOURCE_DOWNLOADED
+import com.etatech.hashiya.core.database.model.PdfColumns
 import com.etatech.hashiya.core.model.PaperNotes
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -99,9 +101,47 @@ class MigrationTest {
         }
     }
 
+    /**
+     * A version 4 library as sub-project 5 left it: paper a with a status, a note, publication details, a cite key and a
+     * collection; paper b bare and never fetched.
+     */
+    private fun createVersion4() {
+        helper.createDatabase(DB_NAME, 4).use { db ->
+            db.execSQL(
+                "INSERT INTO papers (id, open_alex_id, doi, title, year, venue, abstract, citation_count, is_open_access, " +
+                    "oa_pdf_url, saved_at, reading_status, work_type, source_type, publisher, volume, issue, first_page, last_page, " +
+                    "cite_key, details_fetched) VALUES ('a', 'W1', '10.48550/arxiv.1706.03762', 'Attention Is All You Need', 2017, " +
+                    "'Neural Information Processing Systems', 'The dominant sequence transduction models', 128412, 1, " +
+                    "'https://arxiv.org/pdf/1706.03762', 100, 'reading', 'article', 'conference', NULL, '30', NULL, '5998', '6008', " +
+                    "'vaswani2017attention', 1)"
+            )
+            db.execSQL("INSERT INTO paper_authors (paper_id, position, name, open_alex_author_id) VALUES ('a', 0, 'Ashish Vaswani', NULL)")
+            db.execSQL(
+                "INSERT INTO papers (id, open_alex_id, doi, title, year, venue, abstract, citation_count, is_open_access, " +
+                    "oa_pdf_url, saved_at, reading_status) VALUES ('b', 'W2', NULL, 'تطبيقات التَّعلُّم العميق', NULL, NULL, NULL, 0, 0, " +
+                    "NULL, 200, 'to_read')"
+            )
+            db.execSQL(
+                "INSERT INTO paper_notes (paper_id, summary, research_question, method, key_findings, limitations, thoughts, updated_at) " +
+                    "VALUES ('a', 'Transformers', '', 'Ablation study', '', '', '', 5)"
+            )
+            db.execSQL(
+                "INSERT INTO paper_search (paper_id, title, authors, abstract, venue, notes) VALUES ('a', 'attention is all you need', " +
+                    "'ashish vaswani', 'the dominant sequence transduction models', 'neural information processing systems', " +
+                    "'transformers ablation study')"
+            )
+            db.execSQL(
+                "INSERT INTO paper_search (paper_id, title, authors, abstract, venue, notes) " +
+                    "VALUES ('b', 'تطبيقات التعلم العميق', '', '', '', '')"
+            )
+            db.execSQL("INSERT INTO collections (id, name, name_key, created_at) VALUES (1, 'Thesis', 'thesis', 7)")
+            db.execSQL("INSERT INTO collection_papers (collection_id, paper_id, added_at) VALUES (1, 'a', 8)")
+        }
+    }
+
     private fun openWithRoom(): HashiyaDatabase =
         Room.databaseBuilder(ApplicationProvider.getApplicationContext(), HashiyaDatabase::class.java, DB_NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .allowMainThreadQueries()
             .build()
 
@@ -247,6 +287,70 @@ class MigrationTest {
             assertEquals(
                 listOf("a:to_read:0", "b:to_read:0"),
                 db.strings("SELECT id || ':' || reading_status || ':' || details_fetched FROM papers ORDER BY id")
+            )
+        }
+    }
+
+    @Test
+    fun migration4To5KeepsEverythingAndValidatesAgainstVersion5Schema() {
+        createVersion4()
+
+        // Validates every table and index against 5.json, so the four pdf_ columns must match Room's entity exactly.
+        helper.runMigrationsAndValidate(DB_NAME, 5, true, MIGRATION_4_5).use { db ->
+            assertEquals(listOf("a:reading", "b:to_read"), db.strings("SELECT id || ':' || reading_status FROM papers ORDER BY id"))
+            assertEquals(
+                listOf("a:vaswani2017attention:1:30", "b:-:0:-"),
+                db.strings(
+                    "SELECT id || ':' || COALESCE(cite_key, '-') || ':' || details_fetched || ':' || COALESCE(volume, '-') " +
+                        "FROM papers ORDER BY id"
+                )
+            )
+            assertEquals(listOf("Ablation study"), db.strings("SELECT method FROM paper_notes"))
+            assertEquals(listOf("1:a:8"), db.strings("SELECT collection_id || ':' || paper_id || ':' || added_at FROM collection_papers"))
+            assertEquals(
+                listOf("a:transformers ablation study", "b:"),
+                db.strings("SELECT paper_id || ':' || notes FROM paper_search ORDER BY paper_id")
+            )
+            assertEquals(
+                listOf("a:1", "b:1"),
+                db.strings(
+                    "SELECT id || ':' || (pdf_source IS NULL AND pdf_size IS NULL AND pdf_added_at IS NULL AND pdf_last_page IS NULL) " +
+                        "FROM papers ORDER BY id"
+                )
+            )
+        }
+    }
+
+    @Test
+    fun libraryMigratedFromVersion4IsSearchableHasNoPdfsAndTakesOne() = runTest {
+        createVersion4()
+        helper.runMigrationsAndValidate(DB_NAME, 5, true, MIGRATION_4_5).close()
+
+        val database = openWithRoom()
+        try {
+            val dao = database.paperDao()
+            assertEquals(listOf("a"), dao.observeLibrary("\"ablation*\"", null, 1L).first().map { it.paper.id })
+            assertEquals(listOf(null, null), dao.observeLibrary(null, null, null).first().map { it.paper.pdfSource })
+            assertEquals(null, dao.observePdf("W1").first())
+
+            dao.setPdf(checkNotNull(dao.paperIdFor("W1")), PDF_SOURCE_DOWNLOADED, size = 2_400_000, addedAt = 9)
+
+            assertEquals(PdfColumns(PDF_SOURCE_DOWNLOADED, 2_400_000, 9, 0), dao.observePdf("W1").first())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun version1LibraryMigratesAllTheWayToVersion5() {
+        createVersion1()
+
+        helper.runMigrationsAndValidate(DB_NAME, 5, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5).use { db ->
+            assertEquals(
+                listOf("a:to_read:0:1", "b:to_read:0:1"),
+                db.strings(
+                    "SELECT id || ':' || reading_status || ':' || details_fetched || ':' || (pdf_source IS NULL) FROM papers ORDER BY id"
+                )
             )
         }
     }

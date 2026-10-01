@@ -13,6 +13,8 @@ import com.etatech.hashiya.core.database.model.PaperEntity
 import com.etatech.hashiya.core.database.model.PaperNotesEntity
 import com.etatech.hashiya.core.database.model.PaperSearchEntity
 import com.etatech.hashiya.core.database.model.PaperWithAuthors
+import com.etatech.hashiya.core.database.model.PdfColumns
+import com.etatech.hashiya.core.database.model.PdfStorageRow
 import com.etatech.hashiya.core.database.model.StatusCount
 import com.etatech.hashiya.core.database.model.asEntity
 import com.etatech.hashiya.core.database.model.notesSearchText
@@ -72,6 +74,54 @@ abstract class PaperDao {
     /** Returns the number of papers changed: 0 when the paper isn't saved. The search index is not touched. */
     @Query("UPDATE papers SET reading_status = :status WHERE open_alex_id = :openAlexId")
     abstract suspend fun setStatus(openAlexId: String, status: String): Int
+
+    /** The local id of a saved paper; PDF files are named after it. Null when the paper isn't saved. */
+    @Query("SELECT id FROM papers WHERE open_alex_id = :openAlexId")
+    abstract suspend fun paperIdFor(openAlexId: String): String?
+
+    /** The paper's stored PDF; null when it has none or isn't saved. */
+    @Query(
+        """
+        SELECT pdf_source AS source, pdf_size AS size, pdf_added_at AS addedAt, COALESCE(pdf_last_page, 0) AS lastPage
+        FROM papers WHERE open_alex_id = :openAlexId AND pdf_source IS NOT NULL
+        """
+    )
+    abstract fun observePdf(openAlexId: String): Flow<PdfColumns?>
+
+    /** Records a newly stored PDF, starting on its first page. Does nothing when [paperId] isn't saved. */
+    @Query(
+        """
+        UPDATE papers SET pdf_source = :source, pdf_size = :size, pdf_added_at = :addedAt, pdf_last_page = 0
+        WHERE id = :paperId
+        """
+    )
+    abstract suspend fun setPdf(paperId: String, source: String, size: Long, addedAt: Long)
+
+    @Query("UPDATE papers SET pdf_source = NULL, pdf_size = NULL, pdf_added_at = NULL, pdf_last_page = NULL WHERE id = :paperId")
+    abstract suspend fun clearPdf(paperId: String)
+
+    @Query("UPDATE papers SET pdf_last_page = :page WHERE id = :paperId AND pdf_source IS NOT NULL")
+    abstract suspend fun setPdfLastPage(paperId: String, page: Int)
+
+    /** Every paper with a stored PDF, for the startup sweep of orphaned files. */
+    @Query("SELECT id FROM papers WHERE pdf_source IS NOT NULL")
+    abstract suspend fun pdfPaperIds(): List<String>
+
+    @Query("SELECT id FROM papers WHERE pdf_source = 'downloaded'")
+    abstract suspend fun downloadedPdfPaperIds(): List<String>
+
+    /** Bytes and counts of stored PDFs by source; sources other than "downloaded" count as attached, like [pdfSourceOf]. */
+    @Query(
+        """
+        SELECT
+          COALESCE(SUM(CASE WHEN pdf_source = 'downloaded' THEN pdf_size END), 0) AS downloadedBytes,
+          COUNT(CASE WHEN pdf_source = 'downloaded' THEN 1 END) AS downloadedCount,
+          COALESCE(SUM(CASE WHEN pdf_source IS NOT NULL AND pdf_source != 'downloaded' THEN pdf_size END), 0) AS attachedBytes,
+          COUNT(CASE WHEN pdf_source IS NOT NULL AND pdf_source != 'downloaded' THEN 1 END) AS attachedCount
+        FROM papers
+        """
+    )
+    abstract suspend fun pdfStorage(): PdfStorageRow
 
     // Building blocks of the transactions below; protected so a paper is never written without its authors, search row and notes.
     @Insert(onConflict = OnConflictStrategy.IGNORE)

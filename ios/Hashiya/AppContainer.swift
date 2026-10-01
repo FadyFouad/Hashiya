@@ -65,6 +65,7 @@ final class AppContainer {
             library: libraryRepository,
             collections: collectionsRepository,
             citations: citationRepository,
+            pdfs: pdfRepository,
             exportFiles: exportFiles,
             share: { await ShareSheet.present(fileURL: $0) }
         )
@@ -95,7 +96,7 @@ final class AppContainer {
     }
 
     func makeSettingsViewModel() -> SettingsViewModel {
-        SettingsViewModel(preferences: preferences)
+        SettingsViewModel(preferences: preferences, pdfs: pdfRepository)
     }
 
     func makeAppUpdateModel() -> AppUpdateModel {

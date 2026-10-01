@@ -16,6 +16,7 @@ public final class FakeLibraryRepository: LibraryRepository {
         var savedAt: Int64
         var status: ReadingStatus
         var notes: PaperNotes
+        var pdf: PaperPdf?
     }
 
     private struct Subscription {
@@ -53,7 +54,7 @@ public final class FakeLibraryRepository: LibraryRepository {
 
         /// Newest saved first.
         var sorted: [Entry] { entries.sorted { $0.savedAt > $1.savedAt } }
-        var library: [LibraryPaper] { sorted.map { LibraryPaper(paper: $0.paper, status: $0.status) } }
+        var library: [LibraryPaper] { sorted.map { LibraryPaper(paper: $0.paper, status: $0.status, hasPdf: $0.pdf != nil) } }
         var ids: Set<String> { Set(entries.map(\.paper.openAlexID)) }
 
         func inView(_ entry: Entry, collectionID: Int64?) -> Bool {
@@ -65,7 +66,7 @@ public final class FakeLibraryRepository: LibraryRepository {
             let view = sorted.filter { inView($0, collectionID: collectionID) }
             let matching = view
                 .filter { FakeLibraryRepository.matches($0.paper, notes: $0.notes, query: query) }
-                .map { LibraryPaper(paper: $0.paper, status: $0.status) }
+                .map { LibraryPaper(paper: $0.paper, status: $0.status, hasPdf: $0.pdf != nil) }
             var counts = Dictionary(uniqueKeysWithValues: ReadingStatus.allCases.map { ($0, 0) })
             for paper in matching {
                 counts[paper.status, default: 0] += 1
@@ -79,7 +80,7 @@ public final class FakeLibraryRepository: LibraryRepository {
         }
 
         func paper(_ openAlexID: String) -> LibraryPaper? {
-            entries.first { $0.paper.openAlexID == openAlexID }.map { LibraryPaper(paper: $0.paper, status: $0.status) }
+            entries.first { $0.paper.openAlexID == openAlexID }.map { LibraryPaper(paper: $0.paper, status: $0.status, hasPdf: $0.pdf != nil) }
         }
 
         /// Queues the emissions; `update` yields them once the lock is released (see `DeferredYields`).
@@ -110,12 +111,13 @@ public final class FakeLibraryRepository: LibraryRepository {
     private let state = OSAllocatedUnfairLock(initialState: State())
 
     /// `saved` is the initial library, newest first; `statuses` gives some of them a status by OpenAlex ID (else To
-    /// read), `notes` some notes, and `collectionMembers` the OpenAlex IDs in each collection.
+    /// read), `notes` some notes, `collectionMembers` the OpenAlex IDs in each collection and `pdfs` some a PDF.
     public init(
         saved: [Paper] = [],
         statuses: [String: ReadingStatus] = [:],
         notes: [String: PaperNotes] = [:],
-        collectionMembers: [Int64: Set<String>] = [:]
+        collectionMembers: [Int64: Set<String>] = [:],
+        pdfs: [String: PaperPdf] = [:]
     ) {
         state.update { state in
             for paper in saved.reversed() {
@@ -125,7 +127,8 @@ public final class FakeLibraryRepository: LibraryRepository {
                     localID: "local-\(paper.openAlexID)",
                     savedAt: state.clock,
                     status: statuses[paper.openAlexID] ?? .toRead,
-                    notes: notes[paper.openAlexID] ?? PaperNotes()
+                    notes: notes[paper.openAlexID] ?? PaperNotes(),
+                    pdf: pdfs[paper.openAlexID]
                 ))
             }
             state.collectionMembers = collectionMembers.filter { !$0.value.isEmpty }
@@ -168,6 +171,15 @@ public final class FakeLibraryRepository: LibraryRepository {
         state.update { state in
             guard !member || state.ids.contains(openAlexID) else { return }
             state.setMembership(collectionID: collectionID, openAlexID: openAlexID, member: member)
+            state.publish()
+        }
+    }
+
+    /// Sets or clears a saved paper's PDF and re-emits, as a download, attach or removal would.
+    public func setPdf(openAlexID: String, _ pdf: PaperPdf?) {
+        state.update { state in
+            guard let index = state.entries.firstIndex(where: { $0.paper.openAlexID == openAlexID }) else { return }
+            state.entries[index].pdf = pdf
             state.publish()
         }
     }
@@ -316,7 +328,8 @@ public final class FakeLibraryRepository: LibraryRepository {
                 savedAt: entry.savedAt,
                 status: entry.status,
                 notes: entry.notes,
-                collectionIDs: collectionIDs
+                collectionIDs: collectionIDs,
+                pdf: entry.pdf
             )
         }
     }
@@ -333,7 +346,8 @@ public final class FakeLibraryRepository: LibraryRepository {
             if state.failSaves { throw Failure() }
             guard !state.ids.contains(removed.paper.openAlexID) else { return }
             state.entries.append(Entry(
-                paper: removed.paper, localID: removed.localID, savedAt: removed.savedAt, status: removed.status, notes: removed.notes
+                paper: removed.paper, localID: removed.localID, savedAt: removed.savedAt, status: removed.status, notes: removed.notes,
+                pdf: removed.pdf
             ))
             for collectionID in removed.collectionIDs {
                 state.setMembership(collectionID: collectionID, openAlexID: removed.paper.openAlexID, member: true)

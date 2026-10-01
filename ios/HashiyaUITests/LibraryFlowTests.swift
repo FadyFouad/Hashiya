@@ -153,13 +153,17 @@ final class LibraryFlowTests: XCTestCase {
         wait(for: [hidden], timeout: UITestTimeout.long)
     }
 
-    /// iOS 26 hid the Library's large title above the list with the chips bar; it must show like on iOS 18.
+    /// The Library's title shows inline (its collections menu only opens from the inline title). With saved papers the
+    /// title is the menu's button; either way it is in the navigation bar.
     @MainActor
-    func testTheLibraryShowsItsLargeTitle() {
+    func testTheLibraryShowsItsTitle() {
         let app = launchApp()
         saveTwoPapers(in: app)
-        XCTAssertTrue(app.navigationBars.staticTexts["All papers"].waitForExistence(timeout: UITestTimeout.long))
-        XCTAssertTrue(app.navigationBars.staticTexts["All papers"].isHittable)
+        let bar = app.navigationBars.firstMatch
+        let button = bar.buttons["All papers"]
+        let title = button.waitForExistence(timeout: UITestTimeout.long) ? button : bar.staticTexts["All papers"]
+        XCTAssertTrue(title.exists)
+        XCTAssertTrue(title.isHittable)
     }
 
     @MainActor

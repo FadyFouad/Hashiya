@@ -83,6 +83,7 @@ public struct LibraryView: View {
                 viewModel.message = nil
             }
             .navigationTitle(Text(verbatim: title))
+            .navigationBarTitleDisplayMode(.inline)
             .modifier(TitleMenu(viewModel: viewModel, isEnabled: viewModel.allPapersTotal > 0))
             .toolbar {
                 if viewModel.canExport {

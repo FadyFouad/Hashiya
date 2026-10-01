@@ -11,6 +11,8 @@ public final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         case failure(URLError.Code)
         /// No answer: the request ends only when its task is cancelled (or times out).
         case stall
+        /// A 200 response with this much of the body, then nothing: the download stays open until its task is cancelled.
+        case partial(Data)
 
         /// A 200 response with a UTF-8 body.
         public static func json(_ body: String) -> Reply { .status(200, body: Data(body.utf8)) }
@@ -24,6 +26,7 @@ public final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         private struct State {
             var reply: @Sendable (URLRequest) -> Reply
             var requests: [URLRequest] = []
+            var stopped = 0
         }
 
         public init(reply: @escaping @Sendable (URLRequest) -> Reply) {
@@ -50,6 +53,9 @@ public final class URLProtocolStub: URLProtocol, @unchecked Sendable {
             return Dictionary(items.map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { _, last in last })
         }
 
+        /// How many requests have been stopped (cancelled or finished) so far.
+        public var stoppedCount: Int { state.withLock { $0.stopped } }
+
         public func setReply(_ reply: @escaping @Sendable (URLRequest) -> Reply) {
             state.withLock { $0.reply = reply }
         }
@@ -58,6 +64,10 @@ public final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         public func invalidate() {
             _ = URLProtocolStub.servers.withLock { $0.removeValue(forKey: id) }
             session.invalidateAndCancel()
+        }
+
+        fileprivate func didStop() {
+            state.withLock { $0.stopped += 1 }
         }
 
         fileprivate func receive(_ request: URLRequest) -> Reply {
@@ -94,8 +104,15 @@ public final class URLProtocolStub: URLProtocol, @unchecked Sendable {
             client?.urlProtocol(self, didFailWithError: URLError(code, userInfo: [NSURLErrorFailingURLErrorKey: url]))
         case .stall:
             break
+        case let .partial(body):
+            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1", headerFields: nil)!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: body)
         }
     }
 
-    override public func stopLoading() {}
+    override public func stopLoading() {
+        guard let id = request.value(forHTTPHeaderField: Self.serverHeader) else { return }
+        Self.servers.withLock { $0[id] }?.didStop()
+    }
 }

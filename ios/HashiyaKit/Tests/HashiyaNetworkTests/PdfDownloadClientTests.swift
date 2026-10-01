@@ -63,6 +63,50 @@ struct PdfDownloadClientTests {
         await #expect(throws: CancellationError.self) { _ = try await task.value }
     }
 
+    @Test func aDownloadStartedAlreadyCancelledEndsAtOnce() async throws {
+        let server = URLProtocolStub.Server(always: .stall)
+        defer { server.invalidate() }
+        let client = PdfDownloadClient(session: server.session)
+        let url = Self.url
+
+        let outcome = await withTaskGroup(of: String.self) { group in
+            group.addTask {
+                let task = Task {
+                    withUnsafeCurrentTask { $0?.cancel() }
+                    return try await client.download(url: url)
+                }
+                do { _ = try await task.value; return "returned" } catch is CancellationError { return "cancelled" } catch { return "other" }
+            }
+            group.addTask {
+                try? await Task.sleep(for: .seconds(3))
+                return "hung"
+            }
+            let first = await group.next()!
+            group.cancelAll()
+            return first
+        }
+
+        #expect(outcome == "cancelled")
+    }
+
+    @Test func cancellingTheConsumerStopsTheRequestMidBody() async throws {
+        let server = URLProtocolStub.Server(always: .partial(Data("%PDF-1.7".utf8)))
+        defer { server.invalidate() }
+        let client = PdfDownloadClient(session: server.session)
+        let url = Self.url
+        let consumer = Task {
+            let download = try await client.download(url: url)
+            for try await _ in download.chunks {}
+        }
+        #expect(await eventually { !server.requests.isEmpty })
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(server.stoppedCount == 0)
+
+        consumer.cancel()
+
+        #expect(await eventually { server.stoppedCount > 0 })
+    }
+
     @Test func theConfigurationIsEphemeralWithTheDownloadTimeouts() {
         let configuration = PdfDownloadClient.makeConfiguration()
 

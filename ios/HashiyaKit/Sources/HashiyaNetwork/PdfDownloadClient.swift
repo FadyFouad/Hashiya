@@ -51,7 +51,7 @@ public final class PdfDownloadClient: PdfDownloading {
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in relay.start(continuation) }
         } onCancel: {
-            task.cancel()
+            relay.cancel()
         }
     }
 
@@ -60,6 +60,8 @@ public final class PdfDownloadClient: PdfDownloading {
         private struct State {
             var response: CheckedContinuation<PdfDownload, Error>?
             var chunks: AsyncThrowingStream<Data, Error>.Continuation?
+            /// Set once cancelled, so a cancel that beats `start` still ends the download instead of hanging it.
+            var cancelled = false
         }
 
         private weak var task: URLSessionDataTask?
@@ -70,8 +72,27 @@ public final class PdfDownloadClient: PdfDownloading {
         }
 
         func start(_ continuation: CheckedContinuation<PdfDownload, Error>) {
-            state.withLockUnchecked { $0.response = continuation }
-            task?.resume()
+            let alreadyCancelled = state.withLockUnchecked { state -> Bool in
+                if state.cancelled { return true }
+                state.response = continuation
+                return false
+            }
+            if alreadyCancelled {
+                task?.cancel()
+                continuation.resume(throwing: CancellationError())
+            } else {
+                task?.resume()
+            }
+        }
+
+        func cancel() {
+            let pending = state.withLockUnchecked { state -> CheckedContinuation<PdfDownload, Error>? in
+                state.cancelled = true
+                defer { state.response = nil }
+                return state.response
+            }
+            task?.cancel()
+            pending?.resume(throwing: CancellationError())
         }
 
         func urlSession(

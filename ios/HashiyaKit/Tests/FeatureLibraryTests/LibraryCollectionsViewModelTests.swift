@@ -440,6 +440,19 @@ struct LibraryCollectionsViewModelTests {
         #expect(share.urls.map(\.lastPathComponent) == ["hashiya-library.bib"])
     }
 
+    @Test func anExportThatCouldNotPresentTheShareSheetFails() async {
+        let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: false))
+        let viewModel = makeViewModel(citations: citations)
+        #expect(await eventually { viewModel.papers.count == 3 })
+        share.presents = false
+
+        await viewModel.export()
+
+        #expect(share.urls.count == 1)
+        #expect(viewModel.message == .exportFailed)
+        #expect(!viewModel.exporting)
+    }
+
     @Test func aSecondExportTapWhileRunningDoesNothing() async {
         let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: true))
         citations.holdExports()
@@ -523,10 +536,14 @@ private final class ShareRecorder {
     private var isHeld = false
     private var waiting: CheckedContinuation<Void, Never>?
 
-    func share(_ url: URL) async {
+    /// What the closure reports: whether the share sheet was shown.
+    var presents = true
+
+    func share(_ url: URL) async -> Bool {
         urls.append(url)
-        guard isHeld else { return }
+        guard isHeld else { return presents }
         await withCheckedContinuation { waiting = $0 }
+        return presents
     }
 
     func hold() {

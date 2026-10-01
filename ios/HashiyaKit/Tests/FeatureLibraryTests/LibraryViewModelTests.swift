@@ -15,7 +15,7 @@ struct LibraryViewModelTests {
             collections: FakeCollectionsRepository(library: library),
             citations: FakeCitationRepository(),
             exportFiles: ExportFiles(directory: FileManager.default.temporaryDirectory.appendingPathComponent("library-tests-\(UUID().uuidString)")),
-            share: { _ in },
+            share: { _ in true },
             sleep: sleeper.sleep
         )
     }

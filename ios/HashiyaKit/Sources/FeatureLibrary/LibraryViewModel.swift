@@ -125,7 +125,7 @@ public final class LibraryViewModel {
     @ObservationIgnored private let collectionsRepository: any CollectionsRepository
     @ObservationIgnored private let citations: any CitationRepository
     @ObservationIgnored private let exportFiles: ExportFiles
-    @ObservationIgnored private let share: @MainActor (URL) async -> Void
+    @ObservationIgnored private let share: @MainActor (URL) async -> Bool
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
     @ObservationIgnored private let filterObservation = TaskSlot()
     @ObservationIgnored private let collectionsObservation = TaskSlot()
@@ -139,13 +139,13 @@ public final class LibraryViewModel {
     /// The shown collection's last known name, kept for the title while the list doesn't have it (right after Create).
     @ObservationIgnored private var lastCollectionName: String?
 
-    /// - Parameter share: presents the share sheet for the exported file and returns when it closes.
+    /// - Parameter share: presents the share sheet for the exported file and returns when it closes, saying whether it was shown.
     public init(
         library: any LibraryRepository,
         collections: any CollectionsRepository,
         citations: any CitationRepository,
         exportFiles: ExportFiles,
-        share: @escaping @MainActor (URL) async -> Void,
+        share: @escaping @MainActor (URL) async -> Bool,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {
         self.library = library
@@ -472,7 +472,10 @@ public final class LibraryViewModel {
             message = .exportFailed
             return
         }
-        await share(file)
+        guard await share(file) else {
+            message = .exportFailed
+            return
+        }
         if !complete {
             message = .exportIncomplete
         }

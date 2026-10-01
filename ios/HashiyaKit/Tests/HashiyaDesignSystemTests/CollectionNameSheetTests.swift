@@ -71,6 +71,7 @@ struct CollectionNameSheetTests {
 struct ShareSheetTests {
     @Test func returnsAtOnceWhenThereIsNoWindowToPresentFrom() async {
         // No key window is showing a view controller in a package test run.
-        await ShareSheet.present(fileURL: URL(fileURLWithPath: "/tmp/none.bib"))
+        let presented = await ShareSheet.present(fileURL: URL(fileURLWithPath: "/tmp/none.bib"))
+        #expect(!presented)
     }
 }

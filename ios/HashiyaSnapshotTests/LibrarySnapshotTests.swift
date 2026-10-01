@@ -32,7 +32,7 @@ struct LibrarySnapshotTests {
             collections: collections ?? FakeCollectionsRepository(library: library),
             citations: FakeCitationRepository(),
             exportFiles: ExportFiles(directory: FileManager.default.temporaryDirectory.appendingPathComponent("library-snapshots")),
-            share: { _ in },
+            share: { _ in true },
             sleep: sleeper.sleep
         )
     }

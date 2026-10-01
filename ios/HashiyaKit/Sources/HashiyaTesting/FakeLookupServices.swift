@@ -39,6 +39,9 @@ public final class FakeOpenAlexLookupService: OpenAlexLookupService {
     /// Every `works(filter:perPage:)` throws `failure` (nil: answer normally).
     public func setWorksFailure(_ failure: NetworkFailure?) { state.withLock { $0.worksFailure = failure } }
 
+    /// Replaces what `work(id:)` returns, by ID.
+    public func setWorks(_ works: [String: NetworkWork]) { state.withLock { $0.works = works } }
+
     public func work(id: String) async throws -> NetworkWork? {
         try state.withLock { state in
             state.workRequests.append(id)

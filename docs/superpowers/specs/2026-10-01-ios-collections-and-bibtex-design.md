@@ -1,7 +1,7 @@
 # iOS sub-project 5: Collections and BibTeX export — Design
 
 - **Date:** 2026-10-01
-- **Status:** Awaiting review
+- **Status:** Approved
 - **Scope:** iOS counterpart of Android sub-project 5 (`2026-09-30-collections-and-bibtex-design.md`), matching the Android code on `feat/collections-and-bibtex` (PR #18) at `fbc1c7c`, including its review fixes. When PR #18 merges, diff its final state against this spec before implementing. Builds on the iOS specs 1–4 and the Liquid Glass work; their platform decisions, package rules, string conventions, testing and CI apply unchanged.
 
 ## 1. Context
@@ -17,7 +17,7 @@ The BibTeX output must be byte-for-byte the same as Android's for the same paper
 | Behaviour | As Android §2 (goals and non-goals), §6 (BibTeX rules), §7 (repositories) and §11 (errors), unless §13 below says otherwise. |
 | Model | `PublicationDetails` and `PaperCollection` in `HashiyaModel`, as Android's. `Paper` gains `publication`. |
 | Schema | GRDB migration `"v4"`, the same columns, tables and indices as Android's `MIGRATION_3_4`. |
-| BibTeX module | New package target and product `HashiyaBibTeX`, depending only on `HashiyaModel`. No regular expressions (§5.4). |
+| BibTeX module | New package target and product `HashiyaBibTeX`, depending only on `HashiyaModel`. No regular expressions (§6.2). |
 | Collection selector | `.toolbarTitleMenu` on the Library's navigation title, not a sheet. Rename and Delete act on the collection being shown. |
 | Name entry | A small sheet, `CollectionNameSheet` in `HashiyaDesignSystem`, so the "name taken" error can show under the field. |
 | Swipe in a collection | Removes the paper from that collection only, as on Android. |

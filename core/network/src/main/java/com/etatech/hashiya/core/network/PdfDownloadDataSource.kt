@@ -2,6 +2,7 @@ package com.etatech.hashiya.core.network
 
 import java.io.IOException
 import java.io.InputStream
+import java.io.InterruptedIOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -19,7 +20,8 @@ interface PdfDownloadDataSource {
      * GETs [url], following redirects, and hands the body to [consume] with its length when the server sends one. [consume] runs
      * on a network thread and may block. Cancelling the caller cancels the request, which makes [consume]'s reads fail.
      * @throws NetworkException [NetworkFailure.Connectivity] when the server can't be reached or the body breaks off,
-     *   [NetworkFailure.Http] for an error status or a link that isn't a URL (code 0). Other exceptions from [consume] are passed on.
+     *   [NetworkFailure.Http] for an error status, or with code 0 for a link that isn't a URL or a timeout (spec §11: the server
+     *   didn't send the PDF). Other exceptions from [consume] are passed on.
      */
     suspend fun <T> download(url: String, consume: (body: InputStream, contentLength: Long?) -> T): T
 }
@@ -44,7 +46,7 @@ internal class OkHttpPdfDownloadDataSource(private val client: OkHttpClient) : P
             call.enqueue(
                 object : Callback {
                     override fun onFailure(call: Call, e: IOException) {
-                        continuation.resumeWithException(NetworkException(NetworkFailure.Connectivity, e))
+                        continuation.resumeWithException(e.asDownloadFailure())
                     }
 
                     override fun onResponse(call: Call, response: Response) {
@@ -57,7 +59,7 @@ internal class OkHttpPdfDownloadDataSource(private val client: OkHttpClient) : P
                         result.fold(
                             onSuccess = { continuation.resume(it) },
                             onFailure = { e ->
-                                val failure = if (e is IOException) NetworkException(NetworkFailure.Connectivity, e) else e
+                                val failure = if (e is IOException) e.asDownloadFailure() else e
                                 continuation.resumeWithException(failure)
                             }
                         )
@@ -67,3 +69,9 @@ internal class OkHttpPdfDownloadDataSource(private val client: OkHttpClient) : P
         }
     }
 }
+
+/** A timeout (connect, read or the whole call) means the server didn't send the PDF in time; other I/O failures are connectivity. */
+private fun IOException.asDownloadFailure(): NetworkException = NetworkException(
+    if (this is InterruptedIOException) NetworkFailure.Http(code = 0, usedUserKey = false) else NetworkFailure.Connectivity,
+    this
+)

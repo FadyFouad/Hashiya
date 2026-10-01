@@ -1,5 +1,6 @@
 package com.etatech.hashiya.core.network
 
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
@@ -73,6 +74,18 @@ class PdfDownloadDataSourceTest {
         server.close()
 
         assertEquals(NetworkFailure.Connectivity, failureOf { dataSource.download(url) { body, _ -> body.readBytes() } })
+    }
+
+    @Test
+    fun aTimeoutIsAnHttpFailureNotOffline() = runTest {
+        server.enqueue(MockResponse.Builder().code(200).body(Buffer().write(PDF)).headersDelay(5, TimeUnit.SECONDS).build())
+        val client = buildPdfOkHttpClient().newBuilder().readTimeout(200, TimeUnit.MILLISECONDS).build()
+
+        val failure = failureOf {
+            OkHttpPdfDownloadDataSource(client).download(server.url("/paper.pdf").toString()) { body, _ -> body.readBytes() }
+        }
+
+        assertEquals(NetworkFailure.Http(code = 0, usedUserKey = false), failure)
     }
 
     @Test

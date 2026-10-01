@@ -1,7 +1,10 @@
 package com.etatech.hashiya.core.bibtex
 
-/** Unicode-aware, so line separators, NEL and no-break spaces collapse too. */
-private val WHITESPACE = Regex("""(?U)\s+""")
+/**
+ * Unicode-aware, so line separators, NEL and no-break spaces collapse too. Spelled out rather than `(?U)\s`, because Android's
+ * ICU regex rejects the `(?U)` flag and crashes on first use, while the JVM tests accept it.
+ */
+internal val WHITESPACE = Regex("""[\s\p{Z}\u0085]+""")
 
 /**
  * Escapes the characters LaTeX treats specially. Everything else, Arabic and accented letters included, stays UTF-8.

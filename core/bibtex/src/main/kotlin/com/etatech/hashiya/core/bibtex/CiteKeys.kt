@@ -10,7 +10,6 @@ object CiteKeys {
         "a", "an", "the", "on", "of", "in", "for", "and", "to", "with", "from", "by", "via", "is", "are", "towards", "toward",
         "using", "at"
     )
-    private val WHITESPACE = Regex("""(?U)\s+""")
 
     /**
      * The key before collision suffixes. Always starts with a letter: "paper" stands in for a surname with no Latin letters,

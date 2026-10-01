@@ -65,3 +65,12 @@ struct CollectionNameSheetTests {
         #expect(inLanguage("ar") { L10n.string("collection.cancel") } == "إلغاء")
     }
 }
+
+@MainActor
+@Suite(.serialized)
+struct ShareSheetTests {
+    @Test func returnsAtOnceWhenThereIsNoWindowToPresentFrom() async {
+        // No key window is showing a view controller in a package test run.
+        await ShareSheet.present(fileURL: URL(fileURLWithPath: "/tmp/none.bib"))
+    }
+}

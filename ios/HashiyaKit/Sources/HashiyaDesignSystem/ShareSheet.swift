@@ -7,7 +7,12 @@ public enum ShareSheet {
     /// Presents the share sheet for `fileURL` and returns when it closes, whether the file was shared or not.
     /// Returns at once when there is no window to present from.
     public static func present(fileURL: URL) async {
-        guard let presenter = topViewController(), !presenter.isBeingDismissed else { return }
+        guard let presenter = topViewController(),
+              presenter.view.window != nil,
+              presenter.presentedViewController == nil,
+              !presenter.isBeingPresented,
+              !presenter.isBeingDismissed
+        else { return }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             let finish = Finish(continuation)
             let controller = UIActivityViewController(activityItems: [fileURL], applicationActivities: nil)
@@ -15,7 +20,16 @@ public enum ShareSheet {
                 // UIKit calls this on the main thread when the sheet closes.
                 MainActor.assumeIsolated { finish.run() }
             }
-            presenter.present(controller, animated: true)
+            // iPad shows the share sheet as a popover, which needs an anchor.
+            if let popover = controller.popoverPresentationController {
+                popover.sourceView = presenter.view
+                popover.sourceRect = CGRect(x: presenter.view.bounds.midX, y: presenter.view.bounds.midY, width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+            presenter.present(controller, animated: true) {
+                // A presentation that silently failed never calls the completion handler above.
+                if controller.presentingViewController == nil { finish.run() }
+            }
         }
     }
 

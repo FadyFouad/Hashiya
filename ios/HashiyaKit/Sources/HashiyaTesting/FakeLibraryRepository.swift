@@ -128,6 +128,8 @@ public final class FakeLibraryRepository: LibraryRepository {
     public var library: [LibraryPaper] { state.withLock { $0.library } }
     /// The OpenAlex IDs in each collection that has any.
     public var collectionMembers: [Int64: Set<String>] { state.withLock { $0.collectionMembers } }
+    /// Whether the paper is saved, read synchronously.
+    public func isSaved(openAlexID: String) -> Bool { state.withLock { $0.ids.contains(openAlexID) } }
     /// A saved paper's stored notes; empty when it has none or isn't saved.
     public func notes(of openAlexID: String) -> PaperNotes {
         state.withLock { state in state.entries.first { $0.paper.openAlexID == openAlexID }?.notes ?? PaperNotes() }

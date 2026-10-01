@@ -17,7 +17,9 @@ public struct MembershipCall: Equatable, Sendable {
 }
 
 /// In-memory collections with live streams, validating names like the real repository. Given a `FakeLibraryRepository`,
-/// it mirrors memberships and deletions into it, so a Library filtered by a collection follows.
+/// it mirrors memberships and deletions into it, so a Library filtered by a collection follows. The two fakes keep separate
+/// membership records: removing a paper from the library does not change this fake's counts or IDs, unlike the real store's
+/// cascade, so a test that needs that calls `setMemberships` or `setCollections` itself.
 public final class FakeCollectionsRepository: CollectionsRepository {
     public struct Failure: Error {}
 
@@ -37,11 +39,11 @@ public final class FakeCollectionsRepository: CollectionsRepository {
         var collectionSubscriptions: [UUID: AsyncStream<[PaperCollection]>.Continuation] = [:]
         var idSubscriptions: [UUID: (openAlexID: String, continuation: AsyncStream<Set<Int64>>.Continuation)] = [:]
 
-        var sorted: [PaperCollection] { collections.sorted { $0.name.lowercased() < $1.name.lowercased() } }
+        var sorted: [PaperCollection] { collections.sorted { collectionNameKey($0.name) < collectionNameKey($1.name) } }
 
         func isTaken(_ name: String, except id: Int64? = nil) -> Bool {
-            let key = trimmedCollectionName(name).lowercased()
-            return collections.contains { $0.id != id && $0.name.lowercased() == key }
+            let key = collectionNameKey(name)
+            return collections.contains { $0.id != id && collectionNameKey($0.name) == key }
         }
 
         func publish() {
@@ -206,6 +208,11 @@ public final class FakeCollectionsRepository: CollectionsRepository {
     }
 
     public func setMembership(collectionID: Int64, openAlexID: String, member: Bool) async throws {
+        // As the real repository: adding an unsaved paper does nothing at all.
+        if member, let library, !library.isSaved(openAlexID: openAlexID) {
+            if state.withLock({ $0.failWrites }) { throw Failure() }
+            return
+        }
         let changed = try state.withLock { state -> Bool in
             if state.failWrites { throw Failure() }
             state.membershipCalls.append(MembershipCall(collectionID: collectionID, openAlexID: openAlexID, member: member))

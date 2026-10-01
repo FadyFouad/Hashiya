@@ -56,4 +56,16 @@ struct FakeCollectionsRepositoryTests {
         #expect(try await fake.create(name: "A") == .done(id: 1))
         #expect(fake.createdNames == ["A"])
     }
+
+    @Test func addingAnUnsavedPaperWithALinkedLibraryChangesNothing() async throws {
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention])
+        let fake = FakeCollectionsRepository(collections: [PaperCollection(id: 3, name: "A", paperCount: 0)], library: library)
+
+        try await fake.setMembership(collectionID: 3, openAlexID: "W-unsaved", member: true)
+
+        #expect(fake.collectionIDs(of: "W-unsaved").isEmpty)
+        #expect(await first(fake.observeCollections())?.first?.paperCount == 0)
+        #expect(fake.membershipCalls.isEmpty)
+        #expect(library.collectionMembers == [:])
+    }
 }

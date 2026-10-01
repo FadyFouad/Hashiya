@@ -111,4 +111,19 @@ struct PaperMappingTests {
         #expect(records.authors.allSatisfy { $0.paperID == "local-1" })
         #expect(records.asPaper() == SamplePapers.attention)
     }
+
+    @Test func recordsCarryThePublicationDetailsTheKeyAndTheFlag() {
+        var paper = SamplePapers.attention
+        paper.publication = PublicationDetails(workType: "preprint", sourceType: "repository", volume: "30")
+
+        let saved = paper.asRecords(localID: "local-1", savedAt: 42)
+        #expect(saved.paper.publication == paper.publication)
+        #expect(saved.paper.citeKey == nil)
+        #expect(saved.paper.detailsFetched)
+        #expect(saved.asPaper() == paper)
+
+        let restored = paper.asRecords(localID: "local-1", savedAt: 42, citeKey: "vaswani2017attention", detailsFetched: false)
+        #expect(restored.paper.citeKey == "vaswani2017attention")
+        #expect(restored.paper.detailsFetched == false)
+    }
 }

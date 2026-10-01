@@ -41,8 +41,31 @@ struct MigrationTests {
         return nil
     }
 
-    @Test func theMigrationsAreV1ThenV2ThenV3() {
-        #expect(HashiyaDatabase.migrator.migrations == ["v1", "v2", "v3"])
+    /// Android's `MigrationTest` version 3 fixture, as sub-project 4 left a library: one paper with a note and a status, one bare
+    /// Arabic paper.
+    private func version3WithFixture() throws -> DatabaseQueue {
+        let queue = try version("v3")
+        try queue.write { db in
+            try db.execute(sql: """
+                INSERT INTO papers (id, open_alex_id, doi, title, year, venue, abstract, citation_count, is_open_access, oa_pdf_url, saved_at, reading_status)
+                VALUES ('a', 'W1', '10.48550/arxiv.1706.03762', 'Attention Is All You Need', 2017,
+                        'Neural Information Processing Systems', 'The dominant sequence transduction models', 128412, 1, NULL, 100, 'read');
+                INSERT INTO paper_authors (paper_id, position, name, open_alex_author_id) VALUES ('a', 0, 'Ashish Vaswani', NULL);
+                INSERT INTO papers (id, open_alex_id, doi, title, year, venue, abstract, citation_count, is_open_access, oa_pdf_url, saved_at, reading_status)
+                VALUES ('b', 'W2', NULL, 'تطبيقات التَّعلُّم العميق', NULL, NULL, NULL, 0, 0, NULL, 200, 'to_read');
+                INSERT INTO paper_notes (paper_id, summary, research_question, method, key_findings, limitations, thoughts, updated_at)
+                VALUES ('a', 'Transformers', '', 'Ablation study', '', '', '', 5);
+                INSERT INTO paper_search (paper_id, title, authors, abstract, venue, notes)
+                VALUES ('a', 'attention is all you need', 'ashish vaswani', 'the dominant sequence transduction models',
+                        'neural information processing systems', 'transformers ablation study');
+                INSERT INTO paper_search (paper_id, title, authors, abstract, venue, notes) VALUES ('b', 'تطبيقات التعلم العميق', '', '', '', '');
+                """)
+        }
+        return queue
+    }
+
+    @Test func theMigrationsAreV1ThroughV4() {
+        #expect(HashiyaDatabase.migrator.migrations == ["v1", "v2", "v3", "v4"])
     }
 
     @Test func v1CreatesAndroidsVersion1Schema() throws {
@@ -227,7 +250,7 @@ struct MigrationTests {
         let second = try HashiyaDatabase.openPool(at: url)
         let titles = try await second.read { db in try String.fetchAll(db, sql: "SELECT title FROM papers") }
         #expect(titles == ["Kept"])
-        #expect(try await second.read { db in try HashiyaDatabase.migrator.appliedMigrations(db) } == ["v1", "v2", "v3"])
+        #expect(try await second.read { db in try HashiyaDatabase.migrator.appliedMigrations(db) } == ["v1", "v2", "v3", "v4"])
         let journalMode = try await second.read { db in try String.fetchOne(db, sql: "PRAGMA journal_mode") }
         #expect(journalMode == "wal")
     }
@@ -248,5 +271,102 @@ struct MigrationTests {
         let library = await first(store.observeLibrary(match: "\"vaswani*\"", status: "to_read"))
         #expect(library?.papers.map(\.paper.id) == ["a"])
         #expect(library?.total == 2)
+    }
+
+    @Test func v4AddsTheCitationColumnsAndTheCollectionTables() throws {
+        try HashiyaDatabase.openInMemory().read { db in
+            let papers = try db.columns(in: "papers")
+            let added = Array(papers.suffix(9))
+            #expect(added.map(\.name) == [
+                "work_type", "source_type", "publisher", "volume", "issue", "first_page", "last_page", "cite_key", "details_fetched",
+            ])
+            #expect(added.map(\.type) == ["TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "TEXT", "INTEGER"])
+            #expect(added.filter(\.isNotNull).map(\.name) == ["details_fetched"])
+            #expect(added.last?.defaultValueSQL == "0")
+
+            let citeKeyIndex = try #require(try db.indexes(on: "papers").first { $0.name == "index_papers_cite_key" })
+            #expect(citeKeyIndex.isUnique)
+            #expect(citeKeyIndex.columns == ["cite_key"])
+
+            let collections = try db.columns(in: "collections")
+            #expect(collections.map(\.name) == ["id", "name", "name_key", "created_at"])
+            #expect(collections.map(\.type) == ["INTEGER", "TEXT", "TEXT", "INTEGER"])
+            #expect(collections.allSatisfy { $0.isNotNull })
+            #expect(try db.primaryKey("collections").columns == ["id"])
+            let nameIndex = try #require(try db.indexes(on: "collections").first { $0.name == "index_collections_name_key" })
+            #expect(nameIndex.isUnique)
+            #expect(nameIndex.columns == ["name_key"])
+
+            let links = try db.columns(in: "collection_papers")
+            #expect(links.map(\.name) == ["collection_id", "paper_id", "added_at"])
+            #expect(links.map(\.type) == ["INTEGER", "TEXT", "INTEGER"])
+            #expect(links.allSatisfy { $0.isNotNull })
+            #expect(try db.primaryKey("collection_papers").columns == ["collection_id", "paper_id"])
+            #expect(Set(try db.foreignKeys(on: "collection_papers").map(\.destinationTable)) == ["collections", "papers"])
+            let onDelete = try String.fetchAll(db, sql: "SELECT DISTINCT on_delete FROM pragma_foreign_key_list('collection_papers')")
+            #expect(onDelete == ["CASCADE"])
+            let paperIndex = try #require(try db.indexes(on: "collection_papers").first { $0.name == "index_collection_papers_paper_id" })
+            #expect(paperIndex.columns == ["paper_id"])
+            #expect(!paperIndex.isUnique)
+        }
+    }
+
+    /// A sub-project 4 install (Android's `migration3To4KeepsEverythingAndValidatesAgainstVersion4Schema`).
+    @Test func migratingFromV3KeepsEverythingAndLeavesTheCitationStateEmpty() throws {
+        let queue = try version3WithFixture()
+
+        try HashiyaDatabase.migrator.migrate(queue)
+
+        let (statuses, methods, search, citation, collections, links) = try queue.read { db in
+            (
+                try String.fetchAll(db, sql: "SELECT id || ':' || reading_status FROM papers ORDER BY id"),
+                try String.fetchAll(db, sql: "SELECT method FROM paper_notes"),
+                try String.fetchAll(db, sql: "SELECT paper_id || ':' || notes FROM paper_search ORDER BY paper_id"),
+                try String.fetchAll(
+                    db,
+                    sql: """
+                        SELECT id || ':' || details_fetched || ':' || (cite_key IS NULL) || ':' || (work_type IS NULL AND volume IS NULL)
+                        FROM papers ORDER BY id
+                        """
+                ),
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM collections"),
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM collection_papers")
+            )
+        }
+        #expect(statuses == ["a:read", "b:to_read"])
+        #expect(methods == ["Ablation study"])
+        #expect(search == ["a:transformers ablation study", "b:"])
+        #expect(citation == ["a:0:1:1", "b:0:1:1"])
+        #expect(collections == 0)
+        #expect(links == 0)
+    }
+
+    /// Android's `libraryMigratedFromVersion3IsSearchableAndTakesCollections`.
+    @Test func aLibraryMigratedFromV3IsSearchableAndTakesCollections() async throws {
+        let queue = try version3WithFixture()
+        try HashiyaDatabase.migrator.migrate(queue)
+        let store = PaperStore(writer: queue)
+        func ids(_ match: String?, collectionID: Int64? = nil) async -> [String]? {
+            await first(store.observeLibrary(match: match, status: nil, collectionID: collectionID))?.papers.map(\.paper.id)
+        }
+
+        #expect(await ids("\"ablation*\"") == ["a"])
+        #expect(await ids("\"التعلم*\"") == ["b"])
+        let id = try #require(try await store.insertCollection(name: "Thesis", nameKey: "thesis", createdAt: 1))
+        try await store.addToCollection(collectionID: id, openAlexID: "W1", addedAt: 2)
+        #expect(await ids(nil, collectionID: id) == ["a"])
+    }
+
+    /// Android's `version1LibraryMigratesAllTheWayToVersion4`.
+    @Test func aV1LibraryMigratesAllTheWayToV4() throws {
+        let queue = try version1()
+        try insertVersion1Fixture(into: queue)
+
+        try HashiyaDatabase.migrator.migrate(queue)
+
+        let rows = try queue.read { db in
+            try String.fetchAll(db, sql: "SELECT id || ':' || reading_status || ':' || details_fetched FROM papers ORDER BY id")
+        }
+        #expect(rows == ["a:to_read:0", "b:to_read:0"])
     }
 }

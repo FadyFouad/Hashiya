@@ -57,12 +57,29 @@ struct PaperStoreTests {
         return nil
     }
 
-    private func library(match: String? = nil, status: String? = nil) async -> LibraryRows? {
-        await value(of: store.observeLibrary(match: match, status: status))
+    private func library(match: String? = nil, status: String? = nil, collectionID: Int64? = nil) async -> LibraryRows? {
+        await value(of: store.observeLibrary(match: match, status: status, collectionID: collectionID))
     }
 
-    private func ids(match: String? = nil, status: String? = nil) async -> [String]? {
-        await library(match: match, status: status)?.papers.map(\.paper.id)
+    private func ids(match: String? = nil, status: String? = nil, collectionID: Int64? = nil) async -> [String]? {
+        await library(match: match, status: status, collectionID: collectionID)?.papers.map(\.paper.id)
+    }
+
+    /// A new collection's id, keyed by `collectionNameKey` as the repository keys it.
+    private func collection(_ name: String) async throws -> Int64 {
+        try #require(try await store.insertCollection(name: name, nameKey: collectionNameKey(name), createdAt: 1))
+    }
+
+    /// Restores `deleted` as the repository's Undo does, with its links.
+    @discardableResult
+    private func restore(_ deleted: DeletedPaper) async throws -> Bool {
+        try await store.insert(
+            paper: deleted.saved.paper,
+            authors: deleted.saved.authors,
+            search: deleted.saved.searchRow,
+            notes: deleted.notes,
+            collectionLinks: deleted.collectionLinks
+        )
     }
 
     private func count(_ table: String) throws -> Int? {
@@ -354,5 +371,162 @@ struct PaperStoreTests {
         #expect(PaperSearchRow.notesText(PaperNotes(
             summary: "A", researchQuestion: "B", method: "C", keyFindings: "D", limitations: "E", thoughts: "Ö"
         )) == "a b c d e o")
+    }
+
+    @Test func publicationColumnsRoundTrip() async throws {
+        let details = PublicationDetails(
+            workType: "article", sourceType: "journal", publisher: "Springer Nature",
+            volume: "521", issue: "7553", firstPage: "436", lastPage: "444"
+        )
+        var record = paper(1, savedAt: 1_000)
+        record.workType = details.workType
+        record.sourceType = details.sourceType
+        record.publisher = details.publisher
+        record.volume = details.volume
+        record.issue = details.issue
+        record.firstPage = details.firstPage
+        record.lastPage = details.lastPage
+        record.citeKey = "lecun2015deep"
+        record.detailsFetched = true
+        try await save(record)
+
+        let saved = await library()?.papers.first?.paper
+        #expect(saved == record)
+        #expect(saved?.publication == details)
+    }
+
+    /// Android's `libraryAndCountsCanBeLimitedToACollection`, plus the totals.
+    @Test func libraryAndCountsCanBeLimitedToACollection() async throws {
+        try await save(paper(1, title: "Graph networks", status: "read", savedAt: 100), "Ada")
+        try await save(paper(2, title: "Graph kernels", savedAt: 200), "Bo")
+        try await save(paper(3, title: "Other", savedAt: 300), "Cy")
+        let id = try await collection("A")
+        try await store.addToCollection(collectionID: id, openAlexID: "W1", addedAt: 1)
+        try await store.addToCollection(collectionID: id, openAlexID: "W3", addedAt: 1)
+
+        #expect(await ids(collectionID: id) == ["local-3", "local-1"])
+        #expect(await ids(match: "\"graph*\"", collectionID: id) == ["local-1"])
+        #expect(await ids(status: "read", collectionID: id) == ["local-1"])
+        let rows = try #require(await library(match: "\"missing*\"", collectionID: id))
+        #expect(rows.papers.isEmpty)
+        #expect(rows.total == 2)
+        #expect(rows.allTotal == 3)
+        #expect(await library(collectionID: id)?.statusCounts == ["read": 1, "to_read": 1])
+        #expect(await library()?.total == 3)
+        #expect(await library()?.allTotal == 3)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func anOpenCollectionViewSeesMembershipChanges() async throws {
+        try await save(paper(1, savedAt: 100))
+        let id = try await collection("A")
+        var iterator = store.observeLibrary(match: nil, status: nil, collectionID: id).makeAsyncIterator()
+        #expect(await iterator.next()?.papers.isEmpty == true)
+
+        try await store.addToCollection(collectionID: id, openAlexID: "W1", addedAt: 1)
+        #expect(await iterator.next()?.papers.map(\.paper.id) == ["local-1"])
+
+        try await store.removeFromCollection(collectionID: id, openAlexID: "W1")
+        #expect(await iterator.next()?.papers.isEmpty == true)
+    }
+
+    @Test func deleteCapturesTheLinksTheCiteKeyAndTheFlag() async throws {
+        var record = paper(1, savedAt: 100)
+        record.citeKey = "ada2020paper"
+        record.detailsFetched = true
+        try await save(record, "Ada")
+        let kept = try await collection("Kept")
+        let gone = try await collection("Gone")
+        try await store.addToCollection(collectionID: kept, openAlexID: "W1", addedAt: 5)
+        try await store.addToCollection(collectionID: gone, openAlexID: "W1", addedAt: 6)
+
+        let deleted = try #require(try await store.deleteByOpenAlexID("W1"))
+
+        #expect(deleted.collectionLinks == [
+            CollectionPaperRecord(collectionID: kept, paperID: "local-1", addedAt: 5),
+            CollectionPaperRecord(collectionID: gone, paperID: "local-1", addedAt: 6),
+        ])
+        #expect(deleted.saved.paper.citeKey == "ada2020paper")
+        #expect(deleted.saved.paper.detailsFetched)
+        #expect(try count("collection_papers") == 0)
+    }
+
+    @Test func restoreKeepsLinksAndCiteKey() async throws {
+        var record = paper(1, savedAt: 100)
+        record.citeKey = "ada2020paper"
+        try await save(record, "Ada")
+        let first = try await collection("First")
+        let second = try await collection("Second")
+        try await store.addToCollection(collectionID: first, openAlexID: "W1", addedAt: 5)
+        try await store.addToCollection(collectionID: second, openAlexID: "W1", addedAt: 6)
+        let deleted = try #require(try await store.deleteByOpenAlexID("W1"))
+
+        #expect(try await restore(deleted))
+
+        #expect(await value(of: store.observeCollectionIDs(openAlexID: "W1")) == [first, second])
+        #expect(await library()?.papers.first?.paper.citeKey == "ada2020paper")
+        #expect(await ids(collectionID: second) == ["local-1"])
+    }
+
+    /// Android's `deleteCapturesCollectionLinksAndRestoreSkipsDeletedCollections`.
+    @Test func restoreSkipsALinkWhoseCollectionWasDeleted() async throws {
+        try await save(paper(1, savedAt: 100), "Ada")
+        let kept = try await collection("Kept")
+        let gone = try await collection("Gone")
+        try await store.addToCollection(collectionID: kept, openAlexID: "W1", addedAt: 5)
+        try await store.addToCollection(collectionID: gone, openAlexID: "W1", addedAt: 6)
+        let deleted = try #require(try await store.deleteByOpenAlexID("W1"))
+        try await store.deleteCollection(id: gone)
+
+        #expect(try await restore(deleted))
+
+        #expect(await value(of: store.observeCollectionIDs(openAlexID: "W1")) == [kept])
+        #expect(try count("collection_papers") == 1)
+    }
+
+    /// Android's `restoreDropsACiteKeyAnotherPaperTookMeanwhile`.
+    @Test func restoreDropsATakenCiteKey() async throws {
+        var first = paper(1, savedAt: 100)
+        first.citeKey = "k"
+        try await save(first, "Ada")
+        let deleted = try #require(try await store.deleteByOpenAlexID("W1"))
+        var second = paper(2, savedAt: 200)
+        second.citeKey = "k"
+        try await save(second, "Bo")
+
+        #expect(try await restore(deleted))
+
+        let saved = await library()?.papers
+        #expect(saved?.map(\.paper.id) == ["local-2", "local-1"])
+        #expect(saved?.last?.paper.citeKey == nil)
+        #expect(saved?.first?.paper.citeKey == "k")
+    }
+
+    /// Android's `savingAnAlreadySavedPaperWithACiteKeyIsStillANoOp`.
+    @Test func savingAnAlreadySavedPaperWithACiteKeyIsStillANoOp() async throws {
+        var record = paper(1, savedAt: 100)
+        record.citeKey = "ada2020paper"
+        #expect(try await save(record, "Ada"))
+
+        var again = paper(1, savedAt: 999)
+        again.citeKey = "ada2020paper"
+        #expect(try await save(again, "Ada") == false)
+
+        #expect(await library()?.papers.first?.paper.savedAt == 100)
+        #expect(await library()?.papers.first?.paper.citeKey == "ada2020paper")
+        #expect(try count("paper_authors") == 1)
+    }
+
+    @Test(.timeLimit(.minutes(1)))
+    func anOpenCollectionsObservationSeesADeletedPaper() async throws {
+        try await save(paper(1, savedAt: 100))
+        let id = try await collection("A")
+        try await store.addToCollection(collectionID: id, openAlexID: "W1", addedAt: 1)
+        var iterator = store.observeCollections().makeAsyncIterator()
+        #expect(await iterator.next() == [CollectionWithCount(id: id, name: "A", paperCount: 1)])
+
+        _ = try await store.deleteByOpenAlexID("W1")
+
+        #expect(await iterator.next() == [CollectionWithCount(id: id, name: "A", paperCount: 0)])
     }
 }

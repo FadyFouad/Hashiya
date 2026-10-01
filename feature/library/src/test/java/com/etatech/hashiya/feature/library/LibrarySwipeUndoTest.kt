@@ -10,6 +10,8 @@ import androidx.lifecycle.SavedStateHandle
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
+import com.etatech.hashiya.core.testing.FakeCitationRepository
+import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
@@ -30,6 +32,9 @@ class LibrarySwipeUndoTest {
 
     private val repository = CountingLibraryRepository()
 
+    private fun viewModel() =
+        LibraryViewModel(SavedStateHandle(), repository, FakeCollectionsRepository(FakeLibraryRepository()), FakeCitationRepository())
+
     @Test
     fun undoAfterSwipeKeepsThePaperInTheList() {
         runBlocking {
@@ -37,7 +42,7 @@ class LibrarySwipeUndoTest {
             repository.save(SamplePapers.bert)
             repository.save(SamplePapers.vit)
         }
-        val viewModel = LibraryViewModel(SavedStateHandle(), repository)
+        val viewModel = viewModel()
         composeRule.setContent {
             HashiyaTheme {
                 LibraryScreen(onGoToSearch = {}, onAddPaper = {}, onOpenSettings = {}, onOpenPaper = {}, viewModel = viewModel)
@@ -59,7 +64,7 @@ class LibrarySwipeUndoTest {
     @Test
     fun removeRequestFromDetailsRemovesOnceWithUndo() {
         runBlocking { repository.save(SamplePapers.bert) }
-        val viewModel = LibraryViewModel(SavedStateHandle(), repository)
+        val viewModel = viewModel()
         var handled = 0
         composeRule.setContent {
             HashiyaTheme {

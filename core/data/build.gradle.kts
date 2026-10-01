@@ -5,12 +5,14 @@ plugins {
 
 android {
     namespace = "com.etatech.hashiya.core.data"
+    defaultConfig.testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 }
 
 dependencies {
     api(project(":core:model"))
     api(libs.androidx.paging.common)
     api(libs.kotlinx.coroutines.core)
+    implementation(project(":core:bibtex"))
     implementation(project(":core:network"))
     implementation(project(":core:database"))
     implementation(project(":core:datastore"))
@@ -22,4 +24,7 @@ dependencies {
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.test.core.ktx)
     testImplementation(libs.room.runtime)
+
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext.junit)
 }

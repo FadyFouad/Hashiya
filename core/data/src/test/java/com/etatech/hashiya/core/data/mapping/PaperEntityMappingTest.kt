@@ -4,6 +4,7 @@ import com.etatech.hashiya.core.database.model.PaperAuthorEntity
 import com.etatech.hashiya.core.database.model.PaperWithAuthors
 import com.etatech.hashiya.core.model.Author
 import com.etatech.hashiya.core.model.Paper
+import com.etatech.hashiya.core.model.PublicationDetails
 import com.etatech.hashiya.core.model.ReadingStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -19,7 +20,8 @@ class PaperEntityMappingTest {
         abstract = "Abstract",
         citationCount = 7,
         isOpenAccess = true,
-        openAccessPdfUrl = "https://example.org/x.pdf"
+        openAccessPdfUrl = "https://example.org/x.pdf",
+        publication = PublicationDetails("article", "journal", "Pub", "1", "2", "3", "4")
     )
 
     @Test
@@ -31,6 +33,24 @@ class PaperEntityMappingTest {
         assertEquals("reading", entities.paper.readingStatus)
         assertEquals(listOf(0, 1), entities.authors.map { it.position })
         assertEquals(paper, PaperWithAuthors(entities.paper, entities.authors).asPaper())
+        assertEquals(paper.publication, PaperWithAuthors(entities.paper, entities.authors).asPaper().publication)
+    }
+
+    @Test
+    fun storesPublicationDetailsCiteKeyAndFetchedFlag() {
+        val entities =
+            paper.asEntities(localId = "l", savedAt = 1, status = ReadingStatus.ToRead, citeKey = "first2020title", detailsFetched = false)
+
+        assertEquals("article", entities.paper.workType)
+        assertEquals("journal", entities.paper.sourceType)
+        assertEquals("Pub", entities.paper.publisher)
+        assertEquals(
+            listOf("1", "2", "3", "4"),
+            listOf(entities.paper.volume, entities.paper.issue, entities.paper.firstPage, entities.paper.lastPage)
+        )
+        assertEquals("first2020title", entities.paper.citeKey)
+        assertEquals(false, entities.paper.detailsFetched)
+        assertEquals(true, paper.asEntities("l", 1, ReadingStatus.ToRead).paper.detailsFetched)
     }
 
     @Test

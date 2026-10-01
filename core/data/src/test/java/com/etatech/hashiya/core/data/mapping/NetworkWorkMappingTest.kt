@@ -1,8 +1,10 @@
 package com.etatech.hashiya.core.data.mapping
 
 import com.etatech.hashiya.core.model.Author
+import com.etatech.hashiya.core.model.PublicationDetails
 import com.etatech.hashiya.core.network.model.NetworkAuthor
 import com.etatech.hashiya.core.network.model.NetworkAuthorship
+import com.etatech.hashiya.core.network.model.NetworkBiblio
 import com.etatech.hashiya.core.network.model.NetworkLocation
 import com.etatech.hashiya.core.network.model.NetworkOpenAccess
 import com.etatech.hashiya.core.network.model.NetworkSource
@@ -62,10 +64,46 @@ class NetworkWorkMappingTest {
         assertNull(paper.abstract)
         assertFalse(paper.isOpenAccess)
         assertNull(paper.openAccessPdfUrl)
+        assertEquals(PublicationDetails(), paper.publication)
     }
 
     @Test
     fun dropsInvalidDoi() {
         assertNull(NetworkWork(id = "https://openalex.org/W1", doi = "not-a-doi").asPaper().doi)
+    }
+
+    @Test
+    fun mapsPublicationDetails() {
+        val paper = NetworkWork(
+            id = "https://openalex.org/W1",
+            primaryLocation = NetworkLocation(source = NetworkSource("Nature", type = "journal", hostOrganizationName = "Springer Nature")),
+            type = "article",
+            biblio = NetworkBiblio(volume = "521", issue = "7553", firstPage = "436", lastPage = "444")
+        ).asPaper()
+
+        assertEquals(
+            PublicationDetails(
+                workType = "article",
+                sourceType = "journal",
+                publisher = "Springer Nature",
+                volume = "521",
+                issue = "7553",
+                firstPage = "436",
+                lastPage = "444"
+            ),
+            paper.publication
+        )
+    }
+
+    @Test
+    fun blankPublicationStringsBecomeNull() {
+        val paper = NetworkWork(
+            id = "https://openalex.org/W1",
+            primaryLocation = NetworkLocation(source = NetworkSource("X", type = " ", hostOrganizationName = "")),
+            type = "",
+            biblio = NetworkBiblio(volume = " ", issue = null, firstPage = "", lastPage = null)
+        ).asPaper()
+
+        assertEquals(PublicationDetails(), paper.publication)
     }
 }

@@ -1,7 +1,10 @@
 package com.etatech.hashiya.feature.paperdetails
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performClick
 import com.etatech.hashiya.core.model.LibraryPaper
+import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
@@ -56,6 +59,57 @@ class PaperDetailsScreenshotTest(private val variant: ScreenshotVariant) {
     fun saveFailed() = composeRule.captureScreenshot("details_save_failed", variant, arabicText = "تعذّر الحفظ") {
         PaperDetailsContent(
             uiState = PaperDetailsUiState.Loaded(LibraryPaper(SamplePapers.vit, ReadingStatus.Reading), notes, NotesSaveState.Failed),
+            actions = PaperDetailsActions()
+        )
+    }
+
+    private val thesis = PaperCollection(1, "Thesis", 2)
+    private val chapter = PaperCollection(2, "الفصل الثاني", 1)
+
+    @Test
+    fun inCollections() = composeRule.captureScreenshot("details_collections", variant, arabicText = "المجموعات") {
+        PaperDetailsContent(
+            uiState = PaperDetailsUiState.Loaded(
+                LibraryPaper(SamplePapers.vit, ReadingStatus.Reading),
+                notes,
+                NotesSaveState.Idle,
+                listOf(chapter, thesis),
+                setOf(chapter.id, thesis.id)
+            ),
+            actions = PaperDetailsActions()
+        )
+    }
+
+    @Test
+    fun checklist() = composeRule.captureScreenshot(
+        "details_checklist",
+        variant,
+        arabicText = "مجموعة جديدة",
+        wholeScreen = true,
+        beforeCapture = { onNodeWithTag(COLLECTIONS_ROW_TAG).performClick() }
+    ) {
+        PaperDetailsContent(
+            uiState = PaperDetailsUiState.Loaded(
+                LibraryPaper(SamplePapers.vit, ReadingStatus.Reading),
+                notes,
+                NotesSaveState.Idle,
+                listOf(chapter, thesis),
+                setOf(thesis.id)
+            ),
+            actions = PaperDetailsActions()
+        )
+    }
+
+    @Test
+    fun emptyChecklist() = composeRule.captureScreenshot(
+        "details_checklist_empty",
+        variant,
+        arabicText = "اجمع الأوراق لفصل أو مقرر أو مشروع.",
+        wholeScreen = true,
+        beforeCapture = { onNodeWithTag(COLLECTIONS_ROW_TAG).performClick() }
+    ) {
+        PaperDetailsContent(
+            uiState = PaperDetailsUiState.Loaded(LibraryPaper(SamplePapers.vit, ReadingStatus.Reading), notes, NotesSaveState.Idle),
             actions = PaperDetailsActions()
         )
     }

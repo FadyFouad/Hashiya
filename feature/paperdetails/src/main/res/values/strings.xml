@@ -9,6 +9,15 @@
     <string name="details_notes_save_failed_message">Couldn\'t save your notes</string>
     <string name="details_retry">Retry</string>
     <string name="details_status_update_failed">Couldn\'t update the status</string>
+    <string name="details_collections">Collections</string>
+    <string name="details_no_collections">Not in any collection</string>
+    <string name="details_collections_hint">Group papers for a chapter, a course or a project.</string>
+    <string name="details_new_collection">New collection</string>
+    <string name="details_copy_bibtex">Copy BibTeX</string>
+    <string name="details_bibtex_copied">BibTeX copied</string>
+    <string name="details_bibtex_incomplete">Some details may be missing. Copy again when you\'re online.</string>
+    <string name="details_collections_update_failed">Couldn\'t update collections</string>
+    <string name="details_copy_failed">Couldn\'t copy BibTeX</string>
     <string name="note_summary">Summary</string>
     <string name="note_summary_hint">What is this paper about, in your own words?</string>
     <string name="note_research_question">Research question</string>

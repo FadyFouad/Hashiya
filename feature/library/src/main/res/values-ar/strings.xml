@@ -25,4 +25,18 @@
     <string name="library_no_matches_title">لا توجد أوراق مطابقة</string>
     <string name="library_no_matches_action">مسح البحث والفلاتر</string>
     <string name="library_status_update_failed">تعذّر تحديث الحالة</string>
+    <string name="library_all_papers">كل الأوراق</string>
+    <string name="library_choose_collection">اختيار مجموعة</string>
+    <string name="library_new_collection">مجموعة جديدة</string>
+    <string name="library_collection_options">خيارات %1$s</string>
+    <string name="library_rename">إعادة التسمية</string>
+    <string name="library_delete">حذف</string>
+    <string name="library_delete_collection_title">حذف «%1$s»؟</string>
+    <string name="library_delete_collection_message">ستبقى أوراقها في مكتبتك.</string>
+    <string name="library_collection_empty">لا توجد أوراق في هذه المجموعة بعد. أضف الأوراق من شاشة تفاصيلها.</string>
+    <string name="library_removed_from_collection">أُزيلت من %1$s</string>
+    <string name="library_export_bib">تصدير ملف &#x200E;.bib</string>
+    <string name="library_export_failed">تعذّر التصدير</string>
+    <string name="library_export_incomplete">قد تكون بعض المداخل ناقصة. أعد التصدير عند الاتصال بالإنترنت.</string>
+    <string name="library_collections_update_failed">تعذّر تحديث المجموعات</string>
 </resources>

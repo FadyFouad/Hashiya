@@ -7,6 +7,7 @@ import com.etatech.hashiya.core.model.Author
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperNotes
+import com.etatech.hashiya.core.model.PublicationDetails
 import com.etatech.hashiya.core.model.ReadingStatus
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -286,5 +287,81 @@ class RoomLibraryRepositoryTest {
         assertEquals(PaperNotes(), removed.notes)
         assertEquals(PaperNotes(), repository.observeNotes("W1").first())
         assertEquals(listOf("W1"), ids("paper"))
+    }
+
+    @Test
+    fun savesPublicationDetailsAsFetched() = runTest {
+        val details = PublicationDetails("article", "journal", "Springer", "521", "7553", "436", "444")
+        repository.save(paper("W1").copy(publication = details))
+
+        val row = checkNotNull(db.citationDao().getPaper("W1")).paper
+        assertEquals("Springer", row.publisher)
+        assertEquals(true, row.detailsFetched)
+        assertEquals(details, repository.observePaper("W1").first()?.paper?.publication)
+    }
+
+    @Test
+    fun libraryAndCountsFollowTheSelectedCollection() = runTest {
+        repository.save(paper("W1", title = "Graph networks"))
+        repository.save(paper("W2", title = "Graph kernels"))
+        val collections = db.collectionDao()
+        val id = checkNotNull(collections.insertCollection("A", "a", createdAt = 1))
+        collections.addToCollection(id, "W1", addedAt = 1)
+
+        assertEquals(listOf("W1"), repository.observeLibrary("graph", null, id).first().map { it.paper.openAlexId })
+        assertEquals(1, repository.observeStatusCounts("", id).first().values.sum())
+        assertEquals(2, repository.observeStatusCounts("").first().values.sum())
+    }
+
+    @Test
+    fun removeThenRestoreKeepsCollectionsCiteKeyAndFetchedFlag() = runTest {
+        val details = PublicationDetails("article", "journal", "Springer", "521", "7553", "436", "444")
+        repository.save(paper("W1").copy(publication = details))
+        val collections = db.collectionDao()
+        val kept = checkNotNull(collections.insertCollection("Kept", "kept", createdAt = 1))
+        val gone = checkNotNull(collections.insertCollection("Gone", "gone", createdAt = 1))
+        collections.addToCollection(kept, "W1", addedAt = 7)
+        collections.addToCollection(gone, "W1", addedAt = 8)
+        db.citationDao().assignCiteKeys(mapOf("local-1" to "first2020paper"))
+
+        val removed = checkNotNull(repository.remove("W1"))
+        assertEquals(setOf(kept, gone), removed.collectionIds)
+        assertEquals(mapOf(kept to 7L, gone to 8L), removed.collectionLinksAddedAt)
+        assertEquals("first2020paper", removed.citeKey)
+        assertEquals(true, removed.detailsFetched)
+        collections.deleteCollection(gone)
+        repository.restore(removed)
+
+        assertEquals(listOf(kept), collections.observeCollectionIdsForPaper("W1").first())
+        val row = checkNotNull(db.citationDao().getPaper("W1")).paper
+        assertEquals("first2020paper", row.citeKey)
+        assertEquals(true, row.detailsFetched)
+        assertEquals(details, repository.observePaper("W1").first()?.paper?.publication)
+    }
+
+    @Test
+    fun restoreKeepsAPreV4PaperUnfetched() = runTest {
+        repository.save(paper("W1"))
+        db.openHelper.writableDatabase.execSQL("UPDATE papers SET details_fetched = 0 WHERE open_alex_id = 'W1'")
+
+        val removed = checkNotNull(repository.remove("W1"))
+        assertEquals(false, removed.detailsFetched)
+        repository.restore(removed)
+
+        assertEquals(false, checkNotNull(db.citationDao().getPaper("W1")).paper.detailsFetched)
+    }
+
+    @Test
+    fun restoreDropsACiteKeyAnotherPaperTookMeanwhile() = runTest {
+        repository.save(paper("W1"))
+        db.citationDao().assignCiteKeys(mapOf("local-1" to "first2020paper"))
+        val removed = checkNotNull(repository.remove("W1"))
+        repository.save(paper("W2"))
+        db.citationDao().assignCiteKeys(mapOf("local-2" to "first2020paper"))
+
+        repository.restore(removed)
+
+        assertEquals(setOf("W1", "W2"), repository.observeSavedIds().first())
+        assertNull(checkNotNull(db.citationDao().getPaper("W1")).paper.citeKey)
     }
 }

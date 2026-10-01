@@ -20,6 +20,7 @@ These images are the app's screenshot-test baselines, so they always match the c
 - Preview a paper's abstract, authors and citations, then save it to an offline library.
 - Search your library offline by words from a paper's title, authors, abstract or venue (Arabic search ignores tashkeel and letter variants), and track each paper as To read, Reading or Read with status filters and counts.
 - Open a saved paper's details (every author, the full abstract, DOI and PDF links) and write structured notes: Summary, Research question, Method, Key findings, Limitations and My thoughts. Notes save as you type and are searchable from the Library.
+- Group saved papers into collections and filter the Library by collection. Export a collection, or the whole library, as a `.bib` file for Overleaf or LaTeX, with entry types and cite keys that stay the same from one export to the next, or copy one paper's BibTeX from its details.
 - Swipe to remove from the library, with Undo.
 - Full English and Arabic support, including right-to-left layouts and per-app language.
 - Light and dark themes; navigation rail on tablets and foldables.
@@ -32,7 +33,8 @@ graph TD
     feature/search & feature/library & feature/paperdetails & feature/settings --> core/data & core/designsystem & core/model
     core/designsystem --> core/model
     core/database --> core/model
-    core/data --> core/network & core/database & core/datastore & core/model
+    core/data --> core/network & core/database & core/datastore & core/bibtex & core/model
+    core/bibtex --> core/model
 ```
 
 - **Features** see only repository interfaces from `core/data`, so every ViewModel is tested with fakes.
@@ -54,9 +56,9 @@ Kotlin · Jetpack Compose · Material 3 · Navigation (type-safe) · Hilt · Roo
 ## Testing
 
 ```bash
-./gradlew testDebugUnitTest :core:model:test   # unit, Robolectric UI and screenshot tests
-./gradlew spotlessCheck lintDebug               # formatting and lint
-bash scripts/record-screenshots-on-linux.sh     # re-record screenshot baselines after an intended UI change
+./gradlew testDebugUnitTest :core:model:test :core:bibtex:test   # unit, Robolectric UI and screenshot tests
+./gradlew spotlessCheck lintDebug                                 # formatting and lint
+bash scripts/record-screenshots-on-linux.sh                       # re-record screenshot baselines after an intended UI change
 ```
 
 Screenshot baselines are recorded on CI's Linux runners, which are the source of truth; CI verifies every push against them.
@@ -71,5 +73,5 @@ A native SwiftUI app with the features of sub-projects 1 to 4 lives in [`ios/`](
 2. ✅ Add by DOI / arXiv ID and Android Share
 3. ✅ Library: full-text search and reading status
 4. ✅ Paper details and structured notes
-5. Collections and BibTeX export
+5. ✅ Collections and BibTeX export
 6. PDFs: attach or download open-access versions

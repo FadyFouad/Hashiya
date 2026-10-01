@@ -7,6 +7,8 @@ import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NoteSection
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.ReadingStatus
+import com.etatech.hashiya.core.testing.FakeCitationRepository
+import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
@@ -39,7 +41,13 @@ class PaperDetailsViewModelTest {
 
     /** The application scope is the test's backgroundScope: it outlives viewModelScope, like the real one. */
     private fun TestScope.viewModel(libraryRepository: LibraryRepository = repository): PaperDetailsViewModel {
-        val viewModel = PaperDetailsViewModel(SavedStateHandle(mapOf(ARG_OPEN_ALEX_ID to id)), libraryRepository, backgroundScope)
+        val viewModel = PaperDetailsViewModel(
+            SavedStateHandle(mapOf(ARG_OPEN_ALEX_ID to id)),
+            libraryRepository,
+            FakeCollectionsRepository(repository),
+            FakeCitationRepository(),
+            backgroundScope
+        )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }

@@ -7,9 +7,13 @@ import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextInput
 import com.etatech.hashiya.core.data.repository.LibraryRepository
+import com.etatech.hashiya.core.designsystem.component.COLLECTION_NAME_FIELD_TAG
 import com.etatech.hashiya.core.testing.SamplePapers
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
@@ -123,5 +127,37 @@ class HashiyaAppNavigationTest {
         waitForText("Removed from library")
         composeRule.onNodeWithText("Undo").performClick()
         waitForText(SamplePapers.bert.title)
+    }
+
+    @Test
+    fun collectionCreatedOnDetailsFiltersTheLibrary() {
+        runBlocking {
+            libraryRepository.save(SamplePapers.bert)
+            libraryRepository.save(SamplePapers.vit)
+        }
+        waitForText(SamplePapers.bert.title)
+        composeRule.onNodeWithText(SamplePapers.bert.title).performClick()
+        waitForText("My notes")
+
+        // The row's tag is internal to feature/paperdetails, so the test finds it by its text.
+        composeRule.onNodeWithText("Not in any collection").performScrollTo().performClick()
+        // Only the checklist sheet shows "New collection" until the name dialog opens.
+        composeRule.onNodeWithText("New collection").performClick()
+        composeRule.onNodeWithTag(COLLECTION_NAME_FIELD_TAG).performTextInput("Thesis")
+        composeRule.onNodeWithText("Create").performClick()
+        // "Thesis" shows as a chip on Details and as a row in the sheet, which stays open.
+        waitForText("Thesis")
+        // The checklist sheet belongs to Details, so leaving Details closes it too.
+        composeRule.onNodeWithContentDescription("Back").performClick()
+
+        waitForText("All papers")
+        composeRule.onNodeWithText("All papers").performClick()
+        waitForText("Thesis")
+        composeRule.onNodeWithText("Thesis").performClick()
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText(SamplePapers.vit.title).fetchSemanticsNodes().isEmpty()
+        }
+        composeRule.onNodeWithText(SamplePapers.bert.title).assertIsDisplayed()
     }
 }

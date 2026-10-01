@@ -1,5 +1,8 @@
 package com.etatech.hashiya.feature.paperdetails
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.os.Build
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +45,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -57,6 +61,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.etatech.hashiya.core.designsystem.R as DesignR
+import com.etatech.hashiya.core.designsystem.component.CollectionNameDialog
 import com.etatech.hashiya.core.designsystem.component.LoadingSkeleton
 import com.etatech.hashiya.core.designsystem.component.PaperAbstract
 import com.etatech.hashiya.core.designsystem.component.PaperHeader
@@ -76,7 +81,10 @@ internal fun PaperDetailsScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val exit by viewModel.exit.collectAsStateWithLifecycle()
+    val newCollectionDialog by viewModel.newCollectionDialog.collectAsStateWithLifecycle()
+    val copied by viewModel.copied.collectAsStateWithLifecycle()
     val uriHandler = LocalUriHandler.current
+    val context = LocalContext.current
     // Backgrounding the app or leaving the screen writes what was typed without waiting for the pause.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.flushNotes() }
     LaunchedEffect(exit) {
@@ -86,9 +94,21 @@ internal fun PaperDetailsScreen(
             null -> Unit
         }
     }
+    LaunchedEffect(copied) {
+        val entry = copied ?: return@LaunchedEffect
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        val confirmation = try {
+            checkNotNull(clipboard).setPrimaryClip(ClipData.newPlainText("BibTeX", entry.text))
+            copyConfirmation(entry.complete, Build.VERSION.SDK_INT)
+        } catch (e: Exception) {
+            PaperDetailsMessage.CopyFailed
+        }
+        viewModel.onCopyHandled(confirmation)
+    }
     PaperDetailsContent(
         uiState = uiState,
         message = message,
+        newCollectionDialog = newCollectionDialog,
         actions = PaperDetailsActions(
             onBack = onBack,
             onRemove = viewModel::onRemove,
@@ -96,7 +116,13 @@ internal fun PaperDetailsScreen(
             onNoteChange = viewModel::onNoteChange,
             onRetrySave = viewModel::onRetrySave,
             onMessageShown = viewModel::onMessageShown,
-            onOpenLink = { url -> runCatching { uriHandler.openUri(url) } }
+            onOpenLink = { url -> runCatching { uriHandler.openUri(url) } },
+            onCopyBibTeX = viewModel::onCopyBibTeX,
+            onToggleCollection = viewModel::onToggleCollection,
+            onNewCollection = viewModel::onNewCollection,
+            onNewCollectionNameEdited = viewModel::onNewCollectionNameEdited,
+            onNewCollectionConfirm = viewModel::onNewCollectionConfirm,
+            onNewCollectionDismiss = viewModel::onNewCollectionDismiss
         )
     )
 }
@@ -107,12 +133,17 @@ internal fun PaperDetailsContent(
     uiState: PaperDetailsUiState,
     actions: PaperDetailsActions,
     modifier: Modifier = Modifier,
-    message: PaperDetailsMessage? = null
+    message: PaperDetailsMessage? = null,
+    newCollectionDialog: NewCollectionDialog? = null
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailed = stringResource(R.string.details_notes_save_failed_message)
     val retry = stringResource(R.string.details_retry)
     val statusUpdateFailed = stringResource(R.string.details_status_update_failed)
+    val collectionsUpdateFailed = stringResource(R.string.details_collections_update_failed)
+    val bibtexCopied = stringResource(R.string.details_bibtex_copied)
+    val bibtexIncomplete = stringResource(R.string.details_bibtex_incomplete)
+    val copyFailed = stringResource(R.string.details_copy_failed)
     LaunchedEffect(message) {
         when (message) {
             PaperDetailsMessage.NotesSaveFailed -> {
@@ -126,8 +157,50 @@ internal fun PaperDetailsContent(
                 actions.onMessageShown()
             }
 
+            PaperDetailsMessage.CollectionsUpdateFailed -> {
+                snackbarHostState.showSnackbar(collectionsUpdateFailed)
+                actions.onMessageShown()
+            }
+
+            PaperDetailsMessage.BibTeXCopied -> {
+                snackbarHostState.showSnackbar(bibtexCopied)
+                actions.onMessageShown()
+            }
+
+            PaperDetailsMessage.BibTeXIncomplete -> {
+                snackbarHostState.showSnackbar(bibtexIncomplete, duration = SnackbarDuration.Long)
+                actions.onMessageShown()
+            }
+
+            PaperDetailsMessage.CopyFailed -> {
+                snackbarHostState.showSnackbar(copyFailed)
+                actions.onMessageShown()
+            }
+
             null -> Unit
         }
+    }
+
+    var checklistOpen by rememberSaveable { mutableStateOf(false) }
+    val loaded = uiState as? PaperDetailsUiState.Loaded
+    if (checklistOpen && loaded != null) {
+        CollectionChecklistSheet(
+            collections = loaded.collections,
+            memberOf = loaded.memberOf,
+            onToggle = actions.onToggleCollection,
+            onNew = actions.onNewCollection,
+            onDismiss = { checklistOpen = false },
+            snackbarHostState = snackbarHostState
+        )
+    }
+    if (newCollectionDialog != null) {
+        CollectionNameDialog(
+            initialName = null,
+            nameTaken = newCollectionDialog.nameTaken,
+            onNameEdited = actions.onNewCollectionNameEdited,
+            onConfirm = actions.onNewCollectionConfirm,
+            onDismiss = actions.onNewCollectionDismiss
+        )
     }
 
     Scaffold(
@@ -140,26 +213,41 @@ internal fun PaperDetailsContent(
                         Icon(HashiyaIcons.Back, contentDescription = stringResource(R.string.details_back))
                     }
                 },
-                actions = { if (uiState is PaperDetailsUiState.Loaded) OverflowMenu(actions.onRemove) }
+                actions = { if (uiState is PaperDetailsUiState.Loaded) OverflowMenu(actions.onCopyBibTeX, actions.onRemove) }
             )
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        // While the checklist is open it shows the snackbar itself, above its scrim.
+        snackbarHost = { if (!(checklistOpen && uiState is PaperDetailsUiState.Loaded)) SnackbarHost(snackbarHostState) }
     ) { padding ->
         when (uiState) {
             PaperDetailsUiState.Loading -> LoadingSkeleton(Modifier.padding(padding))
-            is PaperDetailsUiState.Loaded -> DetailsBody(uiState, actions, Modifier.padding(padding))
+
+            is PaperDetailsUiState.Loaded -> DetailsBody(
+                uiState,
+                actions,
+                onOpenCollections = { checklistOpen = true },
+                modifier = Modifier.padding(padding)
+            )
         }
     }
 }
 
 @Composable
-private fun OverflowMenu(onRemove: () -> Unit) {
+private fun OverflowMenu(onCopyBibTeX: () -> Unit, onRemove: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(HashiyaIcons.MoreOptions, contentDescription = stringResource(R.string.details_more_options))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.details_copy_bibtex)) },
+                leadingIcon = { Icon(HashiyaIcons.Copy, contentDescription = null) },
+                onClick = {
+                    expanded = false
+                    onCopyBibTeX()
+                }
+            )
             DropdownMenuItem(
                 text = { Text(stringResource(DesignR.string.designsystem_remove_from_library)) },
                 leadingIcon = { Icon(HashiyaIcons.Delete, contentDescription = null) },
@@ -174,7 +262,12 @@ private fun OverflowMenu(onRemove: () -> Unit) {
 
 // A scrolling Column, not a LazyColumn: text fields in a lazy list lose focus when they scroll out of composition.
 @Composable
-private fun DetailsBody(state: PaperDetailsUiState.Loaded, actions: PaperDetailsActions, modifier: Modifier = Modifier) {
+private fun DetailsBody(
+    state: PaperDetailsUiState.Loaded,
+    actions: PaperDetailsActions,
+    onOpenCollections: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val paper = state.paper.paper
     Column(
         modifier
@@ -186,6 +279,8 @@ private fun DetailsBody(state: PaperDetailsUiState.Loaded, actions: PaperDetails
         PaperHeader(paper)
         Spacer(Modifier.height(16.dp))
         ReadingStatusSelector(state.paper.status, actions.onStatusChange)
+        Spacer(Modifier.height(8.dp))
+        CollectionsRow(state.collections, state.memberOf, onClick = onOpenCollections)
         PaperLinks(paper, actions.onOpenLink)
         Spacer(Modifier.height(16.dp))
         PaperAbstract(paper)

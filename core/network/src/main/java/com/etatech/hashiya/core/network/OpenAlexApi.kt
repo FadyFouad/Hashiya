@@ -10,7 +10,7 @@ internal const val OPENALEX_BASE_URL = "https://api.openalex.org/"
 
 internal const val WORK_FIELDS =
     "id,doi,display_name,publication_year,primary_location,authorships," +
-        "cited_by_count,open_access,best_oa_location,abstract_inverted_index"
+        "cited_by_count,open_access,best_oa_location,abstract_inverted_index,type,biblio"
 
 internal interface OpenAlexApi {
     @GET("works")

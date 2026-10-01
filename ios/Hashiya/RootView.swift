@@ -1,20 +1,23 @@
 import FeatureLibrary
 import FeaturePaperDetails
+import FeatureReader
 import FeatureSearch
 import FeatureSettings
 import HashiyaData
 import HashiyaDesignSystem
 import SwiftUI
 
-/// Library and Search tabs, each in its own navigation stack that can push a saved paper's Details; Settings as a sheet from either.
+/// Library and Search tabs, each in its own navigation stack that can push a saved paper's Details and its PDF reader;
+/// Settings as a sheet from either.
 struct RootView: View {
     enum Tab: Hashable { case library, search }
 
     private let container: AppContainer
     @State private var selectedTab = Tab.library
     @State private var showsSettings = false
-    @State private var libraryPath: [PaperDetailsRoute] = []
-    @State private var searchPath: [PaperDetailsRoute] = []
+    /// Details, and the reader above it.
+    @State private var libraryPath = NavigationPath()
+    @State private var searchPath = NavigationPath()
     /// Bumped on every scene phase change, so a background suspend that waited for writes is dropped once the app is active again.
     @State private var phaseGeneration = 0
     @State private var libraryViewModel: LibraryViewModel
@@ -80,6 +83,9 @@ struct RootView: View {
                 .navigationDestination(for: PaperDetailsRoute.self) { route in
                     details(route, in: .library)
                 }
+                .navigationDestination(for: ReaderRoute.self) { route in
+                    reader(route, in: .library)
+                }
             }
             .tabItem {
                 Label {
@@ -98,6 +104,9 @@ struct RootView: View {
                 )
                 .navigationDestination(for: PaperDetailsRoute.self) { route in
                     details(route, in: .search)
+                }
+                .navigationDestination(for: ReaderRoute.self) { route in
+                    reader(route, in: .search)
                 }
             }
             .tabItem {
@@ -130,7 +139,21 @@ struct RootView: View {
                     case .search: await searchViewModel.remove(openAlexID: id)
                     }
                 }
+            },
+            onReadPdf: { id in
+                switch tab {
+                case .library: libraryPath.append(ReaderRoute(openAlexID: id))
+                case .search: searchPath.append(ReaderRoute(openAlexID: id))
+                }
             }
+        )
+    }
+
+    /// The reader on `tab`'s stack, above the paper's Details.
+    private func reader(_ route: ReaderRoute, in tab: Tab) -> some View {
+        ReaderScreen(
+            viewModel: container.makeReaderViewModel(openAlexID: route.openAlexID),
+            onClose: { pop(tab) }
         )
     }
 

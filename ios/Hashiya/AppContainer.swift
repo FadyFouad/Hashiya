@@ -1,5 +1,6 @@
 import FeatureLibrary
 import FeaturePaperDetails
+import FeatureReader
 import FeatureSearch
 import FeatureSettings
 import Foundation
@@ -78,6 +79,16 @@ final class AppContainer {
             citations: citationRepository,
             pdfs: pdfRepository,
             copy: { UIPasteboard.general.string = $0 }
+        )
+    }
+
+    /// The reader's notes go through the same `PendingWrites` as Details', so Details waits for them before it reads.
+    func makeReaderViewModel(openAlexID: String) -> ReaderViewModel {
+        ReaderViewModel(
+            openAlexID: openAlexID,
+            pdfs: pdfRepository,
+            library: libraryRepository,
+            notes: NotesEditor(openAlexID: openAlexID, library: libraryRepository, pendingWrites: pendingWrites)
         )
     }
 

@@ -1,6 +1,7 @@
 package com.etatech.hashiya.feature.settings
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import com.etatech.hashiya.core.model.PdfStorage
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.ScreenshotVariant
 import com.etatech.hashiya.core.testing.ScreenshotVariantRule
@@ -26,6 +27,22 @@ class SettingsScreenshotTest(private val variant: ScreenshotVariant) {
     fun settings() = composeRule.captureScreenshot("settings", variant, arabicText = "الإعدادات") {
         SettingsContent(
             uiState = SettingsUiState(usingUserKey = true, keyInput = "my-openalex-key", language = AppLanguage.System),
+            onBack = {},
+            onKeyInputChange = {},
+            onSaveKey = {},
+            onResetKey = {},
+            onLanguageSelected = {}
+        )
+    }
+
+    @Test
+    fun storage() = composeRule.captureScreenshot("settings_storage", variant, arabicText = "التخزين", wholeScreen = true) {
+        SettingsContent(
+            uiState = SettingsUiState(
+                usingUserKey = false,
+                language = AppLanguage.System,
+                storage = PdfStorage(downloadedBytes = 38_273_024, downloadedCount = 12, attachedBytes = 4_718_592, attachedCount = 3)
+            ),
             onBack = {},
             onKeyInputChange = {},
             onSaveKey = {},

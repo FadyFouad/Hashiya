@@ -11,4 +11,32 @@
     <string name="settings_reset">الرجوع إلى المفتاح المدمج</string>
     <string name="settings_language_section">اللغة</string>
     <string name="settings_language_system">لغة النظام</string>
+    <string name="settings_storage">التخزين</string>
+    <plurals name="settings_downloaded_pdfs">
+        <item quantity="zero">ملفات PDF المُنزَّلة · %1$s · لا ملفات</item>
+        <item quantity="one">ملفات PDF المُنزَّلة · %1$s · ملف واحد</item>
+        <item quantity="two">ملفات PDF المُنزَّلة · %1$s · ملفان</item>
+        <item quantity="few">ملفات PDF المُنزَّلة · %1$s · %2$d ملفات</item>
+        <item quantity="many">ملفات PDF المُنزَّلة · %1$s · %2$d ملفًا</item>
+        <item quantity="other">ملفات PDF المُنزَّلة · %1$s · %2$d ملف</item>
+    </plurals>
+    <plurals name="settings_attached_pdfs">
+        <item quantity="zero">ملفات PDF المُرفَقة · %1$s · لا ملفات</item>
+        <item quantity="one">ملفات PDF المُرفَقة · %1$s · ملف واحد</item>
+        <item quantity="two">ملفات PDF المُرفَقة · %1$s · ملفان</item>
+        <item quantity="few">ملفات PDF المُرفَقة · %1$s · %2$d ملفات</item>
+        <item quantity="many">ملفات PDF المُرفَقة · %1$s · %2$d ملفًا</item>
+        <item quantity="other">ملفات PDF المُرفَقة · %1$s · %2$d ملف</item>
+    </plurals>
+    <string name="settings_delete_downloaded">حذف ملفات PDF المُنزَّلة</string>
+    <plurals name="settings_delete_downloaded_message">
+        <item quantity="zero">حذف ملفات PDF المُنزَّلة؟ يمكنك تنزيلها مرة أخرى. ستبقى الملفات المُرفَقة.</item>
+        <item quantity="one">حذف ملف PDF المُنزَّل؟ يمكنك تنزيله مرة أخرى. ستبقى الملفات المُرفَقة.</item>
+        <item quantity="two">حذف ملفَي PDF المُنزَّلَين؟ يمكنك تنزيلهما مرة أخرى. ستبقى الملفات المُرفَقة.</item>
+        <item quantity="few">حذف %1$d ملفات PDF مُنزَّلة؟ يمكنك تنزيلها مرة أخرى. ستبقى الملفات المُرفَقة.</item>
+        <item quantity="many">حذف %1$d ملفًا مُنزَّلًا بصيغة PDF؟ يمكنك تنزيلها مرة أخرى. ستبقى الملفات المُرفَقة.</item>
+        <item quantity="other">حذف %1$d من ملفات PDF المُنزَّلة؟ يمكنك تنزيلها مرة أخرى. ستبقى الملفات المُرفَقة.</item>
+    </plurals>
+    <string name="settings_delete">حذف</string>
+    <string name="settings_cancel">إلغاء</string>
 </resources>

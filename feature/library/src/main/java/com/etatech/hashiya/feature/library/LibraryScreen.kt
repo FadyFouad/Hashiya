@@ -394,10 +394,22 @@ private fun LibraryRow(item: LibraryPaper, onClick: () -> Unit, onStatusChange: 
         }
         Spacer(Modifier.width(12.dp))
         ReadingStatusBadge(item.status, onStatusChange)
+        if (item.hasPdf) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                HashiyaIcons.Pdf,
+                contentDescription = stringResource(R.string.library_has_pdf),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .size(18.dp)
+                    .testTag(LIBRARY_PDF_ICON_TAG)
+            )
+        }
     }
 }
 
 internal const val EXPORT_PROGRESS_TAG = "export_progress"
+internal const val LIBRARY_PDF_ICON_TAG = "library_pdf_icon"
 
 @Composable
 private fun CollectionTitle(name: String, onClick: () -> Unit) {

@@ -13,6 +13,7 @@ import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
+import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import kotlinx.coroutines.runBlocking
@@ -32,8 +33,13 @@ class LibrarySwipeUndoTest {
 
     private val repository = CountingLibraryRepository()
 
-    private fun viewModel() =
-        LibraryViewModel(SavedStateHandle(), repository, FakeCollectionsRepository(FakeLibraryRepository()), FakeCitationRepository())
+    private fun viewModel() = LibraryViewModel(
+        SavedStateHandle(),
+        repository,
+        FakeCollectionsRepository(FakeLibraryRepository()),
+        FakeCitationRepository(),
+        FakePdfRepository()
+    )
 
     @Test
     fun undoAfterSwipeKeepsThePaperInTheList() {

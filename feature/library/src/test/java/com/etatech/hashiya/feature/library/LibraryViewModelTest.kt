@@ -1,12 +1,14 @@
 package com.etatech.hashiya.feature.library
 
 import androidx.lifecycle.SavedStateHandle
+import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
+import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
 import kotlinx.coroutines.delay
@@ -35,9 +37,10 @@ class LibraryViewModelTest {
     private val collections = FakeCollectionsRepository(repository)
     private val citations = FakeCitationRepository()
     private val savedStateHandle = SavedStateHandle()
+    private val pdfs = FakePdfRepository()
 
     private fun TestScope.viewModel(handle: SavedStateHandle = savedStateHandle): LibraryViewModel {
-        val viewModel = LibraryViewModel(handle, repository, collections, citations)
+        val viewModel = LibraryViewModel(handle, repository, collections, citations, pdfs)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }
@@ -259,7 +262,7 @@ class LibraryViewModelTest {
     private suspend fun TestScope.statesWhileRemovingAndRestoringTheOnlyPaper(listLags: Boolean, countsLag: Boolean): List<LibraryUiState> {
         repository.save(SamplePapers.bert)
         val lagging = LaggingLibraryRepository(repository, listLags, countsLag)
-        val viewModel = LibraryViewModel(SavedStateHandle(), lagging, collections, citations)
+        val viewModel = LibraryViewModel(SavedStateHandle(), lagging, collections, citations, pdfs)
         val states = mutableListOf<LibraryUiState>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.toList(states) }
         advanceUntilIdle()
@@ -335,5 +338,57 @@ class LibraryViewModelTest {
 
         assertNull(viewModel.pendingUndo.value)
         assertEquals(LibraryUiState.Empty, viewModel.uiState.value)
+    }
+
+    @Test
+    fun anExpiredUndoDiscardsThePdfButUndoDoesNot() = runTest {
+        saveSamples()
+        val viewModel = viewModel()
+
+        viewModel.onRemove(SamplePapers.bert)
+        viewModel.onUndoRemove()
+        assertEquals(emptyList<String>(), pdfs.discarded)
+
+        viewModel.onRemove(SamplePapers.vit)
+        viewModel.onUndoDismissed()
+        assertEquals(listOf(SamplePapers.vit.openAlexId), pdfs.discarded)
+    }
+
+    /** The screen cancels the first snackbar when a second removal replaces it, so neither callback runs for the first. */
+    @Test
+    fun aSecondRemovalDiscardsTheFirstPapersPdf() = runTest {
+        saveSamples()
+        val viewModel = viewModel()
+
+        viewModel.onRemove(SamplePapers.attention)
+        viewModel.onRemove(SamplePapers.bert)
+
+        assertEquals(listOf(SamplePapers.attention.openAlexId), pdfs.discarded)
+        viewModel.onUndoRemove()
+        assertEquals(listOf(SamplePapers.attention.openAlexId), pdfs.discarded)
+    }
+
+    @Test
+    fun removingFromACollectionNeverDiscardsAPdf() = runTest {
+        saveSamples()
+        val thesis = (collections.create("Thesis") as CollectionResult.Done).id
+        collections.setMembership(thesis, SamplePapers.bert.openAlexId, member = true)
+        val viewModel = viewModel()
+        viewModel.onSelectCollection(thesis)
+        advanceUntilIdle()
+
+        viewModel.onRemove(SamplePapers.bert)
+        viewModel.onCollectionUndoDismissed()
+
+        assertEquals(emptyList<String>(), pdfs.discarded)
+    }
+
+    @Test
+    fun dismissingWithNothingPendingDiscardsNothing() = runTest {
+        val viewModel = viewModel()
+
+        viewModel.onUndoDismissed()
+
+        assertEquals(emptyList<String>(), pdfs.discarded)
     }
 }

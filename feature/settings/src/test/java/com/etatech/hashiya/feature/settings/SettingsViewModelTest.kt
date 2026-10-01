@@ -1,5 +1,7 @@
 package com.etatech.hashiya.feature.settings
 
+import com.etatech.hashiya.core.model.PdfStorage
+import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import kotlinx.coroutines.flow.collect
@@ -20,9 +22,10 @@ class SettingsViewModelTest {
 
     private val preferences = FakeUserPreferencesRepository()
     private val languageController = FakeAppLanguageController()
+    private val pdfs = FakePdfRepository()
 
     private fun TestScope.viewModel(): SettingsViewModel {
-        val viewModel = SettingsViewModel(preferences, languageController)
+        val viewModel = SettingsViewModel(preferences, languageController, pdfs)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }
@@ -82,5 +85,25 @@ class SettingsViewModelTest {
 
         assertEquals(AppLanguage.Arabic, languageController.language)
         assertEquals(AppLanguage.Arabic, viewModel.uiState.value.language)
+    }
+
+    @Test
+    fun loadsThePdfStorage() = runTest {
+        pdfs.setStorage(PdfStorage(downloadedBytes = 3_000_000, downloadedCount = 2, attachedBytes = 1_000_000, attachedCount = 1))
+
+        val state = viewModel().uiState.value
+
+        assertEquals(PdfStorage(3_000_000, 2, 1_000_000, 1), state.storage)
+    }
+
+    @Test
+    fun deletingDownloadedPdfsKeepsAttachedOnesAndReloads() = runTest {
+        pdfs.setStorage(PdfStorage(downloadedBytes = 3_000_000, downloadedCount = 2, attachedBytes = 1_000_000, attachedCount = 1))
+        val viewModel = viewModel()
+
+        viewModel.onDeleteDownloadedPdfs()
+
+        assertEquals(1, pdfs.deleteDownloadedCalls)
+        assertEquals(PdfStorage(0, 0, 1_000_000, 1), viewModel.uiState.value.storage)
     }
 }

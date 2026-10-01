@@ -1,7 +1,7 @@
 # iOS sub-project 6: PDFs — Design
 
 - **Date:** 2026-10-01
-- **Status:** Awaiting review
+- **Status:** Approved
 - **Scope:** iOS counterpart of Android sub-project 6 (`2026-10-01-pdfs-design.md`), matching the Android code merged on `main` in `9684be6` (PR #19), plus the https download fix in PR #21. Builds on the iOS specs 1–5; their platform decisions, package rules, string conventions, testing and CI apply unchanged.
 - **Depends on:** iOS sub-project 5 (PR #20). Migration `"v5"` here follows its `"v4"`, so implementation starts after #20 merges, on this branch rebased onto `main`.
 

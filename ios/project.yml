@@ -125,6 +125,7 @@ schemes:
         PACKAGE_RESOURCE_BUNDLE_PATH: $(BUILT_PRODUCTS_DIR)
       targets:
         - package: HashiyaKit/HashiyaModelTests
+        - package: HashiyaKit/HashiyaBibTeXTests
         - package: HashiyaKit/HashiyaNetworkTests
         - package: HashiyaKit/HashiyaDatabaseTests
         - package: HashiyaKit/HashiyaDataTests

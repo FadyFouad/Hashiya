@@ -3,7 +3,7 @@ import Foundation
 /// `GET https://api.openalex.org/works` keyword search.
 public final class OpenAlexSearchClient: OpenAlexSearchService {
     public static let selectFields =
-        "id,doi,display_name,publication_year,primary_location,authorships,cited_by_count,open_access,best_oa_location,abstract_inverted_index"
+        "id,doi,display_name,publication_year,primary_location,authorships,cited_by_count,open_access,best_oa_location,abstract_inverted_index,type,biblio"
 
     private let http: OpenAlexHTTP
 

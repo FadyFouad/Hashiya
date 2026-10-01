@@ -6,17 +6,22 @@ import os
 
 /// Launched with `-ui-testing` (Debug only): an empty library in its own App Group file (which the Share
 /// Extension also uses while stubbed), an in-memory key, a search that returns the same three papers for any
-/// query and a lookup that knows arXiv 1706.03762. Nothing touches the network or the real library.
+/// query and a lookup that knows arXiv 1706.03762, and citations that never refetch. Nothing touches the network or the real library.
 enum UITestingStubs {
     /// UI tests never see the Update required screen.
     static let appUpdateRepository: any AppUpdateRepository = NoUpdateRequired()
 
     static func dependencies() -> LiveDependencies {
-        LiveDependencies(
-            libraryRepository: try! GRDBLibraryRepository.shared(fileName: UITestingFlags.databaseFileName, fresh: true),
+        // One store for the library, collections and citations; no lookup, so Copy BibTeX never touches the network.
+        let repositories = try! LibraryRepositories.shared(fileName: UITestingFlags.databaseFileName, fresh: true)
+        return LiveDependencies(
+            libraryRepository: repositories.library,
             searchRepository: StubSearchRepository(),
             lookupRepository: StubPaperLookupRepository(),
-            preferences: KeychainUserPreferencesRepository(keychain: InMemoryKeychain())
+            preferences: KeychainUserPreferencesRepository(keychain: InMemoryKeychain()),
+            collections: repositories.collections,
+            citations: repositories.citations,
+            exportFiles: .live
         )
     }
 

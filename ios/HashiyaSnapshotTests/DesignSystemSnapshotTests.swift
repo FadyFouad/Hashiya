@@ -62,6 +62,11 @@ struct DesignSystemSnapshotTests {
         assertHashiyaSnapshots(of: UpdateRequiredView(onUpdate: {}), named: "updateRequired", arabicText: "يلزم التحديث")
     }
 
+    /// The name sheet as the Library and Details show it after a clash. Rendered as the sheet's content, full screen.
+    @Test func collectionNameSheetWithTheClash() {
+        assertHashiyaSnapshots(of: NameTakenSheet(), named: "collectionNameTaken", arabicText: "توجد مجموعة بهذا الاسم بالفعل")
+    }
+
     /// Chips, the two button styles and a banner over cards, so the glass has content to refract.
     ///
     /// The content lives in `GlassSurfacesFixture`'s own `body` (not a `let` built once) so the status labels are
@@ -118,5 +123,17 @@ private struct GlassSurfacesFixture: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
             .hashiyaChip(isSelected: isSelected)
+    }
+}
+
+private struct NameTakenSheet: View {
+    var body: some View {
+        CollectionNameSheet(
+            mode: .create,
+            initialName: "Thesis",
+            error: DesignSystemStrings.collectionNameTaken,
+            onSubmit: { _ in },
+            onCancel: {}
+        )
     }
 }

@@ -28,6 +28,10 @@ struct NetworkModelsTests {
         #expect(work.openAccess?.isOA == true)
         #expect(work.bestOALocation?.pdfURL == "https://arxiv.org/pdf/1706.03762")
         #expect(work.abstractInvertedIndex?["dominant"] == [1])
+        #expect(work.type == "preprint")
+        #expect(work.biblio == NetworkBiblio(volume: "30", issue: nil, firstPage: "5998", lastPage: "6008"))
+        #expect(work.primaryLocation?.source?.type == "conference")
+        #expect(work.primaryLocation?.source?.hostOrganizationName == "Neural Information Processing Systems Foundation")
     }
 
     @Test func parsesASparseWork() throws {
@@ -42,6 +46,8 @@ struct NetworkModelsTests {
         #expect(work.openAccess?.isOA == false)
         #expect(work.bestOALocation == nil)
         #expect(work.abstractInvertedIndex == nil)
+        #expect(work.type == nil)
+        #expect(work.biblio == nil)
     }
 
     @Test func parsesASingleWork() throws {
@@ -64,6 +70,15 @@ struct NetworkModelsTests {
     @Test func missingResultsIsAnEmptyPage() throws {
         let page = try JSONDecoder().decode(NetworkWorksResponse.self, from: Data(#"{"meta": {"count": 0}}"#.utf8))
         #expect(page.results.isEmpty)
+    }
+
+    @Test func missingBiblioAndSourceFieldsDecodeAsNil() throws {
+        let json = #"{"id": "https://openalex.org/W1", "biblio": {}, "primary_location": {"source": {"display_name": "Nature"}}}"#
+        let work = try JSONDecoder().decode(NetworkWork.self, from: Data(json.utf8))
+        #expect(work.biblio == NetworkBiblio())
+        #expect(work.primaryLocation?.source == NetworkSource(displayName: "Nature"))
+        #expect(work.primaryLocation?.source?.type == nil)
+        #expect(work.primaryLocation?.source?.hostOrganizationName == nil)
     }
 
     @Test func aBodyWithoutMetaIsMalformed() {

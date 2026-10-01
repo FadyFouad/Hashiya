@@ -20,6 +20,19 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
     public var savedAt: Int64
     /// `to_read`, `reading` or `read` (`HashiyaData` maps them to `ReadingStatus`).
     public var readingStatus: String
+    /// OpenAlex's work type, e.g. "article"; this and the six below are nil when unknown.
+    public var workType: String?
+    /// OpenAlex's source type, e.g. "journal".
+    public var sourceType: String?
+    public var publisher: String?
+    public var volume: String?
+    public var issue: String?
+    public var firstPage: String?
+    public var lastPage: String?
+    /// Assigned the first time the paper is exported or copied, then never changed. Unique when set.
+    public var citeKey: String?
+    /// True once the columns above come from an OpenAlex response that included them; rows from before `v4` start false.
+    public var detailsFetched: Bool
 
     public init(
         id: String,
@@ -33,7 +46,10 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
         isOpenAccess: Bool,
         oaPDFURL: String?,
         savedAt: Int64,
-        readingStatus: String = "to_read"
+        readingStatus: String = "to_read",
+        publication: PublicationDetails = PublicationDetails(),
+        citeKey: String? = nil,
+        detailsFetched: Bool = false
     ) {
         self.id = id
         self.openAlexID = openAlexID
@@ -47,16 +63,43 @@ public struct PaperRecord: Codable, Equatable, Sendable, FetchableRecord, Persis
         self.oaPDFURL = oaPDFURL
         self.savedAt = savedAt
         self.readingStatus = readingStatus
+        workType = publication.workType
+        sourceType = publication.sourceType
+        publisher = publication.publisher
+        volume = publication.volume
+        issue = publication.issue
+        firstPage = publication.firstPage
+        lastPage = publication.lastPage
+        self.citeKey = citeKey
+        self.detailsFetched = detailsFetched
+    }
+
+    public var publication: PublicationDetails {
+        PublicationDetails(
+            workType: workType,
+            sourceType: sourceType,
+            publisher: publisher,
+            volume: volume,
+            issue: issue,
+            firstPage: firstPage,
+            lastPage: lastPage
+        )
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, doi, title, year, venue, abstract
+        case id, doi, title, year, venue, abstract, publisher, volume, issue
         case openAlexID = "open_alex_id"
         case citationCount = "citation_count"
         case isOpenAccess = "is_open_access"
         case oaPDFURL = "oa_pdf_url"
         case savedAt = "saved_at"
         case readingStatus = "reading_status"
+        case workType = "work_type"
+        case sourceType = "source_type"
+        case firstPage = "first_page"
+        case lastPage = "last_page"
+        case citeKey = "cite_key"
+        case detailsFetched = "details_fetched"
     }
 }
 
@@ -211,29 +254,108 @@ public struct PaperWithAuthors: Equatable, Sendable {
     }
 }
 
-/// What `PaperStore.deleteByOpenAlexID` deleted: the paper with its authors, and its notes if it had any.
+/// What `PaperStore.deleteByOpenAlexID` deleted: the paper with its authors (its cite key and `detailsFetched` ride in the
+/// paper row), its notes if it had any, and its collection links, ordered by collection id.
 public struct DeletedPaper: Equatable, Sendable {
     public var saved: PaperWithAuthors
     public var notes: PaperNotesRecord?
+    public var collectionLinks: [CollectionPaperRecord]
 
-    public init(saved: PaperWithAuthors, notes: PaperNotesRecord?) {
+    public init(saved: PaperWithAuthors, notes: PaperNotesRecord?, collectionLinks: [CollectionPaperRecord] = []) {
         self.saved = saved
         self.notes = notes
+        self.collectionLinks = collectionLinks
     }
 }
 
-/// One consistent read of the library for a search and a status.
+/// One consistent read of the library for a search, a status and a collection.
 public struct LibraryRows: Equatable, Sendable {
-    /// Papers matching the search and the status, newest saved first.
+    /// Papers matching the search, the status and the collection, newest saved first.
     public var papers: [PaperWithAuthors]
-    /// Papers matching the search per stored status; statuses with none are absent.
+    /// Papers matching the search in the collection, per stored status; statuses with none are absent.
     public var statusCounts: [String: Int]
-    /// Every saved paper, ignoring the search and the status.
+    /// Every paper in the current view (the collection, or the whole library), ignoring the search and the status.
     public var total: Int
+    /// Every saved paper.
+    public var allTotal: Int
 
-    public init(papers: [PaperWithAuthors], statusCounts: [String: Int], total: Int) {
+    /// `allTotal` nil means the same as `total`, i.e. the view is the whole library.
+    public init(papers: [PaperWithAuthors], statusCounts: [String: Int], total: Int, allTotal: Int? = nil) {
         self.papers = papers
         self.statusCounts = statusCounts
         self.total = total
+        self.allTotal = allTotal ?? total
+    }
+}
+
+/// A row of `collections`.
+public struct CollectionRecord: Codable, Equatable, Sendable, FetchableRecord, MutablePersistableRecord {
+    public static let databaseTableName = "collections"
+
+    /// Nil until inserted.
+    public var id: Int64?
+    public var name: String
+    /// The name trimmed and lowercased; unique, so no two collections share a name in any case.
+    public var nameKey: String
+    /// Epoch milliseconds.
+    public var createdAt: Int64
+
+    public init(id: Int64? = nil, name: String, nameKey: String, createdAt: Int64) {
+        self.id = id
+        self.name = name
+        self.nameKey = nameKey
+        self.createdAt = createdAt
+    }
+
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case nameKey = "name_key"
+        case createdAt = "created_at"
+    }
+}
+
+/// A row of `collection_papers`: a saved paper's membership in a collection. Deleting either side deletes the link,
+/// never the other side.
+public struct CollectionPaperRecord: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    public static let databaseTableName = "collection_papers"
+
+    public var collectionID: Int64
+    /// The paper's local id.
+    public var paperID: String
+    /// Epoch milliseconds.
+    public var addedAt: Int64
+
+    public init(collectionID: Int64, paperID: String, addedAt: Int64) {
+        self.collectionID = collectionID
+        self.paperID = paperID
+        self.addedAt = addedAt
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case collectionID = "collection_id"
+        case paperID = "paper_id"
+        case addedAt = "added_at"
+    }
+}
+
+/// A collection and how many saved papers it holds.
+public struct CollectionWithCount: Codable, Equatable, Sendable, FetchableRecord {
+    public var id: Int64
+    public var name: String
+    public var paperCount: Int
+
+    public init(id: Int64, name: String, paperCount: Int) {
+        self.id = id
+        self.name = name
+        self.paperCount = paperCount
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case paperCount = "paper_count"
     }
 }

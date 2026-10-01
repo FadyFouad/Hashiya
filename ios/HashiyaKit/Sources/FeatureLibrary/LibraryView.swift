@@ -15,6 +15,7 @@ public struct LibraryView: View {
 
     @SceneStorage(LibraryViewModel.queryKey) private var storedQuery = ""
     @SceneStorage(LibraryViewModel.statusKey) private var storedStatus = ""
+    @SceneStorage(LibraryViewModel.collectionKey) private var storedCollection = -1
 
     /// - Parameters:
     ///   - onAddPaper: the Add paper button; the app opens Search ready for input.
@@ -42,12 +43,17 @@ public struct LibraryView: View {
                 // they are glass, grouped so they blend as they come and go.
                 HashiyaGlassGroup(spacing: 12) {
                     VStack(alignment: .trailing, spacing: 0) {
-                        if viewModel.message == .statusUpdateFailed {
-                            HashiyaBanner(text: L10n.string("library.statusUpdateFailed"))
+                        if let messageText {
+                            HashiyaBanner(text: messageText)
                         }
                         if viewModel.pendingUndo != nil {
                             HashiyaBanner(text: L10n.string("library.removed"), actionTitle: L10n.string("library.undo")) {
                                 Task { await viewModel.undo() }
+                            }
+                        }
+                        if let undo = viewModel.pendingCollectionUndo {
+                            HashiyaBanner(text: L10n.removedFromCollection(undo.collectionName), actionTitle: L10n.string("library.undo")) {
+                                Task { await viewModel.undoCollectionRemoval() }
                             }
                         }
                         if viewModel.isLoaded {
@@ -60,19 +66,31 @@ public struct LibraryView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
             }
             .animation(.default, value: viewModel.pendingUndo)
+            .animation(.default, value: viewModel.pendingCollectionUndo)
             .animation(.default, value: viewModel.message)
             .task(id: viewModel.pendingUndo) {
                 // A newer removal cancels this task and restarts the 4 s.
                 guard viewModel.pendingUndo != nil, (try? await Task.sleep(for: HashiyaBanner.duration)) != nil else { return }
                 viewModel.undoExpired()
             }
+            .task(id: viewModel.pendingCollectionUndo) {
+                guard viewModel.pendingCollectionUndo != nil, (try? await Task.sleep(for: HashiyaBanner.duration)) != nil else { return }
+                viewModel.collectionUndoExpired()
+            }
             .task(id: viewModel.message) {
                 // A newer message cancels this task: then it must not clear the new one.
                 guard viewModel.message != nil, (try? await Task.sleep(for: HashiyaBanner.duration)) != nil else { return }
                 viewModel.message = nil
             }
-            .navigationTitle(Text(verbatim: L10n.string("library.title")))
+            .navigationTitle(Text(verbatim: title))
+            .navigationBarTitleDisplayMode(.inline)
+            .modifier(TitleMenu(viewModel: viewModel, isEnabled: viewModel.allPapersTotal > 0))
             .toolbar {
+                if viewModel.canExport {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        ExportButton(viewModel: viewModel)
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(action: onOpenSettings) {
                         Image(systemName: "gearshape")
@@ -80,9 +98,64 @@ public struct LibraryView: View {
                     .accessibilityLabel(Text(verbatim: L10n.string("library.settings")))
                 }
             }
-            .onAppear { viewModel.restore(text: storedQuery, status: storedStatus) }
+            .sheet(item: $viewModel.nameSheet) { sheet in
+                CollectionNameSheet(
+                    mode: sheet.mode,
+                    initialName: sheet.initialName,
+                    error: sheet.error,
+                    onSubmit: { name in Task { await viewModel.submitName(name) } },
+                    onCancel: { viewModel.dismissNameSheet() }
+                )
+            }
+            .confirmationDialog(
+                Text(verbatim: viewModel.pendingDelete.map { L10n.deleteCollectionTitle($0.name) } ?? ""),
+                isPresented: Binding(
+                    get: { viewModel.pendingDelete != nil },
+                    set: { if !$0 { viewModel.pendingDelete = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: viewModel.pendingDelete
+            ) { collection in
+                // `presenting` hands the collection over, so clearing `pendingDelete` first can't lose it.
+                Button(role: .destructive) {
+                    Task { await viewModel.confirmDelete(collection) }
+                } label: {
+                    Text(verbatim: L10n.string("library.delete"))
+                }
+            } message: { _ in
+                Text(verbatim: L10n.string("library.deleteCollectionMessage"))
+            }
+            .onAppear {
+                viewModel.restore(
+                    text: storedQuery,
+                    status: storedStatus,
+                    collectionID: LibraryViewModel.collectionID(stored: storedCollection)
+                )
+            }
             .onChange(of: viewModel.text) { _, text in storedQuery = text }
             .onChange(of: viewModel.status) { _, _ in storedStatus = viewModel.storedStatus }
+            .onChange(of: viewModel.collectionID) { _, _ in storedCollection = viewModel.storedCollection }
+    }
+
+    /// "Library" while nothing is saved; otherwise the view's name: "All papers" or the collection's.
+    private var title: String {
+        switch viewModel.state {
+        case .loading, .empty:
+            L10n.string("library.title")
+        case .emptyCollection, .noMatches, .papers:
+            // A collection the list doesn't have yet keeps its last name, never "All papers" over its contents.
+            viewModel.collectionTitle ?? L10n.string(viewModel.collectionID == nil ? "library.allPapers" : "library.title")
+        }
+    }
+
+    private var messageText: String? {
+        switch viewModel.message {
+        case .statusUpdateFailed: L10n.string("library.statusUpdateFailed")
+        case .collectionsUpdateFailed: L10n.string("library.collectionsUpdateFailed")
+        case .exportFailed: L10n.string("library.exportFailed")
+        case .exportIncomplete: L10n.string("library.exportIncomplete")
+        case nil: nil
+        }
     }
 
     @ViewBuilder
@@ -99,6 +172,8 @@ public struct LibraryView: View {
             ) {
                 onGoToSearch()
             }
+        case .emptyCollection:
+            EmptyStateView(icon: "folder", title: L10n.string("library.collectionEmpty"))
         case .papers, .noMatches:
             filtered
         }
@@ -135,7 +210,10 @@ public struct LibraryView: View {
     }
 
     private var list: some View {
-        List {
+        // Decided when the rows are drawn: a row drawn in a collection only ever leaves that collection, even if the
+        // collection is deleted before the swipe lands.
+        let inCollection = viewModel.collectionID != nil
+        return List {
             Text(verbatim: L10n.paperCount(viewModel.papers.count))
                 .font(.hashiya(.label))
                 .foregroundStyle(HashiyaColors.onSurfaceVariant)
@@ -158,13 +236,25 @@ public struct LibraryView: View {
                 .listRowBackground(HashiyaColors.surface)
                 .listRowSeparatorTint(HashiyaColors.outlineVariant)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button(role: .destructive) {
-                        Task { await viewModel.remove(saved.paper) }
-                    } label: {
-                        Label {
-                            Text(verbatim: L10n.string("library.remove"))
-                        } icon: {
-                            Image(systemName: "trash")
+                    if inCollection {
+                        Button(role: .destructive) {
+                            Task { await viewModel.removeFromCollection(openAlexID: saved.paper.openAlexID) }
+                        } label: {
+                            Label {
+                                Text(verbatim: L10n.string("library.removeFromCollection"))
+                            } icon: {
+                                Image(systemName: "folder.badge.minus")
+                            }
+                        }
+                    } else {
+                        Button(role: .destructive) {
+                            Task { await viewModel.remove(saved.paper) }
+                        } label: {
+                            Label {
+                                Text(verbatim: L10n.string("library.remove"))
+                            } icon: {
+                                Image(systemName: "trash")
+                            }
                         }
                     }
                 }
@@ -174,6 +264,106 @@ public struct LibraryView: View {
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.immediately)
         .contentMargins(.bottom, Self.addPaperClearance, for: .scrollContent)
+    }
+}
+
+/// The navigation title's menu, once something is saved. Applied through a modifier, so an empty library has no menu
+/// at all (an empty `toolbarTitleMenu` would still draw its chevron).
+private struct TitleMenu: ViewModifier {
+    let viewModel: LibraryViewModel
+    let isEnabled: Bool
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.toolbarTitleMenu {
+                LibraryTitleMenu(viewModel: viewModel)
+            }
+        } else {
+            content
+        }
+    }
+}
+
+/// All papers and each collection (checked when shown, with its count), New collection, and Rename and Delete for the
+/// shown collection.
+private struct LibraryTitleMenu: View {
+    @Bindable var viewModel: LibraryViewModel
+
+    var body: some View {
+        Picker(selection: Binding(
+            get: { viewModel.collectionID ?? LibraryViewModel.allPapersTag },
+            set: { viewModel.selectCollection($0 == LibraryViewModel.allPapersTag ? nil : $0) }
+        )) {
+            row(L10n.string("library.allPapers"), count: viewModel.allPapersTotal)
+                .tag(LibraryViewModel.allPapersTag)
+            ForEach(viewModel.collections) { collection in
+                row(collection.name, count: collection.paperCount)
+                    .tag(collection.id)
+            }
+        } label: {
+            EmptyView()
+        }
+        .pickerStyle(.inline)
+
+        Button {
+            viewModel.showNewCollection()
+        } label: {
+            Label {
+                Text(verbatim: L10n.string("library.newCollection"))
+            } icon: {
+                Image(systemName: "plus")
+            }
+        }
+
+        if let selected = viewModel.selectedCollection {
+            Section {
+                Button {
+                    viewModel.showRename()
+                } label: {
+                    Label {
+                        Text(verbatim: L10n.renameCollection(selected.name))
+                    } icon: {
+                        Image(systemName: "pencil")
+                    }
+                }
+                Button(role: .destructive) {
+                    viewModel.requestDelete()
+                } label: {
+                    Label {
+                        Text(verbatim: L10n.deleteCollection(selected.name))
+                    } icon: {
+                        Image(systemName: "trash")
+                    }
+                }
+            }
+        }
+    }
+
+    /// In a menu, the second text is the item's subtitle: "3 papers".
+    private func row(_ name: String, count: Int) -> some View {
+        VStack {
+            Text(verbatim: name)
+            Text(verbatim: L10n.paperCount(count))
+        }
+    }
+}
+
+/// Export .bib, or a spinner from the tap until the share sheet closes.
+private struct ExportButton: View {
+    let viewModel: LibraryViewModel
+
+    var body: some View {
+        if viewModel.exporting {
+            ProgressView()
+                .accessibilityLabel(Text(verbatim: L10n.string("library.exportBib")))
+        } else {
+            Button {
+                Task { await viewModel.export() }
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+            }
+            .accessibilityLabel(Text(verbatim: L10n.string("library.exportBib")))
+        }
     }
 }
 

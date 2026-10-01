@@ -11,6 +11,8 @@ struct PaperDetailsSnapshotTests {
     private func screen(
         _ paper: Paper,
         status: ReadingStatus = .toRead,
+        collections: [PaperCollection] = [],
+        memberIDs: Set<Int64> = [],
         notes: PaperNotes? = PaperNotes(),
         saveState: NotesSaveState = .idle,
         message: PaperDetailsMessage? = nil
@@ -18,6 +20,8 @@ struct PaperDetailsSnapshotTests {
         NavigationStack {
             PaperDetailsContent(
                 paper: LibraryPaper(paper: paper, status: status),
+                collections: collections,
+                memberIDs: memberIDs,
                 notes: notes,
                 saveState: saveState,
                 message: message,
@@ -25,6 +29,14 @@ struct PaperDetailsSnapshotTests {
             )
         }
     }
+
+    /// Four collections, three holding the paper: the chips wrap, and an Arabic name sits beside English ones.
+    private let sampleCollections = [
+        PaperCollection(id: 1, name: "Thesis, chapter 2", paperCount: 4),
+        PaperCollection(id: 2, name: "NLP reading group", paperCount: 7),
+        PaperCollection(id: 3, name: "مراجعة الأدبيات", paperCount: 2),
+        PaperCollection(id: 4, name: "Not this one", paperCount: 1),
+    ]
 
     /// The header, status, both links and the abstract.
     @Test func paper() {
@@ -54,5 +66,21 @@ struct PaperDetailsSnapshotTests {
 
     @Test func couldNotLoadNotes() {
         assertHashiyaSnapshots(of: screen(SamplePapers.vit, notes: nil), named: "loadFailed", arabicText: "تعذّر تحميل ملاحظاتك")
+    }
+
+    /// The Collections row naming three collections. The "paper" state above shows the row with none.
+    @Test func collectionsRow() {
+        let view = screen(SamplePapers.attention, status: .reading, collections: sampleCollections, memberIDs: [1, 2, 3])
+        assertHashiyaSnapshots(of: view, named: "collections", arabicText: "المجموعات")
+    }
+
+    @Test func checklist() {
+        let view = CollectionsChecklist(collections: sampleCollections, memberIDs: [1, 3], message: nil, actions: CollectionsChecklistActions())
+        assertHashiyaSnapshots(of: view, named: "checklist", arabicText: "مجموعة جديدة")
+    }
+
+    @Test func checklistWithoutCollections() {
+        let view = CollectionsChecklist(collections: [], memberIDs: [], message: nil, actions: CollectionsChecklistActions())
+        assertHashiyaSnapshots(of: view, named: "checklistEmpty", arabicText: "اجمع الأوراق لفصل أو مقرر أو مشروع.")
     }
 }

@@ -9,6 +9,7 @@ import Testing
 
 struct GRDBLibraryRepositoryTests {
     private let queue: DatabaseQueue
+    private let store: PaperStore
     private let repository: GRDBLibraryRepository
 
     /// A repository on a fresh in-memory database whose clock advances 1 000 ms per save.
@@ -16,8 +17,9 @@ struct GRDBLibraryRepositoryTests {
         let clock = OSAllocatedUnfairLock(initialState: Int64(0))
         let ids = OSAllocatedUnfairLock(initialState: 0)
         queue = try HashiyaDatabase.openInMemory()
+        store = PaperStore(writer: queue)
         repository = GRDBLibraryRepository(
-            store: PaperStore(writer: queue),
+            store: store,
             now: { clock.withLock { $0 += 1_000; return $0 } },
             newID: { ids.withLock { $0 += 1; return "local-\($0)" } }
         )
@@ -42,9 +44,22 @@ struct GRDBLibraryRepositoryTests {
         return nil
     }
 
-    private func library(_ query: String = "", status: ReadingStatus? = nil) async -> LibrarySnapshot? {
-        await value(of: repository.observeLibrary(query: query, status: status))
+    private func library(_ query: String = "", status: ReadingStatus? = nil, collectionID: Int64? = nil) async -> LibrarySnapshot? {
+        await value(of: repository.observeLibrary(query: query, status: status, collectionID: collectionID))
     }
+
+
+    private static let details = PublicationDetails(
+        workType: "article", sourceType: "journal", publisher: "Springer",
+        volume: "521", issue: "7553", firstPage: "436", lastPage: "444"
+    )
+
+    private func withDetails(_ paper: Paper) -> Paper {
+        var paper = paper
+        paper.publication = Self.details
+        return paper
+    }
+
 
     private func ids(_ query: String = "", status: ReadingStatus? = nil) async -> [String]? {
         await library(query, status: status)?.papers.map(\.paper.openAlexID)
@@ -321,5 +336,102 @@ struct GRDBLibraryRepositoryTests {
         #expect(try await repository.notes(openAlexID: "W1") == PaperNotes())
         let rows = try await queue.read { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM paper_notes") }
         #expect(rows == 0)
+    }
+
+    /// Android's `savesPublicationDetailsAsFetched`.
+    @Test func savesPublicationDetailsAsFetched() async throws {
+        try await repository.save(withDetails(paper("W1")))
+
+        let row = try #require(try await store.citablePaper(openAlexID: "W1")).paper
+        #expect(row.publisher == "Springer")
+        #expect(row.detailsFetched)
+        #expect(await value(of: repository.observePaper(openAlexID: "W1"))??.paper.publication == Self.details)
+    }
+
+    /// Android's `libraryAndCountsFollowTheSelectedCollection`.
+    @Test func libraryAndCountsFollowTheSelectedCollection() async throws {
+        try await repository.save(paper("W1", title: "Graph networks"))
+        try await repository.save(paper("W2", title: "Graph kernels"))
+        let id = try #require(try await store.insertCollection(name: "A", nameKey: "a", createdAt: 1))
+        try await store.addToCollection(collectionID: id, openAlexID: "W1", addedAt: 1)
+
+        #expect(await library("graph", collectionID: id)?.papers.map(\.paper.openAlexID) == ["W1"])
+        let inCollection = try #require(await library(collectionID: id))
+        #expect(inCollection.matchingTotal == 1)
+        #expect(inCollection.libraryTotal == 1)
+        #expect(inCollection.allPapersTotal == 2)
+        let all = try #require(await library())
+        #expect(all.matchingTotal == 2)
+        #expect(all.libraryTotal == 2)
+        #expect(all.allPapersTotal == 2)
+    }
+
+    @Test func anEmptyCollectionHasNoPapersButTheLibraryTotalStays() async throws {
+        try await repository.save(paper("W1"))
+        let id = try #require(try await store.insertCollection(name: "A", nameKey: "a", createdAt: 1))
+
+        let snapshot = try #require(await library(collectionID: id))
+        #expect(snapshot.papers.isEmpty)
+        #expect(snapshot.libraryTotal == 0)
+        #expect(snapshot.allPapersTotal == 1)
+    }
+
+    /// Android's `removeThenRestoreKeepsCollectionsCiteKeyAndFetchedFlag`.
+    @Test func removeThenRestoreKeepsCollectionsCiteKeyAndFetchedFlag() async throws {
+        try await repository.save(withDetails(paper("W1")))
+        let kept = try #require(try await store.insertCollection(name: "Kept", nameKey: "kept", createdAt: 1))
+        let gone = try #require(try await store.insertCollection(name: "Gone", nameKey: "gone", createdAt: 1))
+        try await store.addToCollection(collectionID: kept, openAlexID: "W1", addedAt: 7)
+        try await store.addToCollection(collectionID: gone, openAlexID: "W1", addedAt: 8)
+        try await store.assignCiteKeys(["local-1": "first2020paper"])
+
+        let removed = try #require(try await repository.remove(openAlexID: "W1"))
+        #expect(removed.collectionIDs == [kept, gone])
+        #expect(removed.collectionLinksAddedAt == [kept: 7, gone: 8])
+        #expect(removed.citeKey == "first2020paper")
+        #expect(removed.detailsFetched)
+        try await store.deleteCollection(id: gone)
+        try await repository.restore(removed)
+
+        #expect(await value(of: store.observeCollectionIDs(openAlexID: "W1")) == [kept])
+        let row = try #require(try await store.citablePaper(openAlexID: "W1")).paper
+        #expect(row.citeKey == "first2020paper")
+        #expect(row.detailsFetched)
+        #expect(await value(of: repository.observePaper(openAlexID: "W1"))??.paper.publication == Self.details)
+    }
+
+    /// Android's `restoreKeepsAPreV4PaperUnfetched`.
+    @Test func restoreKeepsAPreV4PaperUnfetched() async throws {
+        try await repository.save(paper("W1"))
+        try await queue.write { try $0.execute(sql: "UPDATE papers SET details_fetched = 0 WHERE open_alex_id = 'W1'") }
+
+        let removed = try #require(try await repository.remove(openAlexID: "W1"))
+        #expect(!removed.detailsFetched)
+        try await repository.restore(removed)
+
+        #expect(try await store.citablePaper(openAlexID: "W1")?.paper.detailsFetched == false)
+    }
+
+    /// Android's `restoreDropsACiteKeyAnotherPaperTookMeanwhile`.
+    @Test func restoreDropsACiteKeyAnotherPaperTookMeanwhile() async throws {
+        try await repository.save(paper("W1"))
+        try await store.assignCiteKeys(["local-1": "first2020paper"])
+        let removed = try #require(try await repository.remove(openAlexID: "W1"))
+        try await repository.save(paper("W2"))
+        try await store.assignCiteKeys(["local-2": "first2020paper"])
+
+        try await repository.restore(removed)
+
+        #expect(await value(of: repository.observeSavedIDs()) == ["W1", "W2"])
+        #expect(try await store.citablePaper(openAlexID: "W1")?.paper.citeKey == nil)
+    }
+
+    @Test func aRemovedPaperBuiltWithoutTheNewFieldsRestoresAsFetchedWithNoCollections() async throws {
+        try await repository.restore(RemovedPaper(paper: paper("W1"), localID: "local-9", savedAt: 5, status: .read))
+
+        let row = try #require(try await store.citablePaper(openAlexID: "W1")).paper
+        #expect(row.detailsFetched)
+        #expect(row.citeKey == nil)
+        #expect(await value(of: store.observeCollectionIDs(openAlexID: "W1")) == [])
     }
 }

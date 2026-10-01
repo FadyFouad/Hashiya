@@ -57,6 +57,15 @@ jobs:
           -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5'
           -only-testing:HashiyaUITests
           -collect-test-diagnostics never
+          -resultBundlePath ${{ runner.temp }}/ui-tests.xcresult
+      # The step's log names a failing UI test but not the line or the screen; the result bundle has both.
+      - name: Upload UI test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ios-ui-test-results
+          path: ${{ runner.temp }}/ui-tests.xcresult
+          if-no-files-found: ignore
       - name: Upload snapshot diffs
         if: failure()
         uses: actions/upload-artifact@v7

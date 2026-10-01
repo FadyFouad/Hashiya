@@ -1,5 +1,6 @@
 @testable import FeaturePaperDetails
 import HashiyaData
+import HashiyaDesignSystem
 import HashiyaModel
 import HashiyaTesting
 import Testing
@@ -8,15 +9,39 @@ import Testing
 struct PaperDetailsViewModelTests {
     private let sleeper = ManualSleeper()
     private let pendingWrites = PendingWrites()
+    private let collections = FakeCollectionsRepository()
+    private let clipboard = Clipboard()
     private let id = SamplePapers.attention.openAlexID
 
-    private func makeViewModel(_ library: FakeLibraryRepository, id: String? = nil) -> PaperDetailsViewModel {
-        PaperDetailsViewModel(openAlexID: id ?? self.id, library: library, pendingWrites: pendingWrites, sleep: sleeper.sleep)
+    /// What the view model copied, in order.
+    @MainActor
+    private final class Clipboard {
+        var texts: [String] = []
+    }
+
+    private func makeViewModel(
+        _ library: FakeLibraryRepository,
+        id: String? = nil,
+        citations: FakeCitationRepository = FakeCitationRepository()
+    ) -> PaperDetailsViewModel {
+        let clipboard = clipboard
+        return PaperDetailsViewModel(
+            openAlexID: id ?? self.id,
+            library: library,
+            pendingWrites: pendingWrites,
+            collections: collections,
+            citations: citations,
+            copy: { clipboard.texts.append($0) },
+            sleep: sleeper.sleep
+        )
     }
 
     /// A view model for `library` that has started and loaded; the returned task is its `start()`.
-    private func started(_ library: FakeLibraryRepository) async -> (PaperDetailsViewModel, Task<Void, Never>) {
-        let viewModel = makeViewModel(library)
+    private func started(
+        _ library: FakeLibraryRepository,
+        citations: FakeCitationRepository = FakeCitationRepository()
+    ) async -> (PaperDetailsViewModel, Task<Void, Never>) {
+        let viewModel = makeViewModel(library, citations: citations)
         let task = Task { await viewModel.start() }
         _ = await eventually { viewModel.isLoaded }
         return (viewModel, task)
@@ -334,5 +359,193 @@ struct PaperDetailsViewModelTests {
 
         #expect(viewModel.exit == .removed)
         #expect(library.notesWriteAttempts.isEmpty)
+    }
+
+    // MARK: Collections
+
+    @Test func collectionsAndMembershipFollowTheStore() async {
+        collections.setCollections([
+            PaperCollection(id: 1, name: "A", paperCount: 0),
+            PaperCollection(id: 2, name: "B", paperCount: 1),
+        ])
+        collections.setMemberships(openAlexID: id, [2])
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        defer { task.cancel() }
+
+        #expect(await eventually { viewModel.collections.map(\.name) == ["A", "B"] && viewModel.memberIDs == [2] })
+
+        collections.setMemberships(openAlexID: id, [1, 2])
+        #expect(await eventually { viewModel.memberIDs == [1, 2] })
+    }
+
+    @Test func togglingAddsAndRemovesThePaper() async {
+        collections.setCollections([PaperCollection(id: 1, name: "A", paperCount: 0)])
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        defer { task.cancel() }
+        _ = await eventually { viewModel.collections.count == 1 }
+
+        await viewModel.toggleCollection(1)
+        #expect(await eventually { viewModel.memberIDs == [1] })
+        await viewModel.toggleCollection(1)
+        #expect(await eventually { viewModel.memberIDs.isEmpty })
+
+        #expect(collections.membershipCalls == [
+            MembershipCall(collectionID: 1, openAlexID: id, member: true),
+            MembershipCall(collectionID: 1, openAlexID: id, member: false),
+        ])
+        #expect(viewModel.message == nil)
+    }
+
+    @Test func aFailedToggleKeepsTheStoredStateAndSaysSo() async throws {
+        collections.setCollections([PaperCollection(id: 1, name: "A", paperCount: 0)])
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        defer { task.cancel() }
+        _ = await eventually { viewModel.collections.count == 1 }
+        collections.setFailWrites(true)
+
+        await viewModel.toggleCollection(1)
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(viewModel.memberIDs.isEmpty)
+        #expect(viewModel.message == .collectionsUpdateFailed)
+    }
+
+    @Test func newCollectionAddsThePaperToIt() async {
+        collections.setCollections([PaperCollection(id: 1, name: "Thesis", paperCount: 0)])
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        defer { task.cancel() }
+
+        viewModel.showNewCollection()
+        #expect(viewModel.showingNameSheet)
+        #expect(viewModel.nameSheetError == nil)
+
+        collections.setNextResult(.nameTaken)
+        await viewModel.submitNewCollection("thesis")
+        #expect(viewModel.showingNameSheet)
+        #expect(viewModel.nameSheetError == DesignSystemStrings.collectionNameTaken)
+
+        await viewModel.submitNewCollection("Chapter 2")
+        #expect(!viewModel.showingNameSheet)
+        #expect(viewModel.nameSheetError == nil)
+        #expect(collections.createdNames == ["Chapter 2"])
+        #expect(await eventually { viewModel.collections.contains { $0.name == "Chapter 2" } })
+        let chapter = viewModel.collections.first { $0.name == "Chapter 2" }!.id
+        #expect(await eventually { viewModel.memberIDs == [chapter] })
+        #expect(collections.membershipCalls == [MembershipCall(collectionID: chapter, openAlexID: id, member: true)])
+    }
+
+    @Test func theSameClashTwiceShowsTheErrorAgain() async {
+        collections.setCollections([PaperCollection(id: 1, name: "Thesis", paperCount: 0)])
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        defer { task.cancel() }
+        viewModel.showNewCollection()
+        collections.setNextResult(.nameTaken)
+        await viewModel.submitNewCollection("Thesis")
+        #expect(viewModel.nameSheetError == DesignSystemStrings.collectionNameTaken)
+
+        // The error is cleared while the second create runs, so the sheet sees a change when it comes back.
+        collections.holdCreates()
+        collections.setNextResult(.nameTaken)
+        let second = Task { await viewModel.submitNewCollection("Thesis") }
+        #expect(await eventually { viewModel.creatingCollection })
+        #expect(viewModel.nameSheetError == nil)
+        collections.releaseCreates()
+        await second.value
+        #expect(viewModel.nameSheetError == DesignSystemStrings.collectionNameTaken)
+    }
+
+    @Test func aFailedNewCollectionClosesTheSheetAndSaysSo() async {
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        defer { task.cancel() }
+        collections.setFailWrites(true)
+
+        viewModel.showNewCollection()
+        await viewModel.submitNewCollection("Thesis")
+
+        #expect(!viewModel.showingNameSheet)
+        #expect(viewModel.message == .collectionsUpdateFailed)
+        #expect(collections.createdNames.isEmpty)
+        #expect(collections.membershipCalls.isEmpty)
+    }
+
+    @Test func aDoubleCreateRunsOnce() async {
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        defer { task.cancel() }
+        viewModel.showNewCollection()
+        collections.holdCreates()
+
+        let first = Task { await viewModel.submitNewCollection("Thesis") }
+        #expect(await eventually { viewModel.creatingCollection })
+        await viewModel.submitNewCollection("Thesis")
+        collections.releaseCreates()
+        await first.value
+
+        #expect(collections.createdNames == ["Thesis"])
+        #expect(collections.membershipCalls.count == 1)
+        #expect(!viewModel.creatingCollection)
+        #expect(!viewModel.showingNameSheet)
+    }
+
+    @Test func dismissingTheNameSheetClearsItsError() async {
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        defer { task.cancel() }
+        viewModel.showNewCollection()
+        collections.setNextResult(.nameTaken)
+        await viewModel.submitNewCollection("Thesis")
+
+        viewModel.dismissNameSheet()
+
+        #expect(!viewModel.showingNameSheet)
+        #expect(viewModel.nameSheetError == nil)
+    }
+
+    // MARK: Copy BibTeX
+
+    @Test func copyBibTeXCopiesTheEntryAndSaysSo() async {
+        let entry = "@inproceedings{vaswani2017attention,\n  title = {Attention Is All You Need}\n}\n"
+        let citations = FakeCitationRepository(entry: CitationResult(bibtex: entry, complete: true))
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
+        defer { task.cancel() }
+
+        await viewModel.copyBibTeX()
+
+        #expect(citations.entryCalls == [id])
+        #expect(clipboard.texts == [entry])
+        #expect(viewModel.message == .bibtexCopied)
+        #expect(!viewModel.copying)
+    }
+
+    @Test func anIncompleteEntryIsStillCopied() async {
+        let citations = FakeCitationRepository(entry: CitationResult(bibtex: "@misc{k,\n}\n", complete: false))
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
+        defer { task.cancel() }
+
+        await viewModel.copyBibTeX()
+
+        #expect(clipboard.texts == ["@misc{k,\n}\n"])
+        #expect(viewModel.message == .bibtexIncomplete)
+    }
+
+    @Test func aFailedCopyCopiesNothingAndSaysSo() async {
+        let citations = FakeCitationRepository()
+        citations.setFail(true)
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
+        defer { task.cancel() }
+
+        await viewModel.copyBibTeX()
+
+        #expect(clipboard.texts.isEmpty)
+        #expect(viewModel.message == .copyFailed)
+    }
+
+    @Test func copyForAPaperNoLongerSavedDoesNothing() async {
+        let citations = FakeCitationRepository(entry: nil)
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
+        defer { task.cancel() }
+
+        await viewModel.copyBibTeX()
+
+        #expect(clipboard.texts.isEmpty)
+        #expect(viewModel.message == nil)
     }
 }

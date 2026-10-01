@@ -2,38 +2,44 @@ import Foundation
 import HashiyaDatabase
 import HashiyaModel
 
-/// The Library for one search and status filter, read in one go so its parts always describe the same moment.
+/// The Library for one search, status filter and collection, read in one go so its parts always describe the same moment.
 public struct LibrarySnapshot: Equatable, Sendable {
     /// Papers matching the search and the status, newest saved first.
     public var papers: [LibraryPaper]
     /// Papers matching the search (whatever their status) per status; all three keys are present.
     public var counts: [ReadingStatus: Int]
-    /// Every saved paper, ignoring the search and the status.
+    /// Every paper in the current view (the collection, or the whole library), ignoring the search and the status.
     public var libraryTotal: Int
+    /// Every saved paper, whatever the collection, search and status.
+    public var allPapersTotal: Int
 
     /// Papers matching the search: the All chip.
     public var matchingTotal: Int { counts.values.reduce(0, +) }
 
-    public init(papers: [LibraryPaper], counts: [ReadingStatus: Int], libraryTotal: Int) {
+    /// `allPapersTotal` nil means the view is the whole library, so it equals `libraryTotal`.
+    public init(papers: [LibraryPaper], counts: [ReadingStatus: Int], libraryTotal: Int, allPapersTotal: Int? = nil) {
         self.papers = papers
         self.counts = counts
         self.libraryTotal = libraryTotal
+        self.allPapersTotal = allPapersTotal ?? libraryTotal
     }
 }
 
 public protocol LibraryRepository: Sendable {
-    /// One consistent snapshot per database change. Blank query = all; nil status = all. Each call returns a new
-    /// stream starting with the current value.
-    func observeLibrary(query: String, status: ReadingStatus?) -> AsyncStream<LibrarySnapshot>
+    /// One consistent snapshot per database change. Blank query = all; nil status = all; nil collection = all papers.
+    /// Each call returns a new stream starting with the current value.
+    func observeLibrary(query: String, status: ReadingStatus?, collectionID: Int64?) -> AsyncStream<LibrarySnapshot>
     /// The OpenAlex IDs in the library. Each call returns a new stream starting with the current value.
     func observeSavedIDs() -> AsyncStream<Set<String>>
-    /// Starts as To read. Already saved → no-op.
+    /// Starts as To read, with its publication details marked fetched. Already saved → no-op.
     func save(_ paper: Paper) async throws
     /// Doesn't reorder. Not saved → no-op.
     func setStatus(openAlexID: String, status: ReadingStatus) async throws
-    /// Nil if the paper was not saved.
+    /// Nil if the paper was not saved. The result carries its collections and cite key for Undo.
     func remove(openAlexID: String) async throws -> RemovedPaper?
-    /// Puts a removed paper back with the same local ID, saved time and status. No-op if it was saved again meanwhile.
+    /// Puts a removed paper back with the same local ID, saved time, status, notes, cite key and collections. Collections
+    /// deleted meanwhile are skipped, and a cite key another paper took meanwhile is dropped. No-op if it was saved again
+    /// meanwhile.
     func restore(_ removed: RemovedPaper) async throws
     /// Makes every observation fetch again, so papers saved by the Share Extension appear. Failures are ignored.
     func refreshAfterExternalChanges() async
@@ -46,20 +52,47 @@ public protocol LibraryRepository: Sendable {
     func saveNotes(openAlexID: String, notes: PaperNotes) async throws
 }
 
-/// What `remove` deleted, so Undo can put it back in the same place with the same status and notes.
+extension LibraryRepository {
+    /// The whole library: no collection.
+    public func observeLibrary(query: String, status: ReadingStatus?) -> AsyncStream<LibrarySnapshot> {
+        observeLibrary(query: query, status: status, collectionID: nil)
+    }
+}
+
+/// What `remove` deleted, so Undo can put it back in the same place with the same status, notes, cite key and collections.
 public struct RemovedPaper: Equatable, Sendable {
     public var paper: Paper
     public var localID: String
     public var savedAt: Int64
     public var status: ReadingStatus
     public var notes: PaperNotes
+    public var collectionIDs: Set<Int64>
+    public var citeKey: String?
+    /// False for a paper saved before v4 whose details were never refetched.
+    public var detailsFetched: Bool
+    /// When the paper was added to each of `collectionIDs`; restored as-is.
+    public var collectionLinksAddedAt: [Int64: Int64]
 
-    public init(paper: Paper, localID: String, savedAt: Int64, status: ReadingStatus, notes: PaperNotes = PaperNotes()) {
+    public init(
+        paper: Paper,
+        localID: String,
+        savedAt: Int64,
+        status: ReadingStatus,
+        notes: PaperNotes = PaperNotes(),
+        collectionIDs: Set<Int64> = [],
+        citeKey: String? = nil,
+        detailsFetched: Bool = true,
+        collectionLinksAddedAt: [Int64: Int64] = [:]
+    ) {
         self.paper = paper
         self.localID = localID
         self.savedAt = savedAt
         self.status = status
         self.notes = notes
+        self.collectionIDs = collectionIDs
+        self.citeKey = citeKey
+        self.detailsFetched = detailsFetched
+        self.collectionLinksAddedAt = collectionLinksAddedAt
     }
 }
 
@@ -96,8 +129,8 @@ public struct GRDBLibraryRepository: LibraryRepository {
         GRDBLibraryRepository(store: try PaperStore.inMemory(), now: now, newID: newID)
     }
 
-    public func observeLibrary(query: String, status: ReadingStatus?) -> AsyncStream<LibrarySnapshot> {
-        store.observeLibrary(match: ftsMatch(query), status: status?.storedValue).mapped { $0.asSnapshot() }
+    public func observeLibrary(query: String, status: ReadingStatus?, collectionID: Int64?) -> AsyncStream<LibrarySnapshot> {
+        store.observeLibrary(match: ftsMatch(query), status: status?.storedValue, collectionID: collectionID).mapped { $0.asSnapshot() }
     }
 
     public func observeSavedIDs() -> AsyncStream<Set<String>> {
@@ -121,18 +154,36 @@ public struct GRDBLibraryRepository: LibraryRepository {
             localID: deleted.saved.paper.id,
             savedAt: deleted.saved.paper.savedAt,
             status: saved.status,
-            notes: deleted.notes?.notes ?? PaperNotes()
+            notes: deleted.notes?.notes ?? PaperNotes(),
+            collectionIDs: Set(deleted.collectionLinks.map(\.collectionID)),
+            citeKey: deleted.saved.paper.citeKey,
+            detailsFetched: deleted.saved.paper.detailsFetched,
+            collectionLinksAddedAt: Dictionary(
+                deleted.collectionLinks.map { ($0.collectionID, $0.addedAt) },
+                uniquingKeysWith: { first, _ in first }
+            )
         )
     }
 
     public func restore(_ removed: RemovedPaper) async throws {
-        let records = removed.paper.asRecords(localID: removed.localID, savedAt: removed.savedAt, status: removed.status)
+        let records = removed.paper.asRecords(
+            localID: removed.localID,
+            savedAt: removed.savedAt,
+            status: removed.status,
+            citeKey: removed.citeKey,
+            detailsFetched: removed.detailsFetched
+        )
         let notes = removed.notes.isEmpty ? nil : removed.notes
+        // Nothing reads added_at's exact value for a link without one, so now() stands in.
+        let links = removed.collectionIDs.sorted().map { id in
+            CollectionPaperRecord(collectionID: id, paperID: removed.localID, addedAt: removed.collectionLinksAddedAt[id] ?? now())
+        }
         try await store.insert(
             paper: records.paper,
             authors: records.authors,
             search: records.searchRow(notes: notes),
-            notes: notes.map { PaperNotesRecord(paperID: removed.localID, notes: $0, updatedAt: now()) }
+            notes: notes.map { PaperNotesRecord(paperID: removed.localID, notes: $0, updatedAt: now()) },
+            collectionLinks: links
         )
     }
 
@@ -160,7 +211,12 @@ extension LibraryRows {
         for (stored, count) in statusCounts {
             counts[ReadingStatus(stored: stored), default: 0] += count
         }
-        return LibrarySnapshot(papers: papers.map { $0.asLibraryPaper() }, counts: counts, libraryTotal: total)
+        return LibrarySnapshot(
+            papers: papers.map { $0.asLibraryPaper() },
+            counts: counts,
+            libraryTotal: total,
+            allPapersTotal: allTotal
+        )
     }
 }
 

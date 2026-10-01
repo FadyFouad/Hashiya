@@ -17,6 +17,7 @@ public enum HashiyaDatabase {
 
     /// `v1`: Android's Room version 1 schema. `v2`: Android's version 2 — the reading status and the search index.
     /// `v3`: Android's version 3 — the notes table, and the search index rebuilt with a notes column.
+    /// `v4`: Android's version 4 — the citation columns on papers, and the collections tables.
     public static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1") { db in
@@ -92,6 +93,22 @@ public enum HashiyaDatabase {
                 INSERT INTO paper_search (paper_id, title, authors, abstract, venue, notes)
                   SELECT paper_id, title, authors, abstract, venue, '' FROM paper_search_copy;
                 DROP TABLE paper_search_copy;
+                """)
+        }
+
+        migrator.registerMigration("v4") { db in
+            // Android's MIGRATION_3_4, statement for statement. Every existing paper gets details_fetched = 0, so it is
+            // refetched once before its first export. Nothing existing is rewritten, and the search index is untouched.
+            for column in ["work_type", "source_type", "publisher", "volume", "issue", "first_page", "last_page", "cite_key"] {
+                try db.execute(sql: "ALTER TABLE papers ADD COLUMN `\(column)` TEXT")
+            }
+            try db.execute(sql: """
+                ALTER TABLE papers ADD COLUMN `details_fetched` INTEGER NOT NULL DEFAULT 0;
+                CREATE UNIQUE INDEX IF NOT EXISTS `index_papers_cite_key` ON `papers` (`cite_key`);
+                CREATE TABLE IF NOT EXISTS `collections` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `name_key` TEXT NOT NULL, `created_at` INTEGER NOT NULL);
+                CREATE UNIQUE INDEX IF NOT EXISTS `index_collections_name_key` ON `collections` (`name_key`);
+                CREATE TABLE IF NOT EXISTS `collection_papers` (`collection_id` INTEGER NOT NULL, `paper_id` TEXT NOT NULL, `added_at` INTEGER NOT NULL, PRIMARY KEY(`collection_id`, `paper_id`), FOREIGN KEY(`collection_id`) REFERENCES `collections`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`paper_id`) REFERENCES `papers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE );
+                CREATE INDEX IF NOT EXISTS `index_collection_papers_paper_id` ON `collection_papers` (`paper_id`);
                 """)
         }
         return migrator

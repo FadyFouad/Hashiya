@@ -1,4 +1,5 @@
 @testable import FeatureLibrary
+import Foundation
 import HashiyaData
 import HashiyaModel
 import HashiyaTesting
@@ -9,7 +10,14 @@ struct LibraryViewModelTests {
     private let sleeper = ManualSleeper()
 
     private func makeViewModel(_ library: FakeLibraryRepository) -> LibraryViewModel {
-        LibraryViewModel(library: library, sleep: sleeper.sleep)
+        LibraryViewModel(
+            library: library,
+            collections: FakeCollectionsRepository(library: library),
+            citations: FakeCitationRepository(),
+            exportFiles: ExportFiles(directory: FileManager.default.temporaryDirectory.appendingPathComponent("library-tests-\(UUID().uuidString)")),
+            share: { _ in true },
+            sleep: sleeper.sleep
+        )
     }
 
     private func counts(_ toRead: Int, _ reading: Int, _ read: Int) -> [ReadingStatus: Int] {

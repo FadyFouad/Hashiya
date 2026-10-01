@@ -10,6 +10,7 @@ let package = Package(
     platforms: [.iOS(.v17)],
     products: [
         .library(name: "HashiyaModel", targets: ["HashiyaModel"]),
+        .library(name: "HashiyaBibTeX", targets: ["HashiyaBibTeX"]),
         .library(name: "HashiyaNetwork", targets: ["HashiyaNetwork"]),
         .library(name: "HashiyaDatabase", targets: ["HashiyaDatabase"]),
         .library(name: "HashiyaData", targets: ["HashiyaData"]),
@@ -26,9 +27,10 @@ let package = Package(
     ],
     targets: [
         .target(name: "HashiyaModel"),
+        .target(name: "HashiyaBibTeX", dependencies: ["HashiyaModel"]),
         .target(name: "HashiyaNetwork"),
         .target(name: "HashiyaDatabase", dependencies: ["HashiyaModel", grdb]),
-        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase"]),
+        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX"]),
         .target(name: "HashiyaDesignSystem", dependencies: ["HashiyaModel"], resources: [.process("Resources")]),
         .target(
             name: "FeatureSearch",
@@ -56,6 +58,7 @@ let package = Package(
             resources: [.copy("Resources/Fixtures")]
         ),
         .testTarget(name: "HashiyaModelTests", dependencies: ["HashiyaModel"]),
+        .testTarget(name: "HashiyaBibTeXTests", dependencies: ["HashiyaBibTeX", "HashiyaModel"]),
         .testTarget(name: "HashiyaNetworkTests", dependencies: ["HashiyaNetwork", "HashiyaTesting"]),
         .testTarget(name: "HashiyaDatabaseTests", dependencies: ["HashiyaDatabase", "HashiyaModel", grdb]),
         .testTarget(

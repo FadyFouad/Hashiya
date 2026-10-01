@@ -18,6 +18,125 @@
         }
       }
     },
+    "library.allPapers" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "كل الأوراق"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All papers"
+          }
+        }
+      }
+    },
+    "library.collectionEmpty" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا توجد أوراق في هذه المجموعة بعد. أضف الأوراق من شاشة تفاصيلها."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No papers in this collection yet. Add papers from their details screen."
+          }
+        }
+      }
+    },
+    "library.collectionsUpdateFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذّر تحديث المجموعات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't update collections"
+          }
+        }
+      }
+    },
+    "library.delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حذف"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
+    },
+    "library.deleteCollection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حذف «%@»…"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete \"%@\"…"
+          }
+        }
+      }
+    },
+    "library.deleteCollectionMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ستبقى أوراقها في مكتبتك."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Its papers stay in your library."
+          }
+        }
+      }
+    },
+    "library.deleteCollectionTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حذف «%@»؟"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete \"%@\"?"
+          }
+        }
+      }
+    },
     "library.emptyMessage" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -69,6 +188,57 @@
         }
       }
     },
+    "library.exportBib" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصدير ملف ‎.bib"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export .bib"
+          }
+        }
+      }
+    },
+    "library.exportFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذّر التصدير"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't export"
+          }
+        }
+      }
+    },
+    "library.exportIncomplete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "قد تكون بعض المداخل ناقصة. أعد التصدير عند الاتصال بالإنترنت."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some entries may be incomplete. Export again when you're online."
+          }
+        }
+      }
+    },
     "library.filterAll" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -116,6 +286,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Go to Search"
+          }
+        }
+      }
+    },
+    "library.newCollection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مجموعة جديدة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New collection"
           }
         }
       }
@@ -256,6 +443,23 @@
         }
       }
     },
+    "library.removeFromCollection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إزالة من المجموعة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from collection"
+          }
+        }
+      }
+    },
     "library.removed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -269,6 +473,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Removed from library"
+          }
+        }
+      }
+    },
+    "library.removedFromCollection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أُزيلت من %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removed from %@"
+          }
+        }
+      }
+    },
+    "library.renameCollection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة تسمية «%@»"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename \"%@\""
           }
         }
       }

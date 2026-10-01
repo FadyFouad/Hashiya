@@ -9,6 +9,12 @@ private func shortOpenAlexID(_ id: String) -> String {
     id.hasPrefix(openAlexPrefix) ? String(id.dropFirst(openAlexPrefix.count)) : id
 }
 
+/// `value` trimmed, or nil when that leaves nothing.
+private func nilIfBlank(_ value: String?) -> String? {
+    guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
+    return trimmed
+}
+
 extension NetworkWork {
     public func asPaper() -> Paper {
         Paper(
@@ -25,7 +31,22 @@ extension NetworkWork {
             abstract: rebuildAbstract(abstractInvertedIndex),
             citationCount: citedByCount,
             isOpenAccess: openAccess?.isOA ?? false,
-            openAccessPDFURL: bestOALocation?.pdfURL
+            openAccessPDFURL: bestOALocation?.pdfURL,
+            publication: asPublicationDetails()
+        )
+    }
+
+    /// The citation details OpenAlex reports for this work; blank strings become nil.
+    func asPublicationDetails() -> PublicationDetails {
+        let source = primaryLocation?.source
+        return PublicationDetails(
+            workType: nilIfBlank(type),
+            sourceType: nilIfBlank(source?.type),
+            publisher: nilIfBlank(source?.hostOrganizationName),
+            volume: nilIfBlank(biblio?.volume),
+            issue: nilIfBlank(biblio?.issue),
+            firstPage: nilIfBlank(biblio?.firstPage),
+            lastPage: nilIfBlank(biblio?.lastPage)
         )
     }
 }
@@ -48,13 +69,22 @@ extension PaperWithAuthors {
             abstract: paper.abstract,
             citationCount: paper.citationCount,
             isOpenAccess: paper.isOpenAccess,
-            openAccessPDFURL: paper.oaPDFURL
+            openAccessPDFURL: paper.oaPDFURL,
+            publication: paper.publication
         )
     }
 }
 
 extension Paper {
-    public func asRecords(localID: String, savedAt: Int64, status: ReadingStatus = .toRead) -> PaperWithAuthors {
+    /// A new save has its details from this OpenAlex response (`detailsFetched` true) and no key yet; Undo passes back the
+    /// removed paper's key and flag.
+    public func asRecords(
+        localID: String,
+        savedAt: Int64,
+        status: ReadingStatus = .toRead,
+        citeKey: String? = nil,
+        detailsFetched: Bool = true
+    ) -> PaperWithAuthors {
         PaperWithAuthors(
             paper: PaperRecord(
                 id: localID,
@@ -68,7 +98,10 @@ extension Paper {
                 isOpenAccess: isOpenAccess,
                 oaPDFURL: openAccessPDFURL,
                 savedAt: savedAt,
-                readingStatus: status.storedValue
+                readingStatus: status.storedValue,
+                publication: publication,
+                citeKey: citeKey,
+                detailsFetched: detailsFetched
             ),
             authors: authors.enumerated().map { index, author in
                 PaperAuthorRecord(paperID: localID, position: index, name: author.name, openAlexAuthorID: author.openAlexID)

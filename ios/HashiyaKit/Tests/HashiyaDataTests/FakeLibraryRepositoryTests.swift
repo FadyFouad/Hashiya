@@ -66,4 +66,23 @@ struct FakeLibraryRepositoryTests {
         #expect(library.notes(of: id) == PaperNotes(summary: "Held"))
         #expect(library.notesWriteAttempts == [PaperNotes(), PaperNotes(summary: "Held")])
     }
+
+    @Test func aCollectionFiltersTheLibraryAndUndoBringsTheMembershipBack() async throws {
+        let library = FakeLibraryRepository(
+            saved: [SamplePapers.attention, SamplePapers.bert],
+            collectionMembers: [7: [SamplePapers.bert.openAlexID]]
+        )
+
+        var stream = library.observeLibrary(query: "", status: nil, collectionID: 7).makeAsyncIterator()
+        let first = try #require(await stream.next())
+        #expect(first.papers.map(\.paper.openAlexID) == [SamplePapers.bert.openAlexID])
+        #expect(first.libraryTotal == 1)
+        #expect(first.allPapersTotal == 2)
+
+        let removed = try #require(try await library.remove(openAlexID: SamplePapers.bert.openAlexID))
+        #expect(removed.collectionIDs == [7])
+        #expect(await stream.next()?.papers == [])
+        try await library.restore(removed)
+        #expect(await stream.next()?.papers.map(\.paper.openAlexID) == [SamplePapers.bert.openAlexID])
+    }
 }

@@ -5,7 +5,8 @@ import os
 
 /// An in-memory library with live streams. Saves get increasing times, so the newest is first.
 /// Its search is a simple stand-in for the real index: every typed word must start a word of the paper's title,
-/// authors, abstract, venue or notes, compared through `searchableText`.
+/// authors, abstract, venue or notes, compared through `searchableText`. Collections are only memberships here
+/// (`collectionMembers`); `FakeCollectionsRepository` keeps them in step when it is given this library.
 public final class FakeLibraryRepository: LibraryRepository {
     public struct Failure: Error {}
 
@@ -20,6 +21,7 @@ public final class FakeLibraryRepository: LibraryRepository {
     private struct Subscription {
         let query: String
         let status: ReadingStatus?
+        let collectionID: Int64?
         let continuation: AsyncStream<LibrarySnapshot>.Continuation
     }
 
@@ -30,6 +32,8 @@ public final class FakeLibraryRepository: LibraryRepository {
 
     private struct State {
         var entries: [Entry] = []
+        /// OpenAlex IDs per collection; a collection with no members has no key.
+        var collectionMembers: [Int64: Set<String>] = [:]
         var clock: Int64 = 0
         var failSaves = false
         var failRemoves = false
@@ -48,8 +52,14 @@ public final class FakeLibraryRepository: LibraryRepository {
         var library: [LibraryPaper] { sorted.map { LibraryPaper(paper: $0.paper, status: $0.status) } }
         var ids: Set<String> { Set(entries.map(\.paper.openAlexID)) }
 
-        func snapshot(query: String, status: ReadingStatus?) -> LibrarySnapshot {
-            let matching = sorted
+        func inView(_ entry: Entry, collectionID: Int64?) -> Bool {
+            guard let collectionID else { return true }
+            return collectionMembers[collectionID]?.contains(entry.paper.openAlexID) ?? false
+        }
+
+        func snapshot(query: String, status: ReadingStatus?, collectionID: Int64?) -> LibrarySnapshot {
+            let view = sorted.filter { inView($0, collectionID: collectionID) }
+            let matching = view
                 .filter { FakeLibraryRepository.matches($0.paper, notes: $0.notes, query: query) }
                 .map { LibraryPaper(paper: $0.paper, status: $0.status) }
             var counts = Dictionary(uniqueKeysWithValues: ReadingStatus.allCases.map { ($0, 0) })
@@ -59,7 +69,8 @@ public final class FakeLibraryRepository: LibraryRepository {
             return LibrarySnapshot(
                 papers: matching.filter { status == nil || $0.status == status },
                 counts: counts,
-                libraryTotal: entries.count
+                libraryTotal: view.count,
+                allPapersTotal: entries.count
             )
         }
 
@@ -69,7 +80,9 @@ public final class FakeLibraryRepository: LibraryRepository {
 
         func publish() {
             for subscription in subscriptions.values {
-                subscription.continuation.yield(snapshot(query: subscription.query, status: subscription.status))
+                subscription.continuation.yield(
+                    snapshot(query: subscription.query, status: subscription.status, collectionID: subscription.collectionID)
+                )
             }
             for subscription in paperSubscriptions.values {
                 subscription.continuation.yield(paper(subscription.openAlexID))
@@ -77,13 +90,24 @@ public final class FakeLibraryRepository: LibraryRepository {
             let ids = ids
             idContinuations.values.forEach { $0.yield(ids) }
         }
+
+        mutating func setMembership(collectionID: Int64, openAlexID: String, member: Bool) {
+            var members = collectionMembers[collectionID] ?? []
+            if member { members.insert(openAlexID) } else { members.remove(openAlexID) }
+            collectionMembers[collectionID] = members.isEmpty ? nil : members
+        }
     }
 
     private let state = OSAllocatedUnfairLock(initialState: State())
 
     /// `saved` is the initial library, newest first; `statuses` gives some of them a status by OpenAlex ID (else To
-    /// read), and `notes` some notes.
-    public init(saved: [Paper] = [], statuses: [String: ReadingStatus] = [:], notes: [String: PaperNotes] = [:]) {
+    /// read), `notes` some notes, and `collectionMembers` the OpenAlex IDs in each collection.
+    public init(
+        saved: [Paper] = [],
+        statuses: [String: ReadingStatus] = [:],
+        notes: [String: PaperNotes] = [:],
+        collectionMembers: [Int64: Set<String>] = [:]
+    ) {
         state.withLock { state in
             for paper in saved.reversed() {
                 state.clock += 1
@@ -95,12 +119,15 @@ public final class FakeLibraryRepository: LibraryRepository {
                     notes: notes[paper.openAlexID] ?? PaperNotes()
                 ))
             }
+            state.collectionMembers = collectionMembers.filter { !$0.value.isEmpty }
         }
     }
 
     public var savedPapers: [Paper] { state.withLock { $0.library.map(\.paper) } }
     /// The library with statuses, newest first.
     public var library: [LibraryPaper] { state.withLock { $0.library } }
+    /// The OpenAlex IDs in each collection that has any.
+    public var collectionMembers: [Int64: Set<String>] { state.withLock { $0.collectionMembers } }
     /// A saved paper's stored notes; empty when it has none or isn't saved.
     public func notes(of openAlexID: String) -> PaperNotes {
         state.withLock { state in state.entries.first { $0.paper.openAlexID == openAlexID }?.notes ?? PaperNotes() }
@@ -121,6 +148,23 @@ public final class FakeLibraryRepository: LibraryRepository {
     /// When true, `notes(openAlexID:)` throws.
     public func setFailNotesRead(_ fail: Bool) { state.withLock { $0.failNotesRead = fail } }
 
+    /// Adds or removes a saved paper's membership and re-emits. An unsaved paper is never added, as in the real store.
+    public func setCollectionMembership(collectionID: Int64, openAlexID: String, member: Bool) {
+        state.withLock { state in
+            guard !member || state.ids.contains(openAlexID) else { return }
+            state.setMembership(collectionID: collectionID, openAlexID: openAlexID, member: member)
+            state.publish()
+        }
+    }
+
+    /// Forgets a deleted collection's memberships and re-emits.
+    public func removeCollection(_ collectionID: Int64) {
+        state.withLock { state in
+            state.collectionMembers[collectionID] = nil
+            state.publish()
+        }
+    }
+
     /// From now on `saveNotes` waits until `releaseNotesSaves()`, so a test can see a write in progress.
     public func holdNotesSaves() {
         state.withLock { if $0.heldSaves == nil { $0.heldSaves = [] } }
@@ -135,12 +179,14 @@ public final class FakeLibraryRepository: LibraryRepository {
         waiting.forEach { $0.resume() }
     }
 
-    public func observeLibrary(query: String, status: ReadingStatus?) -> AsyncStream<LibrarySnapshot> {
+    public func observeLibrary(query: String, status: ReadingStatus?, collectionID: Int64?) -> AsyncStream<LibrarySnapshot> {
         let id = UUID()
         return AsyncStream { continuation in
             state.withLock { state in
-                state.subscriptions[id] = Subscription(query: query, status: status, continuation: continuation)
-                continuation.yield(state.snapshot(query: query, status: status))
+                state.subscriptions[id] = Subscription(
+                    query: query, status: status, collectionID: collectionID, continuation: continuation
+                )
+                continuation.yield(state.snapshot(query: query, status: status, collectionID: collectionID))
             }
             continuation.onTermination = { [weak self] _ in
                 _ = self?.state.withLock { $0.subscriptions.removeValue(forKey: id) }
@@ -218,8 +264,19 @@ public final class FakeLibraryRepository: LibraryRepository {
             if state.failRemoves { throw Failure() }
             guard let index = state.entries.firstIndex(where: { $0.paper.openAlexID == openAlexID }) else { return nil }
             let entry = state.entries.remove(at: index)
+            let collectionIDs = Set(state.collectionMembers.filter { $0.value.contains(openAlexID) }.keys)
+            for collectionID in collectionIDs {
+                state.setMembership(collectionID: collectionID, openAlexID: openAlexID, member: false)
+            }
             state.publish()
-            return RemovedPaper(paper: entry.paper, localID: entry.localID, savedAt: entry.savedAt, status: entry.status, notes: entry.notes)
+            return RemovedPaper(
+                paper: entry.paper,
+                localID: entry.localID,
+                savedAt: entry.savedAt,
+                status: entry.status,
+                notes: entry.notes,
+                collectionIDs: collectionIDs
+            )
         }
     }
 
@@ -228,6 +285,8 @@ public final class FakeLibraryRepository: LibraryRepository {
         state.withLock { $0.publish() }
     }
 
+    /// Puts the paper back with its memberships. Unlike the real store, the fake doesn't know which collections were
+    /// deleted, so tests that delete one also call `removeCollection` after restoring.
     public func restore(_ removed: RemovedPaper) async throws {
         try state.withLock { state in
             if state.failSaves { throw Failure() }
@@ -235,6 +294,9 @@ public final class FakeLibraryRepository: LibraryRepository {
             state.entries.append(Entry(
                 paper: removed.paper, localID: removed.localID, savedAt: removed.savedAt, status: removed.status, notes: removed.notes
             ))
+            for collectionID in removed.collectionIDs {
+                state.setMembership(collectionID: collectionID, openAlexID: removed.paper.openAlexID, member: true)
+            }
             state.publish()
         }
     }

@@ -8,9 +8,11 @@ import com.etatech.hashiya.core.network.BuildConfig
 import com.etatech.hashiya.core.network.OPENALEX_BASE_URL
 import com.etatech.hashiya.core.network.OkHttpAppConfigDataSource
 import com.etatech.hashiya.core.network.OkHttpArxivDataSource
+import com.etatech.hashiya.core.network.OkHttpPdfDownloadDataSource
 import com.etatech.hashiya.core.network.OpenAlexApi
 import com.etatech.hashiya.core.network.OpenAlexDataSource
 import com.etatech.hashiya.core.network.OpenAlexLookupDataSource
+import com.etatech.hashiya.core.network.PdfDownloadDataSource
 import com.etatech.hashiya.core.network.RetrofitOpenAlexDataSource
 import com.etatech.hashiya.core.network.RetrofitOpenAlexLookupDataSource
 import com.etatech.hashiya.core.network.UserApiKeySource
@@ -18,6 +20,7 @@ import com.etatech.hashiya.core.network.buildAppConfigOkHttpClient
 import com.etatech.hashiya.core.network.buildArxivOkHttpClient
 import com.etatech.hashiya.core.network.buildOpenAlexApi
 import com.etatech.hashiya.core.network.buildOpenAlexOkHttpClient
+import com.etatech.hashiya.core.network.buildPdfOkHttpClient
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -51,6 +54,10 @@ internal object NetworkModule {
     @Singleton
     fun provideAppConfigDataSource(): AppConfigDataSource =
         OkHttpAppConfigDataSource(buildAppConfigOkHttpClient(), APP_CONFIG_URL.toHttpUrl())
+
+    @Provides
+    @Singleton
+    fun providePdfDownloadDataSource(): PdfDownloadDataSource = OkHttpPdfDownloadDataSource(buildPdfOkHttpClient())
 }
 
 @Module

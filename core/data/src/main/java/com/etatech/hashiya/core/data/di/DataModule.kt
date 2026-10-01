@@ -10,9 +10,11 @@ import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.OpenAlexPaperLookupRepository
 import com.etatech.hashiya.core.data.repository.OpenAlexSearchRepository
 import com.etatech.hashiya.core.data.repository.PaperLookupRepository
+import com.etatech.hashiya.core.data.repository.PdfRepository
 import com.etatech.hashiya.core.data.repository.RoomCitationRepository
 import com.etatech.hashiya.core.data.repository.RoomCollectionsRepository
 import com.etatech.hashiya.core.data.repository.RoomLibraryRepository
+import com.etatech.hashiya.core.data.repository.RoomPdfRepository
 import com.etatech.hashiya.core.data.repository.SearchRepository
 import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
 import com.etatech.hashiya.core.network.UserApiKeySource
@@ -47,4 +49,7 @@ internal abstract class DataModule {
 
     @Binds
     abstract fun bindAppUpdateRepository(impl: ConfigAppUpdateRepository): AppUpdateRepository
+
+    @Binds
+    abstract fun bindPdfRepository(impl: RoomPdfRepository): PdfRepository
 }

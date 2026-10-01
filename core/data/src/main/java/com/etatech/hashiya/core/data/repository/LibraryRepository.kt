@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.data.repository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperNotes
+import com.etatech.hashiya.core.model.PaperPdf
 import com.etatech.hashiya.core.model.ReadingStatus
 import kotlinx.coroutines.flow.Flow
 
@@ -53,5 +54,7 @@ data class RemovedPaper(
     val citeKey: String? = null,
     val detailsFetched: Boolean = true,
     /** When the paper was added to each of [collectionIds]; restored as-is. */
-    val collectionLinksAddedAt: Map<Long, Long> = emptyMap()
+    val collectionLinksAddedAt: Map<Long, Long> = emptyMap(),
+    /** The paper's stored PDF; its file stays on disk until the removal is final. */
+    val pdf: PaperPdf? = null
 )

@@ -8,8 +8,8 @@ Hashiya helps master's and PhD students manage their research, from finding a pa
 
 | English | English (dark) | العربية | العربية (داكن) |
 |---|---|---|---|
-| ![](feature/search/src/test/screenshots/search_results-EnglishLight.png) | ![](feature/search/src/test/screenshots/search_results-EnglishDark.png) | ![](feature/search/src/test/screenshots/search_results-ArabicLight.png) | ![](feature/search/src/test/screenshots/search_results-ArabicDark.png) |
-| ![](feature/library/src/test/screenshots/library_papers-EnglishLight.png) | ![](feature/library/src/test/screenshots/library_papers-EnglishDark.png) | ![](feature/library/src/test/screenshots/library_papers-ArabicLight.png) | ![](feature/library/src/test/screenshots/library_papers-ArabicDark.png) |
+| ![](android/feature/search/src/test/screenshots/search_results-EnglishLight.png) | ![](android/feature/search/src/test/screenshots/search_results-EnglishDark.png) | ![](android/feature/search/src/test/screenshots/search_results-ArabicLight.png) | ![](android/feature/search/src/test/screenshots/search_results-ArabicDark.png) |
+| ![](android/feature/library/src/test/screenshots/library_papers-EnglishLight.png) | ![](android/feature/library/src/test/screenshots/library_papers-EnglishDark.png) | ![](android/feature/library/src/test/screenshots/library_papers-ArabicLight.png) | ![](android/feature/library/src/test/screenshots/library_papers-ArabicDark.png) |
 
 These images are the app's screenshot-test baselines, so they always match the code.
 
@@ -27,6 +27,8 @@ These images are the app's screenshot-test baselines, so they always match the c
 - Light and dark themes; navigation rail on tablets and foldables.
 
 ## Architecture
+
+The Android project lives in `android/`; the modules below are under it.
 
 ```mermaid
 graph TD
@@ -46,8 +48,8 @@ Kotlin · Jetpack Compose · Material 3 · Navigation (type-safe) · Hilt · Roo
 
 ## Getting started
 
-1. Open the project in Android Studio (JDK 21, Android SDK Platform 37).
-2. Optional: add an OpenAlex API key to `local.properties`:
+1. Open the `android/` folder in Android Studio (JDK 21, Android SDK Platform 37).
+2. Optional: add an OpenAlex API key to `android/local.properties`:
    ```properties
    OPENALEX_API_KEY=your-key-here
    ```
@@ -57,9 +59,10 @@ Kotlin · Jetpack Compose · Material 3 · Navigation (type-safe) · Hilt · Roo
 ## Testing
 
 ```bash
+cd android
 ./gradlew testDebugUnitTest :core:model:test :core:bibtex:test   # unit, Robolectric UI and screenshot tests
 ./gradlew spotlessCheck lintDebug                                 # formatting and lint
-bash scripts/record-screenshots-on-linux.sh                       # re-record screenshot baselines after an intended UI change
+bash ../scripts/record-screenshots-on-linux.sh                    # re-record screenshot baselines after an intended UI change
 ```
 
 Screenshot baselines are recorded on CI's Linux runners, which are the source of truth; CI verifies every push against them.

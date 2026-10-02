@@ -7,7 +7,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 brand=docs/brand
-res=app/src/main/res
+res=android/app/src/main/res
 ios=ios/Hashiya/Assets.xcassets/AppIcon.appiconset
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
@@ -22,7 +22,7 @@ magick "$tmp/icon-dark.png" -alpha off PNG24:"$ios/AppIcon-Dark.png"
 magick "$tmp/icon-tinted.png" -alpha off -colorspace Gray "$ios/AppIcon-Tinted.png"
 
 # Play Store: 512px full-bleed square; Play applies the mask.
-magick "$tmp/icon.png" -alpha off -resize 512x512 app/src/main/ic_launcher-playstore.png
+magick "$tmp/icon.png" -alpha off -resize 512x512 android/app/src/main/ic_launcher-playstore.png
 
 # Legacy launcher icons (API 24-25): a 44dp shape with 2dp padding on a 48dp canvas.
 python3 - "$tmp/icon.png" "$res" <<'PY'

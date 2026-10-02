@@ -595,4 +595,211 @@ struct GRDBPdfRepositoryTests {
 
         #expect(names() == ["local-1.pdf"])
     }
+
+    // MARK: Background suspension
+
+    /// The app's setup: an on-disk pool that refuses writes while the database is suspended (`HashiyaDatabase.suspend()`),
+    /// sharing this suite's downloader, background time and PDF folder. Call inside `withOnDiskPools`.
+    private func onDisk() throws -> (store: PaperStore, library: GRDBLibraryRepository, repository: GRDBPdfRepository, folder: URL) {
+        let folder = FileManager.default.temporaryDirectory.appending(path: "db-\(UUID().uuidString)", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let store = try PaperStore.open(at: folder.appending(path: "hashiya.sqlite"))
+        let ids = OSAllocatedUnfairLock(initialState: 0)
+        let library = GRDBLibraryRepository(store: store, newID: { ids.withLock { $0 += 1; return "local-\($0)" } })
+        let repository = GRDBPdfRepository(store: store, files: files, downloader: downloader, background: background, now: { 1_000 }, maxBytes: 10_000)
+        return (store, library, repository, folder)
+    }
+
+    /// Whether `operation` returns within `timeout`.
+    private func returns(within timeout: Duration = .seconds(3), _ operation: @escaping @Sendable () async -> Void) async -> Bool {
+        await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                await operation()
+                return true
+            }
+            group.addTask {
+                try? await Task.sleep(for: timeout)
+                return false
+            }
+            let first = await group.next() ?? false
+            group.cancelAll()
+            return first
+        }
+    }
+
+    /// RootView's background sequence: it waits for the stores, then suspends the database. Call inside `withOnDiskPools`.
+    private func backgroundSuspension(_ repository: GRDBPdfRepository) -> (task: Task<Void, Never>, suspended: @Sendable () -> Bool) {
+        let suspended = OSAllocatedUnfairLock(initialState: false)
+        let task = Task {
+            await repository.storesFinished()
+            HashiyaDatabase.suspend()
+            suspended.withLock { $0 = true }
+        }
+        return (task, { suspended.withLock { $0 } })
+    }
+
+    @Test func aDownloadFinishingAfterTheAppLeftIsStoredBeforeTheDatabaseSuspends() async throws {
+        try await withOnDiskPools {
+            let disk = try onDisk()
+            defer { try? FileManager.default.removeItem(at: disk.folder) }
+            try await disk.library.save(paper("W1"))
+            downloader.holdBodies()
+            disk.repository.download(openAlexID: "W1")
+            #expect(await eventually { names().contains { $0.hasSuffix(".part") } })
+
+            let suspension = backgroundSuspension(disk.repository)
+            try await Task.sleep(for: .milliseconds(100))
+            #expect(!suspension.suspended())
+            downloader.releaseBodies()
+            await suspension.task.value
+
+            // The download stopped before the suspend: nothing is running, nothing failed.
+            let stopped = await firstValue(disk.repository.observeDownload(openAlexID: "W1")) {
+                if case .running = $0 { false } else { true }
+            }
+            #expect(stopped == .some(nil))
+            HashiyaDatabase.resume()
+            #expect(try await disk.store.pdfPaperIDs() == ["local-1"])
+            #expect(names() == ["local-1.pdf"])
+        }
+    }
+
+    @Test func storesFinishedReturnsAtOnceWhenNothingRuns() async throws {
+        try await library.save(paper("W1"))
+        repository.download(openAlexID: "W1")
+        _ = await awaitStored("W1")
+
+        #expect(await returns { await repository.storesFinished() })
+    }
+
+    @Test func storesFinishedWaitsForARunningDownload() async throws {
+        try await library.save(paper("W1"))
+        downloader.holdBodies()
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { names().contains { $0.hasSuffix(".part") } })
+
+        let waited = OSAllocatedUnfairLock(initialState: false)
+        let wait = Task {
+            await repository.storesFinished()
+            waited.withLock { $0 = true }
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(!waited.withLock { $0 })
+        downloader.releaseBodies()
+
+        #expect(await returns { await wait.value })
+        // It returned once the row was set.
+        #expect(try await store.pdfPaperIDs() == ["local-1"])
+    }
+
+    @Test func storesFinishedReturnsOnceADownloadIsCancelled() async throws {
+        try await library.save(paper("W1"))
+        downloader.holdBodies()
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { names().contains { $0.hasSuffix(".part") } })
+        let wait = Task { await repository.storesFinished() }
+
+        repository.cancelDownload(openAlexID: "W1")
+
+        #expect(await returns { await wait.value })
+        downloader.releaseBodies()
+    }
+
+    @Test func storesFinishedReturnsOnceADownloadFailsWithoutWaitingForItsBackgroundTime() async throws {
+        try await library.save(paper("W1"))
+        downloader.setFailure(.connectivity)
+        downloader.hold()
+        background.holdEnds()
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { downloader.urls.count == 1 })
+        let waited = OSAllocatedUnfairLock(initialState: false)
+        let wait = Task {
+            await repository.storesFinished()
+            waited.withLock { $0 = true }
+        }
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(!waited.withLock { $0 })
+
+        downloader.release()
+
+        #expect(await returns { await wait.value })
+        #expect(await awaitDownload("W1") { if case .failed = $0 { true } else { false } } == .some(.failed(.offline)))
+        background.releaseEnds()
+    }
+
+    @Test func storesFinishedWaitsForADownloadStartedWhileItWaits() async throws {
+        try await library.save(paper("W1"))
+        try await library.save(paper("W2"))
+        downloader.holdBodies()
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { names().count { $0.hasSuffix(".part") } == 1 })
+        let waited = OSAllocatedUnfairLock(initialState: false)
+        let wait = Task {
+            await repository.storesFinished()
+            waited.withLock { $0 = true }
+        }
+        repository.download(openAlexID: "W2")
+        #expect(await eventually { names().count { $0.hasSuffix(".part") } == 2 })
+
+        repository.cancelDownload(openAlexID: "W1")
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(!waited.withLock { $0 })
+        downloader.releaseBodies()
+
+        #expect(await returns { await wait.value })
+        #expect(await awaitStored("W2") != nil)
+    }
+
+    @Test func aRefusedRowForAPaperWithAPdfKeepsTheFileItPointsAt() async throws {
+        try await withOnDiskPools {
+            let disk = try onDisk()
+            defer { try? FileManager.default.removeItem(at: disk.folder) }
+            try await disk.library.save(paper("W1"))
+            #expect(await disk.repository.attach(openAlexID: "W1", from: try temporaryFile(Self.pdf)) == .done)
+            downloader.holdBodies()
+            disk.repository.download(openAlexID: "W1")
+            #expect(await eventually { names().contains { $0.hasSuffix(".part") } })
+
+            // The download replaces the file, then its row write is refused: the row still points at that file.
+            HashiyaDatabase.suspend()
+            downloader.releaseBodies()
+            let stopped = await firstValue(disk.repository.observeDownload(openAlexID: "W1")) {
+                if case .running = $0 { false } else { true }
+            }
+            #expect(stopped == .some(.failed(.http)))
+            HashiyaDatabase.resume()
+
+            #expect(try await disk.store.pdfPaperIDs() == ["local-1"])
+            #expect(await disk.repository.pdfFile(openAlexID: "W1") != nil)
+        }
+    }
+
+    @Test func aRefusedAttachLeavesNoFile() async throws {
+        try await withOnDiskPools {
+            let disk = try onDisk()
+            defer { try? FileManager.default.removeItem(at: disk.folder) }
+            try await disk.library.save(paper("W1"))
+
+            HashiyaDatabase.suspend()
+            #expect(await disk.repository.attach(openAlexID: "W1", from: try temporaryFile(Self.pdf)) == .unreadable)
+            HashiyaDatabase.resume()
+
+            #expect(names().isEmpty)
+        }
+    }
+
+    @Test func aRefusedAttachForAPaperWithAPdfKeepsTheFileItsRowPointsAt() async throws {
+        try await withOnDiskPools {
+            let disk = try onDisk()
+            defer { try? FileManager.default.removeItem(at: disk.folder) }
+            try await disk.library.save(paper("W1"))
+            #expect(await disk.repository.attach(openAlexID: "W1", from: try temporaryFile(Self.pdf)) == .done)
+
+            HashiyaDatabase.suspend()
+            #expect(await disk.repository.attach(openAlexID: "W1", from: try temporaryFile(Self.pdf + Data("% v2\n".utf8))) == .unreadable)
+            HashiyaDatabase.resume()
+
+            #expect(await disk.repository.pdfFile(openAlexID: "W1") != nil)
+        }
+    }
 }

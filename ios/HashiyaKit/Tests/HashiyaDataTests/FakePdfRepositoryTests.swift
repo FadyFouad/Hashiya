@@ -79,4 +79,13 @@ struct FakePdfRepositoryTests {
         #expect(try await fake.storage() == PdfStorage(downloadedBytes: 0, downloadedCount: 0, attachedBytes: 7, attachedCount: 2))
         #expect(fake.deleteDownloadedCalls == 1)
     }
+
+    @Test func storesFinishedReturnsAtOnceAndIsRecorded() async {
+        let fake = FakePdfRepository()
+        fake.download(openAlexID: "W1")
+
+        await fake.storesFinished()
+
+        #expect(fake.storesFinishedCalls == 1)
+    }
 }

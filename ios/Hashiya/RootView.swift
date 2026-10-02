@@ -50,10 +50,12 @@ struct RootView: View {
                 Task { await container.libraryRepository.refreshAfterExternalChanges() }
                 Task { await appUpdate.check() }
             case .background:
-                // A suspended database refuses writes: let the notes Details just flushed land first.
+                // A suspended database refuses writes: let the notes Details just flushed land first, and let a PDF
+                // download finish on its background time (iOS ends that time, which cancels it, if it runs too long).
                 let generation = phaseGeneration
                 Task {
                     await container.pendingWrites.drained()
+                    await container.pdfRepository.storesFinished()
                     guard phaseGeneration == generation else { return }
                     SharedLibraryDatabase.suspend()
                 }

@@ -18,6 +18,9 @@ public final class GRDBPdfRepository: PdfRepository {
         var jobs: [String: Job] = [:]
         var downloads: [String: DownloadState] = [:]
         var subscribers: [UUID: (openAlexID: String, continuation: AsyncStream<DownloadState?>.Continuation)] = [:]
+        /// Downloads and attaches that may still write a file or a row.
+        var activeStores = 0
+        var storesFinishedWaiters: [CheckedContinuation<Void, Never>] = []
     }
 
     private let store: PaperStore
@@ -73,9 +76,12 @@ public final class GRDBPdfRepository: PdfRepository {
             if let current = state.jobs[openAlexID] {
                 guard case .failed = state.downloads[openAlexID] else { return (false, nil) }
                 state.jobs[openAlexID] = Job(token: token)
+                state.activeStores += 1
                 return (true, current.task)
             }
             state.jobs[openAlexID] = Job(token: token)
+            // Counted from here, so a `storesFinished()` in the same turn waits for it; `run` ends the count.
+            state.activeStores += 1
             return (true, nil)
         }
         replaced?.cancel()
@@ -105,6 +111,13 @@ public final class GRDBPdfRepository: PdfRepository {
     }
 
     public func attach(openAlexID: String, from url: URL) async -> AttachResult {
+        beginStore()
+        let result = await attachCounted(openAlexID: openAlexID, from: url)
+        endStore()
+        return result
+    }
+
+    private func attachCounted(openAlexID: String, from url: URL) async -> AttachResult {
         await stopDownload(openAlexID: openAlexID)
         guard let paperID = try? await store.paperID(openAlexID: openAlexID) else { return .unreadable }
         let result: AttachResult
@@ -119,9 +132,14 @@ public final class GRDBPdfRepository: PdfRepository {
                 }
                 switch stored {
                 case let .stored(size):
-                    // Removed before the row was set: drop the copy instead of leaving it for the startup sweep.
-                    guard try await store.setPdf(paperID: paperID, source: PdfSource.attached.rawValue, size: size, addedAt: now()) else {
-                        files.delete(paperID: paperID)
+                    do {
+                        // Removed before the row was set: drop the copy instead of leaving it for the startup sweep.
+                        guard try await store.setPdf(paperID: paperID, source: PdfSource.attached.rawValue, size: size, addedAt: now()) else {
+                            files.delete(paperID: paperID)
+                            return .unreadable
+                        }
+                    } catch {
+                        await Self.deleteUnlessRecorded(paperID: paperID, store: store, files: files)
                         return .unreadable
                     }
                     return .done
@@ -183,6 +201,17 @@ public final class GRDBPdfRepository: PdfRepository {
         }
     }
 
+    public func storesFinished() async {
+        await withCheckedContinuation { continuation in
+            let idle = state.withLockUnchecked { state -> Bool in
+                guard state.activeStores > 0 else { return true }
+                state.storesFinishedWaiters.append(continuation)
+                return false
+            }
+            if idle { continuation.resume() }
+        }
+    }
+
     // MARK: Downloading
 
     private func run(_ openAlexID: String, token: UUID) async {
@@ -193,6 +222,8 @@ public final class GRDBPdfRepository: PdfRepository {
         // Shown before the grant ends: ending it waits for the main actor. Until `finish`, the job is still winding down,
         // and Try again on a failure replaces it.
         report(openAlexID, outcome, token: token)
+        // Nothing is written after this, so the app may suspend the database before the grant ends.
+        endStore()
         await grant.end()
     }
 
@@ -231,7 +262,7 @@ public final class GRDBPdfRepository: PdfRepository {
                         }
                     } catch {
                         // Also how a removal that cancels the download during the write ends: no state, as for any cancel.
-                        files.delete(paperID: paperID)
+                        await Self.deleteUnlessRecorded(paperID: paperID, store: store, files: files)
                         return Task.isCancelled ? nil : .failed(.http)
                     }
                     return nil
@@ -276,6 +307,30 @@ public final class GRDBPdfRepository: PdfRepository {
             state.jobs[openAlexID]?.cancelled = true
             return job.task
         }
+    }
+
+    private func beginStore() {
+        state.withLockUnchecked { $0.activeStores += 1 }
+    }
+
+    /// Ends one store's count; the last one wakes every `storesFinished()`.
+    private func endStore() {
+        let waiters = state.withLockUnchecked { state -> [CheckedContinuation<Void, Never>] in
+            state.activeStores -= 1
+            guard state.activeStores == 0 else { return [] }
+            defer { state.storesFinishedWaiters = [] }
+            return state.storesFinishedWaiters
+        }
+        waiters.forEach { $0.resume() }
+    }
+
+    /// After a row write threw: deletes the stored file unless the row points at it anyway (the write committed before a
+    /// cancel landed, or the paper already had a PDF that this file replaced). A failed read keeps it for the startup sweep.
+    /// The read runs outside the caller's task, which is often cancelled and would make every read fail.
+    private static func deleteUnlessRecorded(paperID: String, store: PaperStore, files: PdfFileStore) async {
+        let recorded = await Task { try? await store.pdfPaperIDs() }.value
+        guard let recorded, !recorded.contains(paperID) else { return }
+        files.delete(paperID: paperID)
     }
 
     private func stopDownload(openAlexID: String) async {

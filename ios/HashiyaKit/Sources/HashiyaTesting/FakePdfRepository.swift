@@ -22,6 +22,7 @@ public final class FakePdfRepository: PdfRepository {
         var discarded: [String] = []
         var deleteDownloadedCalls = 0
         var sweeps = 0
+        var storesFinishedCalls = 0
         var pdfSubscriptions: [UUID: (openAlexID: String, continuation: AsyncStream<PaperPdf?>.Continuation)] = [:]
         var downloadSubscriptions: [UUID: (openAlexID: String, continuation: AsyncStream<DownloadState?>.Continuation)] = [:]
         var pending: [@Sendable () -> Void] = []
@@ -56,6 +57,7 @@ public final class FakePdfRepository: PdfRepository {
     public var discarded: [String] { state.update { $0.discarded } }
     public var deleteDownloadedCalls: Int { state.update { $0.deleteDownloadedCalls } }
     public var sweeps: Int { state.update { $0.sweeps } }
+    public var storesFinishedCalls: Int { state.update { $0.storesFinishedCalls } }
 
     /// Sets (nil clears) the paper's PDF and re-emits.
     public func setPdf(_ openAlexID: String, _ pdf: PaperPdf?) {
@@ -204,5 +206,10 @@ public final class FakePdfRepository: PdfRepository {
 
     public func sweepOrphans() async {
         state.update { $0.sweeps += 1 }
+    }
+
+    /// Records the call and returns at once: a scripted download never writes anything.
+    public func storesFinished() async {
+        state.update { $0.storesFinishedCalls += 1 }
     }
 }

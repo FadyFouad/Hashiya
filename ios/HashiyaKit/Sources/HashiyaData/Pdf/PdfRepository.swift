@@ -54,6 +54,10 @@ public protocol PdfRepository: Sendable {
     /// Waits for downloads and attaches that are writing a file, and holds new ones back until it is done, since a running
     /// store's `.part` file looks just like an abandoned one.
     func sweepOrphans() async
+    /// Returns once no download or attach is running, including ones started while it waits. The app waits for this
+    /// before it suspends the shared database in the background, which would refuse their writes: a download that
+    /// finishes on its background time would otherwise lose its file.
+    func storesFinished() async
 }
 
 /// What `LibraryRepositories` needs to build the PDF repository.

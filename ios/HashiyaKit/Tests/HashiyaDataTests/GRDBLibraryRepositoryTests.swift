@@ -248,19 +248,21 @@ struct GRDBLibraryRepositoryTests {
 
     /// A paper saved by the Share Extension (another pool on the same file) appears after a refresh, as To read and searchable.
     @Test func refreshShowsPapersSavedThroughAnotherPool() async throws {
-        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appending(path: "hashiya.sqlite")
-        let app = GRDBLibraryRepository(store: try PaperStore.open(at: url))
-        let shareExtension = GRDBLibraryRepository(store: try PaperStore.open(at: url))
-        var library = app.observeLibrary(query: "vaswani", status: .toRead).makeAsyncIterator()
-        #expect(await library.next()?.papers == [])
+        try await withOnDiskPools {
+            let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let url = directory.appending(path: "hashiya.sqlite")
+            let app = GRDBLibraryRepository(store: try PaperStore.open(at: url))
+            let shareExtension = GRDBLibraryRepository(store: try PaperStore.open(at: url))
+            var library = app.observeLibrary(query: "vaswani", status: .toRead).makeAsyncIterator()
+            #expect(await library.next()?.papers == [])
 
-        try await shareExtension.save(SamplePapers.attention)
-        await app.refreshAfterExternalChanges()
+            try await shareExtension.save(SamplePapers.attention)
+            await app.refreshAfterExternalChanges()
 
-        #expect(await library.next()?.papers == [LibraryPaper(paper: SamplePapers.attention, status: .toRead)])
+            #expect(await library.next()?.papers == [LibraryPaper(paper: SamplePapers.attention, status: .toRead)])
+        }
     }
 
     // MARK: Notes

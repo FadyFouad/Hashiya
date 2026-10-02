@@ -141,7 +141,7 @@ If the file can't be read (offline, a typo in the JSON, GitHub down), nobody is 
    - iOS: `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `ios/project.yml`.
    - Android: `versionName` and `versionCode` in `android/app/build.gradle.kts`.
    - Build numbers and version codes must always increase.
-2. Update "What's New" / release notes in `docs/store/metadata.md` and run the metadata checker.
+2. Move the `[Unreleased]` entries in `CHANGELOG.md` under the new version and its build. Then update "What's New" / release notes in `docs/store/metadata.md` from it, and run the metadata checker.
 3. If the UI changed, update the screenshots (`docs/store/README.md`).
 4. Archive and upload the iOS build, and build and upload the Android bundle; test through TestFlight and internal testing, then submit.
 5. Tag the release: `git tag v0.1.0 && git push origin v0.1.0`.

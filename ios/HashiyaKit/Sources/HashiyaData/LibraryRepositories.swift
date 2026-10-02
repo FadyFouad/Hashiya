@@ -14,7 +14,13 @@ public struct LibraryRepositories: Sendable {
         library = GRDBLibraryRepository(store: store)
         collections = GRDBCollectionsRepository(store: store)
         citations = GRDBCitationRepository(store: store, lookup: lookup)
-        pdfs = GRDBPdfRepository(store: store, files: pdf.files, downloader: pdf.downloader, background: pdf.background)
+        pdfs = GRDBPdfRepository(
+            store: store,
+            files: pdf.files,
+            downloader: pdf.downloader,
+            pdfLinks: pdf.pdfLinks,
+            background: pdf.background
+        )
     }
 
     /// The App Group database file `fileName`; `fresh` deletes it, and the PDF folder, first (UI tests only). With no

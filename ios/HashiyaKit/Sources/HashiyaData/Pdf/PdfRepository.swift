@@ -65,10 +65,25 @@ public struct PdfDependencies: Sendable {
     public let files: PdfFileStore
     public let downloader: any PdfDownloading
     public let background: any BackgroundTimeGranting
+    /// OpenAlex's other links for a paper whose stored link fails. The default knows none.
+    public let pdfLinks: any OpenAlexPdfLinksService
 
-    public init(files: PdfFileStore, downloader: any PdfDownloading, background: any BackgroundTimeGranting) {
+    public init(
+        files: PdfFileStore,
+        downloader: any PdfDownloading,
+        background: any BackgroundTimeGranting,
+        pdfLinks: any OpenAlexPdfLinksService = NoPdfLinks()
+    ) {
         self.files = files
         self.downloader = downloader
         self.background = background
+        self.pdfLinks = pdfLinks
     }
+}
+
+/// Knows no other links: a failed download reports its own failure. For the UI tests and the Share Extension.
+public struct NoPdfLinks: OpenAlexPdfLinksService {
+    public init() {}
+
+    public func pdfLocations(openAlexID: String) async throws -> [NetworkLocation] { [] }
 }

@@ -14,7 +14,12 @@ private final class ScriptedDownloader: PdfDownloading, @unchecked Sendable {
     private struct State {
         var body = GRDBPdfRepositoryTests.pdf
         var failure: NetworkFailure?
+        /// Per-link bodies and failures, used before `body` and `failure`.
+        var bodies: [String: Data] = [:]
+        var failures: [String: NetworkFailure] = [:]
         var gate: [CheckedContinuation<Void, Never>]?
+        /// When set, only this link waits for the gate.
+        var gatedURL: String?
         /// Non-nil while bodies are held after their first byte: the waiting bodies.
         var bodyGate: [CheckedContinuation<Void, Never>]?
         var urls: [URL] = []
@@ -25,6 +30,10 @@ private final class ScriptedDownloader: PdfDownloading, @unchecked Sendable {
     var urls: [URL] { state.withLockUnchecked { $0.urls } }
     func setBody(_ body: Data) { state.withLockUnchecked { $0.body = body } }
     func setFailure(_ failure: NetworkFailure?) { state.withLockUnchecked { $0.failure = failure } }
+    func setBody(_ body: Data, for url: String) { state.withLockUnchecked { $0.bodies[url] = body } }
+    func setFailure(_ failure: NetworkFailure, for url: String) { state.withLockUnchecked { $0.failures[url] = failure } }
+    /// Holds only `url`'s downloads until `release()`.
+    func hold(only url: String) { state.withLockUnchecked { $0.gatedURL = url; if $0.gate == nil { $0.gate = [] } } }
     func hold() { state.withLockUnchecked { if $0.gate == nil { $0.gate = [] } } }
 
     func release() {
@@ -60,6 +69,63 @@ private final class ScriptedDownloader: PdfDownloading, @unchecked Sendable {
     func download(url: URL) async throws -> PdfDownload {
         let held = state.withLockUnchecked { state -> Bool in
             state.urls.append(url)
+            return state.gate != nil && (state.gatedURL == nil || state.gatedURL == url.absoluteString)
+        }
+        if held {
+            await withCheckedContinuation { continuation in
+                let stillHeld = state.withLockUnchecked { state -> Bool in
+                    guard state.gate != nil else { return false }
+                    state.gate?.append(continuation)
+                    return true
+                }
+                if !stillHeld { continuation.resume() }
+            }
+        }
+        try Task.checkCancellation()
+        let (body, failure) = state.withLockUnchecked {
+            ($0.bodies[url.absoluteString] ?? $0.body, $0.failures[url.absoluteString] ?? $0.failure)
+        }
+        if let failure { throw failure }
+        let chunks = AsyncThrowingStream<Data, Error> { continuation in
+            let task = Task {
+                continuation.yield(body.prefix(1))
+                await self.waitForBodies()
+                continuation.yield(body.dropFirst())
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+        return PdfDownload(chunks: chunks, expectedLength: Int64(body.count))
+    }
+}
+
+/// OpenAlex's locations for any work, or `failure`; `hold()` keeps every lookup waiting until `release()`.
+private final class ScriptedPdfLinks: OpenAlexPdfLinksService, @unchecked Sendable {
+    private struct State {
+        var locations: [NetworkLocation] = []
+        var failure: NetworkFailure?
+        var gate: [CheckedContinuation<Void, Never>]?
+        var requests: [String] = []
+    }
+
+    private let state = OSAllocatedUnfairLock<State>(uncheckedState: State())
+
+    var requests: [String] { state.withLockUnchecked { $0.requests } }
+    func setLocations(_ locations: [NetworkLocation]) { state.withLockUnchecked { $0.locations = locations } }
+    func setFailure(_ failure: NetworkFailure?) { state.withLockUnchecked { $0.failure = failure } }
+    func hold() { state.withLockUnchecked { if $0.gate == nil { $0.gate = [] } } }
+
+    func release() {
+        let waiting = state.withLockUnchecked { state -> [CheckedContinuation<Void, Never>] in
+            defer { state.gate = nil }
+            return state.gate ?? []
+        }
+        waiting.forEach { $0.resume() }
+    }
+
+    func pdfLocations(openAlexID: String) async throws -> [NetworkLocation] {
+        let held = state.withLockUnchecked { state -> Bool in
+            state.requests.append(openAlexID)
             return state.gate != nil
         }
         if held {
@@ -73,18 +139,9 @@ private final class ScriptedDownloader: PdfDownloading, @unchecked Sendable {
             }
         }
         try Task.checkCancellation()
-        let (body, failure) = state.withLockUnchecked { ($0.body, $0.failure) }
+        let (locations, failure) = state.withLockUnchecked { ($0.locations, $0.failure) }
         if let failure { throw failure }
-        let chunks = AsyncThrowingStream<Data, Error> { continuation in
-            let task = Task {
-                continuation.yield(body.prefix(1))
-                await self.waitForBodies()
-                continuation.yield(body.dropFirst())
-                continuation.finish()
-            }
-            continuation.onTermination = { _ in task.cancel() }
-        }
-        return PdfDownload(chunks: chunks, expectedLength: Int64(body.count))
+        return locations
     }
 }
 
@@ -152,6 +209,7 @@ struct GRDBPdfRepositoryTests {
     private let directory: URL
     private let files: PdfFileStore
     private let downloader = ScriptedDownloader()
+    private let pdfLinks = ScriptedPdfLinks()
     private let background = ManualBackgroundTime()
     private let repository: GRDBPdfRepository
 
@@ -171,6 +229,7 @@ struct GRDBPdfRepositoryTests {
             store: store,
             files: files,
             downloader: downloader,
+            pdfLinks: pdfLinks,
             background: background,
             now: { 1_000 },
             maxBytes: 10_000
@@ -863,5 +922,230 @@ struct GRDBPdfRepositoryTests {
 
             #expect(await disk.repository.pdfFile(openAlexID: "W1") != nil)
         }
+    }
+
+    // MARK: Other links when the stored one fails
+
+    private static let badLink = "https://langtaosha.org.cn/index.php/lts/preprint/download/10/108"
+    private static let arxivLink = "https://arxiv.org/pdf/1706.03762"
+    private static let arxiv = NetworkSource(displayName: "arXiv (Cornell University)", type: "repository")
+
+    private func location(_ url: String?, source: NetworkSource? = nil, isOA: Bool = true) -> NetworkLocation {
+        NetworkLocation(pdfURL: url, source: source, isOA: isOA)
+    }
+
+    private func storedLink(_ openAlexID: String) async throws -> String? {
+        try await queue.read { db in try String.fetchOne(db, sql: "SELECT oa_pdf_url FROM papers WHERE open_alex_id = ?", arguments: [openAlexID]) }
+    }
+
+    private func awaitFailure(_ openAlexID: String) async -> DownloadState?? {
+        await awaitDownload(openAlexID) { if case .failed = $0 { true } else { false } }
+    }
+
+    @Test func aBadStoredLinkFallsBackToArxivAndKeepsTheLinkThatWorked() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.html, for: Self.badLink)
+        pdfLinks.setLocations([
+            location(nil, isOA: false),
+            location(Self.badLink),
+            location("https://repository.example/attention.pdf"),
+            location("http://arxiv.org/pdf/1706.03762", source: Self.arxiv),
+            location(nil, source: Self.arxiv),
+        ])
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitStored("W1") == PaperPdf(source: .downloaded, sizeBytes: Int64(Self.pdf.count), addedAt: 1_000, lastPage: 0))
+        #expect(downloader.urls.map(\.absoluteString) == [Self.badLink, Self.arxivLink])
+        #expect(pdfLinks.requests == ["W1"])
+        // The link is replaced after the PDF is recorded, before the download ends.
+        #expect(await awaitDownload("W1") { $0 == nil } != nil)
+        #expect(try await storedLink("W1") == Self.arxivLink)
+        #expect(names() == ["local-1.pdf"])
+    }
+
+    @Test func aLinkThatWorksTheFirstTimeLooksUpNothing() async throws {
+        try await library.save(paper("W1"))
+
+        repository.download(openAlexID: "W1")
+        _ = await awaitStored("W1")
+
+        #expect(pdfLinks.requests.isEmpty)
+        #expect(try await storedLink("W1") == "https://arxiv.org/pdf/W1")
+    }
+
+    @Test func whenEveryLinkFailsTheFirstFailureIsReportedAfterAtMostThreeMore() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setFailure(.http(code: 404, usedUserKey: false), for: Self.badLink)
+        downloader.setBody(Self.html)
+        pdfLinks.setLocations((1...5).map { location("https://mirror\($0).example/a.pdf") })
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitFailure("W1") == .some(.failed(.http)))
+        #expect(downloader.urls.map(\.absoluteString) == [Self.badLink] + (1...3).map { "https://mirror\($0).example/a.pdf" })
+        #expect(try await storedLink("W1") == Self.badLink)
+        #expect(await repository.pdfFile(openAlexID: "W1") == nil)
+        #expect(names().isEmpty)
+    }
+
+    @Test func aFallbackLinkThatAlsoFailsMovesOnToTheNext() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.html, for: Self.badLink)
+        downloader.setFailure(.connectivity, for: Self.arxivLink)
+        pdfLinks.setLocations([location("https://repository.example/attention.pdf"), location(Self.arxivLink, source: Self.arxiv)])
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitStored("W1") != nil)
+        #expect(await awaitDownload("W1") { $0 == nil } != nil)
+        #expect(downloader.urls.map(\.absoluteString) == [Self.badLink, Self.arxivLink, "https://repository.example/attention.pdf"])
+        #expect(try await storedLink("W1") == "https://repository.example/attention.pdf")
+    }
+
+    @Test func beingOfflineLooksUpNoOtherLinks() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setFailure(.connectivity)
+        pdfLinks.setLocations([location(Self.arxivLink, source: Self.arxiv)])
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitFailure("W1") == .some(.failed(.offline)))
+        #expect(pdfLinks.requests.isEmpty)
+        #expect(downloader.urls.map(\.absoluteString) == [Self.badLink])
+    }
+
+    @Test func aPdfOverTheLimitLooksUpNoOtherLinks() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.pdf + Data(repeating: 0x20, count: 20_000))
+        pdfLinks.setLocations([location(Self.arxivLink, source: Self.arxiv)])
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitFailure("W1") == .some(.failed(.tooLarge)))
+        #expect(pdfLinks.requests.isEmpty)
+        #expect(downloader.urls.map(\.absoluteString) == [Self.badLink])
+    }
+
+    @Test func aFailedLookupReportsTheFirstFailure() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.html)
+        pdfLinks.setFailure(.connectivity)
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitFailure("W1") == .some(.failed(.notPDF)))
+        #expect(pdfLinks.requests == ["W1"])
+        #expect(downloader.urls.map(\.absoluteString) == [Self.badLink])
+        #expect(names().isEmpty)
+    }
+
+    @Test func cancellingDuringTheLookupStopsAndLeavesNoFile() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.html)
+        pdfLinks.setLocations([location(Self.arxivLink, source: Self.arxiv)])
+        pdfLinks.hold()
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { pdfLinks.requests.count == 1 })
+
+        repository.cancelDownload(openAlexID: "W1")
+        pdfLinks.release()
+
+        #expect(await awaitDownload("W1") { $0 == nil } != nil)
+        #expect(await eventually { background.endCount == 1 })
+        #expect(downloader.urls.map(\.absoluteString) == [Self.badLink])
+        #expect(await repository.pdfFile(openAlexID: "W1") == nil)
+        #expect(names().isEmpty)
+    }
+
+    @Test func cancellingDuringAFallbackDownloadStopsAndLeavesNoFile() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.html, for: Self.badLink)
+        downloader.hold(only: Self.arxivLink)
+        pdfLinks.setLocations([location(Self.arxivLink, source: Self.arxiv), location("https://repository.example/attention.pdf")])
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { downloader.urls.count == 2 })
+
+        repository.cancelDownload(openAlexID: "W1")
+        downloader.release()
+
+        #expect(await awaitDownload("W1") { $0 == nil } != nil)
+        #expect(await eventually { background.endCount == 1 })
+        #expect(downloader.urls.map(\.absoluteString) == [Self.badLink, Self.arxivLink])
+        #expect(await repository.pdfFile(openAlexID: "W1") == nil)
+        #expect(try await storedLink("W1") == Self.badLink)
+        #expect(names().isEmpty)
+    }
+
+    @Test func backgroundExpiryDuringAFallbackDownloadCancelsAndCleansUp() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.html, for: Self.badLink)
+        downloader.hold(only: Self.arxivLink)
+        pdfLinks.setLocations([location(Self.arxivLink, source: Self.arxiv)])
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { downloader.urls.count == 2 })
+
+        background.expire()
+        downloader.release()
+
+        #expect(await awaitDownload("W1") { $0 == nil } != nil)
+        // One grant covers the stored link, the lookup and every other link.
+        #expect(await eventually { background.endCount == 1 })
+        #expect(background.grants == 1)
+        #expect(await repository.pdfFile(openAlexID: "W1") == nil)
+        #expect(names().isEmpty)
+    }
+
+    @Test func removingThePaperDuringAFallbackDownloadLeavesNothing() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.html, for: Self.badLink)
+        downloader.hold(only: Self.arxivLink)
+        pdfLinks.setLocations([location(Self.arxivLink, source: Self.arxiv)])
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { downloader.urls.count == 2 })
+
+        _ = try await library.remove(openAlexID: "W1")
+        downloader.release()
+
+        #expect(await awaitDownload("W1") { $0 == nil } != nil)
+        #expect(await eventually { background.endCount == 1 })
+        #expect(try await store.paperID(openAlexID: "W1") == nil)
+        #expect(names().isEmpty)
+    }
+
+    @Test func storesFinishedWaitsForTheWholeFallback() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.html, for: Self.badLink)
+        pdfLinks.setLocations([location(Self.arxivLink, source: Self.arxiv)])
+        pdfLinks.hold()
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { pdfLinks.requests.count == 1 })
+
+        let finished = OSAllocatedUnfairLock(initialState: false)
+        let waiter = Task { [repository] in
+            await repository.storesFinished()
+            finished.withLock { $0 = true }
+        }
+        #expect(!(await eventually(timeout: .milliseconds(300)) { finished.withLock { $0 } }))
+
+        pdfLinks.release()
+        #expect(await returns { await waiter.value })
+        #expect(try await storedLink("W1") == Self.arxivLink)
+    }
+
+    @Test func aFallbackDownloadCanBeTriedAgainAfterItFails() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.html)
+        pdfLinks.setLocations([location(Self.arxivLink, source: Self.arxiv)])
+        repository.download(openAlexID: "W1")
+        #expect(await awaitFailure("W1") == .some(.failed(.notPDF)))
+
+        downloader.setBody(Self.pdf, for: Self.arxivLink)
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitStored("W1") != nil)
+        #expect(await awaitDownload("W1") { $0 == nil } != nil)
+        #expect(downloader.urls.map(\.absoluteString) == [Self.badLink, Self.arxivLink, Self.badLink, Self.arxivLink])
+        #expect(try await storedLink("W1") == Self.arxivLink)
     }
 }

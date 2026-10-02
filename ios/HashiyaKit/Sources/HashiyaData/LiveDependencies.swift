@@ -46,7 +46,12 @@ public struct LiveDependencies: Sendable {
         let searchClient = OpenAlexSearchClient(session: session, builtInKey: builtInKey, userKeySource: preferences)
         let lookupClient = OpenAlexLookupClient(session: session, builtInKey: builtInKey, userKeySource: preferences)
         // The one PDF client of the process: its session lives as long as the app and is never invalidated.
-        let pdf = PdfDependencies(files: try PdfFileStore.live(), downloader: PdfDownloadClient(), background: background)
+        let pdf = PdfDependencies(
+            files: try PdfFileStore.live(),
+            downloader: PdfDownloadClient(),
+            background: background,
+            pdfLinks: lookupClient
+        )
         let repositories = LibraryRepositories(store: try PaperStore.shared(), lookup: lookupClient, pdf: pdf)
         return LiveDependencies(
             libraryRepository: repositories.library,

@@ -2,7 +2,10 @@ import Foundation
 
 /// `GET https://api.openalex.org/works/{id}` and `GET /works?filter=…`, with the search client's key
 /// handling, logging and failure classification.
-public final class OpenAlexLookupClient: OpenAlexLookupService {
+public final class OpenAlexLookupClient: OpenAlexLookupService, OpenAlexPdfLinksService {
+    /// Only what a PDF download needs when the stored link fails: every place the work is hosted.
+    public static let pdfLocationFields = "id,locations"
+
     private let http: OpenAlexHTTP
 
     /// Pass the search client's session: both clients share one OpenAlex URLSession.
@@ -25,6 +28,19 @@ public final class OpenAlexLookupClient: OpenAlexLookupService {
             return nil
         }
         return try decode(NetworkWork.self, from: data)
+    }
+
+    public func pdfLocations(openAlexID: String) async throws -> [NetworkLocation] {
+        let data: Data
+        do {
+            data = try await http.get(
+                path: "/works/" + Self.pathSegment(openAlexID),
+                query: [(name: "select", value: Self.pdfLocationFields)]
+            )
+        } catch let NetworkFailure.http(code, _) where code == 404 || code == 400 {
+            return []
+        }
+        return try decode(NetworkWorkLocations.self, from: data).locations
     }
 
     public func works(filter: String, perPage: Int) async throws -> NetworkWorksResponse {

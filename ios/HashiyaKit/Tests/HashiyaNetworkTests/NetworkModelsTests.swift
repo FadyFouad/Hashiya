@@ -86,4 +86,11 @@ struct NetworkModelsTests {
             try JSONDecoder().decode(NetworkWorksResponse.self, from: Data(#"{"unexpected": true}"#.utf8))
         }
     }
+
+    @Test func aLocationWithoutIsOAIsNotOpenAccess() throws {
+        let location = try JSONDecoder().decode(NetworkLocation.self, from: Data(#"{"pdf_url": "https://a.example/x.pdf"}"#.utf8))
+        #expect(location == NetworkLocation(pdfURL: "https://a.example/x.pdf", source: nil, isOA: false))
+        let open = try JSONDecoder().decode(NetworkLocation.self, from: Data(#"{"is_oa": true, "pdf_url": null}"#.utf8))
+        #expect(open.isOA)
+    }
 }

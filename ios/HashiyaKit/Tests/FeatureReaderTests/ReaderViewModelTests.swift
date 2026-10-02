@@ -133,6 +133,25 @@ struct ReaderViewModelTests {
         task.cancel()
     }
 
+    /// The debounce's sleep has ended but its task hasn't run yet when the screen goes away and saves a newer page.
+    @Test func aDebounceCancelledAfterItsWaitEndedDoesNotWriteItsOlderPage() async throws {
+        try storePdf()
+        let viewModel = viewModel()
+        let task = await started(viewModel)
+
+        viewModel.onPageChanged(2)
+        await sleeper.waitForSleeper()
+        // Wakes the page-2 save; it can't run before this test, on the main actor, next suspends.
+        sleeper.advance(by: .seconds(1))
+        viewModel.onPageChanged(3)
+        viewModel.onDisappear()
+
+        #expect(await eventually { pagesSaved() == [3] })
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(pagesSaved() == [3])
+        task.cancel()
+    }
+
     @Test func disappearingSavesTheCurrentPageAtOnce() async throws {
         try storePdf()
         let viewModel = viewModel()

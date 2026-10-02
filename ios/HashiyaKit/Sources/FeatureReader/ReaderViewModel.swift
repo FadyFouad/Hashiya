@@ -112,6 +112,8 @@ public final class ReaderViewModel {
         let sleep = sleep
         pageSave = Task { [weak self] in
             guard (try? await sleep(Self.pageSaveDelay)) != nil else { return }
+            // Cancelled after the wait ended: Back or leaving already saved a newer page.
+            guard !Task.isCancelled else { return }
             self?.savePage(page)
         }
     }

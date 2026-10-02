@@ -1,5 +1,6 @@
 import FeatureLibrary
 import FeaturePaperDetails
+import FeatureReader
 import FeatureSearch
 import FeatureSettings
 import Foundation
@@ -19,6 +20,7 @@ final class AppContainer {
     let citationRepository: any CitationRepository
     /// Where Export .bib writes its file before sharing it.
     let exportFiles: ExportFiles
+    let pdfRepository: any PdfRepository
     /// Note writes the app waits for before it suspends the shared database in the background.
     let pendingWrites = PendingWrites()
 
@@ -30,6 +32,9 @@ final class AppContainer {
         collectionsRepository = dependencies.collections
         citationRepository = dependencies.citations
         exportFiles = dependencies.exportFiles
+        pdfRepository = dependencies.pdfs
+        // Files whose paper is gone (an Undo window the app didn't outlive) and unfinished downloads.
+        Task { [pdfs = dependencies.pdfs] in await pdfs.sweepOrphans() }
         self.appUpdateRepository = appUpdateRepository
     }
 
@@ -45,7 +50,7 @@ final class AppContainer {
         }
         #endif
         do {
-            return AppContainer(dependencies: try LiveDependencies.live(), appUpdateRepository: ConfigAppUpdateRepository.live())
+            return AppContainer(dependencies: try LiveDependencies.live(background: UIKitBackgroundTime()), appUpdateRepository: ConfigAppUpdateRepository.live())
         } catch {
             fatalError("Could not open the library database: \(error)")
         }
@@ -60,6 +65,7 @@ final class AppContainer {
             library: libraryRepository,
             collections: collectionsRepository,
             citations: citationRepository,
+            pdfs: pdfRepository,
             exportFiles: exportFiles,
             share: { await ShareSheet.present(fileURL: $0) }
         )
@@ -72,12 +78,25 @@ final class AppContainer {
             pendingWrites: pendingWrites,
             collections: collectionsRepository,
             citations: citationRepository,
+            pdfs: pdfRepository,
             copy: { UIPasteboard.general.string = $0 }
         )
     }
 
+    /// The reader's notes and page writes go through the same `PendingWrites` as Details', so Details waits for the
+    /// notes before it reads them and the app waits for both before it suspends the database.
+    func makeReaderViewModel(openAlexID: String) -> ReaderViewModel {
+        ReaderViewModel(
+            openAlexID: openAlexID,
+            pdfs: pdfRepository,
+            library: libraryRepository,
+            notes: NotesEditor(openAlexID: openAlexID, library: libraryRepository, pendingWrites: pendingWrites),
+            pendingWrites: pendingWrites
+        )
+    }
+
     func makeSettingsViewModel() -> SettingsViewModel {
-        SettingsViewModel(preferences: preferences)
+        SettingsViewModel(preferences: preferences, pdfs: pdfRepository)
     }
 
     func makeAppUpdateModel() -> AppUpdateModel {

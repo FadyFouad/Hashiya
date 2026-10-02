@@ -13,6 +13,7 @@ struct PaperDetailsSnapshotTests {
         status: ReadingStatus = .toRead,
         collections: [PaperCollection] = [],
         memberIDs: Set<Int64> = [],
+        pdf: PdfRow? = nil,
         notes: PaperNotes? = PaperNotes(),
         saveState: NotesSaveState = .idle,
         message: PaperDetailsMessage? = nil
@@ -22,6 +23,7 @@ struct PaperDetailsSnapshotTests {
                 paper: LibraryPaper(paper: paper, status: status),
                 collections: collections,
                 memberIDs: memberIDs,
+                pdf: pdf,
                 notes: notes,
                 saveState: saveState,
                 message: message,
@@ -38,9 +40,9 @@ struct PaperDetailsSnapshotTests {
         PaperCollection(id: 4, name: "Not this one", paperCount: 1),
     ]
 
-    /// The header, status, both links and the abstract.
+    /// The header, status, the PDF row offering the download, Open DOI and the abstract.
     @Test func paper() {
-        assertHashiyaSnapshots(of: screen(SamplePapers.attention, status: .reading), named: "paper", arabicText: "فتح ملف PDF")
+        assertHashiyaSnapshots(of: screen(SamplePapers.attention, status: .reading), named: "paper", arabicText: "ملف PDF متاح للتنزيل")
     }
 
     /// Filled notes on a paper with no abstract, so the fields are on screen: an Arabic note in an English UI and an
@@ -72,6 +74,27 @@ struct PaperDetailsSnapshotTests {
     @Test func collectionsRow() {
         let view = screen(SamplePapers.attention, status: .reading, collections: sampleCollections, memberIDs: [1, 2, 3])
         assertHashiyaSnapshots(of: view, named: "collections", arabicText: "المجموعات")
+    }
+
+    /// A download under way: the size so far of the total, and Cancel.
+    @Test func pdfDownloading() {
+        let row = PdfRow(state: .downloading(bytes: 1_200_000, total: 3_400_000), link: URL(string: "https://arxiv.org/pdf/1706.03762"))
+        assertHashiyaSnapshots(of: screen(SamplePapers.attention, pdf: row), named: "pdfDownloading", arabicText: "إلغاء")
+    }
+
+    /// A stored PDF: the row opens the reader; its menu has Replace, Remove and the link.
+    @Test func pdfStored() {
+        let row = PdfRow(
+            state: .stored(PaperPdf(source: .downloaded, sizeBytes: 2_400_000, addedAt: 1)),
+            link: URL(string: "https://arxiv.org/pdf/1706.03762")
+        )
+        assertHashiyaSnapshots(of: screen(SamplePapers.attention, pdf: row), named: "pdfStored", arabicText: "ملف PDF")
+    }
+
+    /// A link that opened a web page: why, then Try again, Open in browser and Attach.
+    @Test func pdfFailed() {
+        let row = PdfRow(state: .failed(.notPDF), link: URL(string: "https://example.org/paper"))
+        assertHashiyaSnapshots(of: screen(SamplePapers.attention, pdf: row), named: "pdfFailed", arabicText: "يفتح هذا الرابط صفحة ويب وليس ملف PDF.")
     }
 
     @Test func checklist() {

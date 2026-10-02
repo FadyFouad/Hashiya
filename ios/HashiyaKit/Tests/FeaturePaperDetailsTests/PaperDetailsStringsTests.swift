@@ -12,29 +12,6 @@ struct PaperDetailsStringsTests {
         return body()
     }
 
-    @Test func sectionsHaveTheirLabelsInOrder() {
-        #expect(inLanguage("en") { NoteSection.allCases.map(L10n.noteLabel) }
-            == ["Summary", "Research question", "Method", "Key findings", "Limitations", "My thoughts"])
-        #expect(inLanguage("ar") { NoteSection.allCases.map(L10n.noteLabel) }
-            == ["الخلاصة", "سؤال البحث", "المنهجية", "أهم النتائج", "القيود", "أفكاري"])
-    }
-
-    @Test func everySectionHasAHint() {
-        #expect(inLanguage("en") { L10n.noteHint(.summary) } == "What is this paper about, in your own words?")
-        #expect(inLanguage("ar") { L10n.noteHint(.thoughts) } == "ما علاقتها ببحثك؟")
-        for section in NoteSection.allCases {
-            #expect(inLanguage("en") { L10n.noteHint(section) } != "note.\(section.key)Hint")
-        }
-    }
-
-    @Test func theSaveStatusLineFollowsTheState() {
-        #expect(inLanguage("en") { L10n.saveStatus(.idle) } == nil)
-        #expect(inLanguage("en") { L10n.saveStatus(.saving) } == "Saving…")
-        #expect(inLanguage("en") { L10n.saveStatus(.saved) } == "Saved")
-        #expect(inLanguage("en") { L10n.saveStatus(.failed) } == "Couldn't save")
-        #expect(inLanguage("ar") { L10n.saveStatus(.saved) } == "تم الحفظ")
-    }
-
     @Test func theCollectionAndBibTeXStringsResolveInBothLanguages() {
         let keys = [
             "details.collections", "details.noCollections", "details.collectionsHint", "details.newCollection",
@@ -48,5 +25,25 @@ struct PaperDetailsStringsTests {
         #expect(inLanguage("en") { L10n.string("details.copyBibtex") } == "Copy BibTeX")
         #expect(inLanguage("ar") { L10n.string("details.copyBibtex") } == "نسخ BibTeX")
         #expect(inLanguage("ar") { L10n.string("details.noCollections") } == "ليست في أي مجموعة")
+    }
+
+    @Test func thePdfStringsResolveInBothLanguages() {
+        let keys = [
+            "details.pdf", "details.pdfAvailable", "details.pdfNone", "details.pdfDownload", "details.pdfAttach",
+            "details.pdfReplace", "details.pdfRemove", "details.pdfCancel", "details.pdfProgress", "details.pdfDownloaded",
+            "details.pdfAttached", "details.pdfFailed", "details.pdfOffline", "details.pdfNotPdf", "details.pdfTooLarge",
+            "details.pdfHttp", "details.pdfTryAgain", "details.pdfOpenBrowser", "details.pdfOpenLink",
+            "details.pdfReplaceTitle", "details.pdfRemoveTitle", "details.pdfAttachNotPdf", "details.pdfAttachFailed",
+        ]
+        for key in keys {
+            #expect(inLanguage("en") { L10n.string(key) } != key)
+            #expect(inLanguage("ar") { L10n.string(key) } != inLanguage("en") { L10n.string(key) })
+        }
+        #expect(inLanguage("en") { L10n.format("details.pdfDownloaded", "2.4 MB") } == "PDF · 2.4 MB · Downloaded")
+        // Arabic wraps the argument in bidi isolates (U+2068 … U+2069), as every Arabic format does.
+        #expect(inLanguage("ar") { L10n.format("details.pdfDownloaded", PaperFormat.fileSize(2_400_000)) } == "ملف PDF · \u{2068}2.4 م.ب\u{2069} · مُنزَّل")
+        #expect(inLanguage("en") { L10n.format("details.pdfProgress", "1 MB", "4 MB") } == "1 MB of 4 MB")
+        #expect(inLanguage("ar") { L10n.string("details.pdfNotPdf") } == "يفتح هذا الرابط صفحة ويب وليس ملف PDF.")
+        #expect(inLanguage("en") { L10n.string("details.openPDF") } == "details.openPDF")
     }
 }

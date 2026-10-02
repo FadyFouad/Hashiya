@@ -1,11 +1,13 @@
 import HashiyaDesignSystem
+import HashiyaModel
 import SwiftUI
 import UIKit
 
-/// The Settings sheet: the OpenAlex key and a Language row that opens iOS Settings.
+/// The Settings sheet: the OpenAlex key, the space PDFs use and a Language row that opens iOS Settings.
 public struct SettingsView: View {
     @Bindable private var viewModel: SettingsViewModel
     @State private var showsKey = false
+    @State private var confirmingDelete = false
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
 
@@ -17,12 +19,14 @@ public struct SettingsView: View {
         NavigationStack {
             Form {
                 apiKeySection
+                storageSection
                 languageSection
             }
             .scrollContentBackground(.hidden)
             .background(HashiyaColors.surface)
             .navigationTitle(Text(verbatim: L10n.string("settings.title")))
             .navigationBarTitleDisplayMode(.inline)
+            .task { await viewModel.loadStorage() }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
@@ -86,6 +90,51 @@ public struct SettingsView: View {
         }
     }
 
+    @ViewBuilder
+    private var storageSection: some View {
+        let storage = viewModel.storage ?? .empty
+        Section {
+            Text(verbatim: L10n.downloadedPdfs(bytes: storage.downloadedBytes, count: storage.downloadedCount))
+                .font(.hashiya(.body))
+                .foregroundStyle(HashiyaColors.onSurface)
+                .accessibilityIdentifier("settings.downloadedPdfs")
+            if storage.attachedCount > 0 {
+                Text(verbatim: L10n.attachedPdfs(bytes: storage.attachedBytes, count: storage.attachedCount))
+                    .font(.hashiya(.body))
+                    .foregroundStyle(HashiyaColors.onSurface)
+                    .accessibilityIdentifier("settings.attachedPdfs")
+            }
+            if storage.downloadedCount > 0 {
+                Button(role: .destructive) {
+                    confirmingDelete = true
+                } label: {
+                    Text(verbatim: L10n.string("settings.deleteDownloaded")).font(.hashiya(.label))
+                }
+                .accessibilityIdentifier("settings.deleteDownloaded")
+                .confirmationDialog(
+                    Text(verbatim: L10n.deleteDownloadedMessage(count: storage.downloadedCount)),
+                    isPresented: $confirmingDelete,
+                    titleVisibility: .visible
+                ) {
+                    Button(role: .destructive) {
+                        Task { await viewModel.deleteDownloaded() }
+                    } label: {
+                        Text(verbatim: L10n.string("settings.delete"))
+                    }
+                    .accessibilityIdentifier("settings.confirmDeleteDownloaded")
+                    Button(role: .cancel) {} label: {
+                        Text(verbatim: L10n.string("settings.cancel"))
+                    }
+                }
+            }
+        } header: {
+            Text(verbatim: L10n.string("settings.storage"))
+                .font(.hashiya(.stateTitle))
+                .foregroundStyle(HashiyaColors.onSurface)
+                .textCase(nil)
+        }
+    }
+
     private var languageSection: some View {
         Section {
             Button {
@@ -123,5 +172,24 @@ public struct SettingsView: View {
 enum L10n {
     static func string(_ key: String) -> String {
         HashiyaStrings.string(key, bundle: .module)
+    }
+
+    static func format(_ key: String, _ arguments: any CVarArg...) -> String {
+        HashiyaStrings.format(key, bundle: .module, arguments)
+    }
+
+    /// "Downloaded PDFs · 2.4 MB · 3 files".
+    static func downloadedPdfs(bytes: Int64, count: Int) -> String {
+        format("settings.downloadedPdfs", Int64(count), PaperFormat.fileSize(bytes), PaperFormat.number(count))
+    }
+
+    /// "Attached PDFs · 1 MB · 1 file".
+    static func attachedPdfs(bytes: Int64, count: Int) -> String {
+        format("settings.attachedPdfs", Int64(count), PaperFormat.fileSize(bytes), PaperFormat.number(count))
+    }
+
+    /// The Delete downloaded PDFs confirmation.
+    static func deleteDownloadedMessage(count: Int) -> String {
+        format("settings.deleteDownloadedMessage", Int64(count), PaperFormat.number(count))
     }
 }

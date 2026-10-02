@@ -10,6 +10,7 @@ struct PaperDetailsViewModelTests {
     private let sleeper = ManualSleeper()
     private let pendingWrites = PendingWrites()
     private let collections = FakeCollectionsRepository()
+    private let pdfs = FakePdfRepository()
     private let clipboard = Clipboard()
     private let id = SamplePapers.attention.openAlexID
 
@@ -31,6 +32,7 @@ struct PaperDetailsViewModelTests {
             pendingWrites: pendingWrites,
             collections: collections,
             citations: citations,
+            pdfs: pdfs,
             copy: { clipboard.texts.append($0) },
             sleep: sleeper.sleep
         )
@@ -123,14 +125,61 @@ struct PaperDetailsViewModelTests {
         #expect(await eventually { viewModel.exit == .closed })
     }
 
-    @Test func startingTwiceStartsOnce() async {
-        let library = FakeLibraryRepository(saved: [SamplePapers.attention])
+    /// Back from a pushed screen runs `start()` again: the notes aren't read again, so typing stays.
+    @Test func startingAgainKeepsTheNotesAsTyped() async throws {
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention], notes: [id: PaperNotes(summary: "Stored")])
         let (viewModel, task) = await started(library)
-        defer { task.cancel() }
+        viewModel.updateNote(.summary, "Typed")
+        try await library.saveNotes(openAlexID: id, notes: PaperNotes(summary: "Elsewhere"))
+        task.cancel()
+        await task.value
 
-        await viewModel.start()
+        let again = Task { await viewModel.start() }
+        defer { again.cancel() }
+        try? await Task.sleep(for: .milliseconds(50))
 
         #expect(viewModel.isLoaded)
+        #expect(viewModel.notes == PaperNotes(summary: "Typed"))
+        #expect(viewModel.notesVersion == 0)
+    }
+
+    /// After a push and Back, the screen still follows the paper, the collections and the membership.
+    @Test func startingAgainAfterACancelFollowsTheStoreAgain() async throws {
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention])
+        let (viewModel, task) = await started(library)
+        task.cancel()
+        await task.value
+        let again = Task { await viewModel.start() }
+        defer { again.cancel() }
+
+        let collectionID = try #require(try await collectionsCreate("Thesis"))
+        #expect(await eventually { viewModel.collections.map(\.name) == ["Thesis"] })
+        try await collections.setMembership(collectionID: collectionID, openAlexID: id, member: true)
+        #expect(await eventually { viewModel.memberIDs == [collectionID] })
+        _ = try await library.remove(openAlexID: id)
+        #expect(await eventually { viewModel.exit == .closed })
+    }
+
+    /// Two `start()` calls at once follow the store once: the older one stops.
+    @Test func anOverlappingStartReplacesTheEarlierOne() async {
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention])
+        let (viewModel, first) = await started(library)
+        let firstEnded = Clipboard()
+        Task { await first.value; firstEnded.texts.append("ended") }
+        let second = Task { await viewModel.start() }
+        defer {
+            first.cancel()
+            second.cancel()
+        }
+
+        #expect(await eventually { firstEnded.texts == ["ended"] })
+        _ = try? await library.remove(openAlexID: id)
+        #expect(await eventually { viewModel.exit == .closed })
+    }
+
+    private func collectionsCreate(_ name: String) async throws -> Int64? {
+        if case .done(let id) = try await collections.create(name: name) { return id }
+        return nil
     }
 
     // MARK: Autosave

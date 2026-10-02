@@ -67,6 +67,7 @@ struct LibraryStringsTests {
             "library.exportFailed": "Couldn't export",
             "library.exportIncomplete": "Some entries may be incomplete. Export again when you're online.",
             "library.collectionsUpdateFailed": "Couldn't update collections",
+            "library.hasPdf": "PDF available offline",
         ]
         let arabic = [
             "library.allPapers": "كل الأوراق",
@@ -79,6 +80,7 @@ struct LibraryStringsTests {
             "library.exportFailed": "تعذّر التصدير",
             "library.exportIncomplete": "قد تكون بعض المداخل ناقصة. أعد التصدير عند الاتصال بالإنترنت.",
             "library.collectionsUpdateFailed": "تعذّر تحديث المجموعات",
+            "library.hasPdf": "ملف PDF متاح دون اتصال",
         ]
         for (key, value) in english {
             #expect(inLanguage("en") { L10n.string(key) } == value)

@@ -7,12 +7,15 @@ public enum ReadingStatus: String, CaseIterable, Sendable {
 public struct LibraryPaper: Equatable, Hashable, Sendable, Identifiable {
     public var paper: Paper
     public var status: ReadingStatus
+    /// True when a PDF is stored for the paper (downloaded or attached), so it can be read offline.
+    public var hasPdf: Bool
 
     /// The paper's OpenAlex ID.
     public var id: String { paper.openAlexID }
 
-    public init(paper: Paper, status: ReadingStatus) {
+    public init(paper: Paper, status: ReadingStatus, hasPdf: Bool = false) {
         self.paper = paper
         self.status = status
+        self.hasPdf = hasPdf
     }
 }

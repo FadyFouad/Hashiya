@@ -30,6 +30,7 @@ struct LibraryCollectionsViewModelTests {
             library: library,
             collections: collections,
             citations: citations,
+            pdfs: FakePdfRepository(),
             exportFiles: exportFiles ?? ExportFiles(directory: exportDirectory),
             share: { [share] url in await share.share(url) },
             sleep: sleeper.sleep

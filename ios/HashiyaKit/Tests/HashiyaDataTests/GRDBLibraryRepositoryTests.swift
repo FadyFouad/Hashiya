@@ -248,19 +248,21 @@ struct GRDBLibraryRepositoryTests {
 
     /// A paper saved by the Share Extension (another pool on the same file) appears after a refresh, as To read and searchable.
     @Test func refreshShowsPapersSavedThroughAnotherPool() async throws {
-        let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let url = directory.appending(path: "hashiya.sqlite")
-        let app = GRDBLibraryRepository(store: try PaperStore.open(at: url))
-        let shareExtension = GRDBLibraryRepository(store: try PaperStore.open(at: url))
-        var library = app.observeLibrary(query: "vaswani", status: .toRead).makeAsyncIterator()
-        #expect(await library.next()?.papers == [])
+        try await withOnDiskPools {
+            let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let url = directory.appending(path: "hashiya.sqlite")
+            let app = GRDBLibraryRepository(store: try PaperStore.open(at: url))
+            let shareExtension = GRDBLibraryRepository(store: try PaperStore.open(at: url))
+            var library = app.observeLibrary(query: "vaswani", status: .toRead).makeAsyncIterator()
+            #expect(await library.next()?.papers == [])
 
-        try await shareExtension.save(SamplePapers.attention)
-        await app.refreshAfterExternalChanges()
+            try await shareExtension.save(SamplePapers.attention)
+            await app.refreshAfterExternalChanges()
 
-        #expect(await library.next()?.papers == [LibraryPaper(paper: SamplePapers.attention, status: .toRead)])
+            #expect(await library.next()?.papers == [LibraryPaper(paper: SamplePapers.attention, status: .toRead)])
+        }
     }
 
     // MARK: Notes
@@ -433,5 +435,31 @@ struct GRDBLibraryRepositoryTests {
         #expect(row.detailsFetched)
         #expect(row.citeKey == nil)
         #expect(await value(of: store.observeCollectionIDs(openAlexID: "W1")) == [])
+    }
+
+    @Test func removeCarriesThePdfAndRestorePutsItBack() async throws {
+        try await repository.save(Paper(openAlexID: "W1", title: "Deep nets"))
+        let localID = try #require(try await store.paperID(openAlexID: "W1"))
+        try await store.setPdf(paperID: localID, source: "attached", size: 42, addedAt: 9)
+        try await store.setPdfLastPage(paperID: localID, page: 3)
+
+        let removed = try #require(try await repository.remove(openAlexID: "W1"))
+        #expect(removed.pdf == PaperPdf(source: .attached, sizeBytes: 42, addedAt: 9, lastPage: 3))
+
+        try await repository.restore(removed)
+        var pdfs = store.observePdf(openAlexID: "W1").makeAsyncIterator()
+        #expect(await pdfs.next() == .some(PdfColumns(source: "attached", size: 42, addedAt: 9, lastPage: 3)))
+    }
+
+    @Test func libraryRowsSayWhetherAPaperHasAPdf() async throws {
+        try await repository.save(Paper(openAlexID: "W1", title: "With"))
+        try await repository.save(Paper(openAlexID: "W2", title: "Without"))
+        try await store.setPdf(paperID: try #require(try await store.paperID(openAlexID: "W1")), source: "downloaded", size: 1, addedAt: 1)
+
+        var snapshots = repository.observeLibrary(query: "", status: nil).makeAsyncIterator()
+        let papers = try #require(await snapshots.next()).papers
+
+        #expect(papers.first { $0.paper.openAlexID == "W1" }?.hasPdf == true)
+        #expect(papers.first { $0.paper.openAlexID == "W2" }?.hasPdf == false)
     }
 }

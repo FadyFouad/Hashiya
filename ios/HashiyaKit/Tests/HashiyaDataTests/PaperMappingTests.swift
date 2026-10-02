@@ -126,4 +126,16 @@ struct PaperMappingTests {
         #expect(restored.paper.citeKey == "vaswani2017attention")
         #expect(restored.paper.detailsFetched == false)
     }
+
+    @Test func recordsCarryAPdfAndTheLibraryPaperSaysSo() {
+        let pdf = PaperPdf(source: .downloaded, sizeBytes: 2_048, addedAt: 10, lastPage: 4)
+
+        let withPdf = SamplePapers.attention.asRecords(localID: "local-1", savedAt: 42, pdf: pdf)
+        #expect(withPdf.paper.pdf == pdf)
+        #expect(withPdf.asLibraryPaper().hasPdf)
+
+        let without = SamplePapers.attention.asRecords(localID: "local-1", savedAt: 42)
+        #expect(without.paper.pdf == nil)
+        #expect(without.asLibraryPaper().hasPdf == false)
+    }
 }

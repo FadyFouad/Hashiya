@@ -54,7 +54,7 @@ public struct CollectionsChecklist: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(action: actions.done) {
-                        Text(verbatim: L10n.string("details.doneEditing"))
+                        Text(verbatim: DesignSystemStrings.doneEditing)
                     }
                 }
             }

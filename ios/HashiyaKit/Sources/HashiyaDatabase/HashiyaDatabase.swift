@@ -18,6 +18,7 @@ public enum HashiyaDatabase {
     /// `v1`: Android's Room version 1 schema. `v2`: Android's version 2 — the reading status and the search index.
     /// `v3`: Android's version 3 — the notes table, and the search index rebuilt with a notes column.
     /// `v4`: Android's version 4 — the citation columns on papers, and the collections tables.
+    /// `v5`: Android's version 5 — the stored PDF's columns on papers.
     public static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1") { db in
@@ -109,6 +110,17 @@ public enum HashiyaDatabase {
                 CREATE UNIQUE INDEX IF NOT EXISTS `index_collections_name_key` ON `collections` (`name_key`);
                 CREATE TABLE IF NOT EXISTS `collection_papers` (`collection_id` INTEGER NOT NULL, `paper_id` TEXT NOT NULL, `added_at` INTEGER NOT NULL, PRIMARY KEY(`collection_id`, `paper_id`), FOREIGN KEY(`collection_id`) REFERENCES `collections`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`paper_id`) REFERENCES `papers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE );
                 CREATE INDEX IF NOT EXISTS `index_collection_papers_paper_id` ON `collection_papers` (`paper_id`);
+                """)
+        }
+
+        migrator.registerMigration("v5") { db in
+            // Android's MIGRATION_4_5, statement for statement: four nullable columns, nothing existing rewritten. A paper has a
+            // PDF exactly when pdf_source is set; the four are written and cleared together.
+            try db.execute(sql: """
+                ALTER TABLE papers ADD COLUMN `pdf_source` TEXT;
+                ALTER TABLE papers ADD COLUMN `pdf_size` INTEGER;
+                ALTER TABLE papers ADD COLUMN `pdf_added_at` INTEGER;
+                ALTER TABLE papers ADD COLUMN `pdf_last_page` INTEGER;
                 """)
         }
         return migrator

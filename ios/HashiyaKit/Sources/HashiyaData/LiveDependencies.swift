@@ -11,6 +11,7 @@ public struct LiveDependencies: Sendable {
     public let collections: any CollectionsRepository
     public let citations: any CitationRepository
     public let exportFiles: ExportFiles
+    public let pdfs: any PdfRepository
 
     public init(
         libraryRepository: any LibraryRepository,
@@ -19,7 +20,8 @@ public struct LiveDependencies: Sendable {
         preferences: any UserPreferencesRepository,
         collections: any CollectionsRepository,
         citations: any CitationRepository,
-        exportFiles: ExportFiles
+        exportFiles: ExportFiles,
+        pdfs: any PdfRepository
     ) {
         self.libraryRepository = libraryRepository
         self.searchRepository = searchRepository
@@ -28,11 +30,14 @@ public struct LiveDependencies: Sendable {
         self.collections = collections
         self.citations = citations
         self.exportFiles = exportFiles
+        self.pdfs = pdfs
     }
 
-    /// The real graph: the App Group database (one store for the library, collections and citations), the Keychain, OpenAlex
-    /// over one URLSession and arXiv over its own. Reads `OpenAlexAPIKey` and `KeychainAccessGroup` from `bundle`'s Info.plist.
-    public static func live(bundle: Bundle = .main) throws -> LiveDependencies {
+    /// The real graph: the App Group database (one store for the library, collections, citations and PDFs), the Keychain,
+    /// OpenAlex over one URLSession, arXiv over its own and PDFs over a third. Reads `OpenAlexAPIKey` and
+    /// `KeychainAccessGroup` from `bundle`'s Info.plist. `background` is the app's `UIKitBackgroundTime`; the Share
+    /// Extension keeps the default and never downloads.
+    public static func live(bundle: Bundle = .main, background: any BackgroundTimeGranting = NoBackgroundTime()) throws -> LiveDependencies {
         let preferences = KeychainUserPreferencesRepository(
             keychain: SystemKeychainStore(accessGroup: infoValue(bundle.object(forInfoDictionaryKey: "KeychainAccessGroup")))
         )
@@ -40,7 +45,9 @@ public struct LiveDependencies: Sendable {
         let builtInKey = builtInAPIKey(from: bundle.object(forInfoDictionaryKey: "OpenAlexAPIKey"))
         let searchClient = OpenAlexSearchClient(session: session, builtInKey: builtInKey, userKeySource: preferences)
         let lookupClient = OpenAlexLookupClient(session: session, builtInKey: builtInKey, userKeySource: preferences)
-        let repositories = LibraryRepositories(store: try PaperStore.shared(), lookup: lookupClient)
+        // The one PDF client of the process: its session lives as long as the app and is never invalidated.
+        let pdf = PdfDependencies(files: try PdfFileStore.live(), downloader: PdfDownloadClient(), background: background)
+        let repositories = LibraryRepositories(store: try PaperStore.shared(), lookup: lookupClient, pdf: pdf)
         return LiveDependencies(
             libraryRepository: repositories.library,
             searchRepository: OpenAlexSearchRepository(service: searchClient),
@@ -48,7 +55,8 @@ public struct LiveDependencies: Sendable {
             preferences: preferences,
             collections: repositories.collections,
             citations: repositories.citations,
-            exportFiles: .live
+            exportFiles: .live,
+            pdfs: repositories.pdfs
         )
     }
 

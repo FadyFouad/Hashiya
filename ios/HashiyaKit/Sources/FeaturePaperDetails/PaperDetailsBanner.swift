@@ -24,6 +24,12 @@ struct PaperDetailsBanner: View {
             HashiyaBanner(text: L10n.string("details.bibtexIncomplete"))
         case .copyFailed:
             HashiyaBanner(text: L10n.string("details.copyFailed"))
+        case .pdfAttachNotPdf:
+            HashiyaBanner(text: L10n.string("details.pdfAttachNotPdf"))
+        case .pdfAttachTooLarge:
+            HashiyaBanner(text: L10n.string("details.pdfTooLarge"))
+        case .pdfAttachFailed:
+            HashiyaBanner(text: L10n.string("details.pdfAttachFailed"))
         case nil:
             EmptyView()
         }

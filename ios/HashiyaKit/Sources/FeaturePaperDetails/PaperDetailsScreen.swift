@@ -1,13 +1,17 @@
 import HashiyaDesignSystem
 import HashiyaModel
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Details for a saved paper, pushed on a tab's navigation stack. It hides the tab bar, saves the notes when it
 /// disappears and when the app leaves the foreground, and reports when it should go away.
 public struct PaperDetailsScreen: View {
     @State private var viewModel: PaperDetailsViewModel
+    /// The last Replace or Remove asked, so the dialog keeps its title while it closes (the answer is nil by then).
+    @State private var lastConfirmation: PdfConfirmation?
     private let onClose: () -> Void
     private let onRemove: (String) -> Void
+    private let onReadPdf: (String) -> Void
 
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
@@ -16,14 +20,17 @@ public struct PaperDetailsScreen: View {
     ///   - viewModel: evaluated on every update, but only the first instance is kept; its `init` starts nothing.
     ///   - onClose: the paper stopped being saved; pop this screen.
     ///   - onRemove: the user removed the paper and its notes are saved; pop this screen and remove it (with Undo).
+    ///   - onReadPdf: the notes are saved; push the reader for this paper.
     public init(
         viewModel: @autoclosure () -> PaperDetailsViewModel,
         onClose: @escaping () -> Void,
-        onRemove: @escaping (String) -> Void
+        onRemove: @escaping (String) -> Void,
+        onReadPdf: @escaping (String) -> Void = { _ in }
     ) {
         _viewModel = State(wrappedValue: viewModel())
         self.onClose = onClose
         self.onRemove = onRemove
+        self.onReadPdf = onReadPdf
     }
 
     public var body: some View {
@@ -40,6 +47,47 @@ public struct PaperDetailsScreen: View {
                 case .closed: onClose()
                 case .removed: onRemove(viewModel.openAlexID)
                 case nil: break
+                }
+            }
+            .onChange(of: viewModel.openReader) { _, open in
+                guard open else { return }
+                viewModel.readerOpened()
+                onReadPdf(viewModel.openAlexID)
+            }
+            // Back from the reader: its Notes sheet may have written the notes.
+            .onAppear { Task { await viewModel.onReaderClosed() } }
+            .fileImporter(isPresented: $viewModel.showingFileImporter, allowedContentTypes: [.pdf]) { result in
+                switch result {
+                case .success(let url): Task { await viewModel.attachPdf(from: url) }
+                case .failure: viewModel.message = .pdfAttachFailed
+                }
+            }
+            .onChange(of: viewModel.pdfConfirmation) { _, confirmation in
+                if let confirmation { lastConfirmation = confirmation }
+            }
+            .confirmationDialog(
+                Text(verbatim: Self.confirmationTitle(viewModel.pdfConfirmation ?? lastConfirmation)),
+                isPresented: Binding(get: { viewModel.pdfConfirmation != nil }, set: { if !$0 { viewModel.pdfConfirmation = nil } }),
+                titleVisibility: .visible,
+                // The dialog can clear its binding before a button's action runs, so the action gets the answer from here.
+                presenting: viewModel.pdfConfirmation
+            ) { confirmation in
+                switch confirmation {
+                case .replace:
+                    Button {
+                        viewModel.confirmReplace()
+                    } label: {
+                        Text(verbatim: L10n.string("details.pdfReplace"))
+                    }
+                case .remove:
+                    Button(role: .destructive) {
+                        Task { await viewModel.removePdf() }
+                    } label: {
+                        Text(verbatim: L10n.string("details.pdfRemove"))
+                    }
+                }
+                Button(role: .cancel) {} label: {
+                    Text(verbatim: L10n.string("details.pdfCancel"))
                 }
             }
             .task(id: viewModel.message) {
@@ -73,7 +121,9 @@ public struct PaperDetailsScreen: View {
                 paper: paper,
                 collections: viewModel.collections,
                 memberIDs: viewModel.memberIDs,
+                pdf: viewModel.pdf,
                 notes: viewModel.notesLoad == .failed ? nil : viewModel.notes,
+                notesVersion: viewModel.notesVersion,
                 saveState: viewModel.saveState,
                 // While the checklist is open its own banner shows the message; the screen behind shows none.
                 message: viewModel.showingChecklist ? nil : viewModel.message,
@@ -98,7 +148,14 @@ public struct PaperDetailsScreen: View {
         actions.retryLoadNotes = { Task { await viewModel.retryLoadNotes() } }
         actions.showCollections = { viewModel.showingChecklist = true }
         actions.copyBibTeX = { Task { await viewModel.copyBibTeX() } }
+        actions.pdfAction = { action in
+            if let link = viewModel.handle(action) { openURL(link) }
+        }
         return actions
+    }
+
+    static func confirmationTitle(_ confirmation: PdfConfirmation?) -> String {
+        L10n.string(confirmation == .remove ? "details.pdfRemoveTitle" : "details.pdfReplaceTitle")
     }
 
     private var checklistActions: CollectionsChecklistActions {

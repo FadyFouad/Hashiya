@@ -90,7 +90,7 @@ final class PaperDetailsFlowTests: XCTestCase {
         summary.typeText("Keep this")
 
         // Remove right away: the pending note is saved before the paper goes.
-        app.buttons["More options"].tap()
+        app.navigationBars.buttons["More options"].tap()
         app.buttons["Remove from library"].tap()
 
         XCTAssertTrue(app.staticTexts["Removed from library"].waitForExistence(timeout: UITestTimeout.long))
@@ -118,7 +118,7 @@ final class PaperDetailsFlowTests: XCTestCase {
         open.tap()
 
         XCTAssertTrue(noteField("summary", in: app).waitForExistence(timeout: UITestTimeout.long))
-        XCTAssertTrue(app.buttons["More options"].exists)
+        XCTAssertTrue(app.navigationBars.buttons["More options"].exists)
         back(in: app)
         XCTAssertTrue(app.staticTexts["About 3 results"].waitForExistence(timeout: UITestTimeout.long))
     }

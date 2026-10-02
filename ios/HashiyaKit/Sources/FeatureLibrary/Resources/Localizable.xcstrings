@@ -290,6 +290,23 @@
         }
       }
     },
+    "library.hasPdf" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ملف PDF متاح دون اتصال"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PDF available offline"
+          }
+        }
+      }
+    },
     "library.newCollection" : {
       "extractionState" : "manual",
       "localizations" : {

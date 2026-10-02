@@ -54,4 +54,13 @@ struct PaperFormatTests {
         #expect(DOILink.url(for: "10.1002/(sici)1097<3>#1 x")?.absoluteString
             == "https://doi.org/10.1002/(sici)1097%3C3%3E%231%20x")
     }
+
+    @Test func fileSizesUseTheLanguagesUnits() {
+        #expect(inLanguage("en") { PaperFormat.fileSize(2_400_000) } == "2.4 MB")
+        // The system's file style writes kilobytes as "kB".
+        #expect(inLanguage("en") { PaperFormat.fileSize(512_000) } == "512 kB")
+        // Arabic units; the "ar" locale writes Latin digits, as `citations` does.
+        #expect(inLanguage("ar") { PaperFormat.fileSize(2_400_000) } == "2.4 م.ب")
+        #expect(inLanguage("ar") { PaperFormat.fileSize(512_000) } == "512 كيلوبايت")
+    }
 }

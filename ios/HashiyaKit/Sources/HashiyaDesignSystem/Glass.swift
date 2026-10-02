@@ -1,7 +1,8 @@
 import SwiftUI
 
 // Liquid Glass on iOS 26 and later; the teal styling of iOS 17 and 18 everywhere else.
-// Only the surfaces in iOS spec 1 §16.2 use these: chips, banners, and the floating or sheet buttons.
+// Only the surfaces in iOS spec 1 §16.2 use these: chips, banners, and the floating or sheet buttons; and the
+// reader's page pill (iOS PDFs spec §8).
 
 /// Groups nearby glass shapes so they render and blend together (`GlassEffectContainer`); a plain wrapper before iOS 26.
 public struct HashiyaGlassGroup<Content: View>: View {
@@ -42,6 +43,12 @@ public extension View {
     func hashiyaSecondaryButton() -> some View {
         modifier(SecondaryButton())
     }
+
+    /// A small label floating over content that it doesn't control (the reader's "3 of 14"): a regular glass capsule
+    /// on iOS 26, not interactive; the regular material in a capsule before. Apply after the label's padding.
+    func hashiyaFloatingLabel() -> some View {
+        modifier(FloatingLabelSurface())
+    }
 }
 
 private struct ChipSurface: ViewModifier {
@@ -72,6 +79,16 @@ private struct ProminentButton: ViewModifier {
             content.buttonStyle(.glassProminent).tint(HashiyaColors.primary)
         } else {
             content.buttonStyle(.borderedProminent).tint(HashiyaColors.primary)
+        }
+    }
+}
+
+private struct FloatingLabelSurface: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26, *) {
+            content.glassEffect(.regular, in: .capsule)
+        } else {
+            content.background(.regularMaterial, in: Capsule())
         }
     }
 }

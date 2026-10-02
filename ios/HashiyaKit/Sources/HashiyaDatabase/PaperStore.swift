@@ -399,6 +399,99 @@ public struct PaperStore: Sendable {
         }
     }
 
+    // MARK: - PDFs
+
+    /// The paper's stored PDF, or nil while it has none (or isn't saved). Follows every change.
+    public func observePdf(openAlexID: String) -> AsyncStream<PdfColumns?> {
+        stream(ValueObservation.tracking { db in
+            try PdfColumns.fetchOne(
+                db,
+                sql: """
+                    SELECT pdf_source AS source, pdf_size AS size, pdf_added_at AS added_at, COALESCE(pdf_last_page, 0) AS last_page
+                    FROM papers WHERE open_alex_id = ? AND pdf_source IS NOT NULL
+                    """,
+                arguments: [openAlexID]
+            )
+        })
+    }
+
+    /// The local id that names the paper's PDF file, or nil when it isn't saved.
+    public func paperID(openAlexID: String) async throws -> String? {
+        try await writer.read { db in
+            try String.fetchOne(db, sql: "SELECT id FROM papers WHERE open_alex_id = ?", arguments: [openAlexID])
+        }
+    }
+
+    /// Records a stored PDF, starting on its first page (a replaced one starts over). Returns true when a row took it, false
+    /// when `paperID` isn't saved, so the caller deletes the file nothing points at (Android #21: checking afterwards
+    /// deleted a file Undo still needed).
+    @discardableResult
+    public func setPdf(paperID: String, source: String, size: Int64, addedAt: Int64) async throws -> Bool {
+        try await writer.write { db in
+            try db.execute(
+                sql: "UPDATE papers SET pdf_source = ?, pdf_size = ?, pdf_added_at = ?, pdf_last_page = 0 WHERE id = ?",
+                arguments: [source, size, addedAt, paperID]
+            )
+            return db.changesCount > 0
+        }
+    }
+
+    public func clearPdf(paperID: String) async throws {
+        try await writer.write { db in
+            try db.execute(
+                sql: "UPDATE papers SET pdf_source = NULL, pdf_size = NULL, pdf_added_at = NULL, pdf_last_page = NULL WHERE id = ?",
+                arguments: [paperID]
+            )
+        }
+    }
+
+    /// Only while a PDF is stored, so a page never outlives its file.
+    public func setPdfLastPage(paperID: String, page: Int) async throws {
+        try await writer.write { db in
+            try db.execute(
+                sql: "UPDATE papers SET pdf_last_page = ? WHERE id = ? AND pdf_source IS NOT NULL",
+                arguments: [page, paperID]
+            )
+        }
+    }
+
+    /// Every paper that has a PDF: the files the startup sweep keeps.
+    public func pdfPaperIDs() async throws -> Set<String> {
+        try await writer.read { db in
+            try String.fetchSet(db, sql: "SELECT id FROM papers WHERE pdf_source IS NOT NULL")
+        }
+    }
+
+    public func downloadedPdfPaperIDs() async throws -> [String] {
+        try await writer.read { db in
+            try String.fetchAll(db, sql: "SELECT id FROM papers WHERE pdf_source = 'downloaded'")
+        }
+    }
+
+    /// Bytes and counts by source; a source other than "downloaded" counts as attached.
+    public func pdfStorage() async throws -> PdfStorage {
+        try await writer.read { db in
+            let row = try Row.fetchOne(
+                db,
+                sql: """
+                    SELECT
+                      COALESCE(SUM(CASE WHEN pdf_source = 'downloaded' THEN pdf_size END), 0) AS downloaded_bytes,
+                      COUNT(CASE WHEN pdf_source = 'downloaded' THEN 1 END) AS downloaded_count,
+                      COALESCE(SUM(CASE WHEN pdf_source IS NOT NULL AND pdf_source != 'downloaded' THEN pdf_size END), 0) AS attached_bytes,
+                      COUNT(CASE WHEN pdf_source IS NOT NULL AND pdf_source != 'downloaded' THEN 1 END) AS attached_count
+                    FROM papers
+                    """
+            )
+            guard let row else { return .empty }
+            return PdfStorage(
+                downloadedBytes: row["downloaded_bytes"],
+                downloadedCount: row["downloaded_count"],
+                attachedBytes: row["attached_bytes"],
+                attachedCount: row["attached_count"]
+            )
+        }
+    }
+
     /// Makes every observation fetch again. Observations only see writes made through this store's own
     /// database connection, not those of another process (the Share Extension).
     public func notifyExternalChanges() async throws {

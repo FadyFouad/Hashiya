@@ -31,6 +31,7 @@ struct LibrarySnapshotTests {
             library: library,
             collections: collections ?? FakeCollectionsRepository(library: library),
             citations: FakeCitationRepository(),
+            pdfs: FakePdfRepository(),
             exportFiles: ExportFiles(directory: FileManager.default.temporaryDirectory.appendingPathComponent("library-snapshots")),
             share: { _ in true },
             sleep: sleeper.sleep
@@ -135,5 +136,18 @@ struct LibrarySnapshotTests {
         await viewModel.removeFromCollection(openAlexID: SamplePapers.vit.openAlexID)
         _ = await eventually { viewModel.papers.count == 1 }
         assertHashiyaSnapshots(of: screen(viewModel), named: "removedFromCollection", arabicText: "تراجع")
+    }
+
+    /// The PDF symbol after the status badge: Attention has a downloaded PDF, ViT an attached one.
+    @Test func pdfRow() async {
+        let pdf = PaperPdf(source: .downloaded, sizeBytes: 2_400_000, addedAt: 1)
+        let library = FakeLibraryRepository(
+            saved: [SamplePapers.attention, SamplePapers.arabicTitled, SamplePapers.vit],
+            statuses: [SamplePapers.attention.openAlexID: .reading],
+            pdfs: [SamplePapers.attention.openAlexID: pdf, SamplePapers.vit.openAlexID: PaperPdf(source: .attached, sizeBytes: 900_000, addedAt: 2)]
+        )
+        let viewModel = makeViewModel(library)
+        _ = await eventually { viewModel.papers.count == 3 }
+        assertHashiyaSnapshots(of: screen(viewModel), named: "pdfRow", arabicText: "قيد القراءة")
     }
 }

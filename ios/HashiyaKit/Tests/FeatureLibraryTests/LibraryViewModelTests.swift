@@ -8,12 +8,14 @@ import Testing
 @MainActor
 struct LibraryViewModelTests {
     private let sleeper = ManualSleeper()
+    private let pdfs = FakePdfRepository()
 
     private func makeViewModel(_ library: FakeLibraryRepository) -> LibraryViewModel {
         LibraryViewModel(
             library: library,
             collections: FakeCollectionsRepository(library: library),
             citations: FakeCitationRepository(),
+            pdfs: pdfs,
             exportFiles: ExportFiles(directory: FileManager.default.temporaryDirectory.appendingPathComponent("library-tests-\(UUID().uuidString)")),
             share: { _ in true },
             sleep: sleeper.sleep
@@ -325,6 +327,69 @@ struct LibraryViewModelTests {
 
         #expect(viewModel.pendingUndo == nil)
         #expect(library.savedPapers.isEmpty)
+    }
+
+    /// The removal is final once the banner times out, so its PDF goes; Undo puts the paper back with it.
+    @Test func anExpiredUndoDiscardsThePdfButUndoDoesNot() async {
+        let pdf = PaperPdf(source: .downloaded, sizeBytes: 2_048, addedAt: 1)
+        let library = FakeLibraryRepository(
+            saved: [SamplePapers.bert, SamplePapers.attention],
+            pdfs: [SamplePapers.attention.openAlexID: pdf, SamplePapers.bert.openAlexID: pdf]
+        )
+        let viewModel = makeViewModel(library)
+        #expect(await eventually { viewModel.papers.count == 2 })
+
+        await viewModel.remove(SamplePapers.attention)
+        await viewModel.undo()
+        #expect(await eventually { viewModel.papers.count == 2 })
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(pdfs.discarded.isEmpty)
+        #expect(library.library.first { $0.paper == SamplePapers.attention }?.hasPdf == true)
+
+        await viewModel.remove(SamplePapers.bert)
+        viewModel.undoExpired()
+        #expect(await eventually { pdfs.discarded == [SamplePapers.bert.openAlexID] })
+    }
+
+    /// A second removal replaces the banner without it timing out: the first removal is final at that moment.
+    @Test func aNewerRemovalDiscardsThePreviousPdf() async {
+        let library = FakeLibraryRepository(saved: [SamplePapers.vit, SamplePapers.bert, SamplePapers.attention])
+        let viewModel = makeViewModel(library)
+        #expect(await eventually { viewModel.papers.count == 3 })
+
+        await viewModel.remove(SamplePapers.bert)
+        await viewModel.remove(SamplePapers.vit)
+
+        #expect(await eventually { pdfs.discarded == [SamplePapers.bert.openAlexID] })
+        #expect(viewModel.pendingUndo?.paper == SamplePapers.vit)
+    }
+
+    /// Remove on Details goes through the same removal, so its PDF also goes only once Undo has passed.
+    @Test func aRemovalFromDetailsDiscardsThePdfOnlyAfterUndoHasPassed() async {
+        let pdf = PaperPdf(source: .attached, sizeBytes: 10, addedAt: 1)
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention], pdfs: [SamplePapers.attention.openAlexID: pdf])
+        let viewModel = makeViewModel(library)
+        #expect(await eventually { viewModel.papers.count == 1 })
+
+        await viewModel.remove(openAlexID: SamplePapers.attention.openAlexID)
+        #expect(viewModel.pendingUndo?.pdf == pdf)
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(pdfs.discarded.isEmpty)
+
+        viewModel.undoExpired()
+        #expect(await eventually { pdfs.discarded == [SamplePapers.attention.openAlexID] })
+    }
+
+    @Test func rowsSayWhichPapersHaveAPdf() async {
+        let library = FakeLibraryRepository(
+            saved: [SamplePapers.bert, SamplePapers.attention],
+            pdfs: [SamplePapers.attention.openAlexID: PaperPdf(source: .attached, sizeBytes: 10, addedAt: 1)]
+        )
+        let viewModel = makeViewModel(library)
+
+        #expect(await eventually { viewModel.papers.count == 2 })
+        #expect(viewModel.papers.first { $0.paper == SamplePapers.attention }?.hasPdf == true)
+        #expect(viewModel.papers.first { $0.paper == SamplePapers.bert }?.hasPdf == false)
     }
 
     @Test func aFailedRemoveChangesNothing() async {

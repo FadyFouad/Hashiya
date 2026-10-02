@@ -230,6 +230,14 @@ public struct LibraryView: View {
                         Task { await viewModel.setStatus(of: saved.paper, to: status) }
                     }
                     .padding(.top, 4)
+                    if saved.hasPdf {
+                        Image(systemName: "doc.richtext")
+                            .font(.footnote)
+                            .foregroundStyle(HashiyaColors.onSurfaceVariant)
+                            .padding(.top, 8)
+                            .accessibilityLabel(Text(verbatim: L10n.string("library.hasPdf")))
+                            .accessibilityIdentifier("library.pdfIcon")
+                    }
                 }
                 // Keeps the badge's menu and the row's tap separate: tapping the badge never opens Details.
                 .buttonStyle(.borderless)

@@ -124,6 +124,7 @@ public final class LibraryViewModel {
     @ObservationIgnored private let library: any LibraryRepository
     @ObservationIgnored private let collectionsRepository: any CollectionsRepository
     @ObservationIgnored private let citations: any CitationRepository
+    @ObservationIgnored private let pdfs: any PdfRepository
     @ObservationIgnored private let exportFiles: ExportFiles
     @ObservationIgnored private let share: @MainActor (URL) async -> Bool
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
@@ -144,6 +145,7 @@ public final class LibraryViewModel {
         library: any LibraryRepository,
         collections: any CollectionsRepository,
         citations: any CitationRepository,
+        pdfs: any PdfRepository,
         exportFiles: ExportFiles,
         share: @escaping @MainActor (URL) async -> Bool,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
@@ -151,6 +153,7 @@ public final class LibraryViewModel {
         self.library = library
         self.collectionsRepository = collections
         self.citations = citations
+        self.pdfs = pdfs
         self.exportFiles = exportFiles
         self.share = share
         self.sleep = sleep
@@ -503,7 +506,11 @@ public final class LibraryViewModel {
     public func remove(openAlexID: String) async {
         do {
             if let removed = try await library.remove(openAlexID: openAlexID) {
+                // The banner's timer restarts for the new removal without calling undoExpired, so the one it
+                // replaces is final now and its PDF goes.
+                let previous = pendingUndo
                 pendingUndo = removed
+                if let previous { discardPdf(of: previous) }
             }
         } catch {
             Self.log("remove failed")
@@ -521,9 +528,17 @@ public final class LibraryViewModel {
         }
     }
 
-    /// The Undo banner timed out.
+    /// The Undo banner timed out: the removal is final, so the paper's PDF goes too. Leaving the Library only pauses the
+    /// banner's timer (it starts again when the Library shows); if the app ends first, the startup sweep deletes the file.
     public func undoExpired() {
+        guard let removed = pendingUndo else { return }
         pendingUndo = nil
+        discardPdf(of: removed)
+    }
+
+    private func discardPdf(of removed: RemovedPaper) {
+        let pdfs = self.pdfs
+        Task { await pdfs.discardRemoved(removed) }
     }
 
     private static func log(_ message: StaticString) {

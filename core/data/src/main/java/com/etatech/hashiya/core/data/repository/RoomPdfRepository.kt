@@ -16,9 +16,12 @@ import com.etatech.hashiya.core.model.PdfSource
 import com.etatech.hashiya.core.model.PdfStorage
 import com.etatech.hashiya.core.network.NetworkException
 import com.etatech.hashiya.core.network.NetworkFailure
+import com.etatech.hashiya.core.network.OpenAlexPdfLinksDataSource
 import com.etatech.hashiya.core.network.PdfDownloadDataSource
+import com.etatech.hashiya.core.network.model.NetworkLocation
 import java.io.File
 import java.io.IOException
+import java.net.URI
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.CancellationException
@@ -45,6 +48,7 @@ internal class RoomPdfRepository(
     private val paperDao: PaperDao,
     private val fileStore: PdfFileStore,
     private val downloader: PdfDownloadDataSource,
+    private val pdfLinks: OpenAlexPdfLinksDataSource,
     private val contentResolver: ContentResolver,
     private val scope: CoroutineScope,
     private val now: () -> Long,
@@ -56,9 +60,10 @@ internal class RoomPdfRepository(
         paperDao: PaperDao,
         fileStore: PdfFileStore,
         downloader: PdfDownloadDataSource,
+        pdfLinks: OpenAlexPdfLinksDataSource,
         contentResolver: ContentResolver,
         @ApplicationScope scope: CoroutineScope
-    ) : this(paperDao, fileStore, downloader, contentResolver, scope, System::currentTimeMillis)
+    ) : this(paperDao, fileStore, downloader, pdfLinks, contentResolver, scope, System::currentTimeMillis)
 
     /** Running and failed downloads by OpenAlex id. A finished or cancelled download has no entry. */
     private val downloads = MutableStateFlow<Map<String, DownloadState>>(emptyMap())
@@ -124,36 +129,85 @@ internal class RoomPdfRepository(
             val row = paperDao.getByOpenAlexId(openAlexId)?.paper ?: return report(null)
             val url = row.oaPdfUrl?.takeIf { it.isNotBlank() }?.let(::upgradeToHttps)
                 ?: return report(DownloadState.Failed(DownloadFailure.NoLink))
-            storing {
-                val result = try {
-                    downloader.download(url) { body, length ->
-                        report(DownloadState.Running(bytes = 0, totalBytes = length))
-                        fileStore.store(row.id, body, maxBytes) { bytes -> report(DownloadState.Running(bytes, length)) }
-                    }
-                } catch (e: NetworkException) {
-                    val reason = if (e.failure == NetworkFailure.Connectivity) DownloadFailure.Offline else DownloadFailure.Http
-                    return@storing report(DownloadState.Failed(reason))
-                } catch (e: PdfWriteException) {
-                    return@storing report(DownloadState.Failed(DownloadFailure.Http))
-                }
-                when (result) {
-                    is StoreResult.Stored -> {
-                        // Removed before the row was set: nothing points at the file. A removal after this point keeps
-                        // the file for Undo; discardRemoved deletes it once the removal is final.
-                        if (paperDao.setPdf(row.id, PdfSource.Downloaded.storedValue, result.size, now()) == 0) {
-                            withContext(io) { fileStore.delete(row.id) }
+            val first = attempt(row.id, url, ::report)
+            if (first !is Attempt.Failed) return report(null)
+            if (first.triesOtherLinks) {
+                // The stored link may have gone stale while OpenAlex knows other copies (e.g. arXiv): try those in turn,
+                // and keep the first that gives the PDF as the paper's link.
+                report(DownloadState.Running(bytes = 0, totalBytes = null))
+                for (link in otherLinks(openAlexId, tried = url)) {
+                    report(DownloadState.Running(bytes = 0, totalBytes = null))
+                    when (val next = attempt(row.id, link, ::report)) {
+                        Attempt.Stored -> {
+                            paperDao.setOaPdfUrl(row.id, link)
+                            return report(null)
                         }
-                        report(null)
+
+                        Attempt.Gone -> return report(null)
+
+                        is Attempt.Failed -> if (next.wroteNothing) break
                     }
-
-                    StoreResult.NotPdf -> report(DownloadState.Failed(DownloadFailure.NotPdf))
-
-                    StoreResult.TooLarge -> report(DownloadState.Failed(DownloadFailure.TooLarge))
                 }
             }
+            report(DownloadState.Failed(first.reason))
         } catch (e: CancellationException) {
             report(null)
             throw e
+        }
+    }
+
+    /** OpenAlex's other open-access PDF links for the paper, best first; none when the lookup fails. */
+    private suspend fun otherLinks(openAlexId: String, tried: String): List<String> = try {
+        fallbackPdfLinks(pdfLinks.pdfLocations(openAlexId), tried)
+    } catch (e: NetworkException) {
+        emptyList()
+    }
+
+    private sealed interface Attempt {
+        /** The PDF is stored and recorded. */
+        data object Stored : Attempt
+
+        /** The paper was removed before the file was recorded; nothing is left. */
+        data object Gone : Attempt
+
+        /**
+         * [triesOtherLinks] when the link itself was the problem (not a PDF, an error status), not the connection, the size or
+         * the device. [wroteNothing] when the file couldn't be written, which another link won't change.
+         */
+        data class Failed(val reason: DownloadFailure, val triesOtherLinks: Boolean, val wroteNothing: Boolean = false) : Attempt
+    }
+
+    /** Downloads [url] into the paper's file and records it. Throws only [CancellationException]. */
+    private suspend fun attempt(paperId: String, url: String, report: (DownloadState?) -> Unit): Attempt = storing {
+        val result = try {
+            downloader.download(url) { body, length ->
+                report(DownloadState.Running(bytes = 0, totalBytes = length))
+                fileStore.store(paperId, body, maxBytes) { bytes -> report(DownloadState.Running(bytes, length)) }
+            }
+        } catch (e: NetworkException) {
+            return@storing if (e.failure == NetworkFailure.Connectivity) {
+                Attempt.Failed(DownloadFailure.Offline, triesOtherLinks = false)
+            } else {
+                Attempt.Failed(DownloadFailure.Http, triesOtherLinks = true)
+            }
+        } catch (e: PdfWriteException) {
+            return@storing Attempt.Failed(DownloadFailure.Http, triesOtherLinks = false, wroteNothing = true)
+        }
+        when (result) {
+            is StoreResult.Stored -> {
+                // Removed before the row was set: nothing points at the file. A removal after this point keeps
+                // the file for Undo; discardRemoved deletes it once the removal is final.
+                if (paperDao.setPdf(paperId, PdfSource.Downloaded.storedValue, result.size, now()) == 0) {
+                    withContext(io) { fileStore.delete(paperId) }
+                    Attempt.Gone
+                } else {
+                    Attempt.Stored
+                }
+            }
+
+            StoreResult.NotPdf -> Attempt.Failed(DownloadFailure.NotPdf, triesOtherLinks = true)
+
+            StoreResult.TooLarge -> Attempt.Failed(DownloadFailure.TooLarge, triesOtherLinks = false)
         }
     }
 
@@ -248,3 +302,25 @@ internal class RoomPdfRepository(
  */
 internal fun upgradeToHttps(url: String): String =
     if (url.startsWith("http://", ignoreCase = true)) "https://" + url.substring("http://".length) else url
+
+/** How many of OpenAlex's other links a download tries after the stored one fails. */
+internal const val MAX_FALLBACK_LINKS = 3
+
+/**
+ * The open-access PDF links in [locations] to try after [tried] failed: over HTTPS, each once, without [tried], arXiv's first
+ * (it serves real PDFs reliably), then in OpenAlex's order, at most [MAX_FALLBACK_LINKS].
+ */
+internal fun fallbackPdfLinks(locations: List<NetworkLocation>, tried: String): List<String> = locations
+    .filter { it.isOa && !it.pdfUrl.isNullOrBlank() }
+    .map { upgradeToHttps(it.pdfUrl!!.trim()) to it.isArxiv() }
+    .distinctBy { it.first }
+    .filter { it.first != upgradeToHttps(tried) }
+    .sortedByDescending { it.second }
+    .take(MAX_FALLBACK_LINKS)
+    .map { it.first }
+
+private fun NetworkLocation.isArxiv(): Boolean {
+    val host = pdfUrl?.let { runCatching { URI(it.trim()).host }.getOrNull() }?.lowercase()
+    val arxivHost = host == "arxiv.org" || host?.endsWith(".arxiv.org") == true
+    return arxivHost || source?.displayName?.contains("arXiv", ignoreCase = true) == true
+}

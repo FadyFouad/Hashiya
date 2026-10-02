@@ -100,6 +100,13 @@ abstract class PaperDao {
     )
     abstract suspend fun setPdf(paperId: String, source: String, size: Long, addedAt: Long): Int
 
+    /**
+     * Replaces the paper's open-access PDF link with one that gave the PDF. Returns how many rows took it: 0 when [paperId]
+     * isn't saved.
+     */
+    @Query("UPDATE papers SET oa_pdf_url = :url WHERE id = :paperId")
+    abstract suspend fun setOaPdfUrl(paperId: String, url: String): Int
+
     @Query("UPDATE papers SET pdf_source = NULL, pdf_size = NULL, pdf_added_at = NULL, pdf_last_page = NULL WHERE id = :paperId")
     abstract suspend fun clearPdf(paperId: String)
 

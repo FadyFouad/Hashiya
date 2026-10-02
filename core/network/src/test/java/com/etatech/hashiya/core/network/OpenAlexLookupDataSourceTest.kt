@@ -1,5 +1,7 @@
 package com.etatech.hashiya.core.network
 
+import com.etatech.hashiya.core.network.model.NetworkLocation
+import com.etatech.hashiya.core.network.model.NetworkSource
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
@@ -28,6 +30,11 @@ class OpenAlexLookupDataSourceTest {
     }
 
     private fun dataSource(): OpenAlexLookupDataSource {
+        val client = buildOpenAlexOkHttpClient(keySource, builtInKey = "built-in-key", logger = null)
+        return RetrofitOpenAlexLookupDataSource(buildOpenAlexApi(server.url("/"), client))
+    }
+
+    private fun pdfLinks(): OpenAlexPdfLinksDataSource {
         val client = buildOpenAlexOkHttpClient(keySource, builtInKey = "built-in-key", logger = null)
         return RetrofitOpenAlexLookupDataSource(buildOpenAlexApi(server.url("/"), client))
     }
@@ -125,5 +132,51 @@ class OpenAlexLookupDataSourceTest {
         } catch (e: NetworkException) {
             assertEquals(NetworkFailure.Connectivity, e.failure)
         }
+    }
+
+    @Test
+    fun pdfLocationsRequestsOnlyTheWorksLocations() = runTest {
+        enqueue(200, readFixture("work_locations.json"))
+
+        val locations = pdfLinks().pdfLocations("W2626778328")
+
+        val url = server.takeRequest().url
+        assertEquals(listOf("works", "W2626778328"), url.pathSegments)
+        assertEquals(PDF_LOCATION_FIELDS, url.queryParameter("select"))
+        assertEquals("built-in-key", url.queryParameter("api_key"))
+        assertEquals(
+            listOf(
+                NetworkLocation(source = null, pdfUrl = null, isOa = false),
+                NetworkLocation(source = null, pdfUrl = "https://langtaosha.org.cn/index.php/lts/preprint/download/10/108", isOa = true),
+                NetworkLocation(source = ARXIV, pdfUrl = "https://arxiv.org/pdf/1706.03762", isOa = true),
+                NetworkLocation(source = ARXIV, pdfUrl = null, isOa = true)
+            ),
+            locations
+        )
+    }
+
+    @Test
+    fun pdfLocationsOfAMissingWorkAreEmpty() = runTest {
+        enqueue(404)
+        assertEquals(emptyList<NetworkLocation>(), pdfLinks().pdfLocations("W9"))
+    }
+
+    @Test
+    fun pdfLocationsFailuresThrow() = runTest {
+        enqueue(503)
+        try {
+            pdfLinks().pdfLocations("W2626778328")
+            fail("Expected NetworkException")
+        } catch (e: NetworkException) {
+            assertEquals(NetworkFailure.Http(code = 503, usedUserKey = false), e.failure)
+        }
+    }
+
+    private companion object {
+        val ARXIV = NetworkSource(
+            displayName = "arXiv (Cornell University)",
+            type = "repository",
+            hostOrganizationName = "Cornell University"
+        )
     }
 }

@@ -35,7 +35,15 @@ data class NetworkBiblio(
 )
 
 @Serializable
-data class NetworkLocation(val source: NetworkSource? = null, @SerialName("pdf_url") val pdfUrl: String? = null)
+data class NetworkLocation(
+    val source: NetworkSource? = null,
+    @SerialName("pdf_url") val pdfUrl: String? = null,
+    @SerialName("is_oa") val isOa: Boolean = false
+)
+
+/** A work with only its locations: every place OpenAlex knows it is hosted, open or not. */
+@Serializable
+data class NetworkWorkLocations(val id: String, val locations: List<NetworkLocation> = emptyList())
 
 @Serializable
 data class NetworkSource(

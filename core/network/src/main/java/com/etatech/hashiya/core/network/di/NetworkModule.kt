@@ -12,6 +12,7 @@ import com.etatech.hashiya.core.network.OkHttpPdfDownloadDataSource
 import com.etatech.hashiya.core.network.OpenAlexApi
 import com.etatech.hashiya.core.network.OpenAlexDataSource
 import com.etatech.hashiya.core.network.OpenAlexLookupDataSource
+import com.etatech.hashiya.core.network.OpenAlexPdfLinksDataSource
 import com.etatech.hashiya.core.network.PdfDownloadDataSource
 import com.etatech.hashiya.core.network.RetrofitOpenAlexDataSource
 import com.etatech.hashiya.core.network.RetrofitOpenAlexLookupDataSource
@@ -68,4 +69,7 @@ internal abstract class NetworkBindingsModule {
 
     @Binds
     abstract fun bindOpenAlexLookupDataSource(impl: RetrofitOpenAlexLookupDataSource): OpenAlexLookupDataSource
+
+    @Binds
+    abstract fun bindOpenAlexPdfLinksDataSource(impl: RetrofitOpenAlexLookupDataSource): OpenAlexPdfLinksDataSource
 }

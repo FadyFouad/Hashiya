@@ -436,6 +436,16 @@ public struct PaperStore: Sendable {
         }
     }
 
+    /// Replaces the paper's open-access PDF link with one that gave the PDF. Returns whether a row took it: false when
+    /// `paperID` isn't saved.
+    @discardableResult
+    public func setOaPDFURL(paperID: String, url: String) async throws -> Bool {
+        try await writer.write { db in
+            try db.execute(sql: "UPDATE papers SET oa_pdf_url = ? WHERE id = ?", arguments: [url, paperID])
+            return db.changesCount > 0
+        }
+    }
+
     public func clearPdf(paperID: String) async throws {
         try await writer.write { db in
             try db.execute(

@@ -78,4 +78,40 @@ struct OpenAlexLookupClientTests {
             try await client(server).works(filter: "locations.landing_page_url:http://arxiv.org/abs/1", perPage: 2)
         }
     }
+
+    // The other places a work is hosted, for a PDF download whose stored link failed.
+
+    @Test func pdfLocationsRequestsOnlyTheWorksLocations() async throws {
+        let server = URLProtocolStub.Server(always: .json(Fixtures.string("work_locations.json")))
+
+        let locations = try await client(server).pdfLocations(openAlexID: "W2626778328")
+
+        #expect(pathSegments(server) == ["works", "W2626778328"])
+        #expect(server.lastQuery["select"] == OpenAlexLookupClient.pdfLocationFields)
+        #expect(server.lastQuery["api_key"] == "built-in-key")
+        let arxiv = NetworkSource(displayName: "arXiv (Cornell University)", type: "repository", hostOrganizationName: "Cornell University")
+        #expect(locations == [
+            NetworkLocation(pdfURL: nil, source: nil, isOA: false),
+            NetworkLocation(pdfURL: "https://langtaosha.org.cn/index.php/lts/preprint/download/10/108", source: nil, isOA: true),
+            NetworkLocation(pdfURL: "https://arxiv.org/pdf/1706.03762", source: arxiv, isOA: true),
+            NetworkLocation(pdfURL: nil, source: arxiv, isOA: true),
+        ])
+    }
+
+    @Test func pdfLocationFieldsAreTheIDAndLocations() {
+        #expect(OpenAlexLookupClient.pdfLocationFields == "id,locations")
+    }
+
+    @Test(arguments: [404, 400])
+    func pdfLocationsOfAMissingWorkAreEmpty(code: Int) async throws {
+        let server = URLProtocolStub.Server(always: .status(code, body: Data("{}".utf8)))
+        #expect(try await client(server).pdfLocations(openAlexID: "W9").isEmpty)
+    }
+
+    @Test func pdfLocationsFailuresThrow() async {
+        let server = URLProtocolStub.Server(always: .status(503))
+        await #expect(throws: NetworkFailure.http(code: 503, usedUserKey: false)) {
+            try await client(server).pdfLocations(openAlexID: "W2626778328")
+        }
+    }
 }

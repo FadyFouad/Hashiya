@@ -12,7 +12,10 @@ import com.etatech.hashiya.core.model.PdfSource
 import com.etatech.hashiya.core.model.PdfStorage
 import com.etatech.hashiya.core.network.NetworkException
 import com.etatech.hashiya.core.network.NetworkFailure
+import com.etatech.hashiya.core.network.OpenAlexPdfLinksDataSource
 import com.etatech.hashiya.core.network.PdfDownloadDataSource
+import com.etatech.hashiya.core.network.model.NetworkLocation
+import com.etatech.hashiya.core.network.model.NetworkSource
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
@@ -52,6 +55,7 @@ class RoomPdfRepositoryTest {
     private lateinit var scope: CoroutineScope
     private lateinit var repository: RoomPdfRepository
     private val downloader = FakePdfDownloadDataSource()
+    private val pdfLinks = FakePdfLinksDataSource()
     private var clock = 0L
 
     @Before
@@ -77,6 +81,7 @@ class RoomPdfRepositoryTest {
         paperDao = db.paperDao(),
         fileStore = PdfFileStore(dir),
         downloader = downloader,
+        pdfLinks = pdfLinks,
         contentResolver = ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver,
         scope = scope,
         now = { 1_000L },
@@ -418,13 +423,206 @@ class RoomPdfRepositoryTest {
         assertEquals(listOf("local-1.pdf"), filesInDir())
     }
 
+    // Fallback to OpenAlex's other open-access locations when the stored link doesn't give the PDF.
+
+    private suspend fun storedLink(openAlexId: String): String? = db.paperDao().getByOpenAlexId(openAlexId)?.paper?.oaPdfUrl
+
+    private fun location(url: String?, source: NetworkSource? = null, isOa: Boolean = true) =
+        NetworkLocation(source = source, pdfUrl = url, isOa = isOa)
+
+    @Test
+    fun aBadStoredLinkFallsBackToArxivAndKeepsTheLinkThatWorked() = runTest {
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        downloader.bodies = mapOf(BAD_LINK to HTML)
+        pdfLinks.locations = listOf(
+            location(null, isOa = false),
+            location(BAD_LINK),
+            location("https://repository.example/attention.pdf"),
+            location("http://arxiv.org/pdf/1706.03762", source = ARXIV),
+            location(null, source = ARXIV)
+        )
+
+        repository.download("W1")
+
+        assertEquals(PaperPdf(PdfSource.Downloaded, sizeBytes = PDF.size.toLong(), addedAt = 1_000L, lastPage = 0), awaitStored("W1"))
+        assertEquals(listOf(BAD_LINK, ARXIV_LINK), downloader.urls)
+        assertEquals(listOf("W1"), pdfLinks.requests)
+        // The link is replaced after the PDF is recorded, before the download ends.
+        assertNull(awaitValue(repository.observeDownload("W1")) { it == null })
+        assertEquals(ARXIV_LINK, storedLink("W1"))
+        assertEquals(listOf("local-1.pdf"), filesInDir())
+    }
+
+    @Test
+    fun aLinkThatWorksTheFirstTimeLooksUpNothing() = runTest {
+        library.save(paper("W1"))
+
+        repository.download("W1")
+        awaitStored("W1")
+
+        assertEquals(emptyList<String>(), pdfLinks.requests)
+        assertEquals("https://arxiv.org/pdf/W1", storedLink("W1"))
+    }
+
+    @Test
+    fun whenEveryLinkFailsTheFirstFailureIsReportedAfterAtMostThreeMore() = runTest {
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        downloader.failures = mapOf(BAD_LINK to NetworkException(NetworkFailure.Http(code = 404, usedUserKey = false)))
+        downloader.body = HTML
+        pdfLinks.locations = (1..5).map { location("https://mirror$it.example/a.pdf") }
+
+        repository.download("W1")
+
+        assertEquals(DownloadState.Failed(DownloadFailure.Http), awaitFailure("W1"))
+        assertEquals(listOf(BAD_LINK) + (1..3).map { "https://mirror$it.example/a.pdf" }, downloader.urls)
+        assertEquals(BAD_LINK, storedLink("W1"))
+        assertNull(repository.observePdf("W1").first())
+        assertEquals(emptyList<String>(), filesInDir())
+    }
+
+    @Test
+    fun aFallbackLinkThatAlsoFailsMovesOnToTheNext() = runTest {
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        downloader.bodies = mapOf(BAD_LINK to HTML)
+        downloader.failures = mapOf(ARXIV_LINK to NetworkException(NetworkFailure.Connectivity))
+        pdfLinks.locations = listOf(location("https://repository.example/attention.pdf"), location(ARXIV_LINK, source = ARXIV))
+
+        repository.download("W1")
+
+        awaitStored("W1")
+        assertNull(awaitValue(repository.observeDownload("W1")) { it == null })
+        assertEquals(listOf(BAD_LINK, ARXIV_LINK, "https://repository.example/attention.pdf"), downloader.urls)
+        assertEquals("https://repository.example/attention.pdf", storedLink("W1"))
+    }
+
+    @Test
+    fun beingOfflineLooksUpNoOtherLinks() = runTest {
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        downloader.failure = NetworkException(NetworkFailure.Connectivity)
+        pdfLinks.locations = listOf(location(ARXIV_LINK, source = ARXIV))
+
+        repository.download("W1")
+
+        assertEquals(DownloadState.Failed(DownloadFailure.Offline), awaitFailure("W1"))
+        assertEquals(emptyList<String>(), pdfLinks.requests)
+        assertEquals(listOf(BAD_LINK), downloader.urls)
+    }
+
+    @Test
+    fun aPdfOverTheLimitLooksUpNoOtherLinks() = runTest {
+        repository = repository(maxBytes = 16)
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        pdfLinks.locations = listOf(location(ARXIV_LINK, source = ARXIV))
+
+        repository.download("W1")
+
+        assertEquals(DownloadState.Failed(DownloadFailure.TooLarge), awaitFailure("W1"))
+        assertEquals(emptyList<String>(), pdfLinks.requests)
+        assertEquals(listOf(BAD_LINK), downloader.urls)
+    }
+
+    @Test
+    fun aFailedLookupReportsTheFirstFailure() = runTest {
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        downloader.body = HTML
+        pdfLinks.failure = NetworkException(NetworkFailure.Connectivity)
+
+        repository.download("W1")
+
+        assertEquals(DownloadState.Failed(DownloadFailure.NotPdf), awaitFailure("W1"))
+        assertEquals(listOf("W1"), pdfLinks.requests)
+        assertEquals(listOf(BAD_LINK), downloader.urls)
+        assertEquals(emptyList<String>(), filesInDir())
+    }
+
+    @Test
+    fun cancellingDuringTheLookupStopsAndLeavesNoFile() = runTest {
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        downloader.body = HTML
+        pdfLinks.locations = listOf(location(ARXIV_LINK, source = ARXIV))
+        pdfLinks.gate = CompletableDeferred()
+        repository.download("W1")
+        awaitTrue { pdfLinks.requests.isNotEmpty() }
+
+        repository.cancelDownload("W1")
+
+        awaitTrue { pdfLinks.cancelled }
+        assertNull(awaitValue(repository.observeDownload("W1")) { it == null })
+        assertEquals(listOf(BAD_LINK), downloader.urls)
+        assertNull(repository.observePdf("W1").first())
+        assertEquals(emptyList<String>(), filesInDir())
+    }
+
+    @Test
+    fun cancellingDuringAFallbackDownloadStopsAndLeavesNoFile() = runTest {
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        downloader.bodies = mapOf(BAD_LINK to HTML)
+        downloader.gatedUrl = ARXIV_LINK
+        downloader.gate = CompletableDeferred()
+        pdfLinks.locations = listOf(location(ARXIV_LINK, source = ARXIV), location("https://repository.example/attention.pdf"))
+        repository.download("W1")
+        awaitTrue { ARXIV_LINK in downloader.urls }
+
+        repository.cancelDownload("W1")
+
+        awaitTrue { downloader.cancelled }
+        assertNull(awaitValue(repository.observeDownload("W1")) { it == null })
+        assertEquals(listOf(BAD_LINK, ARXIV_LINK), downloader.urls)
+        assertNull(repository.observePdf("W1").first())
+        assertEquals(BAD_LINK, storedLink("W1"))
+        assertEquals(emptyList<String>(), filesInDir())
+    }
+
+    @Test
+    fun removingThePaperDuringAFallbackDownloadLeavesNothing() = runTest {
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        downloader.bodies = mapOf(BAD_LINK to HTML)
+        downloader.gatedUrl = ARXIV_LINK
+        downloader.gate = CompletableDeferred()
+        pdfLinks.locations = listOf(location(ARXIV_LINK, source = ARXIV))
+        repository.download("W1")
+        awaitTrue { ARXIV_LINK in downloader.urls }
+
+        library.remove("W1")
+
+        awaitTrue { downloader.cancelled }
+        assertNull(awaitValue(repository.observeDownload("W1")) { it == null })
+        assertNull(db.paperDao().getByOpenAlexId("W1"))
+        assertEquals(emptyList<String>(), filesInDir())
+    }
+
+    @Test
+    fun aFallbackDownloadCanBeTriedAgainAfterItFails() = runTest {
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        downloader.body = HTML
+        pdfLinks.locations = listOf(location(ARXIV_LINK, source = ARXIV))
+        repository.download("W1")
+        assertEquals(DownloadState.Failed(DownloadFailure.NotPdf), awaitFailure("W1"))
+
+        downloader.bodies = mapOf(BAD_LINK to HTML, ARXIV_LINK to PDF)
+        repository.download("W1")
+
+        awaitStored("W1")
+        assertNull(awaitValue(repository.observeDownload("W1")) { it == null })
+        assertEquals(listOf(BAD_LINK, ARXIV_LINK, BAD_LINK, ARXIV_LINK), downloader.urls)
+        assertEquals(ARXIV_LINK, storedLink("W1"))
+    }
+
     private class FakePdfDownloadDataSource : PdfDownloadDataSource {
         @Volatile var body: ByteArray = PDF
 
         @Volatile var failure: NetworkException? = null
 
+        /** Per-link bodies and failures, used before [body] and [failure]. */
+        @Volatile var bodies: Map<String, ByteArray> = emptyMap()
+
+        @Volatile var failures: Map<String, NetworkException> = emptyMap()
+
         /** When set, every download waits for it before reading, so a test can see one running or cancel it. */
         @Volatile var gate: CompletableDeferred<Unit>? = null
+
+        /** When set, only this link waits for [gate]. */
+        @Volatile var gatedUrl: String? = null
 
         val started = CompletableDeferred<Unit>()
 
@@ -437,17 +635,47 @@ class RoomPdfRepositoryTest {
             synchronized(requested) { requested += url }
             started.complete(Unit)
             try {
+                if (gatedUrl == null || gatedUrl == url) gate?.await()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                cancelled = true
+                throw e
+            }
+            (failures[url] ?: failure)?.let { throw it }
+            val served = bodies[url] ?: body
+            return consume(ByteArrayInputStream(served), served.size.toLong())
+        }
+    }
+
+    /** OpenAlex's locations for any work, or [failure]; a set [gate] holds the lookup until it opens. */
+    private class FakePdfLinksDataSource : OpenAlexPdfLinksDataSource {
+        @Volatile var locations: List<NetworkLocation> = emptyList()
+
+        @Volatile var failure: NetworkException? = null
+
+        @Volatile var gate: CompletableDeferred<Unit>? = null
+
+        @Volatile var cancelled = false
+
+        private val requested = mutableListOf<String>()
+        val requests: List<String> get() = synchronized(requested) { requested.toList() }
+
+        override suspend fun pdfLocations(openAlexId: String): List<NetworkLocation> {
+            synchronized(requested) { requested += openAlexId }
+            try {
                 gate?.await()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 cancelled = true
                 throw e
             }
             failure?.let { throw it }
-            return consume(ByteArrayInputStream(body), body.size.toLong())
+            return locations
         }
     }
 
     private companion object {
+        const val BAD_LINK = "https://langtaosha.org.cn/index.php/lts/preprint/download/10/108"
+        const val ARXIV_LINK = "https://arxiv.org/pdf/1706.03762"
+        val ARXIV = NetworkSource(displayName = "arXiv (Cornell University)", type = "repository")
         val PDF = "%PDF-1.7\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n".toByteArray()
         val HTML = "<!DOCTYPE html><html><body>Sign in to read this article</body></html>".toByteArray()
     }

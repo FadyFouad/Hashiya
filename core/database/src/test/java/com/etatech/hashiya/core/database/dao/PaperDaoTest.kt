@@ -481,6 +481,16 @@ class PaperDaoTest {
     }
 
     @Test
+    fun setOaPdfUrlReplacesTheLinkOfASavedPaperOnly() = runTest {
+        save(paper("a", "W1", 100).copy(isOpenAccess = true, oaPdfUrl = "https://langtaosha.org.cn/download/10/108"), "Ada")
+
+        assertEquals(1, dao.setOaPdfUrl("a", "https://arxiv.org/pdf/1706.03762"))
+        assertEquals(0, dao.setOaPdfUrl("missing", "https://arxiv.org/pdf/1706.03762"))
+
+        assertEquals("https://arxiv.org/pdf/1706.03762", dao.getByOpenAlexId("W1")?.paper?.oaPdfUrl)
+    }
+
+    @Test
     fun pdfIdsAndStorageAreCountedBySource() = runTest {
         save(paper("a", "W1", 100), "Ada")
         save(paper("b", "W2", 200), "Grace")

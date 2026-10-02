@@ -134,15 +134,40 @@ public struct NetworkBiblio: Decodable, Equatable, Sendable {
 public struct NetworkLocation: Decodable, Equatable, Sendable {
     public let pdfURL: String?
     public let source: NetworkSource?
+    /// Whether this copy is free to read. False when OpenAlex leaves it out.
+    public let isOA: Bool
 
-    public init(pdfURL: String? = nil, source: NetworkSource? = nil) {
+    public init(pdfURL: String? = nil, source: NetworkSource? = nil, isOA: Bool = false) {
         self.pdfURL = pdfURL
         self.source = source
+        self.isOA = isOA
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        pdfURL = try container.decodeIfPresent(String.self, forKey: .pdfURL)
+        source = try container.decodeIfPresent(NetworkSource.self, forKey: .source)
+        isOA = try container.decodeIfPresent(Bool.self, forKey: .isOA) ?? false
     }
 
     enum CodingKeys: String, CodingKey {
         case source
         case pdfURL = "pdf_url"
+        case isOA = "is_oa"
+    }
+}
+
+/// A work with only its locations: every place OpenAlex knows it is hosted, open or not.
+struct NetworkWorkLocations: Decodable, Sendable {
+    let locations: [NetworkLocation]
+
+    init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        locations = try container.decodeIfPresent([NetworkLocation].self, forKey: .locations) ?? []
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case locations
     }
 }
 

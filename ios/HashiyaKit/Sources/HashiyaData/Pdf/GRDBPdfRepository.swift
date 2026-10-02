@@ -28,6 +28,7 @@ public final class GRDBPdfRepository: PdfRepository {
     private let store: PaperStore
     private let files: PdfFileStore
     private let downloader: any PdfDownloading
+    private let pdfLinks: any OpenAlexPdfLinksService
     private let background: any BackgroundTimeGranting
     private let now: @Sendable () -> Int64
     private let maxBytes: Int64
@@ -39,6 +40,7 @@ public final class GRDBPdfRepository: PdfRepository {
         store: PaperStore,
         files: PdfFileStore,
         downloader: any PdfDownloading,
+        pdfLinks: any OpenAlexPdfLinksService = NoPdfLinks(),
         background: any BackgroundTimeGranting = NoBackgroundTime(),
         now: @escaping @Sendable () -> Int64 = { Int64((Date().timeIntervalSince1970 * 1000).rounded()) },
         maxBytes: Int64 = PdfFileStore.maxPdfBytes
@@ -46,6 +48,7 @@ public final class GRDBPdfRepository: PdfRepository {
         self.store = store
         self.files = files
         self.downloader = downloader
+        self.pdfLinks = pdfLinks
         self.background = background
         self.now = now
         self.maxBytes = maxBytes
@@ -248,11 +251,60 @@ public final class GRDBPdfRepository: PdfRepository {
     /// The state to show once the download stops: nil when it stored the file, was cancelled, or the paper is gone.
     private func attemptDownload(_ openAlexID: String, token: UUID) async -> DownloadState? {
         guard let row = (await store.observePaper(openAlexID: openAlexID).firstElement()).flatMap({ $0 }) else { return nil }
-        guard let link = row.paper.oaPDFURL?.trimmingCharacters(in: .whitespacesAndNewlines), !link.isEmpty else {
+        guard let stored = row.paper.oaPDFURL?.trimmingCharacters(in: .whitespacesAndNewlines), !stored.isEmpty else {
             return .failed(.noLink)
         }
-        guard let url = URL(string: upgradeToHTTPS(link)) else { return .failed(.http) }
+        let link = upgradeToHTTPS(stored)
         let paperID = row.paper.id
+        // A link that isn't a URL is the server's failure, as on Android: the other links may still work.
+        var first = Attempt.failed(.http, triesOtherLinks: true, wroteNothing: false)
+        if let url = URL(string: link) {
+            first = await attempt(url, paperID: paperID, openAlexID: openAlexID, token: token)
+        }
+        guard case let .failed(reason, triesOtherLinks, _) = first else { return nil }
+        guard triesOtherLinks else { return .failed(reason) }
+
+        // The stored link may have gone stale while OpenAlex knows other copies (e.g. arXiv): try those in turn, and keep
+        // the first that gives the PDF as the paper's link. A failed lookup reports the first failure.
+        report(openAlexID, .running(bytes: 0, total: nil), token: token)
+        let others: [String]
+        do {
+            others = fallbackPDFLinks(try await pdfLinks.pdfLocations(openAlexID: openAlexID), tried: link)
+        } catch {
+            return Task.isCancelled ? nil : .failed(reason)
+        }
+        for other in others {
+            guard !Task.isCancelled else { return nil }
+            guard let otherURL = URL(string: other) else { continue }
+            report(openAlexID, .running(bytes: 0, total: nil), token: token)
+            switch await attempt(otherURL, paperID: paperID, openAlexID: openAlexID, token: token) {
+            case .stored:
+                // Outside this task, which may be cancelled by now and would make the write fail. A removed paper keeps
+                // no row to update; a failed write keeps the old link.
+                let store = store
+                _ = await Task { try? await store.setOaPDFURL(paperID: paperID, url: other) }.value
+                return nil
+            case .stopped:
+                return nil
+            case let .failed(_, _, wroteNothing):
+                if wroteNothing { return Task.isCancelled ? nil : .failed(reason) }
+            }
+        }
+        return Task.isCancelled ? nil : .failed(reason)
+    }
+
+    private enum Attempt: Sendable {
+        /// The PDF is stored and recorded.
+        case stored
+        /// Cancelled, or the paper was removed before the file was recorded: nothing to show.
+        case stopped
+        /// `triesOtherLinks` when the link itself was the problem (not a PDF, an error status), not the connection, the
+        /// size or the device. `wroteNothing` when the file or its row couldn't be written, which another link won't change.
+        case failed(DownloadFailure, triesOtherLinks: Bool, wroteNothing: Bool)
+    }
+
+    /// Downloads `url` into the paper's file and records it.
+    private func attempt(_ url: URL, paperID: String, openAlexID: String, token: UUID) async -> Attempt {
         do {
             // The row is set inside `storing` too: a sweep between the move and the row would delete the new file.
             return try await storing { [self] in
@@ -268,25 +320,29 @@ public final class GRDBPdfRepository: PdfRepository {
                         // for Undo; discardRemoved deletes it once the removal is final.
                         if try await !store.setPdf(paperID: paperID, source: PdfSource.downloaded.rawValue, size: size, addedAt: now()) {
                             files.delete(paperID: paperID)
+                            return .stopped
                         }
                     } catch {
                         // Also how a removal that cancels the download during the write ends: no state, as for any cancel.
                         await Self.deleteUnlessRecorded(paperID: paperID, store: store, files: files)
-                        return Task.isCancelled ? nil : .failed(.http)
+                        return Task.isCancelled ? .stopped : .failed(.http, triesOtherLinks: false, wroteNothing: true)
                     }
-                    return nil
+                    return .stored
                 case .notPDF:
-                    return .failed(.notPDF)
+                    return .failed(.notPDF, triesOtherLinks: true, wroteNothing: false)
                 case .tooLarge:
-                    return .failed(.tooLarge)
+                    return .failed(.tooLarge, triesOtherLinks: false, wroteNothing: false)
                 }
             }
         } catch is CancellationError {
-            return nil
+            return .stopped
         } catch let failure as NetworkFailure {
-            return Task.isCancelled ? nil : .failed(failure == .connectivity ? .offline : .http)
+            guard !Task.isCancelled else { return .stopped }
+            return failure == .connectivity
+                ? .failed(.offline, triesOtherLinks: false, wroteNothing: false)
+                : .failed(.http, triesOtherLinks: true, wroteNothing: false)
         } catch {
-            return Task.isCancelled ? nil : .failed(.http)
+            return Task.isCancelled ? .stopped : .failed(.http, triesOtherLinks: false, wroteNothing: true)
         }
     }
 

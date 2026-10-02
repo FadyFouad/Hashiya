@@ -98,6 +98,16 @@ struct PdfStoreTests {
         #expect(try await store.setPdf(paperID: "p1", source: "downloaded", size: 10, addedAt: 5) == true)
     }
 
+    @Test func setOaPDFURLReplacesTheLinkOfASavedPaperOnly() async throws {
+        try await savePaper("p1", "W1")
+
+        #expect(try await store.setOaPDFURL(paperID: "p1", url: "https://arxiv.org/pdf/1706.03762") == true)
+        #expect(try await store.setOaPDFURL(paperID: "missing", url: "https://arxiv.org/pdf/1706.03762") == false)
+
+        let link = try await queue.read { db in try String.fetchOne(db, sql: "SELECT oa_pdf_url FROM papers WHERE id = 'p1'") }
+        #expect(link == "https://arxiv.org/pdf/1706.03762")
+    }
+
     @Test func clearPdfClearsEveryColumn() async throws {
         try await savePaper("p1", "W1")
         try await store.setPdf(paperID: "p1", source: "downloaded", size: 9, addedAt: 1)

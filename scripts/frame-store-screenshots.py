@@ -33,12 +33,16 @@ CAPTIONS = {
         "2-preview": ("Preview, then save", "Abstract, authors and citations at a glance"),
         "3-library": ("Track your reading", "Mark each paper To read, Reading or Read"),
         "4-library-search": ("Your library, offline", "Search your saved papers anytime,\neven without a connection"),
+        "5-reader": ("Read with your notes", "Open the PDF and jot down the summary,\nmethod and findings as you go"),
+        "6-collections": ("Organize into collections", "Group papers by project, thesis or course,\nand export them as BibTeX"),
     },
     "ar": {
         "1-search": ("ابحث عن أي ورقة بحثية", "ملايين الأعمال العلمية في مكان واحد،\nأو الصق DOI أو معرّف arXiv أو رابطًا"),
         "2-preview": ("اطّلع ثم احفظ", "الملخص والمؤلفون والاستشهادات في لمحة"),
         "3-library": ("تابع قراءاتك", "صنّف كل ورقة: للقراءة، قيد القراءة، مقروءة"),
         "4-library-search": ("مكتبتك معك دائمًا", "ابحث في أوراقك المحفوظة في أي وقت،\nحتى دون اتصال"),
+        "5-reader": ("اقرأ وملاحظاتك بجانبك", "افتح ملف PDF ودوّن الخلاصة\nوالمنهجية والنتائج أثناء القراءة"),
+        "6-collections": ("نظّم أوراقك في مجموعات", "جمّع الأوراق حسب المشروع أو الرسالة أو المقرر،\nوصدّرها بصيغة BibTeX"),
     },
 }
 

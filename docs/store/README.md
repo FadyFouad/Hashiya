@@ -32,4 +32,6 @@ The same script also redraws the feature graphic. It needs `rsvg-convert` and a 
 
 Both apps showed the same six real papers from OpenAlex, saved in the library as To read, Reading and Read, and a live search for "large language models".
 
-Shots 5 and 6 come from the snapshot-test baselines instead (`ios/HashiyaSnapshotTests/__Snapshots__/iOS26/` and `android/feature/*/src/test/screenshots/`, light theme), so they show test data and a stub PDF. The iOS ones are 1170 × 2532 with a drawn 9:41 status bar. Replace them with real captures when you next reshoot.
+The iOS shots 5 and 6 are real captures too, on the same simulator and setup. Shot 5 is "Attention Is All You Need" (its arXiv PDF) open in the reader, with notes in Summary and Method and the notes sheet at medium height. Shot 6 is a collection ("Thesis — Chapter 2", in Arabic "الفصل الثاني") holding four of the six papers, picked from the Library's title menu. The Arabic iOS captures use the Arabic language with the `ar_SA` region, so numbers show in Arabic-Indic digits, as in shots 1–4.
+
+The Play Store shots 5 and 6 still come from the snapshot-test baselines (`android/feature/*/src/test/screenshots/`, light theme), so they show test data and a stub PDF. Replace them with real captures when you next reshoot Android.

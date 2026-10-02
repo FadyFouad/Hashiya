@@ -48,6 +48,9 @@ public final class PdfDownloadClient: PdfDownloading {
         let task = session.dataTask(with: request)
         let relay = Relay(task: task)
         task.delegate = relay
+        // The relay holds the task weakly: the deferred use keeps it alive until this returns, or a task released before
+        // it started would never call back and the download would stay running.
+        defer { withExtendedLifetime(task) {} }
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in relay.start(continuation) }
         } onCancel: {

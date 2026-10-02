@@ -21,6 +21,8 @@ public final class GRDBPdfRepository: PdfRepository {
         /// Downloads and attaches that may still write a file or a row.
         var activeStores = 0
         var storesFinishedWaiters: [CheckedContinuation<Void, Never>] = []
+        /// Downloads that may still write the paper's file or row, by token, with the replacements waiting for them.
+        var writing: [UUID: [CheckedContinuation<Void, Never>]] = [:]
     }
 
     private let store: PaperStore
@@ -70,29 +72,32 @@ public final class GRDBPdfRepository: PdfRepository {
 
     public func download(openAlexID: String) {
         let token = UUID()
-        // A job that already reported a failure may still be winding down: Try again replaces it instead of being
-        // ignored (Android's #21 fix). Its later reports and `finish` carry the old token, so they no longer count.
-        let (started, replaced) = state.withLockUnchecked { state -> (Bool, Task<Void, Never>?) in
-            if let current = state.jobs[openAlexID] {
-                guard case .failed = state.downloads[openAlexID] else { return (false, nil) }
-                state.jobs[openAlexID] = Job(token: token)
-                state.activeStores += 1
-                return (true, current.task)
+        // A job that already reported a failure, or was cancelled (by the user, background expiry or the paper's
+        // removal), may still be winding down: Download replaces it instead of being ignored, as on Android, where a
+        // cancelled job is no longer active. Its later reports and `finish` carry the old token, so they no longer count.
+        let (started, replaced) = state.withLockUnchecked { state -> (Bool, Job?) in
+            let current = state.jobs[openAlexID]
+            if let current {
+                let failed = if case .failed = state.downloads[openAlexID] { true } else { false }
+                guard failed || current.cancelled else { return (false, nil) }
             }
             state.jobs[openAlexID] = Job(token: token)
+            state.writing[token] = []
             // Counted from here, so a `storesFinished()` in the same turn waits for it; `run` ends the count.
             state.activeStores += 1
-            return (true, nil)
+            return (true, current)
         }
-        replaced?.cancel()
+        replaced?.task?.cancel()
         guard started else { return }
         report(openAlexID, .running(bytes: 0, total: nil), token: token)
+        let previous = replaced?.token
         let task = Task { [self] in
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask { await self.run(openAlexID, token: token) }
+            await withTaskGroup(of: Bool.self) { group in
+                group.addTask { await self.run(openAlexID, token: token, after: previous); return false }
                 // Removing the paper while its PDF downloads cancels the download, so no file outlives the paper.
-                group.addTask { await self.waitUntilRemoved(openAlexID) }
-                _ = await group.next()
+                group.addTask { await self.waitUntilRemoved(openAlexID); return true }
+                // Marked cancelled like any other cancel, so a Download after Undo replaces the job winding down.
+                if await group.next() == true { _ = self.cancel(openAlexID, token: token) }
                 group.cancelAll()
             }
             finish(openAlexID, token: token)
@@ -214,13 +219,17 @@ public final class GRDBPdfRepository: PdfRepository {
 
     // MARK: Downloading
 
-    private func run(_ openAlexID: String, token: UUID) async {
+    /// - Parameter previous: the replaced download, which may still be writing the same file and row; this one waits
+    ///   until it stops (it was cancelled or has failed, so it stops soon) so the two never overlap.
+    private func run(_ openAlexID: String, token: UUID, after previous: UUID?) async {
         let grant = await background.begin(name: "Download PDF") { [weak self] in
             _ = self?.cancel(openAlexID, token: token)?.cancel()
         }
+        if let previous { await writesEnded(previous) }
         let outcome = await attemptDownload(openAlexID, token: token)
+        endWrites(token)
         // Shown before the grant ends: ending it waits for the main actor. Until `finish`, the job is still winding down,
-        // and Try again on a failure replaces it.
+        // and Download after a failure or a cancel replaces it.
         report(openAlexID, outcome, token: token)
         // Nothing is written after this, so the app may suspend the database before the grant ends.
         endStore()
@@ -307,6 +316,23 @@ public final class GRDBPdfRepository: PdfRepository {
             state.jobs[openAlexID]?.cancelled = true
             return job.task
         }
+    }
+
+    /// Returns once the download `token` names stops writing (at once if it already has).
+    private func writesEnded(_ token: UUID) async {
+        await withCheckedContinuation { continuation in
+            let writing = state.withLockUnchecked { state -> Bool in
+                guard state.writing[token] != nil else { return false }
+                state.writing[token]?.append(continuation)
+                return true
+            }
+            if !writing { continuation.resume() }
+        }
+    }
+
+    private func endWrites(_ token: UUID) {
+        let waiters = state.withLockUnchecked { $0.writing.removeValue(forKey: token) } ?? []
+        waiters.forEach { $0.resume() }
     }
 
     private func beginStore() {

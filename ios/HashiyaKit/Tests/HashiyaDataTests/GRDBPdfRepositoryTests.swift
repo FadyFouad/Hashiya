@@ -360,17 +360,59 @@ struct GRDBPdfRepositoryTests {
         repository.download(openAlexID: "W1")
         #expect(await eventually { names().contains { $0.hasSuffix(".part") } && background.grants == 1 })
 
+        // The expired job stays winding down (its background time hasn't ended yet) while Download is tapped again.
+        background.holdEnds()
         background.expire()
 
         #expect(await awaitDownload("W1") { $0 == nil } != nil)
-        #expect(await eventually { background.endCount == 1 })
+        #expect(await eventually { background.waitingEnds == 1 })
         #expect(await repository.pdfFile(openAlexID: "W1") == nil)
         #expect(names().isEmpty)
 
-        // Nothing is left running: the paper can be downloaded again.
+        // The cancelled job no longer counts: the paper can be downloaded again at once.
         downloader.releaseBodies()
         repository.download(openAlexID: "W1")
         #expect(await awaitStored("W1") != nil)
+        #expect(names() == ["local-1.pdf"])
+        #expect(downloader.urls.count == 2)
+        background.releaseEnds()
+        #expect(await eventually { background.endCount == 2 })
+    }
+
+    @Test func aCancelledDownloadCanBeStartedAgainWhileItWindsDown() async throws {
+        try await library.save(paper("W1"))
+        downloader.holdBodies()
+        background.holdEnds()
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { names().contains { $0.hasSuffix(".part") } })
+
+        repository.cancelDownload(openAlexID: "W1")
+        #expect(await awaitDownload("W1") { $0 == nil } != nil)
+        #expect(await eventually { background.waitingEnds == 1 })
+
+        downloader.releaseBodies()
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitStored("W1") != nil)
+        #expect(downloader.urls.count == 2)
+        background.releaseEnds()
+        #expect(await eventually { background.endCount == 2 })
+    }
+
+    @Test func aDownloadReplacingACancelledOneWaitsUntilItStopsWriting() async throws {
+        try await library.save(paper("W1"))
+        // The cancelled request doesn't stop until the gate opens: it may still write the paper's file.
+        downloader.hold()
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { downloader.urls.count == 1 })
+        repository.cancelDownload(openAlexID: "W1")
+
+        repository.download(openAlexID: "W1")
+
+        #expect(!(await eventually(timeout: .milliseconds(300)) { downloader.urls.count == 2 }))
+        downloader.release()
+        #expect(await awaitStored("W1") != nil)
+        #expect(downloader.urls.count == 2)
         #expect(names() == ["local-1.pdf"])
     }
 
@@ -395,6 +437,26 @@ struct GRDBPdfRepositoryTests {
         #expect(await awaitDownload("W1") { $0 == nil } != nil)
         #expect(await eventually { names().isEmpty })
         downloader.releaseBodies()
+    }
+
+    @Test func aPaperPutBackWhileItsCancelledDownloadWindsDownCanBeDownloadedAgain() async throws {
+        try await library.save(paper("W1"))
+        downloader.holdBodies()
+        background.holdEnds()
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { names().contains { $0.hasSuffix(".part") } })
+        let removed = try #require(try await library.remove(openAlexID: "W1"))
+        #expect(await awaitDownload("W1") { $0 == nil } != nil)
+        #expect(await eventually { background.waitingEnds == 1 })
+
+        try await library.restore(removed)
+        downloader.releaseBodies()
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitStored("W1") != nil)
+        #expect(downloader.urls.count == 2)
+        background.releaseEnds()
+        #expect(await eventually { background.endCount == 2 })
     }
 
     @Test func attachStoresTheFileAsAttached() async throws {

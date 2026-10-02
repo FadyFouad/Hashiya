@@ -14,6 +14,8 @@ Ready to upload, in English (`en`) and Arabic (`ar`):
 | 2 | Preview, then save | اطّلع ثم احفظ | Paper preview with its abstract and reading status |
 | 3 | Track your reading | تابع قراءاتك | Library with status filters |
 | 4 | Your library, offline | مكتبتك معك دائمًا | Library search |
+| 5 | Read with your notes | اقرأ وملاحظاتك بجانبك | PDF reader with the notes sheet open |
+| 6 | Organize into collections | نظّم أوراقك في مجموعات | iOS: a collection; Android: the collection picker |
 
 ## Regenerating
 
@@ -29,3 +31,5 @@ The same script also redraws the feature graphic. It needs `rsvg-convert` and a 
 - **Android** captures are rendered with Robolectric at 411 × 891 dp and 420 dpi. They have no system bars, so the script draws a status bar on them.
 
 Both apps showed the same six real papers from OpenAlex, saved in the library as To read, Reading and Read, and a live search for "large language models".
+
+Shots 5 and 6 come from the snapshot-test baselines instead (`ios/HashiyaSnapshotTests/__Snapshots__/iOS26/` and `feature/*/src/test/screenshots/`, light theme), so they show test data and a stub PDF. The iOS ones are 1170 × 2532 with a drawn 9:41 status bar. Replace them with real captures when you next reshoot.

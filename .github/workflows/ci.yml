@@ -1,16 +1,23 @@
 name: CI
 
+# Android. Changes that touch only the iOS app skip it; ios.yml covers those.
 on:
   push:
+    branches-ignore: ['record-screenshots/**', 'record-snapshots-ios/**']
+    paths-ignore: ['ios/**', '.github/workflows/ios.yml', '.github/workflows/ios-record-snapshots.yml']
   pull_request:
+    paths-ignore: ['ios/**', '.github/workflows/ios.yml', '.github/workflows/ios-record-snapshots.yml']
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+defaults:
+  run:
+    working-directory: android
+
 jobs:
   build:
-    if: ${{ !startsWith(github.ref_name, 'record-screenshots/') && !startsWith(github.ref_name, 'record-snapshots-ios/') }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -29,24 +36,5 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: screenshot-diffs
-          path: "**/build/outputs/roborazzi"
+          path: "android/**/build/outputs/roborazzi"
           if-no-files-found: ignore
-
-  # A push to record-screenshots/<anything> records the Roborazzi baselines on Linux, the source of truth.
-  # scripts/record-screenshots-on-linux.sh (Task 10) drives this job and copies the result into the checkout.
-  record-screenshots:
-    if: ${{ startsWith(github.ref_name, 'record-screenshots/') }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@v6
-      - run: ./gradlew recordRoborazziDebug
-      - uses: actions/upload-artifact@v7
-        with:
-          name: screenshot-baselines
-          path: "**/src/test/screenshots"

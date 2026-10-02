@@ -11,7 +11,7 @@ trap 'git push --quiet origin --delete "$branch" || true' EXIT
 
 run_id=""
 for _ in $(seq 1 60); do
-  run_id=$(gh run list --branch "$branch" --workflow ci.yml --limit 1 --json databaseId --jq '.[0].databaseId // empty' || true)
+  run_id=$(gh run list --branch "$branch" --workflow android-record-screenshots.yml --limit 1 --json databaseId --jq '.[0].databaseId // empty' || true)
   [ -n "$run_id" ] && break
   sleep 5
 done
@@ -21,5 +21,6 @@ gh run watch "$run_id" --exit-status --interval 30 > /dev/null
 
 download_dir=$(mktemp -d)
 gh run download "$run_id" --name screenshot-baselines --dir "$download_dir"
-cp -R "$download_dir"/. .
+# The artifact's paths are relative to android/ (see android-record-screenshots.yml).
+cp -R "$download_dir"/. android/
 echo "Baselines copied from run $run_id"

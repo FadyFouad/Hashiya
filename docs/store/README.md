@@ -32,4 +32,4 @@ The same script also redraws the feature graphic. It needs `rsvg-convert` and a 
 
 Both apps showed the same six real papers from OpenAlex, saved in the library as To read, Reading and Read, and a live search for "large language models".
 
-Shots 5 and 6 come from the snapshot-test baselines instead (`ios/HashiyaSnapshotTests/__Snapshots__/iOS26/` and `feature/*/src/test/screenshots/`, light theme), so they show test data and a stub PDF. The iOS ones are 1170 × 2532 with a drawn 9:41 status bar. Replace them with real captures when you next reshoot.
+Shots 5 and 6 come from the snapshot-test baselines instead (`ios/HashiyaSnapshotTests/__Snapshots__/iOS26/` and `android/feature/*/src/test/screenshots/`, light theme), so they show test data and a stub PDF. The iOS ones are 1170 × 2532 with a drawn 9:41 status bar. Replace them with real captures when you next reshoot.

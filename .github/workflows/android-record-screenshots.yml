@@ -1,0 +1,30 @@
+name: Android screenshot baselines
+
+# A push to record-screenshots/<anything> records the Roborazzi baselines on Linux, the source of truth.
+# scripts/record-screenshots-on-linux.sh drives it and copies the result into the checkout.
+on:
+  push:
+    branches: ['record-screenshots/**']
+
+defaults:
+  run:
+    working-directory: android
+
+jobs:
+  record:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew recordRoborazziDebug
+      - uses: actions/upload-artifact@v7
+        with:
+          name: screenshot-baselines
+          # Paths in the artifact are relative to android/ (the deepest folder common to every match),
+          # so scripts/record-screenshots-on-linux.sh copies it into android/.
+          path: "android/**/src/test/screenshots"

@@ -9,7 +9,7 @@ How to ship a version to the App Store and Google Play. Written for 0.1.0; later
 ## 0. Before either store
 
 1. **OpenAlex API key.** Create a free key at [openalex.org](https://openalex.org) (sign in, then the API key page in your account settings). Then:
-   - In `local.properties`, add `OPENALEX_API_KEY=<key>`.
+   - In `android/local.properties`, add `OPENALEX_API_KEY=<key>`.
    - Copy `ios/Config/Secrets.example.xcconfig` to `ios/Config/Secrets.xcconfig` and put the key after `OPENALEX_API_KEY =`.
    - Both files are git-ignored. The key ends up inside the app, where a determined user could extract it; that's acceptable for a free key, and users can still enter their own in Settings.
 2. **Privacy policy link:** <https://fadyfouad.github.io/Hashiya-Privacy-Policy/>, served by GitHub Pages from the public [Hashiya-Privacy-Policy](https://github.com/FadyFouad/Hashiya-Privacy-Policy) repo. It is both the privacy policy URL and the support URL. To change the policy, edit that repo's `index.html` and push; the page updates within a minute or two.
@@ -77,7 +77,7 @@ Then **Add for Review → Submit**. Reviews usually take 1–2 days.
    keytool -genkeypair -v -keystore ~/keys/hashiya-upload.jks -alias upload \
      -keyalg RSA -keysize 4096 -validity 10000
    ```
-2. **Point the build at it** in `local.properties` (git-ignored):
+2. **Point the build at it** in `android/local.properties` (git-ignored):
    ```properties
    UPLOAD_STORE_FILE=/Users/<you>/keys/hashiya-upload.jks
    UPLOAD_STORE_PASSWORD=...
@@ -93,9 +93,10 @@ Then **Add for Review → Submit**. Reviews usually take 1–2 days.
 ### Build
 
 ```bash
+cd android
 ./gradlew :app:bundleRelease
 ```
-The signed bundle is `app/build/outputs/bundle/release/app-release.aab`. Without the `UPLOAD_*` entries the bundle is unsigned, and Play rejects it.
+The signed bundle is `android/app/build/outputs/bundle/release/app-release.aab`. Without the `UPLOAD_*` entries the bundle is unsigned, and Play rejects it.
 
 ### Fill in the listing (Play Console → the app)
 
@@ -111,7 +112,7 @@ All text is in `docs/store/metadata.md`.
   - Government app: No. Financial features: None. Health: None.
 - **Main store listing, English:**
   - App name, short and full descriptions.
-  - App icon: `app/src/main/ic_launcher-playstore.png` (512 px).
+  - App icon: `android/app/src/main/ic_launcher-playstore.png` (512 px).
   - Phone screenshots from `docs/store/play-store/en/`.
   - Feature graphic: `docs/store/play-store/feature-graphic.png` (1024 × 500).
 - **Store listing, Arabic:** Translations → add Arabic → the Arabic text and `docs/store/play-store/ar/` screenshots.
@@ -138,7 +139,7 @@ If the file can't be read (offline, a typo in the JSON, GitHub down), nobody is 
 
 1. Bump the version:
    - iOS: `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in `ios/project.yml`.
-   - Android: `versionName` and `versionCode` in `app/build.gradle.kts`.
+   - Android: `versionName` and `versionCode` in `android/app/build.gradle.kts`.
    - Build numbers and version codes must always increase.
 2. Update "What's New" / release notes in `docs/store/metadata.md` and run the metadata checker.
 3. If the UI changed, update the screenshots (`docs/store/README.md`).

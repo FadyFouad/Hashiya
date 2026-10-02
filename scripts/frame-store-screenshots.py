@@ -17,9 +17,9 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont, features
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "docs/store/raw"
 OUT = ROOT / "docs/store"
-FONTS = ROOT / "core/designsystem/src/main/res/font"
+FONTS = ROOT / "android/core/designsystem/src/main/res/font"
 
-# Design system: primary, primaryContainer, onPrimary (core/designsystem/.../theme/Color.kt).
+# Design system: primary, primaryContainer, onPrimary (android/core/designsystem/.../theme/Color.kt).
 PRIMARY = (0x0B, 0x6E, 0x6E)
 PRIMARY_DEEP = (0x06, 0x4A, 0x4A)
 ON_PRIMARY = (0xFF, 0xFF, 0xFF)

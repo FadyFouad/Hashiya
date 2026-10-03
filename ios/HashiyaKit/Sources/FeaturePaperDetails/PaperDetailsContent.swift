@@ -63,11 +63,8 @@ public struct PaperDetailsContent: View {
                 header
                 ReadingStatusSelector(status: paper.status, onChange: actions.setStatus)
                     .padding(.top, 20)
-                CollectionsRow(names: collections.filter { memberIDs.contains($0.id) }.map(\.name), action: actions.showCollections)
+                group
                     .padding(.top, 16)
-                PdfRowView(row: pdf, onAction: actions.pdfAction)
-                    .padding(.top, 16)
-                links
                 abstract
                     .padding(.top, 24)
                 notesSection
@@ -107,29 +104,21 @@ public struct PaperDetailsContent: View {
         }
     }
 
-    /// Open DOI; the PDF row above replaces Open PDF.
-    @ViewBuilder
-    private var links: some View {
-        if let doi = paper.paper.doi.flatMap(DOILink.url(for:)) {
-            HashiyaGlassGroup(spacing: 12) {
-                linkButton(DesignSystemStrings.openDOI, icon: "arrow.up.forward.square") { actions.openURL(doi) }
+    /// One grouped list: Collections, PDF and, when the paper has one, its DOI (which replaces Open DOI).
+    private var group: some View {
+        let doi = paper.paper.doi.flatMap { doi in DOILink.url(for: doi).map { (doi, $0) } }
+        let count = doi == nil ? 2 : 3
+        return VStack(spacing: GroupedRows.gap) {
+            CollectionsRow(
+                names: collections.filter { memberIDs.contains($0.id) }.map(\.name),
+                shape: GroupedRows.shape(index: 0, count: count),
+                action: actions.showCollections
+            )
+            PdfRowView(row: pdf, shape: GroupedRows.shape(index: 1, count: count), onAction: actions.pdfAction)
+            if let (text, url) = doi {
+                DoiRow(doi: text, shape: GroupedRows.shape(index: 2, count: count)) { actions.openURL(url) }
             }
-            .controlSize(.large)
-            .padding(.top, 16)
         }
-    }
-
-    private func linkButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Label {
-                Text(verbatim: title)
-            } icon: {
-                Image(systemName: icon)
-            }
-            .font(.hashiya(.label))
-            .frame(maxWidth: .infinity)
-        }
-        .hashiyaSecondaryButton()
     }
 
     private var abstract: some View {

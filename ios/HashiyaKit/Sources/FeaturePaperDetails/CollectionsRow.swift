@@ -1,23 +1,26 @@
 import HashiyaDesignSystem
 import SwiftUI
 
-/// "Collections" with the paper's collections as chips, or "Not in any collection". The whole row is one button
-/// that opens the checklist.
+/// "Collections" with the paper's collections as chips, or "Not in any collection": the first row of the Details
+/// group. The whole row is one button that opens the checklist.
 struct CollectionsRow: View {
     let names: [String]
+    let shape: UnevenRoundedRectangle
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(verbatim: L10n.string("details.collections"))
-                        .font(.hashiya(.label))
-                        .foregroundStyle(HashiyaColors.onSurfaceVariant)
+            HStack(alignment: .center, spacing: 16) {
+                Image(systemName: "folder")
+                    .foregroundStyle(HashiyaColors.onSurfaceVariant)
+                    .frame(width: GroupedRows.iconWidth)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    GroupedRowLabel(text: L10n.string("details.collections"))
                     if names.isEmpty {
                         Text(verbatim: L10n.string("details.noCollections"))
                             .font(.hashiya(.body))
-                            .foregroundStyle(HashiyaColors.onSurfaceVariant)
+                            .foregroundStyle(HashiyaColors.onSurface)
                     } else {
                         ChipFlow(spacing: 8) {
                             ForEach(names, id: \.self) { name in
@@ -32,10 +35,10 @@ struct CollectionsRow: View {
                     .foregroundStyle(HashiyaColors.onSurfaceVariant)
                     .accessibilityHidden(true)
             }
-            .padding(.vertical, 12)
-            .padding(.horizontal, 14)
-            .background(RoundedRectangle(cornerRadius: 12).fill(HashiyaColors.surfaceContainerHigh))
-            .contentShape(RoundedRectangle(cornerRadius: 12))
+            .padding(16)
+            .frame(minHeight: 72)
+            .background(shape.fill(HashiyaColors.surfaceContainer))
+            .contentShape(shape)
         }
         .buttonStyle(.plain)
         // VoiceOver reads "Collections" and the names (or "Not in any collection") as one button.

@@ -120,6 +120,23 @@
         }
       }
     },
+    "details.doi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DOI"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DOI"
+          }
+        }
+      }
+    },
     "details.moreOptions" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -279,13 +296,13 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ملف PDF · %1$@ · مُرفَق"
+            "value" : "%1$@ · مُرفَق"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PDF · %1$@ · Attached"
+            "value" : "%1$@ · Attached"
           }
         }
       }
@@ -296,13 +313,13 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ملف PDF متاح للتنزيل"
+            "value" : "متاح للتنزيل"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PDF available to download"
+            "value" : "Available to download"
           }
         }
       }
@@ -347,13 +364,13 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ملف PDF · %1$@ · مُنزَّل"
+            "value" : "%1$@ · مُنزَّل"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PDF · %1$@ · Downloaded"
+            "value" : "%1$@ · Downloaded"
           }
         }
       }
@@ -490,6 +507,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ of %2$@"
+          }
+        }
+      }
+    },
+    "details.pdfRead" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "قراءة ملف PDF"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read PDF"
           }
         }
       }

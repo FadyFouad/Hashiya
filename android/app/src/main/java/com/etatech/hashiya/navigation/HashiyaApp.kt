@@ -18,15 +18,19 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
+import androidx.navigation.toRoute
 import com.etatech.hashiya.R
 import com.etatech.hashiya.core.designsystem.component.UpdateRequiredScreen
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
+import com.etatech.hashiya.core.designsystem.layout.showsTwoPanes
 import com.etatech.hashiya.core.model.RequiredUpdate
 import com.etatech.hashiya.feature.library.navigation.LibraryRoute
 import com.etatech.hashiya.feature.library.navigation.libraryScreen
 import com.etatech.hashiya.feature.library.navigation.navigateToLibrary
 import com.etatech.hashiya.feature.library.navigation.requestLibraryRemove
+import com.etatech.hashiya.feature.library.navigation.requestLibrarySelect
 import com.etatech.hashiya.feature.paperdetails.navigation.PaperDetailsPane
+import com.etatech.hashiya.feature.paperdetails.navigation.PaperDetailsRoute
 import com.etatech.hashiya.feature.paperdetails.navigation.navigateToPaperDetails
 import com.etatech.hashiya.feature.paperdetails.navigation.paperDetailsScreen
 import com.etatech.hashiya.feature.reader.navigation.navigateToReader
@@ -100,6 +104,13 @@ fun HashiyaApp(
             settingsScreen(onBack = { navController.popBackStack() })
         }
 
+        // Details opened from the Library on a narrow window moves into the Library's pane once the window is wide
+        // enough (unfold, rotation, resize), so the paper stays open in the layout the window now has.
+        val twoPanes = showsTwoPanes()
+        LaunchedEffect(twoPanes, backStackEntry) {
+            if (twoPanes) navController.moveDetailsIntoLibraryPane()
+        }
+
         LaunchedEffect(pendingSearch) {
             pendingSearch?.let { route ->
                 navController.openSearch(route)
@@ -119,6 +130,14 @@ private fun NavController.navigateToTopLevel(destination: TopLevelDestination) {
         TopLevelDestination.Library -> navigateToLibrary(options)
         TopLevelDestination.Search -> navigateToSearch(options)
     }
+}
+
+private fun NavController.moveDetailsIntoLibraryPane() {
+    val current = currentBackStackEntry ?: return
+    val library = previousBackStackEntry?.takeIf { it.destination.hasRoute<LibraryRoute>() } ?: return
+    if (!current.destination.hasRoute<PaperDetailsRoute>()) return
+    library.requestLibrarySelect(current.toRoute<PaperDetailsRoute>().openAlexId)
+    popBackStack()
 }
 
 /** The selected tab's item, tapped on one of its sub-screens (rail only): back to that tab's root. */

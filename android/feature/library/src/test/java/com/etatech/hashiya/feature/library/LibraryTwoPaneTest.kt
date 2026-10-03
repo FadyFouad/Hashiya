@@ -2,6 +2,8 @@ package com.etatech.hashiya.feature.library
 
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isSelected
@@ -35,6 +37,7 @@ class LibraryTwoPaneTest {
 
     private val repository = FakeLibraryRepository()
     private val opened = mutableListOf<String>()
+    private var selectHandled = 0
 
     @Before
     fun savePapers() = runBlocking {
@@ -42,7 +45,9 @@ class LibraryTwoPaneTest {
         repository.save(SamplePapers.bert)
     }
 
-    private fun show(window: TestWindow) {
+    private fun show(window: TestWindow, selectRequest: String? = null) = show(mutableStateOf(window), selectRequest)
+
+    private fun show(window: State<TestWindow>, selectRequest: String? = null) {
         val viewModel = LibraryViewModel(
             SavedStateHandle(),
             repository,
@@ -61,6 +66,8 @@ class LibraryTwoPaneTest {
                     Text("Details of $openAlexId")
                     Button(onClick = { onRemove(openAlexId) }) { Text("Remove it") }
                 },
+                selectRequest = selectRequest,
+                onSelectRequestHandled = { selectHandled++ },
                 viewModel = viewModel
             )
         }
@@ -97,5 +104,28 @@ class LibraryTwoPaneTest {
 
         assertEquals(listOf(SamplePapers.bert.openAlexId), opened)
         composeRule.onNodeWithText("No paper selected").assertDoesNotExist()
+    }
+
+    @Test
+    fun narrowingTheWindowKeepsThePaperOpenAsAScreen() {
+        val window = mutableStateOf(TestWindow.Expanded)
+        show(window)
+        composeRule.onNodeWithText(SamplePapers.bert.title).performClick()
+
+        window.value = TestWindow.Medium
+        composeRule.waitForIdle()
+
+        assertEquals(listOf(SamplePapers.bert.openAlexId), opened)
+        // Widening again doesn't reopen it here: the app moves the Details screen back into the pane instead.
+        window.value = TestWindow.Expanded
+        composeRule.onNodeWithText("No paper selected").assertIsDisplayed()
+    }
+
+    @Test
+    fun aSelectRequestShowsThePaperInThePane() {
+        show(TestWindow.Expanded, selectRequest = SamplePapers.attention.openAlexId)
+        composeRule.onNodeWithText("Details of ${SamplePapers.attention.openAlexId}").assertIsDisplayed()
+        assertEquals(1, selectHandled)
+        assertEquals(emptyList<String>(), opened)
     }
 }

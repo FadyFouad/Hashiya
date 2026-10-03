@@ -93,6 +93,8 @@ internal fun LibraryScreen(
     removeRequest: String? = null,
     onRemoveRequestHandled: () -> Unit = {},
     detailPane: LibraryDetailPane? = null,
+    selectRequest: String? = null,
+    onSelectRequestHandled: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     LaunchedEffect(removeRequest) {
@@ -126,6 +128,21 @@ internal fun LibraryScreen(
     // From 840dp a paper opens in the detail pane beside the list instead of as a screen of its own.
     val twoPane = detailPane != null && showsTwoPanes()
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Details moving into the pane as the window widens (the app asks, from the Details screen it closes).
+    LaunchedEffect(selectRequest) {
+        selectRequest?.let { openAlexId ->
+            selectedId = openAlexId
+            onSelectRequestHandled()
+        }
+    }
+    // And out of it as the window narrows (resize, fold, rotation): the paper stays open, as its own screen.
+    LaunchedEffect(twoPane, selectedId) {
+        val openAlexId = selectedId
+        if (detailPane != null && !twoPane && openAlexId != null) {
+            selectedId = null
+            onOpenPaper(openAlexId)
+        }
+    }
     val content: @Composable (Modifier) -> Unit = { contentModifier ->
         LibraryContent(
             uiState = uiState,

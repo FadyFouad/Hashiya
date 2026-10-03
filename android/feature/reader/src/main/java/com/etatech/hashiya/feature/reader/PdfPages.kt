@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -84,9 +85,10 @@ internal fun PdfPages(
     pillAlwaysVisible: Boolean = false
 ) {
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = ready.startPage)
-    var scale by remember { mutableFloatStateOf(MIN_ZOOM) }
-    var offsetX by remember { mutableFloatStateOf(0f) }
-    var settledScale by remember { mutableFloatStateOf(MIN_ZOOM) }
+    // Saved, so the zoom survives rotation, folding and resizing, which recreate the activity.
+    var scale by rememberSaveable { mutableFloatStateOf(MIN_ZOOM) }
+    var offsetX by rememberSaveable { mutableFloatStateOf(0f) }
+    var settledScale by rememberSaveable { mutableFloatStateOf(MIN_ZOOM) }
     val currentPage by remember { derivedStateOf { listState.firstVisibleItemIndex } }
 
     BoxWithConstraints(modifier.fillMaxSize().clipToBounds()) {
@@ -94,6 +96,8 @@ internal fun PdfPages(
         // Pages render at the width they're shown at, at most PAGE_MAX_WIDTH on wide windows.
         val pageWidthPx = minOf(widthPx, with(LocalDensity.current) { PAGE_MAX_WIDTH.roundToPx() })
         fun panLimit() = widthPx * (scale - 1f) / 2f
+        // A narrower window after a resize allows less pan.
+        LaunchedEffect(widthPx) { offsetX = offsetX.coerceIn(-panLimit(), panLimit()) }
 
         LaunchedEffect(listState, pageWidthPx, settledScale) {
             snapshotFlow { listState.layoutInfo.visibleItemsInfo.map { it.index } }

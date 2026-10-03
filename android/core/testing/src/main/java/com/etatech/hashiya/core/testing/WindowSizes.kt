@@ -1,6 +1,8 @@
 package com.etatech.hashiya.core.testing
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.WindowSize
@@ -28,9 +30,13 @@ enum class TestWindow(val widthDp: Int, val heightDp: Int) {
  * Shows [content] in the Hashiya theme in a [window]-sized window. ForcedSize sets the layout size; WindowSize sets
  * the window size class that the adaptive layouts read (ForcedSize alone doesn't change it).
  */
-fun ComposeContentTestRule.setContentInWindow(window: TestWindow, content: @Composable () -> Unit) {
-    val size = DpSize(window.widthDp.dp, window.heightDp.dp)
+fun ComposeContentTestRule.setContentInWindow(window: TestWindow, content: @Composable () -> Unit) =
+    setContentInWindow(mutableStateOf(window), content)
+
+/** As above, in a window that resizes when [window] changes, like a fold or a drag of a free-form window. */
+fun ComposeContentTestRule.setContentInWindow(window: State<TestWindow>, content: @Composable () -> Unit) {
     setContent {
+        val size = DpSize(window.value.widthDp.dp, window.value.heightDp.dp)
         DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(size) then DeviceConfigurationOverride.WindowSize(size)) {
             HashiyaTheme { content() }
         }

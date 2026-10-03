@@ -1,11 +1,19 @@
 package com.etatech.hashiya.feature.reader
 
+import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.doubleClick
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.DpSize
+import androidx.compose.ui.unit.dp
+import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.testing.ROOMY_QUALIFIERS
@@ -78,5 +86,35 @@ class ReaderAdaptiveTest {
         val page = composeRule.onNodeWithContentDescription("1 of 3").getUnclippedBoundsInRoot()
         assertEquals(12f, page.left.value, 1f)
         assertEquals(399f, page.right.value, 1f)
+    }
+
+    @Test
+    fun zoomSurvivesRecreation() {
+        val restoration = StateRestorationTester(composeRule)
+        restoration.setContent {
+            HashiyaTheme {
+                DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(411.dp, 891.dp))) {
+                    ReaderContent(
+                        state = ready,
+                        pages = emptyMap(),
+                        notes = null,
+                        notesSaveState = NotesSaveState.Idle,
+                        showNotes = false,
+                        actions = ReaderActions()
+                    )
+                }
+            }
+        }
+        // Bounds carry the zoom's translation, not its scale: zooming about the top center moves the page's left edge.
+        fun pageLeft() = composeRule.onNodeWithContentDescription("1 of 3").getUnclippedBoundsInRoot().left.value
+        assertEquals(12f, pageLeft(), 1f)
+        composeRule.onNodeWithContentDescription("1 of 3").performTouchInput { doubleClick() }
+        composeRule.waitForIdle()
+        val zoomedLeft = pageLeft()
+        assertTrue("zoomed in", zoomedLeft < -100f)
+
+        restoration.emulateSavedInstanceStateRestore()
+
+        assertEquals(zoomedLeft, pageLeft(), 1f)
     }
 }

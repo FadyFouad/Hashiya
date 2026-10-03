@@ -44,7 +44,7 @@ public struct ReaderScreen: View {
                 )
             }
         }
-        .toolbar(.hidden, for: .tabBar)
+        .hidesTabBarWhenCompact()
         .task { await viewModel.start() }
         .onDisappear { viewModel.onDisappear() }
         .onChange(of: scenePhase) { _, phase in

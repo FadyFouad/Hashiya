@@ -71,57 +71,84 @@ struct RootView: View {
         if let url = appUpdate.requiredUpdate?.storeURL { openURL(url) }
     }
 
-    private var tabs: some View {
-        TabView(selection: $selectedTab) {
-            NavigationStack(path: $libraryPath) {
-                LibraryView(
-                    viewModel: libraryViewModel,
-                    onGoToSearch: { selectedTab = .search },
-                    onAddPaper: {
-                        searchViewModel.startFresh(focus: true)
-                        selectedTab = .search
-                    },
-                    onOpenSettings: { showsSettings = true },
-                    onOpenPaper: { libraryPath.append(PaperDetailsRoute(openAlexID: $0)) }
-                )
-                .navigationDestination(for: PaperDetailsRoute.self) { route in
-                    details(route, in: .library)
+    /// iPadOS 18+: a tab bar that becomes a sidebar (a compact bar at the top of an iPad window, with the system's
+    /// sidebar button; the system remembers whether the sidebar is open). iPhone looks the same as before. iOS 17 keeps
+    /// the plain tab bar. Search keeps the plain tab role, so iOS 26 doesn't split it off into its own button on iPhone.
+    @ViewBuilder
+    private var tabView: some View {
+        if #available(iOS 18, *) {
+            TabView(selection: $selectedTab) {
+                SwiftUI.Tab(value: Tab.library) {
+                    libraryStack
+                } label: {
+                    tabLabel("nav.library", systemImage: "books.vertical")
                 }
-                .navigationDestination(for: ReaderRoute.self) { route in
-                    reader(route, in: .library)
+                SwiftUI.Tab(value: Tab.search) {
+                    searchStack
+                } label: {
+                    tabLabel("nav.search", systemImage: "magnifyingglass")
                 }
             }
-            .tabItem {
-                Label {
-                    Text(verbatim: AppStrings.string("nav.library"))
-                } icon: {
-                    Image(systemName: "books.vertical")
-                }
+            .tabViewStyle(.sidebarAdaptable)
+        } else {
+            TabView(selection: $selectedTab) {
+                libraryStack
+                    .tabItem { tabLabel("nav.library", systemImage: "books.vertical") }
+                    .tag(Tab.library)
+                searchStack
+                    .tabItem { tabLabel("nav.search", systemImage: "magnifyingglass") }
+                    .tag(Tab.search)
             }
-            .tag(Tab.library)
-
-            NavigationStack(path: $searchPath) {
-                SearchView(
-                    viewModel: searchViewModel,
-                    onOpenSettings: { showsSettings = true },
-                    onOpenPaper: { searchPath.append(PaperDetailsRoute(openAlexID: $0)) }
-                )
-                .navigationDestination(for: PaperDetailsRoute.self) { route in
-                    details(route, in: .search)
-                }
-                .navigationDestination(for: ReaderRoute.self) { route in
-                    reader(route, in: .search)
-                }
-            }
-            .tabItem {
-                Label {
-                    Text(verbatim: AppStrings.string("nav.search"))
-                } icon: {
-                    Image(systemName: "magnifyingglass")
-                }
-            }
-            .tag(Tab.search)
         }
+    }
+
+    private func tabLabel(_ key: String, systemImage: String) -> some View {
+        Label {
+            Text(verbatim: AppStrings.string(key))
+        } icon: {
+            Image(systemName: systemImage)
+        }
+    }
+
+    private var libraryStack: some View {
+        NavigationStack(path: $libraryPath) {
+            LibraryView(
+                viewModel: libraryViewModel,
+                onGoToSearch: { selectedTab = .search },
+                onAddPaper: {
+                    searchViewModel.startFresh(focus: true)
+                    selectedTab = .search
+                },
+                onOpenSettings: { showsSettings = true },
+                onOpenPaper: { libraryPath.append(PaperDetailsRoute(openAlexID: $0)) }
+            )
+            .navigationDestination(for: PaperDetailsRoute.self) { route in
+                details(route, in: .library)
+            }
+            .navigationDestination(for: ReaderRoute.self) { route in
+                reader(route, in: .library)
+            }
+        }
+    }
+
+    private var searchStack: some View {
+        NavigationStack(path: $searchPath) {
+            SearchView(
+                viewModel: searchViewModel,
+                onOpenSettings: { showsSettings = true },
+                onOpenPaper: { searchPath.append(PaperDetailsRoute(openAlexID: $0)) }
+            )
+            .navigationDestination(for: PaperDetailsRoute.self) { route in
+                details(route, in: .search)
+            }
+            .navigationDestination(for: ReaderRoute.self) { route in
+                reader(route, in: .search)
+            }
+        }
+    }
+
+    private var tabs: some View {
+        tabView
         .tint(HashiyaColors.primary)
         .sheet(isPresented: $showsSettings) {
             SettingsView(viewModel: container.makeSettingsViewModel())

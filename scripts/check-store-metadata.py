@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Checks every field in docs/store/metadata.md against its character limit.
 
-A field is a bold label with its limit in brackets, followed by a fenced block:  **Name** [30]
+A field is a bold label with its limit in brackets, then (after an optional blank line) a fenced block:  **Name** [30]
 Exits with 1 when any field is too long.
 """
 import re
@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 METADATA = Path(__file__).resolve().parent.parent / "docs/store/metadata.md"
-FIELD = re.compile(r"\*\*(?P<label>[^*]+)\*\* \[(?P<limit>\d+)\]\n```\n(?P<text>.*?)\n```", re.S)
+FIELD = re.compile(r"\*\*(?P<label>[^*]+)\*\* \[(?P<limit>\d+)\]\n\s*```\n(?P<text>.*?)\n```", re.S)
 SECTION = re.compile(r"<!-- lang:(?P<lang>\w+) store:(?P<store>[\w-]+) -->")
 
 

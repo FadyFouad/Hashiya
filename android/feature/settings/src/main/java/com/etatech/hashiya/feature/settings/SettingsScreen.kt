@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -45,6 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
+import com.etatech.hashiya.core.designsystem.layout.ControlMaxWidth
+import com.etatech.hashiya.core.designsystem.layout.centeredMaxWidth
+import com.etatech.hashiya.core.designsystem.layout.horizontalMargin
 import com.etatech.hashiya.core.model.PdfStorage
 
 @Composable
@@ -91,7 +95,8 @@ internal fun SettingsContent(
             Modifier
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .centeredMaxWidth()
+                .padding(horizontal = horizontalMargin(), vertical = 16.dp)
         ) {
             Text(stringResource(R.string.settings_api_key_section), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
@@ -121,7 +126,7 @@ internal fun SettingsContent(
                         )
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.widthIn(max = ControlMaxWidth).fillMaxWidth()
             )
             Spacer(Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

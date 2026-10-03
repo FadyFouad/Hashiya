@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.etatech.hashiya.core.designsystem.R
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
+import com.etatech.hashiya.core.designsystem.layout.centeredMaxWidth
 
 /** Shown instead of the whole app when this build is no longer supported. [onUpdate] opens the store page. */
 @Composable
@@ -22,7 +23,8 @@ fun UpdateRequiredScreen(onUpdate: () -> Unit, modifier: Modifier = Modifier) {
                 title = stringResource(R.string.designsystem_update_required_title),
                 message = stringResource(R.string.designsystem_update_required_message),
                 actionLabel = stringResource(R.string.designsystem_update_required_action),
-                onAction = onUpdate
+                onAction = onUpdate,
+                modifier = Modifier.centeredMaxWidth()
             )
         }
     }

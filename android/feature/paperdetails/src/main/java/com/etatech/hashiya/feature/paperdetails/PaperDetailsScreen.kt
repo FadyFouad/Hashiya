@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -59,14 +60,22 @@ import com.etatech.hashiya.core.designsystem.component.PaperAbstract
 import com.etatech.hashiya.core.designsystem.component.PaperHeader
 import com.etatech.hashiya.core.designsystem.component.ReadingStatusSelector
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
+import com.etatech.hashiya.core.designsystem.layout.ControlMaxWidth
+import com.etatech.hashiya.core.designsystem.layout.centeredMaxWidth
+import com.etatech.hashiya.core.designsystem.layout.horizontalMargin
 import com.etatech.hashiya.core.model.Paper
 
+/** [inPane]: shown beside the Library's list, so there is no back button; [onBack] then closes the pane. */
 @Composable
 internal fun PaperDetailsScreen(
+    openAlexId: String,
     onBack: () -> Unit,
     onRemove: (openAlexId: String) -> Unit,
     onReadPdf: (openAlexId: String) -> Unit = {},
-    viewModel: PaperDetailsViewModel = hiltViewModel()
+    inPane: Boolean = false,
+    viewModel: PaperDetailsViewModel = hiltViewModel<PaperDetailsViewModel, PaperDetailsViewModel.Factory>(
+        creationCallback = { factory -> factory.create(openAlexId) }
+    )
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
@@ -115,6 +124,7 @@ internal fun PaperDetailsScreen(
         newCollectionDialog = newCollectionDialog,
         pdf = pdf,
         notesVersion = notesVersion,
+        showBack = !inPane,
         actions = PaperDetailsActions(
             onBack = onBack,
             onRemove = viewModel::onRemove,
@@ -147,7 +157,8 @@ internal fun PaperDetailsContent(
     message: PaperDetailsMessage? = null,
     newCollectionDialog: NewCollectionDialog? = null,
     pdf: PdfRow = PdfRow(PdfRowState.None, null),
-    notesVersion: Int = 0
+    notesVersion: Int = 0,
+    showBack: Boolean = true
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val saveFailed = stringResource(R.string.details_notes_save_failed_message)
@@ -270,8 +281,10 @@ internal fun PaperDetailsContent(
             TopAppBar(
                 title = {},
                 navigationIcon = {
-                    IconButton(onClick = actions.onBack) {
-                        Icon(HashiyaIcons.Back, contentDescription = stringResource(R.string.details_back))
+                    if (showBack) {
+                        IconButton(onClick = actions.onBack) {
+                            Icon(HashiyaIcons.Back, contentDescription = stringResource(R.string.details_back))
+                        }
                     }
                 },
                 actions = { if (uiState is PaperDetailsUiState.Loaded) OverflowMenu(actions.onCopyBibTeX, actions.onRemove) }
@@ -341,7 +354,8 @@ private fun DetailsBody(
             .fillMaxSize()
             .imePadding()
             .verticalScroll(rememberScrollState())
-            .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
+            .centeredMaxWidth()
+            .padding(start = horizontalMargin(), end = horizontalMargin(), bottom = 24.dp)
     ) {
         PaperHeader(paper)
         Spacer(Modifier.height(16.dp))
@@ -363,7 +377,7 @@ private fun PaperLinks(paper: Paper, onOpenLink: (String) -> Unit) {
     val doi = paper.doi ?: return
     Spacer(Modifier.height(12.dp))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        LinkButton(stringResource(DesignR.string.designsystem_open_doi), Modifier.weight(1f), onClick = {
+        LinkButton(stringResource(DesignR.string.designsystem_open_doi), Modifier.widthIn(max = ControlMaxWidth).fillMaxWidth(), onClick = {
             onOpenLink("https://doi.org/$doi")
         })
     }

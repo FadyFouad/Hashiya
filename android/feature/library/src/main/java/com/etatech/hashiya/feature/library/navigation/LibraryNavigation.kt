@@ -7,6 +7,7 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavOptions
 import androidx.navigation.compose.composable
+import com.etatech.hashiya.feature.library.LibraryDetailPane
 import com.etatech.hashiya.feature.library.LibraryScreen
 import kotlinx.serialization.Serializable
 
@@ -22,7 +23,8 @@ fun NavGraphBuilder.libraryScreen(
     onGoToSearch: () -> Unit,
     onAddPaper: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenPaper: (openAlexId: String) -> Unit
+    onOpenPaper: (openAlexId: String) -> Unit,
+    detailPane: LibraryDetailPane? = null
 ) {
     composable<LibraryRoute> { entry ->
         // Written by Details through requestLibraryRemove; the entry's handle survives process death, so no request is lost.
@@ -33,7 +35,8 @@ fun NavGraphBuilder.libraryScreen(
             onOpenSettings = onOpenSettings,
             onOpenPaper = onOpenPaper,
             removeRequest = removeRequest,
-            onRemoveRequestHandled = { entry.savedStateHandle[LIBRARY_REMOVE_REQUEST] = null }
+            onRemoveRequestHandled = { entry.savedStateHandle[LIBRARY_REMOVE_REQUEST] = null },
+            detailPane = detailPane
         )
     }
 }

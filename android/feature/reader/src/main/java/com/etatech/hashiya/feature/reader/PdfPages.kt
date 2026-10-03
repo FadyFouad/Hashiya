@@ -50,12 +50,15 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import com.etatech.hashiya.core.designsystem.layout.ContentMaxWidth
+import com.etatech.hashiya.core.designsystem.layout.centeredMaxWidth
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 
@@ -63,6 +66,9 @@ internal const val MIN_ZOOM = 1f
 internal const val MAX_ZOOM = 4f
 internal const val DOUBLE_TAP_ZOOM = 2.5f
 internal const val PILL_HIDE_DELAY_MS = 1_500L
+
+/** A page is at most this wide, centered, so it stays readable on large windows instead of filling them. */
+private val PAGE_MAX_WIDTH = ContentMaxWidth
 
 /**
  * The PDF's pages in a vertical list, with pinch zoom (1x to 4x), double-tap (1x / 2.5x), horizontal pan while zoomed, and the
@@ -85,12 +91,14 @@ internal fun PdfPages(
 
     BoxWithConstraints(modifier.fillMaxSize().clipToBounds()) {
         val widthPx = constraints.maxWidth
+        // Pages render at the width they're shown at, at most PAGE_MAX_WIDTH on wide windows.
+        val pageWidthPx = minOf(widthPx, with(LocalDensity.current) { PAGE_MAX_WIDTH.roundToPx() })
         fun panLimit() = widthPx * (scale - 1f) / 2f
 
-        LaunchedEffect(listState, widthPx, settledScale) {
+        LaunchedEffect(listState, pageWidthPx, settledScale) {
             snapshotFlow { listState.layoutInfo.visibleItemsInfo.map { it.index } }
                 .distinctUntilChanged()
-                .collect { visible -> if (visible.isNotEmpty()) onViewport(visible.first(), visible.last(), widthPx, settledScale) }
+                .collect { visible -> if (visible.isNotEmpty()) onViewport(visible.first(), visible.last(), pageWidthPx, settledScale) }
         }
         LaunchedEffect(listState) {
             snapshotFlow { listState.firstVisibleItemIndex }.distinctUntilChanged().collect { onPageChanged(it) }
@@ -171,7 +179,7 @@ private fun PdfPage(index: Int, pageCount: Int, aspectRatio: Float, bitmap: Bitm
     val label = stringResource(R.string.reader_page, index + 1, pageCount)
     Box(
         Modifier
-            .fillMaxWidth()
+            .centeredMaxWidth(PAGE_MAX_WIDTH)
             .padding(horizontal = 12.dp)
             .aspectRatio(1f / aspectRatio)
             .shadow(1.dp)

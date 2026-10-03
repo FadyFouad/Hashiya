@@ -26,6 +26,7 @@ import com.etatech.hashiya.feature.library.navigation.LibraryRoute
 import com.etatech.hashiya.feature.library.navigation.libraryScreen
 import com.etatech.hashiya.feature.library.navigation.navigateToLibrary
 import com.etatech.hashiya.feature.library.navigation.requestLibraryRemove
+import com.etatech.hashiya.feature.paperdetails.navigation.PaperDetailsPane
 import com.etatech.hashiya.feature.paperdetails.navigation.navigateToPaperDetails
 import com.etatech.hashiya.feature.paperdetails.navigation.paperDetailsScreen
 import com.etatech.hashiya.feature.reader.navigation.navigateToReader
@@ -74,13 +75,22 @@ fun HashiyaApp(
                 onGoToSearch = { navController.navigateToTopLevel(TopLevelDestination.Search) },
                 onAddPaper = { navController.openSearch(SearchRoute(focusSearch = true)) },
                 onOpenSettings = { navController.navigateToSettings() },
-                onOpenPaper = { openAlexId -> navController.navigateToPaperDetails(openAlexId) }
+                onOpenPaper = { openAlexId -> navController.navigateToPaperDetails(openAlexId) },
+                detailPane = { openAlexId, onClose, onRemove ->
+                    PaperDetailsPane(
+                        openAlexId = openAlexId,
+                        onClose = onClose,
+                        onRemove = onRemove,
+                        onReadPdf = { navController.navigateToReader(it) }
+                    )
+                }
             )
             searchScreen(
                 onOpenSettings = { navController.navigateToSettings() },
                 onOpenPaper = { openAlexId -> navController.navigateToPaperDetails(openAlexId) }
             )
             // Not top-level destinations: the bar hides on compact windows; the rail stays from medium width.
+            // From 840dp the Library shows Details in its detail pane instead; Search still opens this screen.
             paperDetailsScreen(
                 onBack = { navController.popBackStack() },
                 onRemove = { openAlexId -> navController.removeFromDetails(openAlexId) },

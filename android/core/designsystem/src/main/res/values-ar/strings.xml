@@ -42,4 +42,8 @@
     <string name="designsystem_note_limitations_hint">ما نقاط ضعفها أو الأسئلة التي تتركها مفتوحة؟</string>
     <string name="designsystem_note_thoughts">أفكاري</string>
     <string name="designsystem_note_thoughts_hint">ما علاقتها ببحثك؟</string>
+    <string name="designsystem_no_paper_selected">لم تختر ورقة</string>
+    <string name="designsystem_pick_result_message">اختر نتيجة لترى ملخصها هنا.</string>
+    <string name="designsystem_pick_paper_message">اختر ورقة لترى تفاصيلها وملاحظاتها هنا.</string>
+    <string name="designsystem_close_preview">إغلاق المعاينة</string>
 </resources>

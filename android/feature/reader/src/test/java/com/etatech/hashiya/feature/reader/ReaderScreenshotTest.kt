@@ -20,10 +20,10 @@ import org.robolectric.ParameterizedRobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-private const val LETTER = 11f / 8.5f
+internal const val LETTER = 11f / 8.5f
 
 /** A white page with grey bars standing in for lines of text, so the screenshots show pages without a real PDF. */
-private fun fakePage(width: Int): Bitmap {
+internal fun fakePage(width: Int): Bitmap {
     val height = (width * LETTER).toInt()
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)

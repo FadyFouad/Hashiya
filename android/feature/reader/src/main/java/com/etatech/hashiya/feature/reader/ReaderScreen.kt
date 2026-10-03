@@ -9,12 +9,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -30,6 +35,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -53,6 +59,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.etatech.hashiya.core.designsystem.component.NoteFields
 import com.etatech.hashiya.core.designsystem.component.NotesHeading
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
+import com.etatech.hashiya.core.designsystem.layout.SupportingPanes
+import com.etatech.hashiya.core.designsystem.layout.showsTwoPanes
 import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.feature.reader.share.PDF_MIME_TYPE
@@ -75,6 +83,12 @@ internal fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltV
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { viewModel.onStop() }
     // Back saves typed notes first (the sheet handles back itself while it is open).
     BackHandler(enabled = !showNotes) { viewModel.onBack() }
+    val notesBeside = showsTwoPanes()
+    // Notes beside the PDF close on back first, as the sheet does.
+    BackHandler(enabled = showNotes && notesBeside) {
+        showNotes = false
+        viewModel.onNotesClosed()
+    }
     LaunchedEffect(exit) { if (exit != null) onBack() }
 
     ReaderContent(
@@ -83,6 +97,7 @@ internal fun ReaderScreen(onBack: () -> Unit, viewModel: ReaderViewModel = hiltV
         notes = notes,
         notesSaveState = notesSaveState,
         showNotes = showNotes,
+        notesBeside = notesBeside,
         message = message,
         actions = ReaderActions(
             onBack = viewModel::onBack,
@@ -116,7 +131,8 @@ internal fun ReaderContent(
     actions: ReaderActions,
     modifier: Modifier = Modifier,
     message: ReaderMessage? = null,
-    pillAlwaysVisible: Boolean = false
+    pillAlwaysVisible: Boolean = false,
+    notesBeside: Boolean = false
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val messageText = message?.let { stringResource(it.textRes) }
@@ -134,48 +150,58 @@ internal fun ReaderContent(
         is ReaderState.CantOpen -> state.title
         ReaderState.Loading -> ""
     }
-    Scaffold(
-        modifier = modifier,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                navigationIcon = {
-                    IconButton(onClick = actions.onBack) {
-                        Icon(HashiyaIcons.Back, contentDescription = stringResource(R.string.reader_back))
-                    }
-                },
-                actions = {
-                    IconButton(onClick = actions.onOpenNotes) {
-                        Icon(HashiyaIcons.Notes, contentDescription = stringResource(R.string.reader_notes))
-                    }
-                    if (state is ReaderState.Ready) {
-                        IconButton(onClick = actions.onShare) {
-                            Icon(HashiyaIcons.Export, contentDescription = stringResource(R.string.reader_share))
+    // On wide windows (notesBeside) the notes are a pane beside the PDF instead of a sheet over it.
+    val reader: @Composable (Modifier) -> Unit = { readerModifier ->
+        Scaffold(
+            modifier = readerModifier,
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+            topBar = {
+                TopAppBar(
+                    title = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    navigationIcon = {
+                        IconButton(onClick = actions.onBack) {
+                            Icon(HashiyaIcons.Back, contentDescription = stringResource(R.string.reader_back))
+                        }
+                    },
+                    actions = {
+                        IconButton(onClick = if (showNotes) actions.onCloseNotes else actions.onOpenNotes) {
+                            Icon(HashiyaIcons.Notes, contentDescription = stringResource(R.string.reader_notes))
+                        }
+                        if (state is ReaderState.Ready) {
+                            IconButton(onClick = actions.onShare) {
+                                Icon(HashiyaIcons.Export, contentDescription = stringResource(R.string.reader_share))
+                            }
                         }
                     }
-                }
-            )
-        }
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            when (state) {
-                ReaderState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
-
-                is ReaderState.Ready -> PdfPages(
-                    ready = state,
-                    pages = pages,
-                    onViewport = actions.onViewport,
-                    onPageChanged = actions.onPageChanged,
-                    pillAlwaysVisible = pillAlwaysVisible
                 )
+            }
+        ) { padding ->
+            Box(Modifier.fillMaxSize().padding(padding)) {
+                when (state) {
+                    ReaderState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
 
-                is ReaderState.CantOpen -> CantOpen(onReplace = actions.onReplace, onRemove = actions.onRemovePdf)
+                    is ReaderState.Ready -> PdfPages(
+                        ready = state,
+                        pages = pages,
+                        onViewport = actions.onViewport,
+                        onPageChanged = actions.onPageChanged,
+                        pillAlwaysVisible = pillAlwaysVisible
+                    )
+
+                    is ReaderState.CantOpen -> CantOpen(onReplace = actions.onReplace, onRemove = actions.onRemovePdf)
+                }
             }
         }
     }
-    if (showNotes) {
-        NotesSheet(notes, notesSaveState, actions)
+    if (showNotes && notesBeside) {
+        SupportingPanes(
+            main = { reader(Modifier) },
+            supporting = { NotesPane(notes, notesSaveState, actions) },
+            modifier = modifier
+        )
+    } else {
+        reader(modifier)
+        if (showNotes) NotesSheet(notes, notesSaveState, actions)
     }
 }
 
@@ -206,26 +232,47 @@ private fun CantOpen(onReplace: () -> Unit, onRemove: () -> Unit) {
 @Composable
 private fun NotesSheet(notes: PaperNotes?, saveState: NotesSaveState, actions: ReaderActions) {
     ModalBottomSheet(onDismissRequest = actions.onCloseNotes) {
-        Column(
+        NotesBody(notes, saveState, actions, Modifier.imePadding())
+    }
+}
+
+/** The notes as a pane beside the PDF on wide windows. */
+@Composable
+private fun NotesPane(notes: PaperNotes?, saveState: NotesSaveState, actions: ReaderActions) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+        NotesBody(
+            notes,
+            saveState,
+            actions,
             Modifier
-                .fillMaxWidth()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                NotesHeading(saveState, Modifier.weight(1f))
-                IconButton(onClick = actions.onCloseNotes) {
-                    Icon(HashiyaIcons.Close, contentDescription = stringResource(R.string.reader_close_notes))
-                }
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.End + WindowInsetsSides.Bottom)
+                )
+                .padding(top = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun NotesBody(notes: PaperNotes?, saveState: NotesSaveState, actions: ReaderActions, modifier: Modifier = Modifier) {
+    Column(
+        modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            NotesHeading(saveState, Modifier.weight(1f))
+            IconButton(onClick = actions.onCloseNotes) {
+                Icon(HashiyaIcons.Close, contentDescription = stringResource(R.string.reader_close_notes))
             }
-            if (notes == null) {
-                Spacer(Modifier.height(16.dp))
-                LinearProgressIndicator(Modifier.fillMaxWidth())
-            } else {
-                // The reader never reloads notes, so the fields seed once per opening of the sheet.
-                NoteFields(notes, version = 0, onNoteChange = actions.onNoteChange)
-            }
+        }
+        if (notes == null) {
+            Spacer(Modifier.height(16.dp))
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        } else {
+            // The reader never reloads notes, so the fields seed once per opening of the notes.
+            NoteFields(notes, version = 0, onNoteChange = actions.onNoteChange)
         }
     }
 }

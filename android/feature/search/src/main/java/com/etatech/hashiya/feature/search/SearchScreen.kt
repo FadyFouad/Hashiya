@@ -43,8 +43,11 @@ import androidx.paging.compose.itemKey
 import com.etatech.hashiya.core.data.repository.SearchException
 import com.etatech.hashiya.core.designsystem.component.LoadingSkeleton
 import com.etatech.hashiya.core.designsystem.component.PaperCard
+import com.etatech.hashiya.core.designsystem.component.PaperPreviewPane
 import com.etatech.hashiya.core.designsystem.component.PaperPreviewSheet
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
+import com.etatech.hashiya.core.designsystem.layout.ListDetailPanes
+import com.etatech.hashiya.core.designsystem.layout.showsTwoPanes
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.feature.search.components.FilterChipRow
@@ -149,74 +152,106 @@ internal fun SearchContent(
         actions.onMessageShown()
     }
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(R.string.search_title)) },
-                actions = {
-                    IconButton(onClick = actions.onOpenSettings) {
-                        Icon(HashiyaIcons.Settings, contentDescription = stringResource(R.string.search_settings))
+    // From 840dp the preview is a pane beside the results, showing the same selection the sheet shows.
+    val twoPane = showsTwoPanes()
+    val selectedId = if (twoPane) selectedItem?.paper?.openAlexId else null
+    val results: @Composable (Modifier) -> Unit = { resultsModifier ->
+        Scaffold(
+            modifier = resultsModifier.fillMaxSize(),
+            topBar = {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.search_title)) },
+                    actions = {
+                        IconButton(onClick = actions.onOpenSettings) {
+                            Icon(HashiyaIcons.Settings, contentDescription = stringResource(R.string.search_settings))
+                        }
                     }
-                }
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        Column(Modifier.padding(padding)) {
-            SearchField(uiState.text, actions.onTextChange, actions.onSearchAction, Modifier.focusRequester(focusRequester))
-            note?.let { SearchNoteBanner(it) }
-            if (lookupState == null) {
-                FilterChipRow(
-                    sort = uiState.sort,
-                    years = uiState.years,
-                    openAccessOnly = uiState.openAccessOnly,
-                    currentYear = currentYear,
-                    onSortChange = actions.onSortChange,
-                    onYearFilterChange = actions.onYearFilterChange,
-                    onOpenAccessToggle = actions.onOpenAccessToggle
                 )
-            }
-            Box(Modifier.fillMaxSize()) {
-                if (lookupState != null) {
-                    LookupBody(
-                        state = lookupState,
-                        savedIds = savedIds,
-                        onToggleSave = actions.onToggleSave,
-                        onOpenDoi = actions.onOpenDoi,
-                        onSearchTitle = actions.onSuggestion,
-                        onRetry = actions.onRetryLookup,
-                        onOpenSettings = actions.onOpenSettings
+            },
+            snackbarHost = { SnackbarHost(snackbarHostState) }
+        ) { padding ->
+            Column(Modifier.padding(padding)) {
+                SearchField(uiState.text, actions.onTextChange, actions.onSearchAction, Modifier.focusRequester(focusRequester))
+                note?.let { SearchNoteBanner(it) }
+                if (lookupState == null) {
+                    FilterChipRow(
+                        sort = uiState.sort,
+                        years = uiState.years,
+                        openAccessOnly = uiState.openAccessOnly,
+                        currentYear = currentYear,
+                        onSortChange = actions.onSortChange,
+                        onYearFilterChange = actions.onYearFilterChange,
+                        onOpenAccessToggle = actions.onOpenAccessToggle
                     )
-                } else {
-                    SearchBody(uiState, papers, savedIds, actions)
+                }
+                Box(Modifier.fillMaxSize()) {
+                    if (lookupState != null) {
+                        LookupBody(
+                            state = lookupState,
+                            savedIds = savedIds,
+                            onToggleSave = actions.onToggleSave,
+                            onOpenDoi = actions.onOpenDoi,
+                            onSearchTitle = actions.onSuggestion,
+                            onRetry = actions.onRetryLookup,
+                            onOpenSettings = actions.onOpenSettings
+                        )
+                    } else {
+                        SearchBody(uiState, papers, savedIds, actions, selectedId)
+                    }
                 }
             }
         }
     }
-
-    selectedItem?.let { item ->
-        PaperPreviewSheet(
-            paper = item.paper,
-            inLibrary = item.inLibrary,
-            onDismiss = actions.onDismissPreview,
-            onToggleSave = { actions.onToggleSave(item) },
-            onOpenDoi = actions.onOpenDoi,
-            // Details is for saved papers only.
-            onOpenDetails = if (item.inLibrary) {
-                {
-                    actions.onDismissPreview()
-                    actions.onOpenDetails(item.paper)
-                }
-            } else {
-                null
+    // Details is for saved papers only.
+    val openDetails: (PaperItem) -> (() -> Unit)? = { item ->
+        if (item.inLibrary) {
+            {
+                actions.onDismissPreview()
+                actions.onOpenDetails(item.paper)
             }
+        } else {
+            null
+        }
+    }
+
+    if (twoPane) {
+        ListDetailPanes(
+            list = { results(Modifier) },
+            detail = {
+                PaperPreviewPane(
+                    paper = selectedItem?.paper,
+                    inLibrary = selectedItem?.inLibrary == true,
+                    onClose = actions.onDismissPreview,
+                    onToggleSave = { selectedItem?.let(actions.onToggleSave) },
+                    onOpenDoi = actions.onOpenDoi,
+                    onOpenDetails = selectedItem?.let(openDetails)
+                )
+            },
+            modifier = modifier
         )
+    } else {
+        results(modifier)
+        selectedItem?.let { item ->
+            PaperPreviewSheet(
+                paper = item.paper,
+                inLibrary = item.inLibrary,
+                onDismiss = actions.onDismissPreview,
+                onToggleSave = { actions.onToggleSave(item) },
+                onOpenDoi = actions.onOpenDoi,
+                onOpenDetails = openDetails(item)
+            )
+        }
     }
 }
 
 @Composable
-private fun SearchBody(uiState: SearchUiState, papers: LazyPagingItems<Paper>, savedIds: Set<String>, actions: SearchActions) {
+private fun SearchBody(
+    uiState: SearchUiState,
+    papers: LazyPagingItems<Paper>,
+    savedIds: Set<String>,
+    actions: SearchActions,
+    selectedId: String?
+) {
     // Branch on the first-page state before the item count: when a new query starts, the previous query's items
     // stay in the list until the new first page arrives, so its loading or error state must replace them.
     val refresh = papers.loadState.refresh
@@ -236,12 +271,18 @@ private fun SearchBody(uiState: SearchUiState, papers: LazyPagingItems<Paper>, s
             onClearFilters = actions.onClearFilters
         )
 
-        else -> ResultsList(uiState.totalCount, papers, savedIds, actions)
+        else -> ResultsList(uiState.totalCount, papers, savedIds, actions, selectedId)
     }
 }
 
 @Composable
-private fun ResultsList(totalCount: Long?, papers: LazyPagingItems<Paper>, savedIds: Set<String>, actions: SearchActions) {
+private fun ResultsList(
+    totalCount: Long?,
+    papers: LazyPagingItems<Paper>,
+    savedIds: Set<String>,
+    actions: SearchActions,
+    selectedId: String?
+) {
     val locale = LocalConfiguration.current.locales[0]
     LazyColumn(Modifier.fillMaxSize()) {
         if (totalCount != null) {
@@ -266,7 +307,8 @@ private fun ResultsList(totalCount: Long?, papers: LazyPagingItems<Paper>, saved
                     paper = paper,
                     inLibrary = item.inLibrary,
                     onClick = { actions.onPaperClick(paper) },
-                    onSave = { actions.onToggleSave(item) }
+                    onSave = { actions.onToggleSave(item) },
+                    selected = paper.openAlexId == selectedId
                 )
             }
         }

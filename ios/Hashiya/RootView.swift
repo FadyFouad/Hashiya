@@ -19,6 +19,9 @@ struct RootView: View {
     /// the rest its pane's stack; Search pushes them above the preview pane. The same lists drive both layouts.
     @State private var libraryRoutes: [AppRoute] = []
     @State private var searchRoutes: [AppRoute] = []
+    /// Wide windows: whether each tab's list shows beside its detail.
+    @State private var libraryColumns = NavigationSplitViewVisibility.all
+    @State private var searchColumns = NavigationSplitViewVisibility.all
     /// Each window's tab and open screens, restored when the system brings the window back.
     @SceneStorage("selectedTab") private var savedTab: String?
     @SceneStorage("libraryRoutes") private var savedLibraryRoutes: Data?
@@ -78,9 +81,9 @@ struct RootView: View {
         if let url = appUpdate.requiredUpdate?.storeURL { openURL(url) }
     }
 
-    /// iPadOS 18+: a tab bar that becomes a sidebar (a compact bar at the top of an iPad window, with the system's
-    /// sidebar button; the system remembers whether the sidebar is open). iPhone looks the same as before. iOS 17 keeps
-    /// the plain tab bar. Search keeps the plain tab role, so iOS 26 doesn't split it off into its own button on iPhone.
+    /// iPadOS 18+: the tab bar at the top of an iPad window, without a sidebar (the split views' own button shows and
+    /// hides their list). iPhone looks the same as before. iOS 17 keeps the plain tab bar. Search keeps the plain tab
+    /// role, so iOS 26 doesn't split it off into its own button on iPhone.
     @ViewBuilder
     private var tabView: some View {
         if #available(iOS 18, *) {
@@ -96,7 +99,7 @@ struct RootView: View {
                     tabLabel("nav.search", systemImage: "magnifyingglass")
                 }
             }
-            .tabViewStyle(.sidebarAdaptable)
+            .tabViewStyle(.tabBarOnly)
         } else {
             TabView(selection: $selectedTab) {
                 libraryStack
@@ -120,11 +123,10 @@ struct RootView: View {
     @ViewBuilder
     private var libraryStack: some View {
         if showsPanes {
-            // The list always shows beside the detail; the tab bar's own button is the only sidebar toggle.
-            NavigationSplitView(columnVisibility: .constant(.all)) {
+            // The split view's button hides the list, for more room to read.
+            NavigationSplitView(columnVisibility: $libraryColumns) {
                 libraryList(selectedID: libraryPaperID)
                     .navigationSplitViewColumnWidth(min: 320, ideal: 380, max: 480)
-                    .toolbar(removing: .sidebarToggle)
             } detail: {
                 // A new stack per paper (its identity): Details keeps its first view model, so another paper needs a
                 // new screen, and its reader must not stay stacked above it. The identity goes on the stack, not on
@@ -187,11 +189,9 @@ struct RootView: View {
     @ViewBuilder
     private var searchStack: some View {
         if showsPanes {
-            // The list always shows beside the detail; the tab bar's own button is the only sidebar toggle.
-            NavigationSplitView(columnVisibility: .constant(.all)) {
+            NavigationSplitView(columnVisibility: $searchColumns) {
                 SearchView(viewModel: searchViewModel, onOpenSettings: { showsSettings = true }, previewsInPane: true)
                     .navigationSplitViewColumnWidth(min: 320, ideal: 400, max: 480)
-                    .toolbar(removing: .sidebarToggle)
             } detail: {
                 NavigationStack(path: $searchRoutes) {
                     searchPreviewPane
@@ -255,9 +255,16 @@ struct RootView: View {
         .onChange(of: libraryRoutes) { savedLibraryRoutes = libraryRoutes.sceneData }
         .onChange(of: searchRoutes) { savedSearchRoutes = searchRoutes.sceneData }
         .onChange(of: showsPanes) { _, panes in
-            // A narrow window shows Search's preview as a sheet over the results: drop it when Details or the reader
-            // is open above them, so the sheet doesn't cover what the user was reading.
-            if !panes, !searchRoutes.isEmpty { searchViewModel.selectedPaper = nil }
+            if panes {
+                // The split views mark their list hidden while they collapse for a narrow window: a wide one shows
+                // the list again.
+                libraryColumns = .all
+                searchColumns = .all
+            } else if !searchRoutes.isEmpty {
+                // A narrow window shows Search's preview as a sheet over the results: drop it when Details or the
+                // reader is open above them, so the sheet doesn't cover what the user was reading.
+                searchViewModel.selectedPaper = nil
+            }
         }
     }
 

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
@@ -93,7 +94,15 @@ fun PaperCard(
                     )
                 }
                 if (!inLibrary) {
-                    FilledTonalButton(onClick = onSave) {
+                    FilledTonalButton(
+                        onClick = onSave,
+                        // On a selected card the tonal colour is the card's own, so the button would vanish.
+                        colors = if (selected) {
+                            ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surface)
+                        } else {
+                            ButtonDefaults.filledTonalButtonColors()
+                        }
+                    ) {
                         Text(stringResource(R.string.designsystem_save))
                     }
                 }

@@ -2,4 +2,7 @@
     <string name="app_name">حاشية</string>
     <string name="nav_library">المكتبة</string>
     <string name="nav_search">البحث</string>
+    <string name="shortcut_find">بحث</string>
+    <string name="shortcut_add_paper">إضافة ورقة</string>
+    <string name="shortcut_settings">الإعدادات</string>
 </resources>

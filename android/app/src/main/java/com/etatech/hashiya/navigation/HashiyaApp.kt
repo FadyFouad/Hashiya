@@ -27,6 +27,7 @@ import com.etatech.hashiya.core.model.RequiredUpdate
 import com.etatech.hashiya.feature.library.navigation.LibraryRoute
 import com.etatech.hashiya.feature.library.navigation.libraryScreen
 import com.etatech.hashiya.feature.library.navigation.navigateToLibrary
+import com.etatech.hashiya.feature.library.navigation.requestLibraryFind
 import com.etatech.hashiya.feature.library.navigation.requestLibraryRemove
 import com.etatech.hashiya.feature.library.navigation.requestLibrarySelect
 import com.etatech.hashiya.feature.paperdetails.navigation.PaperDetailsPane
@@ -37,8 +38,10 @@ import com.etatech.hashiya.feature.reader.navigation.navigateToReader
 import com.etatech.hashiya.feature.reader.navigation.readerScreen
 import com.etatech.hashiya.feature.search.navigation.SearchRoute
 import com.etatech.hashiya.feature.search.navigation.navigateToSearch
+import com.etatech.hashiya.feature.search.navigation.requestSearchFind
 import com.etatech.hashiya.feature.search.navigation.requestSearchRemove
 import com.etatech.hashiya.feature.search.navigation.searchScreen
+import com.etatech.hashiya.feature.settings.navigation.SettingsRoute
 import com.etatech.hashiya.feature.settings.navigation.navigateToSettings
 import com.etatech.hashiya.feature.settings.navigation.settingsScreen
 
@@ -53,7 +56,9 @@ fun HashiyaApp(
     pendingSearch: SearchRoute? = null,
     onPendingSearchHandled: () -> Unit = {},
     requiredUpdate: RequiredUpdate? = null,
-    onOpenStore: (String) -> Unit = {}
+    onOpenStore: (String) -> Unit = {},
+    shortcut: AppShortcut? = null,
+    onShortcutHandled: () -> Unit = {}
 ) {
     if (requiredUpdate != null) {
         UpdateRequiredScreen(onUpdate = { onOpenStore(requiredUpdate.storeUrl) })
@@ -111,6 +116,13 @@ fun HashiyaApp(
             if (twoPanes) navController.moveDetailsIntoLibraryPane()
         }
 
+        LaunchedEffect(shortcut) {
+            shortcut?.let {
+                navController.onShortcut(it)
+                onShortcutHandled()
+            }
+        }
+
         LaunchedEffect(pendingSearch) {
             pendingSearch?.let { route ->
                 navController.openSearch(route)
@@ -129,6 +141,26 @@ private fun NavController.navigateToTopLevel(destination: TopLevelDestination) {
     when (destination) {
         TopLevelDestination.Library -> navigateToLibrary(options)
         TopLevelDestination.Search -> navigateToSearch(options)
+    }
+}
+
+private fun NavController.onShortcut(shortcut: AppShortcut) {
+    val current = currentBackStackEntry ?: return
+    when (shortcut) {
+        AppShortcut.Find -> when {
+            current.destination.hasRoute<LibraryRoute>() -> current.requestLibraryFind()
+
+            current.destination.hasRoute<SearchRoute>() -> current.requestSearchFind()
+
+            else -> {
+                navigateToTopLevel(TopLevelDestination.Search)
+                currentBackStackEntry?.requestSearchFind()
+            }
+        }
+
+        AppShortcut.AddPaper -> openSearch(SearchRoute(focusSearch = true))
+
+        AppShortcut.Settings -> if (!current.destination.hasRoute<SettingsRoute>()) navigateToSettings()
     }
 }
 

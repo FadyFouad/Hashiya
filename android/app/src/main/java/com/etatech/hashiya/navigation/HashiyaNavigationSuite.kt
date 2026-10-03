@@ -1,5 +1,6 @@
 package com.etatech.hashiya.navigation
 
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.WindowAdaptiveInfo
@@ -8,6 +9,12 @@ import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteItem
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.res.stringResource
 import androidx.window.core.layout.WindowSizeClass.Companion.HEIGHT_DP_MEDIUM_LOWER_BOUND
 import com.etatech.hashiya.core.designsystem.layout.LayoutClass
@@ -45,6 +52,7 @@ internal fun HashiyaNavigationSuite(
 ) {
     val navigationType = navigationTypeFor(currentWindowAdaptiveInfoV2(), onTopLevel = currentTopLevel != null)
     NavigationSuiteScaffold(
+        modifier = Modifier.escapeGoesBack(),
         navigationItems = {
             TopLevelDestination.entries.forEach { topLevel ->
                 NavigationSuiteItem(
@@ -65,4 +73,19 @@ internal fun HashiyaNavigationSuite(
         navigationSuiteType = navigationType,
         content = content
     )
+}
+
+/**
+ * Esc goes back (Keyboard_Exit): it closes a pane, the sheet or the screen, even from a focused text field, which would
+ * otherwise take the key. With nothing to go back to it does nothing, so it never closes the app. MainActivity does the
+ * same for an Esc that arrives with nothing focused.
+ */
+@Composable
+private fun Modifier.escapeGoesBack(): Modifier {
+    val dispatcher = LocalOnBackPressedDispatcherOwner.current?.onBackPressedDispatcher
+    return onPreviewKeyEvent { event ->
+        if (event.key != Key.Escape) return@onPreviewKeyEvent false
+        if (event.type == KeyEventType.KeyUp && dispatcher?.hasEnabledCallbacks() == true) dispatcher.onBackPressed()
+        true
+    }
 }

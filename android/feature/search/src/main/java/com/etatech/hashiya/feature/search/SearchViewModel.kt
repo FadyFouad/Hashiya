@@ -201,6 +201,11 @@ class SearchViewModel @Inject constructor(
 
     fun onRetryLookup() = lookupRetries.update { it + 1 }
 
+    /** Ctrl+F: focus the search field, keeping the current search and results. */
+    fun onFocusRequested() {
+        _focusSearch.value = true
+    }
+
     fun onFocusHandled() {
         _focusSearch.value = false
     }

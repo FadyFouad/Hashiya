@@ -48,6 +48,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.isCtrlPressed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
@@ -116,6 +119,11 @@ internal fun PdfPages(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier
                     .fillMaxSize()
+                    .ctrlScrollToZoom { scrollY ->
+                        scale = wheelZoom(scale, scrollY)
+                        offsetX = offsetX.coerceIn(-panLimit(), panLimit())
+                        settledScale = scale
+                    }
                     .pinchToZoom(
                         onZoom = { zoomChange, pan ->
                             scale = (scale * zoomChange).coerceIn(MIN_ZOOM, MAX_ZOOM)
@@ -197,6 +205,28 @@ private fun PdfPage(index: Int, pageCount: Int, aspectRatio: Float, bitmap: Bitm
                 contentScale = ContentScale.FillBounds,
                 modifier = Modifier.fillMaxSize()
             )
+        }
+    }
+}
+
+/** Each wheel notch zooms by this factor: up (negative) zooms in, down zooms out, within MIN_ZOOM..MAX_ZOOM. */
+internal const val WHEEL_ZOOM_STEP = 1.1f
+
+internal fun wheelZoom(scale: Float, scrollY: Float): Float = when {
+    scrollY < 0f -> scale * WHEEL_ZOOM_STEP
+    scrollY > 0f -> scale / WHEEL_ZOOM_STEP
+    else -> scale
+}.coerceIn(MIN_ZOOM, MAX_ZOOM)
+
+/** Ctrl + mouse wheel (or trackpad scroll) zooms, as in a browser; without Ctrl the wheel scrolls the pages. */
+private fun Modifier.ctrlScrollToZoom(onZoom: (scrollY: Float) -> Unit) = pointerInput(Unit) {
+    awaitPointerEventScope {
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Initial)
+            if (event.type == PointerEventType.Scroll && event.keyboardModifiers.isCtrlPressed) {
+                onZoom(event.changes.first().scrollDelta.y)
+                event.changes.forEach { it.consume() }
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.etatech.hashiya.feature.library
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -44,8 +46,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
@@ -68,7 +73,9 @@ import com.etatech.hashiya.core.designsystem.component.EmptyState
 import com.etatech.hashiya.core.designsystem.component.LoadingSkeleton
 import com.etatech.hashiya.core.designsystem.component.NoPaperSelected
 import com.etatech.hashiya.core.designsystem.component.PaperPreviewSheet
+import com.etatech.hashiya.core.designsystem.component.SecondaryClickMenu
 import com.etatech.hashiya.core.designsystem.component.paperTitle
+import com.etatech.hashiya.core.designsystem.component.readingStatusLabel
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.designsystem.layout.ListDetailPanes
 import com.etatech.hashiya.core.designsystem.layout.showsTwoPanes
@@ -95,6 +102,8 @@ internal fun LibraryScreen(
     detailPane: LibraryDetailPane? = null,
     selectRequest: String? = null,
     onSelectRequestHandled: () -> Unit = {},
+    findRequested: Boolean = false,
+    onFindHandled: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     LaunchedEffect(removeRequest) {
@@ -135,6 +144,8 @@ internal fun LibraryScreen(
             onSelectRequestHandled()
         }
     }
+    // Back (and Esc) closes the detail pane first, as it closes Details on a phone.
+    BackHandler(enabled = twoPane && selectedId != null) { selectedId = null }
     // And out of it as the window narrows (resize, fold, rotation): the paper stays open, as its own screen.
     LaunchedEffect(twoPane, selectedId) {
         val openAlexId = selectedId
@@ -147,6 +158,8 @@ internal fun LibraryScreen(
         LibraryContent(
             uiState = uiState,
             selectedId = if (twoPane) selectedId else null,
+            findRequested = findRequested,
+            onFindHandled = onFindHandled,
             modifier = contentModifier,
             pendingUndo = pendingUndo,
             message = message,
@@ -220,7 +233,9 @@ internal fun LibraryContent(
     header: LibraryHeader = LibraryHeader(),
     dialog: CollectionDialog? = null,
     pendingCollectionUndo: CollectionRemoval? = null,
-    selectedId: String? = null
+    selectedId: String? = null,
+    findRequested: Boolean = false,
+    onFindHandled: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val removedMessage = stringResource(R.string.library_removed)
@@ -253,6 +268,19 @@ internal fun LibraryContent(
         }
         snackbarHostState.showSnackbar(text, duration = duration)
         actions.onMessageShown()
+    }
+
+    // Ctrl+F: the search field, once the library has loaded and if it shows one (not when empty).
+    val searchFocus = remember { FocusRequester() }
+    val loading = uiState is LibraryUiState.Loading
+    val showsSearchField = uiState is LibraryUiState.Papers || uiState is LibraryUiState.NoMatches
+    LaunchedEffect(findRequested, loading, showsSearchField) {
+        if (!findRequested || loading) return@LaunchedEffect
+        if (showsSearchField) {
+            withFrameNanos { }
+            searchFocus.requestFocus()
+        }
+        onFindHandled()
     }
 
     var selectorOpen by rememberSaveable { mutableStateOf(false) }
@@ -320,7 +348,13 @@ internal fun LibraryContent(
             }
             // The same place in the tree for Papers and NoMatches, so the field keeps focus when nothing matches.
             if (filter != null) {
-                LibrarySearchField(filter.query, actions.onQueryChange, actions.onSearch, actions.onClearQuery)
+                LibrarySearchField(
+                    filter.query,
+                    actions.onQueryChange,
+                    actions.onSearch,
+                    actions.onClearQuery,
+                    Modifier.focusRequester(searchFocus)
+                )
                 StatusFilterChips(filter, actions.onStatusFilterChange)
             }
             Box(Modifier.fillMaxSize()) {
@@ -373,17 +407,51 @@ private fun PaperList(papers: List<LibraryPaper>, actions: LibraryActions, selec
             )
         }
         items(papers, key = { it.paper.openAlexId }) { item ->
-            SwipeToRemove(onRemove = { actions.onRemove(item.paper) }) {
-                LibraryRow(
-                    item = item,
-                    selected = item.paper.openAlexId == selectedId,
-                    onClick = { actions.onPaperClick(item.paper) },
-                    onStatusChange = { status -> actions.onStatusChange(item.paper, status) }
-                )
+            SecondaryClickMenu(menu = { close -> RowMenu(item, actions, close) }) {
+                SwipeToRemove(onRemove = { actions.onRemove(item.paper) }) {
+                    LibraryRow(
+                        item = item,
+                        selected = item.paper.openAlexId == selectedId,
+                        onClick = { actions.onPaperClick(item.paper) },
+                        onStatusChange = { status -> actions.onStatusChange(item.paper, status) }
+                    )
+                }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
+}
+
+/** A row's right-click menu: what a tap, the status badge and a swipe do, for a mouse. */
+@Composable
+private fun RowMenu(item: LibraryPaper, actions: LibraryActions, close: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.library_open)) },
+        onClick = {
+            close()
+            actions.onPaperClick(item.paper)
+        }
+    )
+    HorizontalDivider()
+    ReadingStatus.entries.forEach { status ->
+        DropdownMenuItem(
+            text = { Text(readingStatusLabel(status)) },
+            trailingIcon = { if (status == item.status) Icon(HashiyaIcons.Check, contentDescription = null) },
+            onClick = {
+                close()
+                if (status != item.status) actions.onStatusChange(item.paper, status)
+            }
+        )
+    }
+    HorizontalDivider()
+    DropdownMenuItem(
+        text = { Text(stringResource(DesignR.string.designsystem_remove_from_library)) },
+        leadingIcon = { Icon(HashiyaIcons.Delete, contentDescription = null) },
+        onClick = {
+            close()
+            actions.onRemove(item.paper)
+        }
+    )
 }
 
 @Composable

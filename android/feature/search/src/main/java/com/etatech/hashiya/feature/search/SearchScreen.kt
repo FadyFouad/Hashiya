@@ -1,5 +1,6 @@
 package com.etatech.hashiya.feature.search
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,10 +43,12 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.etatech.hashiya.core.data.repository.SearchException
+import com.etatech.hashiya.core.designsystem.R as DesignR
 import com.etatech.hashiya.core.designsystem.component.LoadingSkeleton
 import com.etatech.hashiya.core.designsystem.component.PaperCard
 import com.etatech.hashiya.core.designsystem.component.PaperPreviewPane
 import com.etatech.hashiya.core.designsystem.component.PaperPreviewSheet
+import com.etatech.hashiya.core.designsystem.component.SecondaryClickMenu
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.designsystem.layout.ListDetailPanes
 import com.etatech.hashiya.core.designsystem.layout.showsTwoPanes
@@ -66,8 +70,16 @@ internal fun SearchScreen(
     onOpenPaper: (openAlexId: String) -> Unit,
     removeRequest: String? = null,
     onRemoveRequestHandled: () -> Unit = {},
+    findRequested: Boolean = false,
+    onFindHandled: () -> Unit = {},
     viewModel: SearchViewModel = hiltViewModel()
 ) {
+    LaunchedEffect(findRequested) {
+        if (findRequested) {
+            viewModel.onFocusRequested()
+            onFindHandled()
+        }
+    }
     LaunchedEffect(removeRequest) {
         removeRequest?.let { openAlexId ->
             viewModel.onRemoveRequested(openAlexId)
@@ -214,6 +226,9 @@ internal fun SearchContent(
         }
     }
 
+    // Back (and Esc) closes the preview pane first, as it closes the sheet on a phone.
+    BackHandler(enabled = twoPane && selectedItem != null) { actions.onDismissPreview() }
+
     if (twoPane) {
         ListDetailPanes(
             list = { results(Modifier) },
@@ -303,13 +318,15 @@ private fun ResultsList(
         items(count = papers.itemCount, key = papers.itemKey { it.openAlexId }) { index ->
             papers[index]?.let { paper ->
                 val item = PaperItem(paper, inLibrary = paper.openAlexId in savedIds)
-                PaperCard(
-                    paper = paper,
-                    inLibrary = item.inLibrary,
-                    onClick = { actions.onPaperClick(paper) },
-                    onSave = { actions.onToggleSave(item) },
-                    selected = paper.openAlexId == selectedId
-                )
+                SecondaryClickMenu(menu = { close -> ResultMenu(item, actions, close) }) {
+                    PaperCard(
+                        paper = paper,
+                        inLibrary = item.inLibrary,
+                        onClick = { actions.onPaperClick(paper) },
+                        onSave = { actions.onToggleSave(item) },
+                        selected = paper.openAlexId == selectedId
+                    )
+                }
             }
         }
         when (val append = papers.loadState.append) {
@@ -332,6 +349,43 @@ private fun ResultsList(
 
             is LoadState.NotLoading -> Unit
         }
+    }
+}
+
+/** A result's right-click menu: open, save or remove, and the DOI, without opening the preview first. */
+@Composable
+private fun ResultMenu(item: PaperItem, actions: SearchActions, close: () -> Unit) {
+    if (item.inLibrary) {
+        DropdownMenuItem(
+            text = { Text(stringResource(DesignR.string.designsystem_open_details)) },
+            onClick = {
+                close()
+                actions.onOpenDetails(item.paper)
+            }
+        )
+    }
+    DropdownMenuItem(
+        text = {
+            Text(
+                stringResource(
+                    if (item.inLibrary) DesignR.string.designsystem_remove_from_library else DesignR.string.designsystem_save_to_library
+                )
+            )
+        },
+        onClick = {
+            close()
+            actions.onToggleSave(item)
+        }
+    )
+    item.paper.doi?.let { doi ->
+        DropdownMenuItem(
+            text = { Text(stringResource(DesignR.string.designsystem_open_doi)) },
+            trailingIcon = { Icon(HashiyaIcons.OpenInNew, contentDescription = null) },
+            onClick = {
+                close()
+                actions.onOpenDoi(doi)
+            }
+        )
     }
 }
 

@@ -5,6 +5,7 @@ public enum DesignSystemStrings {
     public static var abstract: String { L10n.string("designsystem.abstract") }
     public static var noAbstract: String { L10n.string("designsystem.noAbstract") }
     public static var openDOI: String { L10n.string("designsystem.openDOI") }
+    public static var closePreview: String { L10n.string("designsystem.closePreview") }
     public static var removeFromLibrary: String { L10n.string("designsystem.removeFromLibrary") }
     /// "Done": the keyboard's Done above the note fields, and the Details collections checklist's Done.
     public static var doneEditing: String { L10n.string("notes.doneEditing") }

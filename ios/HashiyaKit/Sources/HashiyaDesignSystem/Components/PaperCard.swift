@@ -7,10 +7,13 @@ public struct PaperCard: View {
     private let inLibrary: Bool
     private let onOpen: () -> Void
     private let onSave: () -> Void
+    private let isSelected: Bool
 
-    public init(paper: Paper, inLibrary: Bool, onOpen: @escaping () -> Void, onSave: @escaping () -> Void) {
+    /// - Parameter isSelected: the paper shown in the preview pane beside the results, on wide windows.
+    public init(paper: Paper, inLibrary: Bool, isSelected: Bool = false, onOpen: @escaping () -> Void, onSave: @escaping () -> Void) {
         self.paper = paper
         self.inLibrary = inLibrary
+        self.isSelected = isSelected
         self.onOpen = onOpen
         self.onSave = onSave
     }
@@ -31,7 +34,7 @@ public struct PaperCard: View {
                         .filter { !$0.isEmpty }
                         .joined(separator: ", ")
                 )
-                .accessibilityAddTraits(.isButton)
+                .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
                 .accessibilityAction { onOpen() }
             if !meta.isEmpty {
                 PaperText(meta, style: .meta, color: HashiyaColors.onSurfaceVariant, lineLimit: 2)
@@ -61,7 +64,7 @@ public struct PaperCard: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 10).fill(HashiyaColors.surface))
+        .background(RoundedRectangle(cornerRadius: 10).fill(isSelected ? HashiyaColors.secondaryContainer : HashiyaColors.surface))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(HashiyaColors.outlineVariant, lineWidth: 1))
         .contentShape(RoundedRectangle(cornerRadius: 10))
         .onTapGesture(perform: onOpen)

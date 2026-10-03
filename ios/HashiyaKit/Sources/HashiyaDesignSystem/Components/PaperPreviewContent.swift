@@ -75,6 +75,8 @@ public struct PaperPreviewContent: View {
             .padding(.horizontal, 16)
             .padding(.top, 24)
             .padding(.bottom, 16)
+            // In a wide preview pane the text stops at a readable width.
+            .centeredMaxWidth()
         }
     }
 
@@ -120,6 +122,8 @@ public struct PaperPreviewContent: View {
             }
         }
         .controlSize(.large)
+        // Never stretched across a wide pane; untouched on every iPhone.
+        .maxWidthWhenWide()
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }

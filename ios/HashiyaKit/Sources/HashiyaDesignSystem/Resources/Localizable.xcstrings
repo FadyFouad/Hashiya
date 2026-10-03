@@ -188,6 +188,23 @@
         }
       }
     },
+    "designsystem.closePreview" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إغلاق المعاينة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close preview"
+          }
+        }
+      }
+    },
     "designsystem.inLibrary" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -218,6 +235,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No abstract available"
+          }
+        }
+      }
+    },
+    "designsystem.noPaperSelected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لم تختر ورقة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No paper selected"
           }
         }
       }
@@ -286,6 +320,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open details"
+          }
+        }
+      }
+    },
+    "designsystem.pickPaperMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اختر ورقة لترى تفاصيلها وملاحظاتها هنا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a paper to see its details and notes here."
+          }
+        }
+      }
+    },
+    "designsystem.pickResultMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اختر نتيجة لترى ملخصها هنا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a result to see its abstract here."
           }
         }
       }

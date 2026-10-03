@@ -9,6 +9,7 @@ public struct LibraryView: View {
     private let onAddPaper: () -> Void
     private let onOpenSettings: () -> Void
     private let onOpenPaper: (String) -> Void
+    private let selectedID: String?
 
     /// Space under the list's last row, so the Add paper button never covers it.
     static let addPaperClearance: CGFloat = 88
@@ -19,14 +20,17 @@ public struct LibraryView: View {
 
     /// - Parameters:
     ///   - onAddPaper: the Add paper button; the app opens Search ready for input.
-    ///   - onOpenPaper: a row tap, with the paper's OpenAlex ID; the app pushes Details.
+    ///   - onOpenPaper: a row tap, with the paper's OpenAlex ID; the app pushes Details, or shows it beside the list.
+    ///   - selectedID: the paper shown in the detail pane beside the list, highlighted; nil when Details is pushed.
     public init(
         viewModel: LibraryViewModel,
         onGoToSearch: @escaping () -> Void,
         onAddPaper: @escaping () -> Void,
         onOpenSettings: @escaping () -> Void,
-        onOpenPaper: @escaping (String) -> Void = { _ in }
+        onOpenPaper: @escaping (String) -> Void = { _ in },
+        selectedID: String? = nil
     ) {
+        self.selectedID = selectedID
         self.viewModel = viewModel
         self.onGoToSearch = onGoToSearch
         self.onAddPaper = onAddPaper
@@ -241,7 +245,8 @@ public struct LibraryView: View {
                 }
                 // Keeps the badge's menu and the row's tap separate: tapping the badge never opens Details.
                 .buttonStyle(.borderless)
-                .listRowBackground(HashiyaColors.surface)
+                .listRowBackground(saved.id == selectedID ? HashiyaColors.secondaryContainer : HashiyaColors.surface)
+                .accessibilityAddTraits(saved.id == selectedID ? .isSelected : [])
                 .listRowSeparatorTint(HashiyaColors.outlineVariant)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     if inCollection {

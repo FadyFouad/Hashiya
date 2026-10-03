@@ -18,6 +18,12 @@ struct RootView: View {
     /// Details, and the reader above it.
     @State private var libraryPath = NavigationPath()
     @State private var searchPath = NavigationPath()
+    /// Wide windows (regular width): the paper shown beside the Library's list, and each detail pane's own stack (the
+    /// reader above Details; in Search, Details and the reader above the preview).
+    @State private var libraryPaperID: String?
+    @State private var libraryDetailPath = NavigationPath()
+    @State private var searchDetailPath = NavigationPath()
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     /// Bumped on every scene phase change, so a background suspend that waited for writes is dropped once the app is active again.
     @State private var phaseGeneration = 0
     @State private var libraryViewModel: LibraryViewModel
@@ -110,40 +116,130 @@ struct RootView: View {
         }
     }
 
+    @ViewBuilder
     private var libraryStack: some View {
-        NavigationStack(path: $libraryPath) {
-            LibraryView(
-                viewModel: libraryViewModel,
-                onGoToSearch: { selectedTab = .search },
-                onAddPaper: {
-                    searchViewModel.startFresh(focus: true)
-                    selectedTab = .search
-                },
-                onOpenSettings: { showsSettings = true },
-                onOpenPaper: { libraryPath.append(PaperDetailsRoute(openAlexID: $0)) }
-            )
-            .navigationDestination(for: PaperDetailsRoute.self) { route in
-                details(route, in: .library)
+        if showsPanes {
+            // The list always shows beside the detail; the tab bar's own button is the only sidebar toggle.
+            NavigationSplitView(columnVisibility: .constant(.all)) {
+                libraryList(onOpenPaper: { id in
+                    libraryPaperID = id
+                    libraryDetailPath = NavigationPath()
+                }, selectedID: libraryPaperID)
+                .navigationSplitViewColumnWidth(min: 320, ideal: 380, max: 480)
+                    .toolbar(removing: .sidebarToggle)
+            } detail: {
+                // A new stack per paper (its identity): Details keeps its first view model, so another paper needs a
+                // new screen, and its reader must not stay stacked above it. The identity goes on the stack, not on
+                // its root view: a root with a changing identity doesn't show what is pushed above it.
+                NavigationStack(path: $libraryDetailPath) {
+                    libraryPaneRoot
+                        .navigationDestination(for: ReaderRoute.self) { route in
+                            reader(route, in: .library)
+                        }
+                }
+                .id(libraryPaperID)
             }
-            .navigationDestination(for: ReaderRoute.self) { route in
-                reader(route, in: .library)
+            .navigationSplitViewStyle(.balanced)
+        } else {
+            NavigationStack(path: $libraryPath) {
+                libraryList(onOpenPaper: { libraryPath.append(PaperDetailsRoute(openAlexID: $0)) }, selectedID: nil)
+                    .navigationDestination(for: PaperDetailsRoute.self) { route in
+                        details(route, in: .library)
+                    }
+                    .navigationDestination(for: ReaderRoute.self) { route in
+                        reader(route, in: .library)
+                    }
             }
         }
     }
 
+    @ViewBuilder
+    private var libraryPaneRoot: some View {
+        if let id = libraryPaperID {
+            details(PaperDetailsRoute(openAlexID: id), in: .library)
+        } else {
+            NoSelectionView.library
+        }
+    }
+
+    private func libraryList(onOpenPaper: @escaping (String) -> Void, selectedID: String?) -> some View {
+        LibraryView(
+            viewModel: libraryViewModel,
+            onGoToSearch: { selectedTab = .search },
+            onAddPaper: {
+                searchViewModel.startFresh(focus: true)
+                selectedTab = .search
+            },
+            onOpenSettings: { showsSettings = true },
+            onOpenPaper: onOpenPaper,
+            selectedID: selectedID
+        )
+    }
+
+    @ViewBuilder
     private var searchStack: some View {
-        NavigationStack(path: $searchPath) {
-            SearchView(
-                viewModel: searchViewModel,
-                onOpenSettings: { showsSettings = true },
-                onOpenPaper: { searchPath.append(PaperDetailsRoute(openAlexID: $0)) }
+        if showsPanes {
+            // The list always shows beside the detail; the tab bar's own button is the only sidebar toggle.
+            NavigationSplitView(columnVisibility: .constant(.all)) {
+                SearchView(viewModel: searchViewModel, onOpenSettings: { showsSettings = true }, previewsInPane: true)
+                    .navigationSplitViewColumnWidth(min: 320, ideal: 400, max: 480)
+                    .toolbar(removing: .sidebarToggle)
+            } detail: {
+                NavigationStack(path: $searchDetailPath) {
+                    searchPreviewPane
+                        .navigationDestination(for: PaperDetailsRoute.self) { route in
+                            details(route, in: .search)
+                        }
+                        .navigationDestination(for: ReaderRoute.self) { route in
+                            reader(route, in: .search)
+                        }
+                }
+            }
+            .navigationSplitViewStyle(.balanced)
+            // Another result replaces whatever was opened from the last one.
+            .onChange(of: searchViewModel.selectedPaper?.id) { searchDetailPath = NavigationPath() }
+        } else {
+            NavigationStack(path: $searchPath) {
+                SearchView(
+                    viewModel: searchViewModel,
+                    onOpenSettings: { showsSettings = true },
+                    onOpenPaper: { searchPath.append(PaperDetailsRoute(openAlexID: $0)) }
+                )
+                .navigationDestination(for: PaperDetailsRoute.self) { route in
+                    details(route, in: .search)
+                }
+                .navigationDestination(for: ReaderRoute.self) { route in
+                    reader(route, in: .search)
+                }
+            }
+        }
+    }
+
+    /// The picked result's preview, beside the results; Open details pushes Details inside this pane.
+    @ViewBuilder
+    private var searchPreviewPane: some View {
+        if let paper = searchViewModel.selectedPaper {
+            let saved = searchViewModel.isSaved(paper)
+            PaperPreviewContent(
+                paper: paper,
+                inLibrary: saved,
+                onToggleSave: { Task { await searchViewModel.toggleSave(paper) } },
+                onOpenDOI: { doi in if let url = DOILink.url(for: doi) { openURL(url) } },
+                onOpenDetails: saved ? { searchDetailPath.append(PaperDetailsRoute(openAlexID: paper.openAlexID)) } : nil
             )
-            .navigationDestination(for: PaperDetailsRoute.self) { route in
-                details(route, in: .search)
+            .id(paper.id)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        searchViewModel.selectedPaper = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel(Text(verbatim: DesignSystemStrings.closePreview))
+                }
             }
-            .navigationDestination(for: ReaderRoute.self) { route in
-                reader(route, in: .search)
-            }
+        } else {
+            NoSelectionView.search
         }
     }
 
@@ -171,12 +267,7 @@ struct RootView: View {
                     }
                 }
             },
-            onReadPdf: { id in
-                switch tab {
-                case .library: libraryPath.append(ReaderRoute(openAlexID: id))
-                case .search: searchPath.append(ReaderRoute(openAlexID: id))
-                }
-            }
+            onReadPdf: { id in push(ReaderRoute(openAlexID: id), in: tab) }
         )
     }
 
@@ -188,10 +279,26 @@ struct RootView: View {
         )
     }
 
+    /// List and detail side by side: on a regular-width window (iPad full screen, most iPad windows), as Apple's split
+    /// views do. Compact width (iPhone, narrow iPad windows) keeps one stack per tab.
+    private var showsPanes: Bool { horizontalSizeClass == .regular }
+
     private func pop(_ tab: Tab) {
-        switch tab {
-        case .library: if !libraryPath.isEmpty { libraryPath.removeLast() }
-        case .search: if !searchPath.isEmpty { searchPath.removeLast() }
+        switch (tab, showsPanes) {
+        case (.library, false): if !libraryPath.isEmpty { libraryPath.removeLast() }
+        case (.search, false): if !searchPath.isEmpty { searchPath.removeLast() }
+        // Closing Details at the root of the Library's pane clears the selection: the placeholder shows again.
+        case (.library, true): if libraryDetailPath.isEmpty { libraryPaperID = nil } else { libraryDetailPath.removeLast() }
+        case (.search, true): if !searchDetailPath.isEmpty { searchDetailPath.removeLast() }
+        }
+    }
+
+    private func push(_ route: some Hashable, in tab: Tab) {
+        switch (tab, showsPanes) {
+        case (.library, false): libraryPath.append(route)
+        case (.search, false): searchPath.append(route)
+        case (.library, true): libraryDetailPath.append(route)
+        case (.search, true): searchDetailPath.append(route)
         }
     }
 

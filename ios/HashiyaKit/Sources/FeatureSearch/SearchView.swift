@@ -7,6 +7,7 @@ public struct SearchView: View {
     @Bindable private var viewModel: SearchViewModel
     private let onOpenSettings: () -> Void
     private let onOpenPaper: (String) -> Void
+    private let previewsInPane: Bool
 
     @SceneStorage(SearchSceneState.textKey) private var storedText = ""
     @SceneStorage(SearchSceneState.sortKey) private var storedSort = SearchSort.relevance.rawValue
@@ -20,8 +21,17 @@ public struct SearchView: View {
     @State private var detailsRequest: String?
     @Environment(\.openURL) private var openURL
 
-    /// - Parameter onOpenPaper: Open details in a saved paper's sheet, with its OpenAlex ID, once the sheet is gone.
-    public init(viewModel: SearchViewModel, onOpenSettings: @escaping () -> Void, onOpenPaper: @escaping (String) -> Void = { _ in }) {
+    /// - Parameters:
+    ///   - onOpenPaper: Open details in a saved paper's sheet, with its OpenAlex ID, once the sheet is gone.
+    ///   - previewsInPane: the app shows `viewModel.selectedPaper` in a pane beside the results (wide windows), so this
+    ///     screen shows no preview sheet and highlights the picked result.
+    public init(
+        viewModel: SearchViewModel,
+        onOpenSettings: @escaping () -> Void,
+        onOpenPaper: @escaping (String) -> Void = { _ in },
+        previewsInPane: Bool = false
+    ) {
+        self.previewsInPane = previewsInPane
         self.viewModel = viewModel
         self.onOpenSettings = onOpenSettings
         self.onOpenPaper = onOpenPaper
@@ -45,7 +55,7 @@ public struct SearchView: View {
                     .accessibilityLabel(Text(verbatim: L10n.string("search.settings")))
                 }
             }
-            .sheet(item: $viewModel.selectedPaper, onDismiss: openRequestedDetails) { paper in
+            .sheet(item: previewsInPane ? .constant(nil) : $viewModel.selectedPaper, onDismiss: openRequestedDetails) { paper in
                 preview(paper)
             }
             .sheet(isPresented: $showsYearRange) {
@@ -204,6 +214,7 @@ public struct SearchView: View {
                     PaperCard(
                         paper: paper,
                         inLibrary: viewModel.isSaved(paper),
+                        isSelected: previewsInPane && viewModel.selectedPaper?.id == paper.id,
                         onOpen: { viewModel.selectedPaper = paper },
                         onSave: { Task { await viewModel.toggleSave(paper) } }
                     )

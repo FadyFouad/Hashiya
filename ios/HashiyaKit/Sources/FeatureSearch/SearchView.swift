@@ -22,7 +22,8 @@ public struct SearchView: View {
     @Environment(\.openURL) private var openURL
 
     /// - Parameters:
-    ///   - onOpenPaper: Open details in a saved paper's sheet, with its OpenAlex ID, once the sheet is gone.
+    ///   - onOpenPaper: Open details, with the paper's OpenAlex ID: in a saved paper's sheet once the sheet is gone,
+    ///     or in a saved result's menu.
     ///   - previewsInPane: the app shows `viewModel.selectedPaper` in a pane beside the results (wide windows), so this
     ///     screen shows no preview sheet and highlights the picked result.
     public init(
@@ -68,6 +69,12 @@ public struct SearchView: View {
             .task(id: viewModel.focusRequested) {
                 // Add paper: activate the field (and the keyboard) once, also when this tab appears for it.
                 guard viewModel.focusRequested else { return }
+                // A field still active from the last search but without the keyboard: setting true again would do
+                // nothing, so end it first.
+                if isSearchActive {
+                    isSearchActive = false
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
                 isSearchActive = true
                 viewModel.focusHandled()
             }
@@ -218,6 +225,8 @@ public struct SearchView: View {
                         onOpen: { viewModel.selectedPaper = paper },
                         onSave: { Task { await viewModel.toggleSave(paper) } }
                     )
+                    // Long press, or a secondary click with a pointer.
+                    .contextMenu { resultMenu(paper) }
                     .onAppear {
                         if paper.id == viewModel.papers.last?.id { viewModel.loadMore() }
                     }
@@ -227,6 +236,33 @@ public struct SearchView: View {
             .padding(.bottom, 16)
         }
         .scrollDismissesKeyboard(.immediately)
+    }
+
+    @ViewBuilder
+    private func resultMenu(_ paper: Paper) -> some View {
+        let saved = viewModel.isSaved(paper)
+        Button(role: saved ? .destructive : nil) {
+            Task { await viewModel.toggleSave(paper) }
+        } label: {
+            Label {
+                Text(verbatim: saved ? DesignSystemStrings.removeFromLibrary : DesignSystemStrings.saveToLibrary)
+            } icon: {
+                Image(systemName: saved ? "trash" : "bookmark")
+            }
+        }
+        if saved {
+            Button {
+                // Beside the results, Details opens above this paper's preview.
+                if previewsInPane { viewModel.selectedPaper = paper }
+                onOpenPaper(paper.openAlexID)
+            } label: {
+                Label {
+                    Text(verbatim: DesignSystemStrings.openDetails)
+                } icon: {
+                    Image(systemName: "doc.text")
+                }
+            }
+        }
     }
 
     @ViewBuilder

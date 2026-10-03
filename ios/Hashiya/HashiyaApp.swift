@@ -21,6 +21,7 @@ struct HashiyaApp: App {
                 Color.clear
             }
         }
+        .commands { AppCommands() }
     }
 
     /// True while the app hosts `HashiyaSnapshotTests` (Debug only): XCTest sets this variable in its host's

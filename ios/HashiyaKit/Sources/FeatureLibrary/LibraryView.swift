@@ -230,6 +230,7 @@ public struct LibraryView: View {
                         .contentShape(Rectangle())
                         .onTapGesture { onOpenPaper(saved.id) }
                         .accessibilityAddTraits(.isButton)
+                        .hoverEffect(.highlight)
                     ReadingStatusBadge(status: saved.status) { status in
                         Task { await viewModel.setStatus(of: saved.paper, to: status) }
                     }
@@ -249,27 +250,20 @@ public struct LibraryView: View {
                 .accessibilityAddTraits(saved.id == selectedID ? .isSelected : [])
                 .listRowSeparatorTint(HashiyaColors.outlineVariant)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    if inCollection {
-                        Button(role: .destructive) {
-                            Task { await viewModel.removeFromCollection(openAlexID: saved.paper.openAlexID) }
-                        } label: {
-                            Label {
-                                Text(verbatim: L10n.string("library.removeFromCollection"))
-                            } icon: {
-                                Image(systemName: "folder.badge.minus")
-                            }
-                        }
-                    } else {
-                        Button(role: .destructive) {
-                            Task { await viewModel.remove(saved.paper) }
-                        } label: {
-                            Label {
-                                Text(verbatim: L10n.string("library.remove"))
-                            } icon: {
-                                Image(systemName: "trash")
-                            }
+                    removeButton(saved, inCollection: inCollection)
+                }
+                // Long press, or a secondary click with a pointer.
+                .contextMenu {
+                    Button {
+                        onOpenPaper(saved.id)
+                    } label: {
+                        Label {
+                            Text(verbatim: L10n.string("library.open"))
+                        } icon: {
+                            Image(systemName: "doc.text")
                         }
                     }
+                    removeButton(saved, inCollection: inCollection)
                 }
             }
         }
@@ -277,6 +271,25 @@ public struct LibraryView: View {
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.immediately)
         .contentMargins(.bottom, Self.addPaperClearance, for: .scrollContent)
+    }
+
+    /// Removes the paper from the library, or in a collection only from that collection; both with Undo.
+    private func removeButton(_ saved: LibraryPaper, inCollection: Bool) -> some View {
+        Button(role: .destructive) {
+            Task {
+                if inCollection {
+                    await viewModel.removeFromCollection(openAlexID: saved.paper.openAlexID)
+                } else {
+                    await viewModel.remove(saved.paper)
+                }
+            }
+        } label: {
+            Label {
+                Text(verbatim: L10n.string(inCollection ? "library.removeFromCollection" : "library.remove"))
+            } icon: {
+                Image(systemName: inCollection ? "folder.badge.minus" : "trash")
+            }
+        }
     }
 }
 

@@ -358,6 +358,23 @@
         }
       }
     },
+    "library.open" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فتح"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open"
+          }
+        }
+      }
+    },
     "library.paperCount" : {
       "extractionState" : "manual",
       "localizations" : {

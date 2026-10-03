@@ -67,6 +67,8 @@ public struct PaperCard: View {
         .background(RoundedRectangle(cornerRadius: 10).fill(isSelected ? HashiyaColors.secondaryContainer : HashiyaColors.surface))
         .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(HashiyaColors.outlineVariant, lineWidth: 1))
         .contentShape(RoundedRectangle(cornerRadius: 10))
+        .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 10))
+        .hoverEffect(.highlight)
         .onTapGesture(perform: onOpen)
         .padding(.horizontal, 12)
         .padding(.vertical, 5)

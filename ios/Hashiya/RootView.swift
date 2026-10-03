@@ -176,10 +176,7 @@ struct RootView: View {
         LibraryView(
             viewModel: libraryViewModel,
             onGoToSearch: { selectedTab = .search },
-            onAddPaper: {
-                searchViewModel.startFresh(focus: true)
-                selectedTab = .search
-            },
+            onAddPaper: addPaper,
             onOpenSettings: { showsSettings = true },
             onOpenPaper: { libraryRoutes = [.details(PaperDetailsRoute(openAlexID: $0))] },
             selectedID: selectedID
@@ -190,7 +187,12 @@ struct RootView: View {
     private var searchStack: some View {
         if showsPanes {
             NavigationSplitView(columnVisibility: $searchColumns) {
-                SearchView(viewModel: searchViewModel, onOpenSettings: { showsSettings = true }, previewsInPane: true)
+                SearchView(
+                    viewModel: searchViewModel,
+                    onOpenSettings: { showsSettings = true },
+                    onOpenPaper: { searchRoutes = [.details(PaperDetailsRoute(openAlexID: $0))] },
+                    previewsInPane: true
+                )
                     .navigationSplitViewColumnWidth(min: 320, ideal: 400, max: 480)
             } detail: {
                 NavigationStack(path: $searchRoutes) {
@@ -199,9 +201,10 @@ struct RootView: View {
                 }
             }
             .navigationSplitViewStyle(.balanced)
-            // Another result replaces whatever was opened from the last one.
+            // Another result replaces whatever was opened from the last one (a result's menu opens its Details along
+            // with its preview).
             .onChange(of: searchViewModel.selectedPaper?.id) { _, id in
-                if id != nil { searchRoutes = [] }
+                if let id, searchRoutes.first?.openAlexID != id { searchRoutes = [] }
             }
         } else {
             NavigationStack(path: $searchRoutes) {
@@ -250,6 +253,7 @@ struct RootView: View {
             SettingsView(viewModel: container.makeSettingsViewModel())
         }
         .task { await presentUITestingShareSheetIfRequested() }
+        .focusedSceneValue(\.appCommands, commandActions)
         .onAppear(perform: restoreScene)
         .onChange(of: selectedTab) { savedTab = selectedTab.rawValue }
         .onChange(of: libraryRoutes) { savedLibraryRoutes = libraryRoutes.sceneData }
@@ -266,6 +270,22 @@ struct RootView: View {
                 searchViewModel.selectedPaper = nil
             }
         }
+    }
+
+    /// The menu bar's commands in this window.
+    private var commandActions: AppCommandActions {
+        AppCommandActions(
+            showLibrary: { selectedTab = .library },
+            showSearch: { selectedTab = .search },
+            addPaper: addPaper,
+            openSettings: { showsSettings = true }
+        )
+    }
+
+    /// Search, cleared and ready for input: the Library's Add paper and ⌘N.
+    private func addPaper() {
+        searchViewModel.startFresh(focus: true)
+        selectedTab = .search
     }
 
     /// Brings back this window's tab and open screens once. UI tests always start fresh at the Library.

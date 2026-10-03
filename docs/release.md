@@ -114,8 +114,9 @@ All text is in `docs/store/metadata.md`.
   - App name, short and full descriptions.
   - App icon: `android/app/src/main/ic_launcher-playstore.png` (512 px).
   - Phone screenshots from `docs/store/play-store/en/`.
+  - 7" and 10" tablet screenshots from `docs/store/play-store-tablet/en/`.
   - Feature graphic: `docs/store/play-store/feature-graphic.png` (1024 × 500).
-- **Store listing, Arabic:** Translations → add Arabic → the Arabic text and `docs/store/play-store/ar/` screenshots.
+- **Store listing, Arabic:** Translations → add Arabic → the Arabic text and the `docs/store/play-store/ar/` and `docs/store/play-store-tablet/ar/` screenshots.
 - **Store settings:** category Education, contact email.
 
 ### Testing and release

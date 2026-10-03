@@ -360,34 +360,19 @@ private fun DetailsBody(
         PaperHeader(paper)
         Spacer(Modifier.height(16.dp))
         ReadingStatusSelector(state.paper.status, actions.onStatusChange)
-        Spacer(Modifier.height(8.dp))
-        CollectionsRow(state.collections, state.memberOf, onClick = onOpenCollections)
-        PdfRowView(pdf, onPdfAction)
-        PaperLinks(paper, actions.onOpenLink)
+        Spacer(Modifier.height(16.dp))
+        // One Material 3 grouped list: Collections, PDF and, when the paper has one, its DOI.
+        val doi = paper.doi
+        val rows = if (doi != null) 3 else 2
+        Column(verticalArrangement = Arrangement.spacedBy(GroupedRowGap)) {
+            CollectionsRow(state.collections, state.memberOf, groupedRowShape(0, rows), onClick = onOpenCollections)
+            PdfRowView(pdf, groupedRowShape(1, rows), onPdfAction)
+            if (doi != null) DoiRow(doi, groupedRowShape(2, rows)) { actions.onOpenLink("https://doi.org/$doi") }
+        }
         Spacer(Modifier.height(16.dp))
         PaperAbstract(paper)
         Spacer(Modifier.height(24.dp))
         NotesHeading(state.saveState)
         NoteFields(state.notes, notesVersion, actions.onNoteChange)
-    }
-}
-
-@Composable
-private fun PaperLinks(paper: Paper, onOpenLink: (String) -> Unit) {
-    val doi = paper.doi ?: return
-    Spacer(Modifier.height(12.dp))
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        LinkButton(stringResource(DesignR.string.designsystem_open_doi), Modifier.widthIn(max = ControlMaxWidth).fillMaxWidth(), onClick = {
-            onOpenLink("https://doi.org/$doi")
-        })
-    }
-}
-
-@Composable
-private fun LinkButton(label: String, modifier: Modifier, onClick: () -> Unit) {
-    OutlinedButton(onClick = onClick, modifier = modifier) {
-        Text(label)
-        Spacer(Modifier.width(6.dp))
-        Icon(HashiyaIcons.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
     }
 }

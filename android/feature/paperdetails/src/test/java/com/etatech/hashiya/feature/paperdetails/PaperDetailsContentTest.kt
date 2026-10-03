@@ -79,12 +79,21 @@ class PaperDetailsContentTest {
     }
 
     @Test
-    fun theDoiLinkOpensTheDoi() {
+    fun theDoiRowOpensTheDoi() {
         show(loaded(SamplePapers.attention))
 
-        composeRule.onNodeWithText("Open DOI").performScrollTo().performClick()
+        composeRule.onNodeWithText("10.48550/arxiv.1706.03762").assertExists()
+        composeRule.onNodeWithTag(DOI_ROW_TAG).performScrollTo().performClick()
 
         assertEquals(listOf("open:https://doi.org/10.48550/arxiv.1706.03762"), events)
+    }
+
+    @Test
+    fun noDoiNoDoiRow() {
+        show(loaded(SamplePapers.attention.copy(doi = null)))
+
+        composeRule.onNodeWithTag(DOI_ROW_TAG).assertDoesNotExist()
+        composeRule.onNodeWithText("DOI").assertDoesNotExist()
     }
 
     @Test

@@ -1,7 +1,6 @@
 package com.etatech.hashiya.feature.paperdetails
 
 import android.net.Uri
-import androidx.lifecycle.SavedStateHandle
 import com.etatech.hashiya.core.data.repository.AttachResult
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
@@ -35,7 +34,7 @@ class PaperDetailsAttachPdfTest {
 
     private fun TestScope.viewModel(): PaperDetailsViewModel {
         val viewModel = PaperDetailsViewModel(
-            SavedStateHandle(mapOf(ARG_OPEN_ALEX_ID to id)),
+            id,
             library,
             FakeCollectionsRepository(library),
             FakeCitationRepository(),

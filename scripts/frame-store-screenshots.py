@@ -4,6 +4,7 @@
 Reads docs/store/raw/<platform>/<lang>/<n>-<name>.png and writes docs/store/<platform>/<lang>/<n>-<name>.png.
   app-store: 1320x2868 (iPhone 6.9")
   play-store: 1080x1920 (phone, 9:16)
+  play-store-tablet: 1920x1080 (tablet, 16:9 landscape)
 Also draws the Play feature graphic (1024x500) at docs/store/play-store/feature-graphic.png.
 Needs Pillow built with libraqm for Arabic shaping (pip3 install pillow), and rsvg-convert for the glyph.
 """
@@ -25,7 +26,10 @@ PRIMARY_DEEP = (0x06, 0x4A, 0x4A)
 ON_PRIMARY = (0xFF, 0xFF, 0xFF)
 PRIMARY_CONTAINER = (0xD7, 0xEC, 0xEA)
 
-SIZES = {"app-store": (1320, 2868), "play-store": (1080, 1920)}
+SIZES = {"app-store": (1320, 2868), "play-store": (1080, 1920), "play-store-tablet": (1920, 1080)}
+
+# The width in dp each platform's raw Android captures were rendered at, for the status bar's scale.
+CAPTURE_WIDTH_DP = {"play-store": 411, "play-store-tablet": 1280}
 
 CAPTIONS = {
     "en": {
@@ -35,6 +39,9 @@ CAPTIONS = {
         "4-library-search": ("Your library, offline", "Search your saved papers anytime,\neven without a connection"),
         "5-reader": ("Read with your notes", "Open the PDF and jot down the summary,\nmethod and findings as you go"),
         "6-collections": ("Organize into collections", "Group papers by project, thesis or course,\nand export them as BibTeX"),
+        "tablet-1-search": ("Search and preview side by side", "Results and the abstract together on a bigger screen"),
+        "tablet-2-reader": ("Your notes beside the PDF", "Read and write at the same time"),
+        "tablet-3-details": ("Track your reading", "Status, collections, PDF and notes in one place"),
     },
     "ar": {
         "1-search": ("ابحث عن أي ورقة بحثية", "ملايين الأعمال العلمية في مكان واحد،\nأو الصق DOI أو معرّف arXiv أو رابطًا"),
@@ -43,6 +50,9 @@ CAPTIONS = {
         "4-library-search": ("مكتبتك معك دائمًا", "ابحث في أوراقك المحفوظة في أي وقت،\nحتى دون اتصال"),
         "5-reader": ("اقرأ وملاحظاتك بجانبك", "افتح ملف PDF ودوّن الخلاصة\nوالمنهجية والنتائج أثناء القراءة"),
         "6-collections": ("نظّم أوراقك في مجموعات", "جمّع الأوراق حسب المشروع أو الرسالة أو المقرر،\nوصدّرها بصيغة BibTeX"),
+        "tablet-1-search": ("ابحث واطّلع جنبًا إلى جنب", "النتائج والملخص معًا على الشاشة الكبيرة"),
+        "tablet-2-reader": ("ملاحظاتك بجانب ملف PDF", "اقرأ ودوّن في الوقت نفسه"),
+        "tablet-3-details": ("تابع قراءاتك", "الحالة والمجموعات وملف PDF والملاحظات في مكان واحد"),
     },
 }
 
@@ -79,10 +89,10 @@ def draw_centered(draw: ImageDraw.ImageDraw, text: str, fnt, y: int, width: int,
     return y
 
 
-def with_status_bar(shot: Image.Image, lang: str) -> Image.Image:
+def with_status_bar(shot: Image.Image, lang: str, width_dp: int) -> Image.Image:
     """Android captures are rendered without system bars: adds a 24dp status bar (time, signal, battery).
     In Arabic the bar is mirrored, as Android does for right-to-left locales."""
-    dp = shot.width / 411
+    dp = shot.width / width_dp
     bar_h = round(24 * dp)
     out = Image.new("RGB", (shot.width, shot.height + bar_h), shot.getpixel((shot.width // 2, 2)))
     out.paste(shot, (0, bar_h))
@@ -113,7 +123,8 @@ def frame(capture: Path, platform: str, lang: str, key: str) -> Image.Image:
     draw = ImageDraw.Draw(canvas)
     title, subtitle = CAPTIONS[lang][key]
 
-    unit = width / 100
+    # From the shorter side, so landscape (tablet) captions aren't sized for a 1920px-wide phone.
+    unit = min(width, height) / 100
     y = round(height * 0.055)
     y = draw_centered(draw, title, font(lang, "semibold", round(unit * 7.4)), y, width, ON_PRIMARY, lang, round(unit * 1.2))
     y += round(unit * 1.6)
@@ -121,8 +132,8 @@ def frame(capture: Path, platform: str, lang: str, key: str) -> Image.Image:
 
     # The capture, scaled to fill the space below the caption, with a bezel and a soft shadow.
     shot = Image.open(capture).convert("RGB")
-    if platform == "play-store":
-        shot = with_status_bar(shot, lang)
+    if platform in CAPTURE_WIDTH_DP:
+        shot = with_status_bar(shot, lang, CAPTURE_WIDTH_DP[platform])
     top = y + round(unit * 5)
     bottom_margin = round(height * 0.035)
     target_h = height - top - bottom_margin
@@ -131,7 +142,8 @@ def frame(capture: Path, platform: str, lang: str, key: str) -> Image.Image:
     if target_w > max_w:
         target_w, target_h = max_w, round(shot.height * max_w / shot.width)
     shot = shot.resize((target_w, target_h), Image.LANCZOS)
-    radius = round(target_w * 0.085)
+    # Tablets have tighter corners than phones (which would also clip the tablet's status bar).
+    radius = round(min(target_w, target_h) * (0.03 if platform == "play-store-tablet" else 0.085))
     bezel = round(unit * 1.1)
     x = (width - target_w) // 2
 

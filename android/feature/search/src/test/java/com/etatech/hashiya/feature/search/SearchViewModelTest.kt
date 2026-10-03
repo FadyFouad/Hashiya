@@ -551,6 +551,19 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun ctrlFFocusesTheFieldAndKeepsTheSearch() = runTest {
+        val viewModel = viewModel()
+        viewModel.onTextChange("attention")
+        viewModel.onSearchAction()
+        runCurrent()
+
+        viewModel.onFocusRequested()
+
+        assertTrue(viewModel.focusSearch.value)
+        assertEquals("attention", viewModel.uiState.value.text)
+    }
+
+    @Test
     fun removeRequestFromDetailsRemovesThePaper() = runTest {
         libraryRepository.save(SamplePapers.bert)
         val viewModel = viewModel()

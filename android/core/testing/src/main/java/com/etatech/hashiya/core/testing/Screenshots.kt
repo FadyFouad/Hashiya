@@ -23,6 +23,9 @@ import org.robolectric.RuntimeEnvironment
 /** Default device for screen-level screenshots. Use with `@Config(qualifiers = PHONE_QUALIFIERS)`. */
 const val PHONE_QUALIFIERS = "w360dp-h780dp-xhdpi"
 
+/** A tablet in landscape (Pixel Tablet), for screenshots of the wide layouts: list and detail side by side. */
+const val TABLET_QUALIFIERS = "w1280dp-h800dp-mdpi"
+
 private const val SCREENSHOT_TAG = "screenshot_root"
 
 /** [qualifiers] are Robolectric qualifiers added on top of the class's `@Config` ones. */

@@ -203,7 +203,11 @@ TRACK YOUR READING
 
 MADE FOR ARABIC AND ENGLISH
 • Full Arabic and English interfaces with right-to-left layouts, and a per-app language setting.
-• Light and dark themes, on phones, tablets and foldables.
+• Light and dark themes.
+
+MADE FOR BIG SCREENS
+• On tablets, foldables and Chromebooks, a paper opens beside your library or search results, and your notes sit beside the PDF.
+• Keyboard shortcuts and right-click menus when you use a keyboard and mouse.
 
 PRIVATE BY DESIGN
 • No account, no tracking and no ads. Your library never leaves your device.
@@ -258,7 +262,11 @@ New: notes for every paper, an in-app PDF reader with your notes beside the page
 
 بالعربية والإنجليزية
 • واجهة كاملة بالعربية والإنجليزية مع تخطيط من اليمين إلى اليسار، ولغة خاصة بالتطبيق.
-• مظهر فاتح وداكن، على الهواتف والأجهزة اللوحية والأجهزة القابلة للطي.
+• مظهر فاتح وداكن.
+
+على الشاشات الكبيرة
+• على الأجهزة اللوحية والقابلة للطي وأجهزة Chromebook، تُفتح الورقة بجانب مكتبتك أو نتائج البحث، وتظهر ملاحظاتك بجانب ملف PDF.
+• اختصارات لوحة المفاتيح وقوائم النقر بالزر الأيمن عند استخدام لوحة مفاتيح وفأرة.
 
 خصوصيتك أولًا
 • بلا حساب ولا تتبّع ولا إعلانات، ولا تغادر مكتبتك جهازك.

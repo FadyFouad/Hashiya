@@ -125,7 +125,7 @@ class PaperDetailsScreenshotTest(private val variant: ScreenshotVariant) {
     fun pdfAvailable() = composeRule.captureScreenshot(
         "details_pdf_available",
         variant,
-        arabicText = "ملف PDF متاح للتنزيل"
+        arabicText = "متاح للتنزيل"
     ) {
         PaperDetailsContent(
             uiState = PaperDetailsUiState.Loaded(attention, PaperNotes(), NotesSaveState.Idle),
@@ -150,6 +150,15 @@ class PaperDetailsScreenshotTest(private val variant: ScreenshotVariant) {
             uiState = PaperDetailsUiState.Loaded(attention, PaperNotes(), NotesSaveState.Idle),
             actions = PaperDetailsActions(),
             pdf = PdfRow(PdfRowState.Stored(PaperPdf(PdfSource.Downloaded, sizeBytes = 2_400_000, addedAt = 1_000)), link)
+        )
+    }
+
+    @Test
+    fun pdfNone() = composeRule.captureScreenshot("details_pdf_none", variant, arabicText = "لا يوجد ملف PDF") {
+        PaperDetailsContent(
+            uiState = PaperDetailsUiState.Loaded(LibraryPaper(SamplePapers.vit, ReadingStatus.ToRead), PaperNotes(), NotesSaveState.Idle),
+            actions = PaperDetailsActions(),
+            pdf = PdfRow(PdfRowState.None, null)
         )
     }
 

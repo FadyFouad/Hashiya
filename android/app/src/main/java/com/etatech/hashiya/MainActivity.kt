@@ -2,6 +2,10 @@ package com.etatech.hashiya
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.KeyboardShortcutGroup
+import android.view.KeyboardShortcutInfo
+import android.view.Menu
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
@@ -13,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.feature.search.navigation.SearchRoute
+import com.etatech.hashiya.navigation.AppShortcut
 import com.etatech.hashiya.navigation.HashiyaApp
 import com.etatech.hashiya.share.shareToSearchRoute
 import com.etatech.hashiya.update.AppUpdateViewModel
@@ -23,6 +28,9 @@ import dagger.hilt.android.AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
     /** A shared page waiting to be opened in Search; cleared once navigation has happened. */
     private var pendingSearch by mutableStateOf<SearchRoute?>(null)
+
+    /** A keyboard shortcut waiting for the app to act on it. */
+    private var pendingShortcut by mutableStateOf<AppShortcut?>(null)
 
     private val appUpdate: AppUpdateViewModel by viewModels()
 
@@ -37,7 +45,9 @@ class MainActivity : AppCompatActivity() {
                     pendingSearch = pendingSearch,
                     onPendingSearchHandled = { pendingSearch = null },
                     requiredUpdate = requiredUpdate,
-                    onOpenStore = ::openStore
+                    onOpenStore = ::openStore,
+                    shortcut = pendingShortcut,
+                    onShortcutHandled = { pendingShortcut = null }
                 )
             }
         }
@@ -61,6 +71,35 @@ class MainActivity : AppCompatActivity() {
      */
     private fun isFreshLaunch(savedInstanceState: Bundle?): Boolean = savedInstanceState == null &&
         (intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY) == 0
+
+    /** Ctrl shortcuts no focused view handled. */
+    override fun onKeyShortcut(keyCode: Int, event: KeyEvent): Boolean {
+        val shortcut = AppShortcut.forKey(keyCode, event.metaState) ?: return super.onKeyShortcut(keyCode, event)
+        pendingShortcut = shortcut
+        return true
+    }
+
+    /**
+     * Esc with nothing focused goes back, as the app's content does for a focused Esc, but only when there is somewhere to
+     * go back to: Esc never closes the app.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (super.dispatchKeyEvent(event)) return true
+        if (event.keyCode != KeyEvent.KEYCODE_ESCAPE) return false
+        if (event.action == KeyEvent.ACTION_UP && !event.isCanceled && onBackPressedDispatcher.hasEnabledCallbacks()) {
+            onBackPressedDispatcher.onBackPressed()
+        }
+        return true
+    }
+
+    /** Lists the shortcuts in the system's keyboard shortcuts helper (Meta + /). */
+    override fun onProvideKeyboardShortcuts(data: MutableList<KeyboardShortcutGroup>, menu: Menu?, deviceId: Int) {
+        super.onProvideKeyboardShortcuts(data, menu, deviceId)
+        data += KeyboardShortcutGroup(
+            getString(R.string.app_name),
+            AppShortcut.entries.map { KeyboardShortcutInfo(getString(it.labelRes), it.keyCode, KeyEvent.META_CTRL_ON) }
+        )
+    }
 
     /** A device without a store app or browser keeps showing the screen instead of crashing. */
     private fun openStore(url: String) {

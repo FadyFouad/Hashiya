@@ -114,8 +114,9 @@ All text is in `docs/store/metadata.md`.
   - App name, short and full descriptions.
   - App icon: `android/app/src/main/ic_launcher-playstore.png` (512 px).
   - Phone screenshots from `docs/store/play-store/en/`.
+  - 7" and 10" tablet screenshots from `docs/store/play-store-tablet/en/`.
   - Feature graphic: `docs/store/play-store/feature-graphic.png` (1024 × 500).
-- **Store listing, Arabic:** Translations → add Arabic → the Arabic text and `docs/store/play-store/ar/` screenshots.
+- **Store listing, Arabic:** Translations → add Arabic → the Arabic text and the `docs/store/play-store/ar/` and `docs/store/play-store-tablet/ar/` screenshots.
 - **Store settings:** category Education, contact email.
 
 ### Testing and release
@@ -123,6 +124,21 @@ All text is in `docs/store/metadata.md`.
 1. **Internal testing** → Create release → upload the `.aab` → release notes → roll out. Install from the opt-in link and try the same flows as on iOS, plus sharing a link from Chrome.
 2. **Closed testing:** personal developer accounts created after 13 November 2023 must run a closed test with **at least 12 testers opted in for 14 continuous days** before they can apply for production. Organization accounts skip this step. Create a closed track, add testers by email list or Google Group, upload the same bundle, and keep 12+ testers opted in for the full 14 days.
 3. **Production:** after the closed test (or directly for organization accounts), Production → Create release → promote the tested bundle → roll out, optionally as a staged rollout (e.g. 20%). Reviews usually take a few hours to a few days.
+
+## Large screens (Android)
+
+The Android app adapts to the window it has: a bottom bar on phones, a rail from 600 dp, list and detail side by side from 840 dp (or at a book-posture hinge), and keyboard and mouse support. The unit tests cover the layout rules at compact, medium, expanded and landscape-phone sizes, a half-open fold, continuity across resizes, and the keyboard and mouse paths; the screenshot tests include a 1280 × 800 tablet in English and Arabic, light and dark. What only a device or emulator shows, check before a release that touches layouts:
+
+| Case | Where | Check |
+| --- | --- | --- |
+| Small phone | compact phone emulator | Unchanged from before: bar, sheets, Details as a screen |
+| Tablet, portrait and landscape | Pixel Tablet emulator | Library and Search show two panes in landscape, one in portrait; rail on every screen |
+| Foldable | 7.6" fold-in emulator (with outer display) | Open a paper folded, unfold: it moves into the pane; fold again: it's a screen. Half open in book posture: one pane each side of the hinge |
+| Flip cover screen | a flip emulator's outer display | Search and the Library usable and scrolling |
+| Free resize | Resizable emulator, desktop windowing | Drag across 600, 840 and 1200 dp: bar → rail → two panes → expanded rail, without losing the open paper or the reader's zoom |
+| Split screen | tablet at ½ and ⅓ | Everything works at each size |
+| Large text | font size at maximum (200%) | Cards keep their Save button; nothing cut off |
+| Keyboard and mouse | tablet or Chromebook with both | Ctrl+F, Ctrl+N, Ctrl+,, Esc; right-click a Library row and a Search result; Ctrl+scroll in the reader |
 
 ## Forcing an update
 
@@ -143,5 +159,5 @@ If the file can't be read (offline, a typo in the JSON, GitHub down), nobody is 
    - Build numbers and version codes must always increase.
 2. Move the `[Unreleased]` entries in `CHANGELOG.md` under the new version and its build. Then update "What's New" / release notes in `docs/store/metadata.md` from it, and run the metadata checker.
 3. If the UI changed, update the screenshots (`docs/store/README.md`).
-4. Archive and upload the iOS build, and build and upload the Android bundle; test through TestFlight and internal testing, then submit.
+4. Archive and upload the iOS build, and build and upload the Android bundle; test through TestFlight and internal testing (and the large-screen table above when layouts changed), then submit.
 5. Tag the release: `git tag v0.1.0 && git push origin v0.1.0`.

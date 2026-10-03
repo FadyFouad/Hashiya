@@ -1,17 +1,13 @@
 package com.etatech.hashiya.navigation
 
 import androidx.annotation.StringRes
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -22,22 +18,30 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
+import androidx.navigation.toRoute
 import com.etatech.hashiya.R
 import com.etatech.hashiya.core.designsystem.component.UpdateRequiredScreen
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
+import com.etatech.hashiya.core.designsystem.layout.showsTwoPanes
 import com.etatech.hashiya.core.model.RequiredUpdate
 import com.etatech.hashiya.feature.library.navigation.LibraryRoute
 import com.etatech.hashiya.feature.library.navigation.libraryScreen
 import com.etatech.hashiya.feature.library.navigation.navigateToLibrary
+import com.etatech.hashiya.feature.library.navigation.requestLibraryFind
 import com.etatech.hashiya.feature.library.navigation.requestLibraryRemove
+import com.etatech.hashiya.feature.library.navigation.requestLibrarySelect
+import com.etatech.hashiya.feature.paperdetails.navigation.PaperDetailsPane
+import com.etatech.hashiya.feature.paperdetails.navigation.PaperDetailsRoute
 import com.etatech.hashiya.feature.paperdetails.navigation.navigateToPaperDetails
 import com.etatech.hashiya.feature.paperdetails.navigation.paperDetailsScreen
 import com.etatech.hashiya.feature.reader.navigation.navigateToReader
 import com.etatech.hashiya.feature.reader.navigation.readerScreen
 import com.etatech.hashiya.feature.search.navigation.SearchRoute
 import com.etatech.hashiya.feature.search.navigation.navigateToSearch
+import com.etatech.hashiya.feature.search.navigation.requestSearchFind
 import com.etatech.hashiya.feature.search.navigation.requestSearchRemove
 import com.etatech.hashiya.feature.search.navigation.searchScreen
+import com.etatech.hashiya.feature.settings.navigation.SettingsRoute
 import com.etatech.hashiya.feature.settings.navigation.navigateToSettings
 import com.etatech.hashiya.feature.settings.navigation.settingsScreen
 
@@ -52,7 +56,9 @@ fun HashiyaApp(
     pendingSearch: SearchRoute? = null,
     onPendingSearchHandled: () -> Unit = {},
     requiredUpdate: RequiredUpdate? = null,
-    onOpenStore: (String) -> Unit = {}
+    onOpenStore: (String) -> Unit = {},
+    shortcut: AppShortcut? = null,
+    onShortcutHandled: () -> Unit = {}
 ) {
     if (requiredUpdate != null) {
         UpdateRequiredScreen(onUpdate = { onOpenStore(requiredUpdate.storeUrl) })
@@ -63,37 +69,37 @@ fun HashiyaApp(
     val currentTopLevel = TopLevelDestination.entries.firstOrNull { topLevel ->
         destination?.hierarchy?.any(topLevel.matches) == true
     }
-    val layoutType = if (currentTopLevel != null) {
-        NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(currentWindowAdaptiveInfo())
-    } else {
-        NavigationSuiteType.None
-    }
+    // The rail stays on Details, Reader and Settings, where it keeps the tab they were opened from selected.
+    var lastTopLevel by rememberSaveable { mutableStateOf(TopLevelDestination.Library) }
+    LaunchedEffect(currentTopLevel) { currentTopLevel?.let { lastTopLevel = it } }
 
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            TopLevelDestination.entries.forEach { topLevel ->
-                item(
-                    selected = topLevel == currentTopLevel,
-                    onClick = { navController.navigateToTopLevel(topLevel) },
-                    icon = { Icon(topLevel.icon, contentDescription = null) },
-                    label = { Text(stringResource(topLevel.labelRes)) }
-                )
-            }
-        },
-        layoutType = layoutType
+    HashiyaNavigationSuite(
+        currentTopLevel = currentTopLevel,
+        selectedTopLevel = currentTopLevel ?: lastTopLevel,
+        onSelect = { topLevel -> navController.navigateToTopLevel(topLevel) },
+        onReselectFromSubScreen = { topLevel -> navController.popToTopLevel(topLevel) }
     ) {
         NavHost(navController = navController, startDestination = LibraryRoute) {
             libraryScreen(
                 onGoToSearch = { navController.navigateToTopLevel(TopLevelDestination.Search) },
                 onAddPaper = { navController.openSearch(SearchRoute(focusSearch = true)) },
                 onOpenSettings = { navController.navigateToSettings() },
-                onOpenPaper = { openAlexId -> navController.navigateToPaperDetails(openAlexId) }
+                onOpenPaper = { openAlexId -> navController.navigateToPaperDetails(openAlexId) },
+                detailPane = { openAlexId, onClose, onRemove ->
+                    PaperDetailsPane(
+                        openAlexId = openAlexId,
+                        onClose = onClose,
+                        onRemove = onRemove,
+                        onReadPdf = { navController.navigateToReader(it) }
+                    )
+                }
             )
             searchScreen(
                 onOpenSettings = { navController.navigateToSettings() },
                 onOpenPaper = { openAlexId -> navController.navigateToPaperDetails(openAlexId) }
             )
-            // Not top-level destinations, so the navigation bar is hidden, as on Settings.
+            // Not top-level destinations: the bar hides on compact windows; the rail stays from medium width.
+            // From 840dp the Library shows Details in its detail pane instead; Search still opens this screen.
             paperDetailsScreen(
                 onBack = { navController.popBackStack() },
                 onRemove = { openAlexId -> navController.removeFromDetails(openAlexId) },
@@ -101,6 +107,20 @@ fun HashiyaApp(
             )
             readerScreen(onBack = { navController.popBackStack() })
             settingsScreen(onBack = { navController.popBackStack() })
+        }
+
+        // Details opened from the Library on a narrow window moves into the Library's pane once the window is wide
+        // enough (unfold, rotation, resize), so the paper stays open in the layout the window now has.
+        val twoPanes = showsTwoPanes()
+        LaunchedEffect(twoPanes, backStackEntry) {
+            if (twoPanes) navController.moveDetailsIntoLibraryPane()
+        }
+
+        LaunchedEffect(shortcut) {
+            shortcut?.let {
+                navController.onShortcut(it)
+                onShortcutHandled()
+            }
         }
 
         LaunchedEffect(pendingSearch) {
@@ -121,6 +141,42 @@ private fun NavController.navigateToTopLevel(destination: TopLevelDestination) {
     when (destination) {
         TopLevelDestination.Library -> navigateToLibrary(options)
         TopLevelDestination.Search -> navigateToSearch(options)
+    }
+}
+
+private fun NavController.onShortcut(shortcut: AppShortcut) {
+    val current = currentBackStackEntry ?: return
+    when (shortcut) {
+        AppShortcut.Find -> when {
+            current.destination.hasRoute<LibraryRoute>() -> current.requestLibraryFind()
+
+            current.destination.hasRoute<SearchRoute>() -> current.requestSearchFind()
+
+            else -> {
+                navigateToTopLevel(TopLevelDestination.Search)
+                currentBackStackEntry?.requestSearchFind()
+            }
+        }
+
+        AppShortcut.AddPaper -> openSearch(SearchRoute(focusSearch = true))
+
+        AppShortcut.Settings -> if (!current.destination.hasRoute<SettingsRoute>()) navigateToSettings()
+    }
+}
+
+private fun NavController.moveDetailsIntoLibraryPane() {
+    val current = currentBackStackEntry ?: return
+    val library = previousBackStackEntry?.takeIf { it.destination.hasRoute<LibraryRoute>() } ?: return
+    if (!current.destination.hasRoute<PaperDetailsRoute>()) return
+    library.requestLibrarySelect(current.toRoute<PaperDetailsRoute>().openAlexId)
+    popBackStack()
+}
+
+/** The selected tab's item, tapped on one of its sub-screens (rail only): back to that tab's root. */
+private fun NavController.popToTopLevel(destination: TopLevelDestination) {
+    when (destination) {
+        TopLevelDestination.Library -> popBackStack<LibraryRoute>(inclusive = false)
+        TopLevelDestination.Search -> popBackStack<SearchRoute>(inclusive = false)
     }
 }
 

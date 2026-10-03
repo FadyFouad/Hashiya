@@ -64,7 +64,7 @@ class PaperDetailsPdfContentTest {
     fun anAvailablePdfDownloadsOnTap() {
         show(PdfRow(PdfRowState.Available, link))
 
-        composeRule.onNodeWithText("PDF available to download").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Available to download").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Download PDF").performScrollTo().performClick()
 
         assertEquals(listOf("download"), events)
@@ -103,8 +103,8 @@ class PaperDetailsPdfContentTest {
     fun aStoredPdfShowsItsSizeAndSourceAndOpensTheReader() {
         show(stored())
 
-        composeRule.onNodeWithText("PDF · 2.4 MB · Downloaded").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag(PDF_ROW_TAG).performScrollTo().performClick()
+        composeRule.onNodeWithText("2.4 MB · Downloaded").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Read PDF").performScrollTo().performClick()
 
         assertEquals(listOf("read"), events)
     }
@@ -113,7 +113,7 @@ class PaperDetailsPdfContentTest {
     fun anAttachedPdfSaysAttached() {
         show(stored(PdfSource.Attached))
 
-        composeRule.onNodeWithText("PDF · 2.4 MB · Attached").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("2.4 MB · Attached").performScrollTo().assertIsDisplayed()
     }
 
     @Test

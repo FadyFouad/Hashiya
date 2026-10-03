@@ -1,7 +1,6 @@
 package com.etatech.hashiya.feature.paperdetails
 
 import android.net.Uri
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etatech.hashiya.core.data.di.ApplicationScope
@@ -15,8 +14,10 @@ import com.etatech.hashiya.core.data.repository.PdfRepository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NoteSection
 import com.etatech.hashiya.core.model.ReadingStatus
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedFactory
+import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -32,20 +33,16 @@ import kotlinx.coroutines.launch
 
 internal const val NOTES_SAVE_DEBOUNCE_MS = NotesEditor.SAVE_DEBOUNCE_MS
 
-/** The route's argument: PaperDetailsRoute.openAlexId. */
-internal const val ARG_OPEN_ALEX_ID = "openAlexId"
-
-@HiltViewModel
-class PaperDetailsViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+/** Takes the paper's id directly, not from a route: Details is also the Library's detail pane on wide windows. */
+@HiltViewModel(assistedFactory = PaperDetailsViewModel.Factory::class)
+class PaperDetailsViewModel @AssistedInject constructor(
+    @Assisted val openAlexId: String,
     private val libraryRepository: LibraryRepository,
     private val collectionsRepository: CollectionsRepository,
     private val citationRepository: CitationRepository,
     private val pdfRepository: PdfRepository,
     @ApplicationScope private val applicationScope: CoroutineScope
 ) : ViewModel() {
-    val openAlexId: String = checkNotNull(savedStateHandle[ARG_OPEN_ALEX_ID]) { "PaperDetailsRoute needs an openAlexId" }
-
     private val _message = MutableStateFlow<PaperDetailsMessage?>(null)
     val message: StateFlow<PaperDetailsMessage?> = _message.asStateFlow()
 
@@ -241,6 +238,11 @@ class PaperDetailsViewModel @Inject constructor(
     /** Back from the reader, whose Notes sheet may have written these notes. Never replaces unsaved typing. */
     fun reloadNotes() {
         viewModelScope.launch { notesEditor.reload() }
+    }
+
+    @AssistedFactory
+    interface Factory {
+        fun create(openAlexId: String): PaperDetailsViewModel
     }
 
     override fun onCleared() {

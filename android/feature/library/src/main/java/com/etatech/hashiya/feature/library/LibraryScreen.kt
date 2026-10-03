@@ -1,6 +1,7 @@
 package com.etatech.hashiya.feature.library
 
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
@@ -44,14 +46,19 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,9 +71,14 @@ import com.etatech.hashiya.core.designsystem.R as DesignR
 import com.etatech.hashiya.core.designsystem.component.CollectionNameDialog
 import com.etatech.hashiya.core.designsystem.component.EmptyState
 import com.etatech.hashiya.core.designsystem.component.LoadingSkeleton
+import com.etatech.hashiya.core.designsystem.component.NoPaperSelected
 import com.etatech.hashiya.core.designsystem.component.PaperPreviewSheet
+import com.etatech.hashiya.core.designsystem.component.SecondaryClickMenu
 import com.etatech.hashiya.core.designsystem.component.paperTitle
+import com.etatech.hashiya.core.designsystem.component.readingStatusLabel
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
+import com.etatech.hashiya.core.designsystem.layout.ListDetailPanes
+import com.etatech.hashiya.core.designsystem.layout.showsTwoPanes
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.feature.library.components.CollectionSelectorSheet
@@ -87,6 +99,11 @@ internal fun LibraryScreen(
     onOpenPaper: (openAlexId: String) -> Unit,
     removeRequest: String? = null,
     onRemoveRequestHandled: () -> Unit = {},
+    detailPane: LibraryDetailPane? = null,
+    selectRequest: String? = null,
+    onSelectRequestHandled: () -> Unit = {},
+    findRequested: Boolean = false,
+    onFindHandled: () -> Unit = {},
     viewModel: LibraryViewModel = hiltViewModel()
 ) {
     LaunchedEffect(removeRequest) {
@@ -117,42 +134,93 @@ internal fun LibraryScreen(
             viewModel.onExportFailed()
         }
     }
-    LibraryContent(
-        uiState = uiState,
-        pendingUndo = pendingUndo,
-        message = message,
-        header = header,
-        dialog = dialog,
-        pendingCollectionUndo = pendingCollectionUndo,
-        actions = LibraryActions(
-            onQueryChange = viewModel::onQueryChange,
-            onSearch = viewModel::onSearch,
-            onClearQuery = viewModel::onClearQuery,
-            onStatusFilterChange = viewModel::onStatusFilterChange,
-            onClearSearchAndFilters = viewModel::onClearSearchAndFilters,
-            onPaperClick = { paper -> onOpenPaper(paper.openAlexId) },
-            onStatusChange = viewModel::onStatusChange,
-            onRemove = viewModel::onRemove,
-            onUndo = viewModel::onUndoRemove,
-            onUndoDismissed = viewModel::onUndoDismissed,
-            onMessageShown = viewModel::onMessageShown,
-            onGoToSearch = onGoToSearch,
-            onAddPaper = onAddPaper,
-            onOpenSettings = onOpenSettings,
-            onSelectCollection = viewModel::onSelectCollection,
-            onNewCollection = viewModel::onNewCollection,
-            onRenameCollection = viewModel::onRenameCollection,
-            onDeleteCollection = viewModel::onDeleteCollection,
-            onDialogNameEdited = viewModel::onDialogNameEdited,
-            onDialogConfirm = viewModel::onDialogConfirm,
-            onConfirmDelete = viewModel::onConfirmDelete,
-            onDialogDismiss = viewModel::onDialogDismiss,
-            onUndoCollection = viewModel::onUndoCollectionRemove,
-            onCollectionUndoDismissed = viewModel::onCollectionUndoDismissed,
-            onExport = viewModel::onExport
+    // From 840dp a paper opens in the detail pane beside the list instead of as a screen of its own.
+    val twoPane = detailPane != null && showsTwoPanes()
+    var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Details moving into the pane as the window widens (the app asks, from the Details screen it closes).
+    LaunchedEffect(selectRequest) {
+        selectRequest?.let { openAlexId ->
+            selectedId = openAlexId
+            onSelectRequestHandled()
+        }
+    }
+    // Back (and Esc) closes the detail pane first, as it closes Details on a phone.
+    BackHandler(enabled = twoPane && selectedId != null) { selectedId = null }
+    // And out of it as the window narrows (resize, fold, rotation): the paper stays open, as its own screen.
+    LaunchedEffect(twoPane, selectedId) {
+        val openAlexId = selectedId
+        if (detailPane != null && !twoPane && openAlexId != null) {
+            selectedId = null
+            onOpenPaper(openAlexId)
+        }
+    }
+    val content: @Composable (Modifier) -> Unit = { contentModifier ->
+        LibraryContent(
+            uiState = uiState,
+            selectedId = if (twoPane) selectedId else null,
+            findRequested = findRequested,
+            onFindHandled = onFindHandled,
+            modifier = contentModifier,
+            pendingUndo = pendingUndo,
+            message = message,
+            header = header,
+            dialog = dialog,
+            pendingCollectionUndo = pendingCollectionUndo,
+            actions = LibraryActions(
+                onQueryChange = viewModel::onQueryChange,
+                onSearch = viewModel::onSearch,
+                onClearQuery = viewModel::onClearQuery,
+                onStatusFilterChange = viewModel::onStatusFilterChange,
+                onClearSearchAndFilters = viewModel::onClearSearchAndFilters,
+                onPaperClick = { paper -> if (twoPane) selectedId = paper.openAlexId else onOpenPaper(paper.openAlexId) },
+                onStatusChange = viewModel::onStatusChange,
+                onRemove = viewModel::onRemove,
+                onUndo = viewModel::onUndoRemove,
+                onUndoDismissed = viewModel::onUndoDismissed,
+                onMessageShown = viewModel::onMessageShown,
+                onGoToSearch = onGoToSearch,
+                onAddPaper = onAddPaper,
+                onOpenSettings = onOpenSettings,
+                onSelectCollection = viewModel::onSelectCollection,
+                onNewCollection = viewModel::onNewCollection,
+                onRenameCollection = viewModel::onRenameCollection,
+                onDeleteCollection = viewModel::onDeleteCollection,
+                onDialogNameEdited = viewModel::onDialogNameEdited,
+                onDialogConfirm = viewModel::onDialogConfirm,
+                onConfirmDelete = viewModel::onConfirmDelete,
+                onDialogDismiss = viewModel::onDialogDismiss,
+                onUndoCollection = viewModel::onUndoCollectionRemove,
+                onCollectionUndoDismissed = viewModel::onCollectionUndoDismissed,
+                onExport = viewModel::onExport
+            )
         )
-    )
+    }
+    if (twoPane && detailPane != null) {
+        ListDetailPanes(
+            list = { content(Modifier) },
+            detail = {
+                selectedId?.let { openAlexId ->
+                    detailPane(
+                        openAlexId,
+                        { selectedId = null },
+                        { removed ->
+                            selectedId = null
+                            viewModel.onRemoveRequested(removed)
+                        }
+                    )
+                } ?: NoPaperSelected(stringResource(DesignR.string.designsystem_pick_paper_message))
+            }
+        )
+    } else {
+        content(Modifier)
+    }
 }
+
+/**
+ * Details beside the list on wide windows, given the paper's id, a close callback (the paper is gone) and a remove
+ * callback (Remove from library, which the list does with Undo). The app provides it, so this module needn't depend on Details.
+ */
+typealias LibraryDetailPane = @Composable (openAlexId: String, onClose: () -> Unit, onRemove: (openAlexId: String) -> Unit) -> Unit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -164,7 +232,10 @@ internal fun LibraryContent(
     message: LibraryMessage? = null,
     header: LibraryHeader = LibraryHeader(),
     dialog: CollectionDialog? = null,
-    pendingCollectionUndo: CollectionRemoval? = null
+    pendingCollectionUndo: CollectionRemoval? = null,
+    selectedId: String? = null,
+    findRequested: Boolean = false,
+    onFindHandled: () -> Unit = {}
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val removedMessage = stringResource(R.string.library_removed)
@@ -197,6 +268,19 @@ internal fun LibraryContent(
         }
         snackbarHostState.showSnackbar(text, duration = duration)
         actions.onMessageShown()
+    }
+
+    // Ctrl+F: the search field, once the library has loaded and if it shows one (not when empty).
+    val searchFocus = remember { FocusRequester() }
+    val loading = uiState is LibraryUiState.Loading
+    val showsSearchField = uiState is LibraryUiState.Papers || uiState is LibraryUiState.NoMatches
+    LaunchedEffect(findRequested, loading, showsSearchField) {
+        if (!findRequested || loading) return@LaunchedEffect
+        if (showsSearchField) {
+            withFrameNanos { }
+            searchFocus.requestFocus()
+        }
+        onFindHandled()
     }
 
     var selectorOpen by rememberSaveable { mutableStateOf(false) }
@@ -264,7 +348,13 @@ internal fun LibraryContent(
             }
             // The same place in the tree for Papers and NoMatches, so the field keeps focus when nothing matches.
             if (filter != null) {
-                LibrarySearchField(filter.query, actions.onQueryChange, actions.onSearch, actions.onClearQuery)
+                LibrarySearchField(
+                    filter.query,
+                    actions.onQueryChange,
+                    actions.onSearch,
+                    actions.onClearQuery,
+                    Modifier.focusRequester(searchFocus)
+                )
                 StatusFilterChips(filter, actions.onStatusFilterChange)
             }
             Box(Modifier.fillMaxSize()) {
@@ -294,7 +384,7 @@ internal fun LibraryContent(
                         message = null
                     )
 
-                    is LibraryUiState.Papers -> PaperList(uiState.papers, actions)
+                    is LibraryUiState.Papers -> PaperList(uiState.papers, actions, selectedId)
                 }
             }
         }
@@ -306,7 +396,7 @@ internal fun LibraryContent(
 private val FAB_CLEARANCE = PaddingValues(bottom = 88.dp)
 
 @Composable
-private fun PaperList(papers: List<LibraryPaper>, actions: LibraryActions) {
+private fun PaperList(papers: List<LibraryPaper>, actions: LibraryActions, selectedId: String?) {
     LazyColumn(Modifier.fillMaxSize(), contentPadding = FAB_CLEARANCE) {
         item {
             Text(
@@ -317,16 +407,51 @@ private fun PaperList(papers: List<LibraryPaper>, actions: LibraryActions) {
             )
         }
         items(papers, key = { it.paper.openAlexId }) { item ->
-            SwipeToRemove(onRemove = { actions.onRemove(item.paper) }) {
-                LibraryRow(
-                    item = item,
-                    onClick = { actions.onPaperClick(item.paper) },
-                    onStatusChange = { status -> actions.onStatusChange(item.paper, status) }
-                )
+            SecondaryClickMenu(menu = { close -> RowMenu(item, actions, close) }) {
+                SwipeToRemove(onRemove = { actions.onRemove(item.paper) }) {
+                    LibraryRow(
+                        item = item,
+                        selected = item.paper.openAlexId == selectedId,
+                        onClick = { actions.onPaperClick(item.paper) },
+                        onStatusChange = { status -> actions.onStatusChange(item.paper, status) }
+                    )
+                }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         }
     }
+}
+
+/** A row's right-click menu: what a tap, the status badge and a swipe do, for a mouse. */
+@Composable
+private fun RowMenu(item: LibraryPaper, actions: LibraryActions, close: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(stringResource(R.string.library_open)) },
+        onClick = {
+            close()
+            actions.onPaperClick(item.paper)
+        }
+    )
+    HorizontalDivider()
+    ReadingStatus.entries.forEach { status ->
+        DropdownMenuItem(
+            text = { Text(readingStatusLabel(status)) },
+            trailingIcon = { if (status == item.status) Icon(HashiyaIcons.Check, contentDescription = null) },
+            onClick = {
+                close()
+                if (status != item.status) actions.onStatusChange(item.paper, status)
+            }
+        )
+    }
+    HorizontalDivider()
+    DropdownMenuItem(
+        text = { Text(stringResource(DesignR.string.designsystem_remove_from_library)) },
+        leadingIcon = { Icon(HashiyaIcons.Delete, contentDescription = null) },
+        onClick = {
+            close()
+            actions.onRemove(item.paper)
+        }
+    )
 }
 
 @Composable
@@ -358,7 +483,7 @@ private fun SwipeToRemove(onRemove: () -> Unit, content: @Composable () -> Unit)
 }
 
 @Composable
-private fun LibraryRow(item: LibraryPaper, onClick: () -> Unit, onStatusChange: (ReadingStatus) -> Unit) {
+private fun LibraryRow(item: LibraryPaper, selected: Boolean, onClick: () -> Unit, onStatusChange: (ReadingStatus) -> Unit) {
     val paper = item.paper
     val firstAuthor = paper.authors.firstOrNull()?.name
     val authorText = when {
@@ -369,7 +494,8 @@ private fun LibraryRow(item: LibraryPaper, onClick: () -> Unit, onStatusChange: 
     Row(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
+            .semantics { this.selected = selected }
             .clickable(onClick = onClick)
             .padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically

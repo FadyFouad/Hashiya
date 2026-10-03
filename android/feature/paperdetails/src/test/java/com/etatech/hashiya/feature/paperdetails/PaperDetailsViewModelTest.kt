@@ -1,6 +1,5 @@
 package com.etatech.hashiya.feature.paperdetails
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelStore
 import com.etatech.hashiya.core.data.repository.DownloadFailure
 import com.etatech.hashiya.core.data.repository.DownloadState
@@ -50,7 +49,7 @@ class PaperDetailsViewModelTest {
     /** The application scope is the test's backgroundScope: it outlives viewModelScope, like the real one. */
     private fun TestScope.viewModel(libraryRepository: LibraryRepository = repository): PaperDetailsViewModel {
         val viewModel = PaperDetailsViewModel(
-            SavedStateHandle(mapOf(ARG_OPEN_ALEX_ID to id)),
+            id,
             libraryRepository,
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
@@ -411,7 +410,7 @@ class PaperDetailsViewModelTest {
     /** The view model for [linked], the paper with an open-access link. */
     private fun TestScope.linkedViewModel(): PaperDetailsViewModel {
         val viewModel = PaperDetailsViewModel(
-            SavedStateHandle(mapOf(ARG_OPEN_ALEX_ID to linkedId)),
+            linkedId,
             repository,
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),

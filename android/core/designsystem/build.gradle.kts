@@ -16,4 +16,5 @@ dependencies {
     api(libs.androidx.compose.material.icons.extended)
 
     testImplementation(project(":core:testing"))
+    testImplementation(libs.androidx.window.testing)
 }

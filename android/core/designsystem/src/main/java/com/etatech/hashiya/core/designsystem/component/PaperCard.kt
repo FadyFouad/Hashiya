@@ -2,6 +2,7 @@ package com.etatech.hashiya.core.designsystem.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -72,18 +73,25 @@ fun PaperCard(
             )
             Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (paper.isOpenAccess) {
-                    StatusBadge(stringResource(R.string.designsystem_open_access), BadgeKind.OpenAccess)
+                // Wraps with large text, so the Save button keeps its width instead of breaking into letters.
+                FlowRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    itemVerticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (paper.isOpenAccess) {
+                        StatusBadge(stringResource(R.string.designsystem_open_access), BadgeKind.OpenAccess)
+                    }
+                    if (inLibrary) {
+                        StatusBadge(stringResource(R.string.designsystem_in_library), BadgeKind.InLibrary)
+                    }
+                    Text(
+                        text = stringResource(R.string.designsystem_cited_count, compactCount(paper.citationCount, currentLocale())),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-                if (inLibrary) {
-                    StatusBadge(stringResource(R.string.designsystem_in_library), BadgeKind.InLibrary)
-                }
-                Text(
-                    text = stringResource(R.string.designsystem_cited_count, compactCount(paper.citationCount, currentLocale())),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(Modifier.weight(1f))
                 if (!inLibrary) {
                     FilledTonalButton(onClick = onSave) {
                         Text(stringResource(R.string.designsystem_save))

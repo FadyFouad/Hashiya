@@ -1,17 +1,13 @@
 package com.etatech.hashiya.navigation
 
 import androidx.annotation.StringRes
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffoldDefaults
-import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -63,24 +59,15 @@ fun HashiyaApp(
     val currentTopLevel = TopLevelDestination.entries.firstOrNull { topLevel ->
         destination?.hierarchy?.any(topLevel.matches) == true
     }
-    val layoutType = if (currentTopLevel != null) {
-        NavigationSuiteScaffoldDefaults.calculateFromAdaptiveInfo(currentWindowAdaptiveInfo())
-    } else {
-        NavigationSuiteType.None
-    }
+    // The rail stays on Details, Reader and Settings, where it keeps the tab they were opened from selected.
+    var lastTopLevel by rememberSaveable { mutableStateOf(TopLevelDestination.Library) }
+    LaunchedEffect(currentTopLevel) { currentTopLevel?.let { lastTopLevel = it } }
 
-    NavigationSuiteScaffold(
-        navigationSuiteItems = {
-            TopLevelDestination.entries.forEach { topLevel ->
-                item(
-                    selected = topLevel == currentTopLevel,
-                    onClick = { navController.navigateToTopLevel(topLevel) },
-                    icon = { Icon(topLevel.icon, contentDescription = null) },
-                    label = { Text(stringResource(topLevel.labelRes)) }
-                )
-            }
-        },
-        layoutType = layoutType
+    HashiyaNavigationSuite(
+        currentTopLevel = currentTopLevel,
+        selectedTopLevel = currentTopLevel ?: lastTopLevel,
+        onSelect = { topLevel -> navController.navigateToTopLevel(topLevel) },
+        onReselectFromSubScreen = { topLevel -> navController.popToTopLevel(topLevel) }
     ) {
         NavHost(navController = navController, startDestination = LibraryRoute) {
             libraryScreen(
@@ -93,7 +80,7 @@ fun HashiyaApp(
                 onOpenSettings = { navController.navigateToSettings() },
                 onOpenPaper = { openAlexId -> navController.navigateToPaperDetails(openAlexId) }
             )
-            // Not top-level destinations, so the navigation bar is hidden, as on Settings.
+            // Not top-level destinations: the bar hides on compact windows; the rail stays from medium width.
             paperDetailsScreen(
                 onBack = { navController.popBackStack() },
                 onRemove = { openAlexId -> navController.removeFromDetails(openAlexId) },
@@ -121,6 +108,14 @@ private fun NavController.navigateToTopLevel(destination: TopLevelDestination) {
     when (destination) {
         TopLevelDestination.Library -> navigateToLibrary(options)
         TopLevelDestination.Search -> navigateToSearch(options)
+    }
+}
+
+/** The selected tab's item, tapped on one of its sub-screens (rail only): back to that tab's root. */
+private fun NavController.popToTopLevel(destination: TopLevelDestination) {
+    when (destination) {
+        TopLevelDestination.Library -> popBackStack<LibraryRoute>(inclusive = false)
+        TopLevelDestination.Search -> popBackStack<SearchRoute>(inclusive = false)
     }
 }
 

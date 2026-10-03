@@ -4,7 +4,12 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 
 ## [Unreleased]
 
+### Added
+- **Android: tablets, foldables and resizable windows.** A navigation rail from 600 dp that stays on every screen, expanding with labels from 1200 dp. From 840 dp, or at a book-posture hinge, the Library opens a paper beside the list, Search shows the preview beside the results, and the reader shows your notes beside the PDF. Details and Settings become a centered column. An open paper and the reader's zoom survive folding, rotating and resizing. (#28)
+- **Android: keyboard and mouse.** Ctrl+F finds, Ctrl+N adds a paper, Ctrl+, opens Settings, and Esc goes back. Right-click a Library row or a Search result for its menu, and Ctrl+scroll zooms the reader. (#28)
+
 ### Fixed
+- **Android: the Save button on search results** no longer breaks into letters with the largest font size. (#28)
 - **A failed download now tries the paper's other open-access copies.** If the saved link fails as "not a PDF" or a server error, the app looks up the paper's other open-access copies on OpenAlex and tries them, arXiv first. Then it keeps the link that worked. Example: *Attention Is All You Need*, whose saved link now returns a web page. (#24)
 
 ## [0.2.0] — build 2, 2026-10-02 (TestFlight)

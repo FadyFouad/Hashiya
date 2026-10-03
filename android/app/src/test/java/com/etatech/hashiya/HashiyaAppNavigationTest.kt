@@ -181,8 +181,8 @@ class HashiyaAppNavigationTest {
         composeRule.onNodeWithText(SamplePapers.bert.title).performClick()
         waitForText("My notes")
 
-        // The stored row reads "PDF · <size> · Attached"; its tag is internal to feature/paperdetails.
-        composeRule.onNodeWithText("Attached", substring = true).performScrollTo().performClick()
+        // A stored PDF's row offers Read PDF as its main action.
+        composeRule.onNodeWithText("Read PDF").performScrollTo().performClick()
 
         // The reader: it shows pages, or "This PDF can't be opened." where Robolectric's PdfRenderer can't render; the toolbar is the same.
         composeRule.waitUntil(timeoutMillis = 5_000) {

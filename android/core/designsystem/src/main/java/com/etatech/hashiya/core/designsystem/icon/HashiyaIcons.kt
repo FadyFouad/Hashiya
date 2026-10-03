@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.designsystem.icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Add
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Search
@@ -51,4 +53,6 @@ object HashiyaIcons {
     val Download: ImageVector = Icons.Outlined.Download
     val Attach: ImageVector = Icons.Outlined.AttachFile
     val Notes: ImageVector = Icons.AutoMirrored.Outlined.Notes
+    val Read: ImageVector = Icons.AutoMirrored.Outlined.MenuBook
+    val Link: ImageVector = Icons.Outlined.Link
 }

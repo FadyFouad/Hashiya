@@ -135,7 +135,7 @@ The Android app adapts to the window it has: a bottom bar on phones, a rail from
 | Tablet, portrait and landscape | Pixel Tablet emulator | Library and Search show two panes in landscape, one in portrait; rail on every screen |
 | Foldable | 7.6" fold-in emulator (with outer display) | Open a paper folded, unfold: it moves into the pane; fold again: it's a screen. Half open in book posture: one pane each side of the hinge |
 | Flip cover screen | a flip emulator's outer display | Search and the Library usable and scrolling |
-| Free resize | Resizable emulator, desktop windowing | Drag across 600, 840 and 1200 dp: bar → rail → two panes → expanded rail, without losing the open paper or the reader's zoom |
+| Free resize | Resizable emulator, desktop windowing | Drag across 600 and 840 dp: bar → rail → two panes, without losing the open paper or the reader's zoom. The rail's menu button expands and collapses it, and the choice survives the resize |
 | Split screen | tablet at ½ and ⅓ | Everything works at each size |
 | Large text | font size at maximum (200%) | Cards keep their Save button; nothing cut off |
 | Keyboard and mouse | tablet or Chromebook with both | Ctrl+F, Ctrl+N, Ctrl+,, Esc; right-click a Library row and a Search result; Ctrl+scroll in the reader |

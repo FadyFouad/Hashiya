@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.outlined.MenuOpen
 import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Add
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PictureAsPdf
 import androidx.compose.material.icons.outlined.Search
@@ -55,4 +57,6 @@ object HashiyaIcons {
     val Notes: ImageVector = Icons.AutoMirrored.Outlined.Notes
     val Read: ImageVector = Icons.AutoMirrored.Outlined.MenuBook
     val Link: ImageVector = Icons.Outlined.Link
+    val Menu: ImageVector = Icons.Outlined.Menu
+    val MenuOpen: ImageVector = Icons.AutoMirrored.Outlined.MenuOpen
 }

@@ -34,8 +34,8 @@ class NavigationTypeTest {
     }
 
     @Test
-    fun expandedRailFromLargeWidth() {
-        assertEquals(NavigationSuiteType.WideNavigationRailExpanded, typeAt(1200, 800))
-        assertEquals(NavigationSuiteType.WideNavigationRailExpanded, typeAt(1600, 1000, onTopLevel = false))
+    fun theRailStartsCompactAtEveryWidth() {
+        assertEquals(NavigationSuiteType.WideNavigationRailCollapsed, typeAt(1200, 800))
+        assertEquals(NavigationSuiteType.WideNavigationRailCollapsed, typeAt(1600, 1000, onTopLevel = false))
     }
 }

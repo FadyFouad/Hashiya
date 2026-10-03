@@ -10,7 +10,9 @@ import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.WindowSize
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -98,11 +100,55 @@ class HashiyaNavigationSuiteTest {
     }
 
     @Test
-    fun largeShowsTheExpandedRail() {
+    fun largeStartsWithTheCompactRail() {
         showAt(1280, 800, TopLevelDestination.Library)
-        composeRule.onNodeWithText("Library").assertIsDisplayed()
         assertRail()
-        assertTrue(contentStart() > 120.dp)
+        assertTrue(contentStart() in 1.dp..120.dp)
+    }
+
+    @Test
+    fun theMenuButtonExpandsAndCollapsesTheRail() {
+        showAt(1280, 800, currentTopLevel = null)
+        val compact = contentStart()
+
+        composeRule.onNodeWithContentDescription("Expand navigation").performClick()
+        composeRule.waitForIdle()
+        assertTrue("expanded: ${contentStart()}", contentStart() >= 200.dp)
+        assertRail()
+
+        composeRule.onNodeWithContentDescription("Collapse navigation").performClick()
+        composeRule.waitForIdle()
+        assertEquals(compact, contentStart())
+    }
+
+    @Test
+    fun anExpandedRailStaysExpandedWhenTheAppIsRecreated() {
+        val restoration = StateRestorationTester(composeRule)
+        val size = DpSize(1280.dp, 800.dp)
+        restoration.setContent {
+            DeviceConfigurationOverride(
+                DeviceConfigurationOverride.ForcedSize(size) then DeviceConfigurationOverride.WindowSize(size)
+            ) {
+                HashiyaTheme {
+                    HashiyaNavigationSuite(TopLevelDestination.Library, TopLevelDestination.Library, {}, {}) {
+                        Box(Modifier.fillMaxSize().testTag(CONTENT))
+                    }
+                }
+            }
+        }
+        composeRule.onNodeWithContentDescription("Expand navigation").performClick()
+        composeRule.waitForIdle()
+
+        restoration.emulateSavedInstanceStateRestore()
+
+        composeRule.onNodeWithContentDescription("Collapse navigation").assertExists()
+        assertTrue("still expanded: ${contentStart()}", contentStart() >= 200.dp)
+    }
+
+    @Test
+    fun phonesHaveNoMenuButton() {
+        showAt(411, 891, TopLevelDestination.Library)
+        composeRule.onNodeWithContentDescription("Expand navigation").assertDoesNotExist()
     }
 
     @Test

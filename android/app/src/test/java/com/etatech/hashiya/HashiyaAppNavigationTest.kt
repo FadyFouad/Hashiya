@@ -44,7 +44,7 @@ class HashiyaAppNavigationTest {
     @get:Rule(order = 1)
     val composeRule = createAndroidComposeRule<MainActivity>()
 
-    private fun waitForText(text: String) = composeRule.waitUntil(timeoutMillis = 5_000) {
+    private fun waitForText(text: String) = composeRule.waitUntil(timeoutMillis = WAIT_MS) {
         composeRule.onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
     }
 
@@ -121,7 +121,7 @@ class HashiyaAppNavigationTest {
         openSavedPaper()
 
         // The navigation bar (with its "Search" item) is gone once the transition from the Library ends.
-        composeRule.waitUntil(timeoutMillis = 5_000) { composeRule.onAllNodesWithText("Search").fetchSemanticsNodes().isEmpty() }
+        composeRule.waitUntil(timeoutMillis = WAIT_MS) { composeRule.onAllNodesWithText("Search").fetchSemanticsNodes().isEmpty() }
         composeRule.onNodeWithContentDescription("Back").performClick()
 
         waitForText("Search your library")
@@ -165,8 +165,10 @@ class HashiyaAppNavigationTest {
         waitForText("Thesis")
         composeRule.onNodeWithText("Thesis").performClick()
 
-        composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText(SamplePapers.vit.title).fetchSemanticsNodes().isEmpty()
+        // Both at once: while the filtered list loads, ViT is already gone but BERT isn't back yet.
+        composeRule.waitUntil(timeoutMillis = WAIT_MS) {
+            composeRule.onAllNodesWithText(SamplePapers.vit.title).fetchSemanticsNodes().isEmpty() &&
+                composeRule.onAllNodesWithText(SamplePapers.bert.title).fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithText(SamplePapers.bert.title).assertIsDisplayed()
     }
@@ -185,14 +187,14 @@ class HashiyaAppNavigationTest {
         composeRule.onNodeWithText("Read PDF").performScrollTo().performClick()
 
         // The reader: it shows pages, or "This PDF can't be opened." where Robolectric's PdfRenderer can't render; the toolbar is the same.
-        composeRule.waitUntil(timeoutMillis = 5_000) {
+        composeRule.waitUntil(timeoutMillis = WAIT_MS) {
             composeRule.onAllNodesWithContentDescription("Notes").fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithContentDescription("Notes").performClick()
         waitForText("Summary")
 
         composeRule.onNodeWithContentDescription("Close notes").performClick()
-        composeRule.waitUntil(timeoutMillis = 5_000) { composeRule.onAllNodesWithText("Summary").fetchSemanticsNodes().isEmpty() }
+        composeRule.waitUntil(timeoutMillis = WAIT_MS) { composeRule.onAllNodesWithText("Summary").fetchSemanticsNodes().isEmpty() }
         composeRule.onNodeWithContentDescription("Back").performClick()
 
         waitForText("My notes")
@@ -203,3 +205,6 @@ class HashiyaAppNavigationTest {
 private const val MINIMAL_PDF = "%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n" +
     "2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]>>endobj\n" +
     "trailer<</Root 1 0 R>>\n%%EOF\n"
+
+/** Generous: CI runs this whole-app test while other modules' tests load the machine. */
+private const val WAIT_MS = 10_000L

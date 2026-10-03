@@ -3,71 +3,67 @@ import HashiyaDesignSystem
 import HashiyaModel
 import SwiftUI
 
-/// The PDF row: what is stored or happening, its buttons, and its menu. A stored PDF opens on tap.
+/// The PDF row, the middle of the Details group: what is stored or happening, the row's own action as a prominent
+/// button (Download, Read or Attach, by state), the other actions as secondary buttons, and a menu for the rest.
 struct PdfRowView: View {
     let row: PdfRow
+    let shape: UnevenRoundedRectangle
     let onAction: (PdfAction) -> Void
 
     var body: some View {
-        let buttons = row.primary.filter { $0 != .read }
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 8) {
-                summary
-                if !row.overflow.isEmpty { menu }
-            }
-            if !buttons.isEmpty {
-                // Wraps when the labels don't fit on one line (Arabic, larger text).
-                ChipFlow(spacing: 8) {
-                    ForEach(buttons, id: \.self) { action in
-                        Button {
-                            onAction(action)
-                        } label: {
-                            Text(verbatim: Self.label(action))
-                        }
-                        .buttonStyle(TonalButtonStyle())
-                    }
+        HStack(alignment: .top, spacing: 16) {
+            Image(systemName: "doc.richtext")
+                .foregroundStyle(HashiyaColors.onSurfaceVariant)
+                .frame(width: GroupedRows.iconWidth)
+                .padding(.top, 2)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 4) {
+                    GroupedRowLabel(text: L10n.string("details.pdf"))
+                    detail
                 }
-                .padding(.leading, 36)
+                .accessibilityElement(children: .combine)
+                if !row.primary.isEmpty {
+                    // Wraps when the labels don't fit on one line (Arabic, larger text).
+                    ChipFlow(spacing: 8) {
+                        ForEach(Array(row.primary.enumerated()), id: \.element) { index, action in
+                            actionButton(action, prominent: index == 0 && action != .cancel)
+                        }
+                    }
+                    .padding(.top, 8)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if !row.overflow.isEmpty { menu }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 14)
-        .background(RoundedRectangle(cornerRadius: 12).fill(HashiyaColors.surfaceContainerHigh))
+        .padding(16)
+        .background(shape.fill(HashiyaColors.surfaceContainer))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("details.pdf")
     }
 
     @ViewBuilder
-    private var summary: some View {
-        let content = HStack(alignment: .top, spacing: 12) {
-            Image(systemName: "doc.richtext")
-                .foregroundStyle(HashiyaColors.onSurfaceVariant)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(verbatim: L10n.string("details.pdf"))
-                    .font(.hashiya(.label))
-                    .foregroundStyle(HashiyaColors.onSurfaceVariant)
-                detail
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if case .stored = row.state {
-                Image(systemName: "chevron.forward")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(HashiyaColors.onSurfaceVariant)
-                    .accessibilityHidden(true)
+    private func actionButton(_ action: PdfAction, prominent: Bool) -> some View {
+        let button = Button {
+            onAction(action)
+        } label: {
+            if prominent, let icon = Self.icon(action) {
+                Label {
+                    Text(verbatim: Self.label(action))
+                } icon: {
+                    Image(systemName: icon)
+                }
+            } else {
+                Text(verbatim: Self.label(action))
             }
         }
-        if case .stored = row.state {
-            Button {
-                onAction(.read)
-            } label: {
-                content.contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("details.pdfRead")
+        .font(.hashiya(.label))
+        // Read keeps the identifier the stored row had, for the UI tests that open the reader.
+        .accessibilityIdentifier(action == .read ? "details.pdfRead" : "details.pdfAction.\(action)")
+        if prominent {
+            button.hashiyaProminentButton()
         } else {
-            content.accessibilityElement(children: .combine)
+            button.hashiyaSecondaryButton()
         }
     }
 
@@ -126,16 +122,27 @@ struct PdfRowView: View {
         .accessibilityIdentifier("details.pdfMenu")
     }
 
+    /// The state line under the label: normal text, as the group's other values.
     private func muted(_ text: String) -> some View {
         Text(verbatim: text)
             .font(.hashiya(.body))
-            .foregroundStyle(HashiyaColors.onSurfaceVariant)
+            .foregroundStyle(HashiyaColors.onSurface)
+    }
+
+    /// The prominent button's symbol, as in the design: download, an open book, a plus.
+    static func icon(_ action: PdfAction) -> String? {
+        switch action {
+        case .download: "arrow.down.circle"
+        case .read: "book"
+        case .attach: "plus"
+        default: nil
+        }
     }
 
     @MainActor
     static func label(_ action: PdfAction) -> String {
         switch action {
-        case .read: L10n.string("details.pdf")
+        case .read: L10n.string("details.pdfRead")
         case .download: L10n.string("details.pdfDownload")
         case .cancel: L10n.string("details.pdfCancel")
         case .attach: L10n.string("details.pdfAttach")

@@ -10,6 +10,7 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 
 ### Changed
 - **Android: Details groups Collections, PDF and DOI in one list.** The PDF row's main action is a button that follows its state: Download PDF, Read PDF or Attach PDF; Replace and Remove stay in its ⋮ menu. The DOI is a row that opens the paper's DOI page, and is hidden when there is none.
+- **iOS: the same grouped Details.** Collections, PDF and DOI share one list as on Android; the PDF row's main action is a prominent button (Download PDF, Read PDF or Attach PDF), and the DOI is a row that opens its page.
 
 ### Fixed
 - **Android: the Save button on search results** no longer breaks into letters with the largest font size. (#28)

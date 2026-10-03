@@ -63,7 +63,7 @@ struct PaperDetailsContentTests {
         let attention = renderedStrings(of: content(SamplePapers.attention))
         let bert = renderedStrings(of: content(SamplePapers.bert))
         #expect(!attention.contains("Open PDF"))
-        #expect(attention.contains("PDF available to download"))
+        #expect(attention.contains("Available to download"))
         #expect(attention.contains("Download PDF"))
         #expect(attention.contains("Open DOI"))
         #expect(bert.contains("No PDF"))
@@ -74,7 +74,8 @@ struct PaperDetailsContentTests {
     @Test func thePdfRowShowsEachState() {
         let stored = PaperPdf(source: .attached, sizeBytes: 2_400_000, addedAt: 1)
         let storedRow = renderedStrings(of: content(SamplePapers.attention, pdf: PdfRow(state: .stored(stored), link: nil)))
-        #expect(storedRow.contains("PDF · 2.4 MB · Attached"))
+        #expect(storedRow.contains("2.4 MB · Attached"))
+        #expect(storedRow.contains("Read PDF"))
 
         let downloading = renderedStrings(of: content(
             SamplePapers.attention,
@@ -92,6 +93,21 @@ struct PaperDetailsContentTests {
         #expect(failed.contains("Try again"))
         #expect(failed.contains("Open in browser"))
         #expect(failed.contains("Attach PDF"))
+    }
+
+    /// Collections, PDF and DOI are one group; the DOI is a row (labelled DOI, "Open DOI" for VoiceOver), hidden
+    /// without a DOI.
+    @Test func theDoiIsARowOfTheGroup() {
+        let withDoi = renderedStrings(of: content(SamplePapers.attention))
+        #expect(withDoi.contains("DOI"))
+        #expect(withDoi.contains("Open DOI"))
+        let positions = ["Collections", "PDF", "DOI"].compactMap { withDoi.firstIndex(of: $0) }
+        #expect(positions.count == 3)
+        #expect(positions == positions.sorted())
+
+        let noDoi = renderedStrings(of: content(SamplePapers.vit))
+        #expect(!noDoi.contains("DOI"))
+        #expect(!noDoi.contains("Open DOI"))
     }
 
     @Test func theAttachMessagesShowTheirBanners() {

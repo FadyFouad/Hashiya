@@ -1,6 +1,6 @@
 # Store listing and questionnaires
 
-Everything to paste into App Store Connect and the Play Console for version 1.0. Character limits
+Everything to paste into App Store Connect and the Play Console for version 0.2.0. Character limits
 are in brackets; `scripts/check-store-metadata.py` checks every field against them.
 
 ## Shared
@@ -32,7 +32,7 @@ Find, save and track papers
 **Promotional text** [170]
 
 ```
-Search millions of scholarly works, save papers to an offline library and track what you've read, in English or Arabic.
+Find papers, save them offline, read their PDFs beside your notes, group them into collections and export BibTeX for Overleaf. In English and Arabic.
 ```
 
 **Keywords** [100]
@@ -78,7 +78,13 @@ Paper data comes from OpenAlex (openalex.org), a free and open catalog of schola
 **What's New** [4000]
 
 ```
-The first release of Hashiya.
+New in 0.2.0:
+
+• Notes for every paper: summary, research question, method, key findings, limitations and your own thoughts. They save as you type, and your library search finds them.
+• Read PDFs in the app: download a paper's open-access PDF or attach one from Files, then read it offline with search, zoom and your notes beside the page. The reader reopens where you left off.
+• Collections: group papers for a chapter, a course or a project, and filter your library by collection.
+• BibTeX export: export a collection or your whole library as a .bib file for Overleaf or LaTeX, or copy one paper's entry. Cite keys stay the same from one export to the next.
+• Storage in Settings shows how much space PDFs use, and can delete the downloaded ones.
 ```
 
 <!-- /lang -->
@@ -99,7 +105,7 @@ The first release of Hashiya.
 **النص الترويجي** [170]
 
 ```
-ابحث في ملايين الأعمال العلمية، واحفظ الأوراق في مكتبة تعمل دون اتصال، وتابع ما قرأته، بالعربية أو الإنجليزية.
+ابحث عن الأوراق واحفظها دون اتصال، واقرأ ملفات PDF بجانب ملاحظاتك، ونظّمها في مجموعات، وصدّرها بصيغة BibTeX إلى Overleaf، بالعربية والإنجليزية.
 ```
 
 **الكلمات المفتاحية** [100]
@@ -145,7 +151,13 @@ The first release of Hashiya.
 **ما الجديد** [4000]
 
 ```
-الإصدار الأول من حاشية.
+الجديد في 0.2.0:
+
+• ملاحظات لكل ورقة: الخلاصة، وسؤال البحث، والمنهجية، وأهم النتائج، والقيود، وأفكارك. تُحفظ أثناء الكتابة، ويجدها البحث في مكتبتك.
+• اقرأ ملفات PDF داخل التطبيق: نزّل ملف PDF المفتوح للورقة أو أرفق ملفًا من «الملفات»، ثم اقرأه دون اتصال مع البحث والتكبير وملاحظاتك بجانب الصفحة. ويعود القارئ إلى حيث توقفت.
+• المجموعات: اجمع الأوراق لفصل أو مقرر أو مشروع، وصفِّ مكتبتك حسب المجموعة.
+• تصدير BibTeX: صدّر مجموعة أو مكتبتك كاملة في ملف ‎.bib لاستخدامه في Overleaf أو LaTeX، أو انسخ مدخل ورقة واحدة. وتبقى مفاتيح الاستشهاد كما هي بين مرة وأخرى.
+• يعرض قسم «التخزين» في الإعدادات المساحة التي تشغلها ملفات PDF، ويتيح حذف الملفات المنزّلة.
 ```
 
 <!-- /lang -->
@@ -206,7 +218,7 @@ Paper data comes from OpenAlex (openalex.org), a free and open catalog of schola
 **Release notes** [500]
 
 ```
-The first release of Hashiya.
+New: notes for every paper, an in-app PDF reader with your notes beside the page, collections, and BibTeX export for Overleaf. Settings now shows how much space PDFs use.
 ```
 
 <!-- /lang -->
@@ -265,7 +277,7 @@ The first release of Hashiya.
 **ملاحظات الإصدار** [500]
 
 ```
-الإصدار الأول من حاشية.
+الجديد: ملاحظات لكل ورقة، وقارئ PDF داخل التطبيق مع ملاحظاتك بجانب الصفحة، والمجموعات، وتصدير BibTeX إلى Overleaf. ويعرض قسم «التخزين» في الإعدادات مساحة ملفات PDF.
 ```
 
 <!-- /lang -->

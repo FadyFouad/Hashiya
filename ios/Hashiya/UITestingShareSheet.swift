@@ -21,6 +21,12 @@ enum UITestingShareSheet {
         }
         let sheet = UIActivityViewController(activityItems: [url], applicationActivities: nil)
         sheet.completionWithItemsHandler = { _, _, _, _ in onFinish() }
+        // On iPad the share sheet is a popover, which needs an anchor (as in ShareSheet).
+        if let popover = sheet.popoverPresentationController, let view = root?.view {
+            popover.sourceView = view
+            popover.sourceRect = CGRect(x: view.bounds.midX, y: view.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
         root?.present(sheet, animated: true)
     }
 }

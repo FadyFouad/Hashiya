@@ -41,6 +41,8 @@ struct RootView: View {
                 tabs
             }
         }
+        // The window's width class for every screen (iPad windows, Split View, Stage Manager, rotation).
+        .measuresLayoutClass()
         .onChange(of: scenePhase, initial: true) { _, phase in
             phaseGeneration += 1
             switch phase {

@@ -42,7 +42,7 @@ struct PaperDetailsSnapshotTests {
 
     /// The header, status, the PDF row offering the download, Open DOI and the abstract.
     @Test func paper() {
-        assertHashiyaSnapshots(of: screen(SamplePapers.attention, status: .reading), named: "paper", arabicText: "ملف PDF متاح للتنزيل")
+        assertHashiyaSnapshots(of: screen(SamplePapers.attention, status: .reading), named: "paper", arabicText: "متاح للتنزيل")
     }
 
     /// Filled notes on a paper with no abstract, so the fields are on screen: an Arabic note in an English UI and an
@@ -88,7 +88,7 @@ struct PaperDetailsSnapshotTests {
             state: .stored(PaperPdf(source: .downloaded, sizeBytes: 2_400_000, addedAt: 1)),
             link: URL(string: "https://arxiv.org/pdf/1706.03762")
         )
-        assertHashiyaSnapshots(of: screen(SamplePapers.attention, pdf: row), named: "pdfStored", arabicText: "ملف PDF")
+        assertHashiyaSnapshots(of: screen(SamplePapers.attention, pdf: row), named: "pdfStored", arabicText: "قراءة ملف PDF")
     }
 
     /// A link that opened a web page: why, then Try again, Open in browser and Attach.

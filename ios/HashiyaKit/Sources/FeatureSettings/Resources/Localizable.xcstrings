@@ -92,7 +92,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@، %2$@"
+            "value" : "\u200F\u2067%1$@\u2069، \u2067%2$@\u2069"
           }
         },
         "en" : {
@@ -619,7 +619,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%1$@، %2$@، %3$@"
+            "value" : "\u200F\u2067%1$@\u2069، \u2067%2$@\u2069، \u2067%3$@\u2069"
           }
         },
         "en" : {

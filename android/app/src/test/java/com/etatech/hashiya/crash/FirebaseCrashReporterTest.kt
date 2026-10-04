@@ -11,12 +11,14 @@ import org.junit.Test
 class FirebaseCrashReporterTest {
     private val calls = mutableListOf<String>()
     private val recorded = mutableListOf<Throwable>()
+    private var collecting = true
 
     private val reporter = FirebaseCrashReporter(
         setCollectionEnabled = { calls += "collection:$it" },
         deleteUnsentReports = { calls += "delete" },
         setCustomKey = { key, value -> calls += "key:$key=$value" },
-        recordException = { recorded += it }
+        recordException = { recorded += it },
+        isCollectionEnabled = { collecting }
     )
 
     @Test
@@ -51,5 +53,14 @@ class FirebaseCrashReporterTest {
         assertNotSame(original, sent)
         assertEquals("restore: java.lang.IllegalStateException", sent.message)
         assertEquals(null, sent.cause)
+    }
+
+    @Test
+    fun nonFatalsAreDroppedWhileCollectionIsOff() {
+        collecting = false
+
+        reporter.recordNonFatal(IllegalStateException("My secret thesis.pdf"), CrashSite.Export)
+
+        assertTrue(recorded.isEmpty())
     }
 }

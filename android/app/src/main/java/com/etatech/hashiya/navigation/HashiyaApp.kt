@@ -42,7 +42,9 @@ import com.etatech.hashiya.feature.search.navigation.requestSearchFind
 import com.etatech.hashiya.feature.search.navigation.requestSearchRemove
 import com.etatech.hashiya.feature.search.navigation.searchScreen
 import com.etatech.hashiya.feature.settings.navigation.SettingsRoute
+import com.etatech.hashiya.feature.settings.navigation.navigateToRestore
 import com.etatech.hashiya.feature.settings.navigation.navigateToSettings
+import com.etatech.hashiya.feature.settings.navigation.restoreScreen
 import com.etatech.hashiya.feature.settings.navigation.settingsScreen
 
 enum class TopLevelDestination(val icon: ImageVector, @StringRes val labelRes: Int, val matches: (NavDestination) -> Boolean) {
@@ -55,6 +57,8 @@ fun HashiyaApp(
     navController: NavHostController = rememberNavController(),
     pendingSearch: SearchRoute? = null,
     onPendingSearchHandled: () -> Unit = {},
+    pendingRestore: String? = null,
+    onPendingRestoreHandled: () -> Unit = {},
     requiredUpdate: RequiredUpdate? = null,
     onOpenStore: (String) -> Unit = {},
     shortcut: AppShortcut? = null,
@@ -106,7 +110,11 @@ fun HashiyaApp(
                 onReadPdf = { openAlexId -> navController.navigateToReader(openAlexId) }
             )
             readerScreen(onBack = { navController.popBackStack() })
-            settingsScreen(onBack = { navController.popBackStack() }, onOpenRestore = {})
+            settingsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenRestore = { uri -> navController.navigateToRestore(uri) }
+            )
+            restoreScreen(onDone = { navController.popBackStack() })
         }
 
         // Details opened from the Library on a narrow window moves into the Library's pane once the window is wide
@@ -127,6 +135,13 @@ fun HashiyaApp(
             pendingSearch?.let { route ->
                 navController.openSearch(route)
                 onPendingSearchHandled()
+            }
+        }
+
+        LaunchedEffect(pendingRestore) {
+            pendingRestore?.let { uri ->
+                navController.navigateToRestore(uri)
+                onPendingRestoreHandled()
             }
         }
     }

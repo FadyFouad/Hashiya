@@ -8,6 +8,7 @@ android {
 }
 
 dependencies {
+    api(project(":core:crash"))
     api(project(":core:data"))
     api(project(":core:model"))
     api(libs.junit)

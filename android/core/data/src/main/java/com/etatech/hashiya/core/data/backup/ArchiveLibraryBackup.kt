@@ -17,6 +17,7 @@ import com.etatech.hashiya.core.model.collectionNameKey
 import com.etatech.hashiya.core.model.normalizeDoi
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipFile
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.NonCancellable
@@ -37,6 +38,18 @@ internal class ArchiveLibraryBackup(
     private val io: CoroutineDispatcher,
     private val merge: suspend (List<IncomingPaper>, List<IncomingCollection>, Long) -> MergeOutcome = backupDao::merge
 ) : LibraryBackup {
+    private val workDirCleared = AtomicBoolean(false)
+
+    /**
+     * [workDir], created. The first call in this process deletes what an earlier process left (a crash, process death
+     * or a cancelled job); nothing of this process exists before then.
+     */
+    private fun readyWorkDir(): File {
+        workDir.mkdirs()
+        if (workDirCleared.compareAndSet(false, true)) workDir.listFiles()?.forEach { it.deleteRecursively() }
+        return workDir
+    }
+
     override suspend fun summary(): BackupSummary {
         val pdfs = backupDao.pdfTotals()
         return BackupSummary(backupDao.paperCount(), backupDao.collectionCount(), pdfs.count, pdfs.bytes)
@@ -47,7 +60,7 @@ internal class ArchiveLibraryBackup(
         val snapshot = backupDao.snapshot()
         withContext(io) {
             val time = now()
-            val file = File(workDir.apply { mkdirs() }, "export-${newId()}.hashiya")
+            val file = File(readyWorkDir(), "export-${newId()}.hashiya")
             var done = false
             try {
                 val written = file.outputStream().use { out ->
@@ -93,35 +106,35 @@ internal class ArchiveLibraryBackup(
     }
 
     override suspend fun open(source: Uri): OpenResult {
-        val file = File(workDir.apply { mkdirs() }, "restore-${newId()}.hashiya")
-        val read = withContext(io) {
-            try {
-                val input = contentResolver.openInputStream(source) ?: throw IOException("No input stream")
-                input.use { from -> file.outputStream().use { from.copyTo(it) } }
-                readArchive(file)
-            } catch (e: Exception) {
-                if (e !is IOException && e !is SecurityException) {
-                    file.delete()
-                    throw e
+        val file = File(readyWorkDir(), "restore-${newId()}.hashiya")
+        var ready = false
+        try {
+            val read = withContext(io) {
+                try {
+                    val input = contentResolver.openInputStream(source) ?: throw IOException("No input stream")
+                    input.use { from -> file.outputStream().use { from.copyTo(it) } }
+                    readArchive(file)
+                } catch (e: Exception) {
+                    if (e !is IOException && e !is SecurityException) throw e
+                    ArchiveRead.Invalid(OpenFailure.Unreadable)
                 }
-                ArchiveRead.Invalid(OpenFailure.Unreadable)
             }
+            if (read !is ArchiveRead.Valid) return OpenResult.Failed((read as ArchiveRead.Invalid).reason)
+            val papers = read.library.papers
+            val existing = papers.count { backupDao.matchFor(it.openAlexId?.trim()?.ifEmpty { null }, it.doi?.let(::normalizeDoi)) != null }
+            val preview = RestorePreview(
+                exportedAt = parseIsoUtc(read.manifest.exportedAt),
+                papers = papers.size,
+                collections = read.library.collections.size,
+                pdfs = papers.count { it.pdf?.file != null },
+                newPapers = papers.size - existing,
+                existingPapers = existing
+            )
+            return OpenResult.Ready(PreparedBackup(file, read.library), preview).also { ready = true }
+        } finally {
+            // Invalid, cancelled (the screen was left while reading) or failed: nobody holds a PreparedBackup to discard.
+            if (!ready) file.delete()
         }
-        if (read !is ArchiveRead.Valid) {
-            file.delete()
-            return OpenResult.Failed((read as ArchiveRead.Invalid).reason)
-        }
-        val papers = read.library.papers
-        val existing = papers.count { backupDao.matchFor(it.openAlexId?.trim()?.ifEmpty { null }, it.doi?.let(::normalizeDoi)) != null }
-        val preview = RestorePreview(
-            exportedAt = parseIsoUtc(read.manifest.exportedAt),
-            papers = papers.size,
-            collections = read.library.collections.size,
-            pdfs = papers.count { it.pdf?.file != null },
-            newPapers = papers.size - existing,
-            existingPapers = existing
-        )
-        return OpenResult.Ready(PreparedBackup(file, read.library), preview)
     }
 
     override fun discard(backup: PreparedBackup) {

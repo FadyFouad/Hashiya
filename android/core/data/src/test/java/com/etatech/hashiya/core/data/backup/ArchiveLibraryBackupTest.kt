@@ -54,12 +54,12 @@ class ArchiveLibraryBackupTest {
     @After
     fun tearDown() = db.close()
 
-    private fun backup(database: HashiyaDatabase, pdfs: File = pdfDir) = ArchiveLibraryBackup(
+    private fun backup(database: HashiyaDatabase, pdfs: File = pdfDir, work: File = File(tmp.root, "work")) = ArchiveLibraryBackup(
         backupDao = database.backupDao(),
         fileStore = PdfFileStore(pdfs),
         gate = PdfStoreGate(),
         contentResolver = context.contentResolver,
-        workDir = File(tmp.root, "work"),
+        workDir = work,
         appVersion = "0.3.0 (Android)",
         now = { 1_790_000_000_000L },
         newId = { "restored-${++ids}" },
@@ -201,6 +201,37 @@ class ArchiveLibraryBackupTest {
         assertEquals(OpenResult.Failed(OpenFailure.Unreadable), backup.open(Uri.fromFile(File(tmp.root, "missing.hashiya"))))
     }
 
+    @Test
+    fun cancellingAnOpenLeavesNoCopy() = runTest {
+        val bytes = fixture.readBytes()
+        val source = Uri.parse("content://docs/cancelled.hashiya")
+        lateinit var job: Job
+        val cancelling = object : java.io.ByteArrayInputStream(bytes) {
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                job.cancel()
+                return super.read(b, off, len)
+            }
+        }
+        org.robolectric.Shadows.shadowOf(context.contentResolver).registerInputStream(source, cancelling)
+        job = launch { backup.open(source) }
+        job.join()
+
+        assertTrue(job.isCancelled)
+        assertEquals(emptyList<String>(), File(tmp.root, "work").list()!!.toList())
+    }
+
+    @Test
+    fun leftoversFromAnEarlierProcessAreClearedOnFirstUse() = runTest {
+        val work = File(tmp.root, "work").apply { mkdirs() }
+        File(work, "export-stale.hashiya").writeText("old")
+        File(work, "restore-stale.hashiya").writeText("old")
+
+        val exported = backup.export(includePdfs = false)
+
+        assertEquals(listOf(exported.file.name), work.list()!!.toList())
+        backup.discard(exported)
+    }
+
     private suspend fun ready(file: File, using: ArchiveLibraryBackup = backup) = using.open(Uri.fromFile(file)) as OpenResult.Ready
 
     @Test
@@ -233,7 +264,7 @@ class ArchiveLibraryBackupTest {
 
         val other = Room.inMemoryDatabaseBuilder(context, HashiyaDatabase::class.java).allowMainThreadQueries().build()
         val otherPdfs = File(tmp.root, "other-pdfs")
-        val target = backup(other, otherPdfs)
+        val target = backup(other, otherPdfs, work = File(tmp.root, "other-work"))
         val result = target.apply(ready(exported.file, target).backup)
 
         assertEquals(2, result.papersAdded)

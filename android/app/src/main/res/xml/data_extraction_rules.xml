@@ -1,19 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+. Cloud backup keeps the library database and settings but not PDFs: they would quickly pass the 25 MB
+    quota, after which Android stops backing up the app at all. Open-access PDFs can be downloaded again; the in-app
+    export can include them. A device-to-device transfer has no quota, so it brings the PDFs too.
+    The API key lives in the DataStore file; cloud backup only runs when it is end-to-end encrypted.
 -->
 <data-extraction-rules>
-    <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+    <cloud-backup disableIfNoEncryptionCapabilities="true">
+        <include domain="database" path="." />
+        <include domain="file" path="datastore/" />
+        <include domain="file" path="androidx.appcompat.app.AppCompatDelegate.application_locales_record_file" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <include domain="database" path="." />
+        <include domain="file" path="datastore/" />
+        <include domain="file" path="androidx.appcompat.app.AppCompatDelegate.application_locales_record_file" />
+        <include domain="file" path="pdfs/" />
     </device-transfer>
-    -->
 </data-extraction-rules>

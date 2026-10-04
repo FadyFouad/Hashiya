@@ -39,4 +39,117 @@
     </plurals>
     <string name="settings_delete">حذف</string>
     <string name="settings_cancel">إلغاء</string>
+    <string name="settings_backup">النسخ الاحتياطي</string>
+    <string name="settings_backup_description">احفظ مكتبتك في ملف، أو أضف أوراقًا من نسخة احتياطية.</string>
+    <string name="settings_export_library">تصدير المكتبة</string>
+    <string name="settings_restore_backup">الاستعادة من نسخة احتياطية</string>
+    <string name="settings_export_title">تصدير المكتبة</string>
+    <!-- The Arabic comma, not "·": next to Arabic-Indic digits a middle dot reads as the digit zero (٠). -->
+    <string name="settings_export_counts">%1$s، %2$s</string>
+    <plurals name="settings_export_papers">
+        <item quantity="zero">لا أوراق</item>
+        <item quantity="one">ورقة واحدة</item>
+        <item quantity="two">ورقتان</item>
+        <item quantity="few">%1$d أوراق</item>
+        <item quantity="many">%1$d ورقة</item>
+        <item quantity="other">%1$d ورقة</item>
+    </plurals>
+    <plurals name="settings_export_collections">
+        <item quantity="zero">لا مجموعات</item>
+        <item quantity="one">مجموعة واحدة</item>
+        <item quantity="two">مجموعتان</item>
+        <item quantity="few">%1$d مجموعات</item>
+        <item quantity="many">%1$d مجموعة</item>
+        <item quantity="other">%1$d مجموعة</item>
+    </plurals>
+    <string name="settings_export_include_pdfs">تضمين ملفات PDF</string>
+    <plurals name="settings_export_pdfs_size">
+        <item quantity="zero">لا ملفات PDF، %2$s</item>
+        <item quantity="one">ملف PDF واحد، %2$s</item>
+        <item quantity="two">ملفا PDF، %2$s</item>
+        <item quantity="few">%1$d ملفات PDF، %2$s</item>
+        <item quantity="many">%1$d ملف PDF، %2$s</item>
+        <item quantity="other">%1$d ملف PDF، %2$s</item>
+    </plurals>
+    <string name="settings_export_no_settings">لا يتضمن الملف مفتاح API ولا الإعدادات.</string>
+    <string name="settings_export">تصدير</string>
+    <string name="settings_exporting">جارٍ تجهيز النسخة الاحتياطية…</string>
+    <string name="settings_exported">تم تصدير المكتبة</string>
+    <plurals name="settings_exported_missing">
+        <item quantity="zero">تم تصدير المكتبة.</item>
+        <item quantity="one">تم تصدير المكتبة. ملف PDF واحد كان مفقودًا ولم يُضمَّن.</item>
+        <item quantity="two">تم تصدير المكتبة. ملفا PDF كانا مفقودين ولم يُضمَّنا.</item>
+        <item quantity="few">تم تصدير المكتبة. %1$d ملفات PDF كانت مفقودة ولم تُضمَّن.</item>
+        <item quantity="many">تم تصدير المكتبة. %1$d ملف PDF كان مفقودًا ولم يُضمَّن.</item>
+        <item quantity="other">تم تصدير المكتبة. %1$d ملف PDF كان مفقودًا ولم يُضمَّن.</item>
+    </plurals>
+    <string name="settings_export_failed_space">تعذّر التصدير — لا توجد مساحة تخزين كافية.</string>
+    <string name="settings_export_failed">تعذّر تصدير المكتبة.</string>
+    <string name="settings_saving_backup">جارٍ الحفظ…</string>
+    <string name="restore_title">الاستعادة من نسخة احتياطية</string>
+    <string name="restore_back">رجوع</string>
+    <string name="restore_reading">جارٍ قراءة النسخة الاحتياطية…</string>
+    <string name="restore_from_date">نسخة احتياطية من %1$s</string>
+    <string name="restore_counts">%1$s، %2$s، %3$s</string>
+    <plurals name="restore_pdfs">
+        <item quantity="zero">لا ملفات PDF</item>
+        <item quantity="one">ملف PDF واحد</item>
+        <item quantity="two">ملفا PDF</item>
+        <item quantity="few">%1$d ملفات PDF</item>
+        <item quantity="many">%1$d ملف PDF</item>
+        <item quantity="other">%1$d ملف PDF</item>
+    </plurals>
+    <plurals name="restore_new_papers">
+        <item quantity="zero">لن تُضاف أوراق جديدة</item>
+        <item quantity="one">ستُضاف ورقة جديدة واحدة</item>
+        <item quantity="two">ستُضاف ورقتان جديدتان</item>
+        <item quantity="few">ستُضاف %1$d أوراق جديدة</item>
+        <item quantity="many">ستُضاف %1$d ورقة جديدة</item>
+        <item quantity="other">ستُضاف %1$d ورقة جديدة</item>
+    </plurals>
+    <plurals name="restore_existing_papers">
+        <item quantity="zero">لا توجد أوراق منها في مكتبتك</item>
+        <item quantity="one">ورقة واحدة موجودة في مكتبتك وتبقى كما هي</item>
+        <item quantity="two">ورقتان موجودتان في مكتبتك وتبقيان كما هما</item>
+        <item quantity="few">%1$d أوراق موجودة في مكتبتك وتبقى كما هي</item>
+        <item quantity="many">%1$d ورقة موجودة في مكتبتك وتبقى كما هي</item>
+        <item quantity="other">%1$d ورقة موجودة في مكتبتك وتبقى كما هي</item>
+    </plurals>
+    <plurals name="restore_skipped_papers">
+        <item quantity="zero">لن تُتخطّى أي ورقة</item>
+        <item quantity="one">ورقة واحدة ليس لها معرّف OpenAlex وستُتخطّى</item>
+        <item quantity="two">ورقتان ليس لهما معرّف OpenAlex وستُتخطّيان</item>
+        <item quantity="few">%1$d أوراق ليس لها معرّف OpenAlex وستُتخطّى</item>
+        <item quantity="many">%1$d ورقة ليس لها معرّف OpenAlex وستُتخطّى</item>
+        <item quantity="other">%1$d ورقة ليس لها معرّف OpenAlex وستُتخطّى</item>
+    </plurals>
+    <string name="restore_keeps_library">لن يُغيَّر أو يُحذف شيء من مكتبتك.</string>
+    <string name="restore_add">إضافة إلى المكتبة</string>
+    <string name="restore_cancel">إلغاء</string>
+    <string name="restore_applying">جارٍ الإضافة إلى مكتبتك…</string>
+    <string name="restore_done_title">تمت استعادة النسخة الاحتياطية</string>
+    <string name="restore_done_body">أُضيفت أوراق: %1$d، وملاحظات على أوراق موجودة: %2$d، ومجموعات: %3$d، وملفات PDF: %4$d.</string>
+    <plurals name="restore_done_missing_pdfs">
+        <item quantity="zero">استُعيدت كل ملفات PDF.</item>
+        <item quantity="one">تعذّرت استعادة ملف PDF واحد من النسخة.</item>
+        <item quantity="two">تعذّرت استعادة ملفي PDF من النسخة.</item>
+        <item quantity="few">تعذّرت استعادة %1$d ملفات PDF من النسخة.</item>
+        <item quantity="many">تعذّرت استعادة %1$d ملف PDF من النسخة.</item>
+        <item quantity="other">تعذّرت استعادة %1$d ملف PDF من النسخة.</item>
+    </plurals>
+    <plurals name="restore_done_skipped_papers">
+        <item quantity="zero">لم تُتخطَّ أي ورقة.</item>
+        <item quantity="one">تُخطّيت ورقة واحدة ليس لها معرّف OpenAlex.</item>
+        <item quantity="two">تُخطّيت ورقتان ليس لهما معرّف OpenAlex.</item>
+        <item quantity="few">تُخطّيت %1$d أوراق ليس لها معرّف OpenAlex.</item>
+        <item quantity="many">تُخطّيت %1$d ورقة ليس لها معرّف OpenAlex.</item>
+        <item quantity="other">تُخطّيت %1$d ورقة ليس لها معرّف OpenAlex.</item>
+    </plurals>
+    <string name="restore_done">تم</string>
+    <string name="restore_not_backup">هذا الملف ليس نسخة احتياطية من حاشية.</string>
+    <string name="restore_newer">أُنشئت هذه النسخة بإصدار أحدث من حاشية. حدّث التطبيق لاستعادتها.</string>
+    <string name="restore_damaged">هذه النسخة الاحتياطية تالفة ولا يمكن استعادتها.</string>
+    <string name="restore_unreadable">تعذّرت قراءة الملف.</string>
+    <string name="restore_failed_space">لا توجد مساحة تخزين كافية لاستعادة هذه النسخة. لم يتغيّر شيء.</string>
+    <string name="restore_failed">تعذّرت استعادة النسخة الاحتياطية. لم يتغيّر شيء.</string>
 </resources>

@@ -1,6 +1,7 @@
 plugins {
     id("hashiya.android.library")
     id("hashiya.hilt")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -16,6 +17,7 @@ dependencies {
     implementation(project(":core:network"))
     implementation(project(":core:database"))
     implementation(project(":core:datastore"))
+    implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
@@ -27,4 +29,9 @@ dependencies {
 
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.ext.junit)
+}
+
+// The backup fixture shared with iOS lives at the repository root.
+tasks.withType<Test>().configureEach {
+    systemProperty("hashiya.testdata", rootProject.file("../testdata").absolutePath)
 }

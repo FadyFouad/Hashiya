@@ -1,6 +1,7 @@
 package com.etatech.hashiya.feature.settings
 
 import com.etatech.hashiya.core.model.PdfStorage
+import com.etatech.hashiya.core.testing.FakeLibraryBackup
 import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
@@ -25,7 +26,7 @@ class SettingsViewModelTest {
     private val pdfs = FakePdfRepository()
 
     private fun TestScope.viewModel(): SettingsViewModel {
-        val viewModel = SettingsViewModel(preferences, languageController, pdfs)
+        val viewModel = SettingsViewModel(preferences, languageController, pdfs, FakeLibraryBackup())
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }

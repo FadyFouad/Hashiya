@@ -42,7 +42,10 @@ interface PdfRepository {
      */
     suspend fun discardRemoved(removed: RemovedPaper)
 
-    /** Deletes files no paper points at and leftover temporary files. Called once at startup. */
+    /**
+     * Deletes files no paper points at and leftover temporary files, and clears the PDF of papers whose file is gone. Called once at
+     * startup.
+     */
     suspend fun sweepOrphans()
 }
 

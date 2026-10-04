@@ -29,4 +29,76 @@
     </plurals>
     <string name="settings_delete">Delete</string>
     <string name="settings_cancel">Cancel</string>
+    <string name="settings_backup">Backup</string>
+    <string name="settings_backup_description">Save your library to a file, or add papers from a backup.</string>
+    <string name="settings_export_library">Export library</string>
+    <string name="settings_restore_backup">Restore from backup</string>
+    <string name="settings_export_title">Export library</string>
+    <string name="settings_export_counts">%1$s · %2$s</string>
+    <plurals name="settings_export_papers">
+        <item quantity="one">%1$d paper</item>
+        <item quantity="other">%1$d papers</item>
+    </plurals>
+    <plurals name="settings_export_collections">
+        <item quantity="one">%1$d collection</item>
+        <item quantity="other">%1$d collections</item>
+    </plurals>
+    <string name="settings_export_include_pdfs">Include PDFs</string>
+    <plurals name="settings_export_pdfs_size">
+        <item quantity="one">%1$d PDF, %2$s</item>
+        <item quantity="other">%1$d PDFs, %2$s</item>
+    </plurals>
+    <string name="settings_export_no_settings">Your API key and settings aren\'t included.</string>
+    <string name="settings_export">Export</string>
+    <string name="settings_exporting">Preparing backup…</string>
+    <string name="settings_exported">Library exported</string>
+    <plurals name="settings_exported_missing">
+        <item quantity="one">Library exported. %1$d PDF was missing and wasn\'t included.</item>
+        <item quantity="other">Library exported. %1$d PDFs were missing and weren\'t included.</item>
+    </plurals>
+    <string name="settings_export_failed_space">Couldn\'t export — not enough storage space.</string>
+    <string name="settings_export_failed">Couldn\'t export the library.</string>
+    <string name="settings_saving_backup">Saving…</string>
+    <string name="restore_title">Restore from backup</string>
+    <string name="restore_back">Back</string>
+    <string name="restore_reading">Reading backup…</string>
+    <string name="restore_from_date">Backup from %1$s</string>
+    <string name="restore_counts">%1$s · %2$s · %3$s</string>
+    <plurals name="restore_pdfs">
+        <item quantity="one">%1$d PDF</item>
+        <item quantity="other">%1$d PDFs</item>
+    </plurals>
+    <plurals name="restore_new_papers">
+        <item quantity="one">%1$d new paper will be added</item>
+        <item quantity="other">%1$d new papers will be added</item>
+    </plurals>
+    <plurals name="restore_existing_papers">
+        <item quantity="one">%1$d is already in your library and stays as it is</item>
+        <item quantity="other">%1$d are already in your library and stay as they are</item>
+    </plurals>
+    <plurals name="restore_skipped_papers">
+        <item quantity="one">%1$d has no OpenAlex ID and will be skipped</item>
+        <item quantity="other">%1$d have no OpenAlex ID and will be skipped</item>
+    </plurals>
+    <string name="restore_keeps_library">Nothing in your library is changed or removed.</string>
+    <string name="restore_add">Add to library</string>
+    <string name="restore_cancel">Cancel</string>
+    <string name="restore_applying">Adding to your library…</string>
+    <string name="restore_done_title">Backup restored</string>
+    <string name="restore_done_body">Papers added: %1$d · Notes added to existing papers: %2$d · Collections added: %3$d · PDFs added: %4$d</string>
+    <plurals name="restore_done_missing_pdfs">
+        <item quantity="one">%1$d PDF in the backup couldn\'t be restored.</item>
+        <item quantity="other">%1$d PDFs in the backup couldn\'t be restored.</item>
+    </plurals>
+    <plurals name="restore_done_skipped_papers">
+        <item quantity="one">%1$d paper without an OpenAlex ID was skipped.</item>
+        <item quantity="other">%1$d papers without an OpenAlex ID were skipped.</item>
+    </plurals>
+    <string name="restore_done">Done</string>
+    <string name="restore_not_backup">This isn\'t a Hashiya backup.</string>
+    <string name="restore_newer">This backup was made by a newer version of Hashiya. Update the app to restore it.</string>
+    <string name="restore_damaged">This backup is damaged and can\'t be restored.</string>
+    <string name="restore_unreadable">The file couldn\'t be read.</string>
+    <string name="restore_failed_space">Not enough storage space to restore this backup. Nothing was changed.</string>
+    <string name="restore_failed">The backup couldn\'t be restored. Nothing was changed.</string>
 </resources>

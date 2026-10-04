@@ -1,6 +1,7 @@
 package com.etatech.hashiya.feature.settings
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import com.etatech.hashiya.core.data.backup.BackupSummary
 import com.etatech.hashiya.core.model.PdfStorage
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.ScreenshotVariant
@@ -55,5 +56,23 @@ class SettingsScreenshotTest(private val variant: ScreenshotVariant) {
         @JvmStatic
         @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
         fun parameters() = ScreenshotVariant.parameters()
+    }
+
+    @Test
+    fun exportDialog() = composeRule.captureScreenshot("settings_export", variant, arabicText = "تضمين ملفات PDF", wholeScreen = true) {
+        SettingsContent(
+            uiState = SettingsUiState(
+                language = AppLanguage.System,
+                backup = BackupUiState(
+                    summary = BackupSummary(papers = 182, collections = 6, pdfCount = 41, pdfBytes = 238_000_000),
+                    export = ExportState.Choosing(includePdfs = true)
+                )
+            ),
+            onBack = {},
+            onKeyInputChange = {},
+            onSaveKey = {},
+            onResetKey = {},
+            onLanguageSelected = {}
+        )
     }
 }

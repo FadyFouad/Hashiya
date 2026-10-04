@@ -1,5 +1,8 @@
 package com.etatech.hashiya.feature.settings
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -7,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import com.etatech.hashiya.core.data.backup.BackupSummary
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.PdfStorage
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
@@ -108,5 +112,42 @@ class SettingsContentTest {
         show(SettingsUiState(storage = null))
 
         composeRule.onNodeWithText("Storage").assertDoesNotExist()
+    }
+
+    @Test
+    fun exportOpensTheDialogWithCounts() {
+        var state by mutableStateOf(
+            SettingsUiState(
+                backup = BackupUiState(summary = BackupSummary(papers = 182, collections = 6, pdfCount = 41, pdfBytes = 238_000_000))
+            )
+        )
+        composeRule.setContent {
+            HashiyaTheme {
+                SettingsContent(
+                    uiState = state,
+                    onBack = {},
+                    onKeyInputChange = {},
+                    onSaveKey = {},
+                    onResetKey = {},
+                    onLanguageSelected = {},
+                    onExportClick = { state = state.copy(backup = state.backup.copy(export = ExportState.Choosing(includePdfs = false))) }
+                )
+            }
+        }
+        composeRule.onNodeWithText("Export library").performScrollTo().performClick()
+        composeRule.onNodeWithText("182 papers · 6 collections").assertIsDisplayed()
+        composeRule.onNodeWithText("Include PDFs").assertIsDisplayed()
+    }
+
+    @Test
+    fun exportIsDisabledForAnEmptyLibrary() {
+        show(SettingsUiState(backup = BackupUiState(summary = BackupSummary(0, 0, 0, 0))))
+        composeRule.onNodeWithText("Export library").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun savingShowsProgress() {
+        show(SettingsUiState(backup = BackupUiState(summary = BackupSummary(1, 0, 0, 0), export = ExportState.Saving)))
+        composeRule.onNodeWithText("Saving…").performScrollTo().assertIsDisplayed()
     }
 }

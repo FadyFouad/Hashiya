@@ -2,6 +2,7 @@ package com.etatech.hashiya.core.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import com.etatech.hashiya.core.database.dao.BackupDao
 import com.etatech.hashiya.core.database.dao.CitationDao
 import com.etatech.hashiya.core.database.dao.CollectionDao
 import com.etatech.hashiya.core.database.dao.PaperDao
@@ -30,4 +31,6 @@ abstract class HashiyaDatabase : RoomDatabase() {
     abstract fun collectionDao(): CollectionDao
 
     abstract fun citationDao(): CitationDao
+
+    abstract fun backupDao(): BackupDao
 }

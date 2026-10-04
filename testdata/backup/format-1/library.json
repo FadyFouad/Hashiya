@@ -1,0 +1,69 @@
+{
+  "papers": [
+    {
+      "ref": 1,
+      "openAlexId": "W2741809807",
+      "doi": "10.1038/nature14539",
+      "title": "Deep learning",
+      "year": 2015,
+      "venue": "Nature",
+      "abstract": "Deep learning allows computational models…",
+      "citationCount": 54000,
+      "isOpenAccess": true,
+      "oaPdfUrl": "https://example.org/deep.pdf",
+      "savedAt": 1790000000000,
+      "readingStatus": "reading",
+      "workType": "article",
+      "sourceType": "journal",
+      "publisher": "Springer Nature",
+      "volume": "521",
+      "issue": "7553",
+      "firstPage": "436",
+      "lastPage": "444",
+      "citeKey": "lecun2015deep",
+      "detailsFetched": true,
+      "authors": [
+        { "name": "Yann LeCun", "openAlexAuthorId": "A1" },
+        { "name": "Yoshua Bengio", "openAlexAuthorId": "A2" },
+        { "name": "Geoffrey Hinton", "openAlexAuthorId": null }
+      ],
+      "notes": {
+        "summary": "Review of deep learning.",
+        "researchQuestion": "",
+        "method": "Survey",
+        "keyFindings": "",
+        "limitations": "",
+        "thoughts": "Cite in chapter 2",
+        "updatedAt": 1790000100000
+      },
+      "pdf": { "source": "downloaded", "addedAt": 1790000200000, "lastPage": 4, "file": "pdfs/1.pdf" },
+      "someFutureField": "ignored"
+    },
+    {
+      "ref": 2,
+      "title": "التعلم العميق في معالجة اللغة العربية",
+      "savedAt": 1790000300000,
+      "readingStatus": "to_read",
+      "authors": [ { "name": "فاطمة الزهراء" } ],
+      "notes": null,
+      "pdf": { "source": "attached", "addedAt": 1790000400000, "lastPage": 0, "file": null }
+    },
+    {
+      "ref": 3,
+      "openAlexId": "W3",
+      "doi": "10.1000/xyz",
+      "title": "Attention is all you need",
+      "year": 2017,
+      "citationCount": 10,
+      "isOpenAccess": false,
+      "savedAt": 1790000500000,
+      "readingStatus": "read",
+      "authors": [],
+      "pdf": null
+    }
+  ],
+  "collections": [
+    { "name": "Thesis", "createdAt": 1790000600000, "papers": [1, 2] },
+    { "name": "مراجعة", "createdAt": 1790000700000, "papers": [3] }
+  ]
+}

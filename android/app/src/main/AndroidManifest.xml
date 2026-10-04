@@ -33,6 +33,16 @@
 
                 <data android:mimeType="text/plain" />
             </intent-filter>
+
+            <!-- Opening a .hashiya backup (a zip) from Files, Drive or mail goes to Restore; a zip that isn't one says so there. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:scheme="content" />
+                <data android:mimeType="application/zip" />
+            </intent-filter>
         </activity>
 
         <!-- Persists the per-app language on Android 12 and below (AppCompat). -->

@@ -29,6 +29,9 @@ class MainActivity : AppCompatActivity() {
     /** A shared page waiting to be opened in Search; cleared once navigation has happened. */
     private var pendingSearch by mutableStateOf<SearchRoute?>(null)
 
+    /** A `.hashiya` file opened from another app, waiting to be shown in Restore; cleared once navigation has happened. */
+    private var pendingRestore by mutableStateOf<String?>(null)
+
     /** A keyboard shortcut waiting for the app to act on it. */
     private var pendingShortcut by mutableStateOf<AppShortcut?>(null)
 
@@ -38,12 +41,15 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         if (isFreshLaunch(savedInstanceState)) pendingSearch = intent.sharedSearchRoute()
+        if (isFreshLaunch(savedInstanceState)) pendingRestore = intent.openedBackup()
         setContent {
             val requiredUpdate by appUpdate.requiredUpdate.collectAsState()
             HashiyaTheme {
                 HashiyaApp(
                     pendingSearch = pendingSearch,
                     onPendingSearchHandled = { pendingSearch = null },
+                    pendingRestore = pendingRestore,
+                    onPendingRestoreHandled = { pendingRestore = null },
                     requiredUpdate = requiredUpdate,
                     onOpenStore = ::openStore,
                     shortcut = pendingShortcut,
@@ -63,6 +69,7 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         intent.sharedSearchRoute()?.let { pendingSearch = it }
+        intent.openedBackup()?.let { pendingRestore = it }
     }
 
     /**
@@ -114,3 +121,6 @@ class MainActivity : AppCompatActivity() {
         return shareToSearchRoute(getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString(), subject)
     }
 }
+
+/** A `.hashiya` file opened from Files, Drive or a mail app. Only a content URI: a file URI could point at the app's own files. */
+internal fun Intent.openedBackup(): String? = data?.takeIf { action == Intent.ACTION_VIEW && it.scheme == "content" }?.toString()

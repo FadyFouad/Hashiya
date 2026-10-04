@@ -33,6 +33,32 @@ class PdfFileStoreTest {
     private fun filesInDir(): List<String> = dir.listFiles().orEmpty().map { it.name }.sorted()
 
     @Test
+    fun stageKeepsAPartFileAndCommitMovesItIntoPlace() {
+        val staged = store.stage("restore", "%PDF-1.4 hello".byteInputStream(), maxBytes = 1024) {} as StageResult.Staged
+        assertTrue(staged.file.name.endsWith(".part"))
+        assertFalse(store.file("p1").exists())
+
+        store.commit(staged.file, "p1")
+
+        assertFalse(staged.file.exists())
+        assertEquals("%PDF-1.4 hello", store.file("p1").readText())
+        assertEquals(14L, staged.size)
+    }
+
+    @Test
+    fun stageRejectsANonPdfAndLeavesNothing() {
+        assertEquals(StageResult.NotPdf, store.stage("restore", "<html>".byteInputStream(), maxBytes = 1024) {})
+        assertTrue(filesInDir().isEmpty())
+    }
+
+    @Test
+    fun sweepDeletesUncommittedStagedFiles() {
+        store.stage("restore", "%PDF-1.4".byteInputStream(), maxBytes = 1024) {}
+        store.sweep(keep = emptySet())
+        assertTrue(filesInDir().isEmpty())
+    }
+
+    @Test
     fun storesAPdfUnderThePaperIdAndReturnsItsSize() {
         val result = store.store("local-1", stream(PDF), MAX_PDF_BYTES) {}
 

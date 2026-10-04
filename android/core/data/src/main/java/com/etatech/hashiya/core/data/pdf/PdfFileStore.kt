@@ -23,6 +23,15 @@ internal sealed interface StoreResult {
     data object TooLarge : StoreResult
 }
 
+internal sealed interface StageResult {
+    /** A checked PDF in a `.part` file in the store's folder; [PdfFileStore.commit] moves it into place, or the caller deletes it. */
+    data class Staged(val file: File, val size: Long) : StageResult
+
+    data object NotPdf : StageResult
+
+    data object TooLarge : StageResult
+}
+
 /**
  * Writing the file failed (the disk is full, or the rename didn't happen). Not an [IOException], so callers never mistake it for
  * the network or the source failing.
@@ -34,18 +43,18 @@ internal class PdfFileStore(private val dir: File) {
     fun file(paperId: String): File = File(dir, "$paperId.pdf")
 
     /**
-     * Copies [input] to a temporary file, checks it is a PDF and at most [maxBytes], then renames it over `<paperId>.pdf`. A rejected
-     * or failed copy leaves the current file, if any, as it was, and no temporary file. [onProgress] gets the bytes copied so far.
-     * Read failures from [input] are thrown as they are; write failures throw [PdfWriteException].
+     * Copies [input] to a `.part` file named after [prefix] and checks it is a PDF of at most [maxBytes]. A rejected or failed copy
+     * leaves no file. Read failures from [input] are thrown as they are; write failures throw [PdfWriteException]. A staged file that
+     * is never committed or deleted is removed by the next [sweep]. [onProgress] gets the bytes copied so far.
      */
-    fun store(paperId: String, input: InputStream, maxBytes: Long, onProgress: (Long) -> Unit): StoreResult {
+    fun stage(prefix: String, input: InputStream, maxBytes: Long, onProgress: (Long) -> Unit): StageResult {
         val temp = try {
             dir.mkdirs()
-            File.createTempFile("$paperId-", TEMP_SUFFIX, dir)
+            File.createTempFile("$prefix-", TEMP_SUFFIX, dir)
         } catch (e: IOException) {
             throw PdfWriteException(e)
         }
-        var stored = false
+        var staged = false
         try {
             val head = ByteArray(HEADER_WINDOW)
             var headSize = 0
@@ -61,13 +70,13 @@ internal class PdfFileStore(private val dir: File) {
                     val read = input.read(buffer)
                     if (read == -1) break
                     total += read
-                    if (total > maxBytes) return StoreResult.TooLarge
+                    if (total > maxBytes) return StageResult.TooLarge
                     if (headSize < HEADER_WINDOW) {
                         val take = minOf(read, HEADER_WINDOW - headSize)
                         buffer.copyInto(head, destinationOffset = headSize, startIndex = 0, endIndex = take)
                         headSize += take
                         // A web page is usually small, but a large non-PDF shouldn't be read to the end before it is rejected.
-                        if (headSize == HEADER_WINDOW && !head.containsPdfHeader(headSize)) return StoreResult.NotPdf
+                        if (headSize == HEADER_WINDOW && !head.containsPdfHeader(headSize)) return StageResult.NotPdf
                     }
                     try {
                         out.write(buffer, 0, read)
@@ -83,15 +92,44 @@ internal class PdfFileStore(private val dir: File) {
                     throw PdfWriteException(e)
                 }
             }
-            if (!head.containsPdfHeader(headSize)) return StoreResult.NotPdf
-            val target = file(paperId)
-            // rename(2) replaces the target atomically within one folder.
-            if (!temp.renameTo(target)) throw PdfWriteException(IOException("Couldn't move the PDF into place"))
-            stored = true
-            return StoreResult.Stored(total)
+            if (!head.containsPdfHeader(headSize)) return StageResult.NotPdf
+            staged = true
+            return StageResult.Staged(temp, total)
         } finally {
-            if (!stored) temp.delete()
+            if (!staged) temp.delete()
         }
+    }
+
+    /** Moves a staged file over `<paperId>.pdf`; rename(2) replaces the target atomically within one folder. */
+    fun commit(staged: File, paperId: String) {
+        if (!staged.renameTo(file(paperId))) throw PdfWriteException(IOException("Couldn't move the PDF into place"))
+    }
+
+    /**
+     * Stages [input] and moves it over `<paperId>.pdf`. A rejected or failed store leaves the current file, if any, as it was, and no
+     * temporary file.
+     */
+    fun store(paperId: String, input: InputStream, maxBytes: Long, onProgress: (Long) -> Unit): StoreResult =
+        when (val result = stage(paperId, input, maxBytes, onProgress)) {
+            is StageResult.Staged -> {
+                try {
+                    commit(result.file, paperId)
+                } catch (e: PdfWriteException) {
+                    result.file.delete()
+                    throw e
+                }
+                StoreResult.Stored(result.size)
+            }
+
+            StageResult.NotPdf -> StoreResult.NotPdf
+
+            StageResult.TooLarge -> StoreResult.TooLarge
+        }
+
+    /** Bytes free where the PDFs are kept. */
+    fun usableSpace(): Long {
+        dir.mkdirs()
+        return dir.usableSpace
     }
 
     fun delete(paperId: String) {

@@ -48,6 +48,7 @@ CAPTIONS = {
         "tablet-1-search": ("Search and preview side by side", "Results and the abstract together on a bigger screen"),
         "tablet-2-reader": ("Your notes beside the PDF", "Read and write at the same time"),
         "tablet-3-details": ("Track your reading", "Status, collections, PDF and notes in one place"),
+        "ipad-6-windows": ("A paper in its own window", "Keep one beside your library,\nor two papers side by side"),
     },
     "ar": {
         "1-search": ("ابحث عن أي ورقة بحثية", "ملايين الأعمال العلمية في مكان واحد،\nأو الصق DOI أو معرّف arXiv أو رابطًا"),
@@ -59,8 +60,19 @@ CAPTIONS = {
         "tablet-1-search": ("ابحث واطّلع جنبًا إلى جنب", "النتائج والملخص معًا على الشاشة الكبيرة"),
         "tablet-2-reader": ("ملاحظاتك بجانب ملف PDF", "اقرأ ودوّن في الوقت نفسه"),
         "tablet-3-details": ("تابع قراءاتك", "الحالة والمجموعات وملف PDF والملاحظات في مكان واحد"),
+        "ipad-6-windows": ("كل ورقة في نافذتها", "ضعها بجانب مكتبتك،\nأو ورقتين جنبًا إلى جنب"),
     },
 }
+
+# iPad shots 1–5 reuse the tablet and iPhone captions; named ipad-<n>-… so they sort in upload order.
+for _captions in CAPTIONS.values():
+    _captions.update({
+        "ipad-1-search": _captions["tablet-1-search"],
+        "ipad-2-reader": _captions["tablet-2-reader"],
+        "ipad-3-details": _captions["tablet-3-details"],
+        "ipad-4-library-search": _captions["4-library-search"],
+        "ipad-5-collections": _captions["6-collections"],
+    })
 
 
 def font(lang: str, weight: str, size: int) -> ImageFont.FreeTypeFont:

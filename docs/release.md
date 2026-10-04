@@ -61,7 +61,7 @@ All text is in `docs/store/metadata.md`.
 - **Version 0.1.0 → English (U.S.) and Arabic:**
   - Screenshots: iPhone 6.9" from `docs/store/app-store/<lang>/`, in order 1 to 4.
   - Promotional text, description, keywords, support URL and copyright.
-- **iPad:** 0.1.0 and 0.2.0 are iPhone-only. From the next version the app runs on iPad (`TARGETED_DEVICE_FAMILY: "1,2"` in `ios/project.yml`), so App Store Connect asks for 13" iPad screenshots too: upload `docs/store/app-store-ipad/<lang>/`, in order 1 to 3.
+- **iPad:** 0.1.0 and 0.2.0 are iPhone-only. From the next version the app runs on iPad (`TARGETED_DEVICE_FAMILY: "1,2"` in `ios/project.yml`), so App Store Connect asks for 13" iPad screenshots too: upload `docs/store/app-store-ipad/<lang>/`, in order 1 to 6.
 - **Build:** choose the TestFlight build.
 - **App Review Information:** no sign-in required; paste the review notes from `metadata.md`; add your phone and email.
 - **Version release:** "Manually release this version", so you choose the launch moment.

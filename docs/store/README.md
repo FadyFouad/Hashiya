@@ -27,6 +27,14 @@ Tablet (Play and the App Store's iPad, landscape; same captions):
 | 2 | Your notes beside the PDF | ملاحظاتك بجانب ملف PDF | PDF reader with the notes pane |
 | 3 | Track your reading | تابع قراءاتك | Details, a centered column on the wide screen |
 
+iPad (App Store, landscape): shots 1–3 are the tablet ones above, then:
+
+| # | English caption | Arabic caption | Screen |
+|---|---|---|---|
+| 4 | Your library, offline | مكتبتك معك دائمًا | Library search ("survey") with a paper open beside the results |
+| 5 | Organize into collections | نظّم أوراقك في مجموعات | A collection picked from the title menu, a paper open beside it |
+| 6 | A paper in its own window | كل ورقة في نافذتها | Two windows side by side (Windowed Apps) |
+
 ## Regenerating
 
 `raw/` holds the unframed captures. After replacing any of them, reframe with:
@@ -39,7 +47,7 @@ The same script also redraws the feature graphic. It needs `rsvg-convert` and a 
 
 - **iOS** captures come from the iPhone 17 Pro Max simulator, with the status bar set to 9:41 and full signal and battery (`xcrun simctl status_bar`).
 - **Android** captures are rendered with Robolectric at 411 × 891 dp and 420 dpi. They have no system bars, so the script draws a status bar on them.
-- **iPad** captures come from the iPad Pro 13-inch (M5) simulator, in landscape, with Full Screen Apps on (Settings → Multitasking & Gestures) and the status bar at 9:41. They show the same six papers. Shot 2 is "Attention Is All You Need" in the reader with notes in Summary and Method beside the PDF (the reader hides the list); shot 3 is "A Survey of Large Language Models" beside the Library list, in the collection "Thesis — Chapter 2" (Arabic: "الفصل الثاني"), with its PDF downloaded. XCUITest screenshots in landscape are stored portrait with an EXIF rotation, so turn it into pixels (Pillow's `ImageOps.exif_transpose`) before framing.
+- **iPad** captures come from the iPad Pro 13-inch (M5) simulator, in landscape, with Full Screen Apps on (Settings → Multitasking & Gestures) and the status bar at 9:41. They show the same six papers. Shot 2 is "Attention Is All You Need" in the reader with notes in Summary and Method beside the PDF (the reader hides the list); shot 3 is "A Survey of Large Language Models" beside the Library list, in the collection "Thesis — Chapter 2" (Arabic: "الفصل الثاني"), with its PDF downloaded. Shot 4 searches the Library for "survey"; shot 5 is the collection holding four of the papers; shot 6 switches to Windowed Apps, with the main window on the left half and "Performance of ChatGPT on USMLE" opened in a window of its own on the right. XCUITest screenshots in landscape are stored portrait with an EXIF rotation, so turn it into pixels (Pillow's `ImageOps.exif_transpose`) before framing.
 - **Android tablet** captures are light English and Arabic Robolectric renders at 1280 × 800 dp, so they show the tests' sample papers and a stub PDF. Shots 1 and 2 are the `SearchTabletScreenshotTest` and `ReaderTabletScreenshotTest` renders. Shot 3 is Details on its own, full width, as opened from Search, with a downloaded PDF: the `PaperDetailsTabletScreenshotTest` renders put it beside a stand-in list, which doesn't belong in a store listing. Record them locally with `./gradlew recordRoborazziDebug --tests '*TabletScreenshotTest'`, copy the `-EnglishLight` / `-ArabicLight` images into `raw/play-store-tablet/<lang>/`, and delete the recorded baselines again: baselines are only committed from Linux CI.
 
 Both apps showed the same six real papers from OpenAlex, saved in the library as To read, Reading and Read, and a live search for "large language models".

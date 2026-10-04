@@ -290,8 +290,11 @@ internal class RoomPdfRepository(
         // A download or attach running alongside would lose its temporary file, or its new file before its row is set.
         sweepLock.withLock {
             activeStores.first { it == 0 }
-            val keep = paperDao.pdfPaperIds().toSet()
-            withContext(io) { fileStore.sweep(keep) }
+            val stored = paperDao.pdfPaperIds().toSet()
+            // Rows whose file is gone (an OS restore leaves PDFs out) go back to "no PDF", so Details offers to download it again.
+            val missing = withContext(io) { stored.filterNot { fileStore.file(it).exists() } }
+            missing.forEach { paperDao.clearPdf(it) }
+            withContext(io) { fileStore.sweep(stored - missing.toSet()) }
         }
     }
 }

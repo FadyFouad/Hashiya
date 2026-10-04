@@ -37,6 +37,7 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -421,6 +422,23 @@ class RoomPdfRepositoryTest {
         repository.sweepOrphans()
 
         assertEquals(listOf("local-1.pdf"), filesInDir())
+    }
+
+    @Test
+    fun sweepOrphansClearsRowsWhoseFileIsGone() = runTest {
+        library.save(paper("W1"))
+        library.save(paper("W2"))
+        // W1's row says a PDF is stored, but its file is gone (an OS restore without PDFs, or a lost file).
+        db.paperDao().setPdf("local-1", "downloaded", 10, 1)
+        db.paperDao().setPdf("local-2", "attached", 10, 1)
+        dir.mkdirs()
+        File(dir, "local-2.pdf").writeText("%PDF-1.4")
+
+        repository.sweepOrphans()
+
+        assertNull(repository.observePdf("W1").first())
+        assertEquals(PdfSource.Attached, repository.observePdf("W2").first()?.source)
+        assertTrue(File(dir, "local-2.pdf").exists())
     }
 
     // Fallback to OpenAlex's other open-access locations when the stored link doesn't give the PDF.

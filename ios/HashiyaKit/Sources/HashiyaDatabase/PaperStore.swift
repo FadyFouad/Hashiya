@@ -7,7 +7,7 @@ import os
 /// `paper_search` in step with `papers`. Observations start with the current value and are delivered as
 /// `AsyncStream`s, so callers never import GRDB.
 public struct PaperStore: Sendable {
-    private let writer: any DatabaseWriter
+    let writer: any DatabaseWriter
 
     public init(writer: any DatabaseWriter) {
         self.writer = writer

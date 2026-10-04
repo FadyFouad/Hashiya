@@ -45,6 +45,22 @@ struct PdfFileStoreTests {
         #expect(names() == ["local-1.pdf"])
     }
 
+    @Test func aFileCanBeExcludedFromBackupAndIncludedAgain() throws {
+        try write("local-1.pdf")
+
+        store.setExcludedFromBackup(true, paperID: "local-1")
+        #expect(store.isExcludedFromBackup(paperID: "local-1"))
+
+        store.setExcludedFromBackup(false, paperID: "local-1")
+        #expect(!store.isExcludedFromBackup(paperID: "local-1"))
+    }
+
+    @Test func excludingAMissingFileDoesNothing() {
+        store.setExcludedFromBackup(true, paperID: "local-9")
+
+        #expect(!store.isExcludedFromBackup(paperID: "local-9"))
+    }
+
     @Test func reportsTheBytesCopiedSoFar() async throws {
         var progress: [Int64] = []
         _ = try await store.store(paperID: "local-1", chunks: chunks([Self.pdf.prefix(10), Self.pdf.dropFirst(10)]), maxBytes: 1_000) {

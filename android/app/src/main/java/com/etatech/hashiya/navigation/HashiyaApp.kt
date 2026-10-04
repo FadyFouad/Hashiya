@@ -21,7 +21,6 @@ import androidx.navigation.navOptions
 import androidx.navigation.toRoute
 import com.etatech.hashiya.R
 import com.etatech.hashiya.core.crash.CrashReporter
-import com.etatech.hashiya.core.crash.NoOpCrashReporter
 import com.etatech.hashiya.core.designsystem.component.UpdateRequiredScreen
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.designsystem.layout.showsTwoPanes
@@ -57,8 +56,8 @@ enum class TopLevelDestination(val icon: ImageVector, @StringRes val labelRes: I
 
 @Composable
 fun HashiyaApp(
+    crashReporter: CrashReporter,
     navController: NavHostController = rememberNavController(),
-    crashReporter: CrashReporter = NoOpCrashReporter,
     pendingSearch: SearchRoute? = null,
     onPendingSearchHandled: () -> Unit = {},
     pendingRestore: String? = null,

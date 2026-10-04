@@ -108,7 +108,7 @@ All text is in `docs/store/metadata.md`.
   - App access: all functionality available.
   - Content rating: IARC questionnaire, Reference/News/Educational category, "No" throughout.
   - Target audience: 18+.
-  - Data safety: crash logs and diagnostics collected, not shared, optional (see `docs/store/metadata.md`).
+  - Data safety: crash logs, diagnostics, and device or other IDs collected, not shared, optional (see `docs/store/metadata.md`).
   - Government app: No. Financial features: None. Health: None.
 - **Main store listing, English:**
   - App name, short and full descriptions.

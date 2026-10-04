@@ -33,7 +33,7 @@ final class PdfFlowTests: XCTestCase {
 
     /// Saves Attention from the stub search and opens it from the Library.
     private func openAttentionDetails(in app: XCUIApplication) {
-        app.tabBars.buttons["Search"].tap()
+        app.tab("Search").tap()
         let field = app.searchFields[searchField]
         XCTAssertTrue(field.waitForExistence(timeout: UITestTimeout.long))
         field.tap()
@@ -41,7 +41,7 @@ final class PdfFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["About 3 results"].waitForExistence(timeout: UITestTimeout.long))
         app.buttons["Save"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["In library"].waitForExistence(timeout: UITestTimeout.long))
-        app.tabBars.buttons["Library"].tap()
+        app.tab("Library").tap()
         let row = attentionRow(in: app)
         XCTAssertTrue(row.waitForExistence(timeout: UITestTimeout.long))
         row.buttons.firstMatch.tap()
@@ -81,7 +81,10 @@ final class PdfFlowTests: XCTestCase {
         let notes = app.buttons["reader.notes"]
         XCTAssertTrue(notes.waitForExistence(timeout: UITestTimeout.long), "The reader opens")
         XCTAssertTrue(app.descendants(matching: .any)["reader.pages"].waitForExistence(timeout: UITestTimeout.long))
-        XCTAssertFalse(app.tabBars.firstMatch.isHittable, "The reader hides the tab bar")
+        if !UITestDevice.isPad {
+            // iPad keeps the tab bar at regular width.
+            XCTAssertFalse(app.tabBars.firstMatch.isHittable, "The reader hides the tab bar")
+        }
 
         // The reader hides the system back button, and a swipe from the leading edge doesn't leave it either.
         let window = app.windows.firstMatch
@@ -124,7 +127,9 @@ final class PdfFlowTests: XCTestCase {
         // The picker's own navigation bar, not the dialog's Cancel, which can linger while the dialog closes.
         let picker = app.navigationBars["FullDocumentManagerViewControllerNavigationBar"]
         XCTAssertTrue(picker.waitForExistence(timeout: UITestTimeout.long), "The Files picker appears")
-        picker.buttons["Cancel"].tap()
+        // A wide iPad window: the picker has a sidebar, and Cancel sits in the sidebar's bar.
+        let sidebar = app.navigationBars["DOCSidebarView"]
+        (sidebar.exists ? sidebar : picker).buttons["Cancel"].tap()
         XCTAssertTrue(picker.waitForNonExistence(timeout: UITestTimeout.long))
         XCTAssertTrue(storedPdfRow(in: app).waitForExistence(timeout: UITestTimeout.long), "Cancelling keeps the PDF")
         XCTAssertTrue(storedPdfRow(in: app).isHittable)

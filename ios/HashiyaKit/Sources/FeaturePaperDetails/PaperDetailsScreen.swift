@@ -35,7 +35,7 @@ public struct PaperDetailsScreen: View {
 
     public var body: some View {
         content
-            .toolbar(.hidden, for: .tabBar)
+            .hidesTabBarWhenCompact()
             .task { await viewModel.start() }
             .onDisappear { viewModel.flush() }
             .onChange(of: scenePhase) { _, phase in

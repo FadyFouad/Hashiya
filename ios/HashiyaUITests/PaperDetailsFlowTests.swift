@@ -15,7 +15,7 @@ final class PaperDetailsFlowTests: XCTestCase {
 
     /// Saves the stub search's first paper, Attention, and leaves the app on the Search results.
     private func saveAttention(in app: XCUIApplication) {
-        app.tabBars.buttons["Search"].tap()
+        app.tab("Search").tap()
         let field = app.searchFields[searchField]
         XCTAssertTrue(field.waitForExistence(timeout: UITestTimeout.long))
         field.tap()
@@ -30,7 +30,7 @@ final class PaperDetailsFlowTests: XCTestCase {
     }
 
     private func openAttentionFromTheLibrary(in app: XCUIApplication) {
-        app.tabBars.buttons["Library"].tap()
+        app.tab("Library").tap()
         let row = attentionRow(in: app)
         XCTAssertTrue(row.waitForExistence(timeout: UITestTimeout.long))
         row.buttons.firstMatch.tap()
@@ -56,20 +56,26 @@ final class PaperDetailsFlowTests: XCTestCase {
         let app = launchApp()
         saveAttention(in: app)
         openAttentionFromTheLibrary(in: app)
-        XCTAssertFalse(app.tabBars.firstMatch.isHittable, "Details hides the tab bar")
+        if !UITestDevice.isPad {
+            // iPad keeps the tab bar at regular width.
+            XCTAssertFalse(app.tabBars.firstMatch.isHittable, "Details hides the tab bar")
+        }
         XCTAssertTrue(app.staticTexts["Ashish Vaswani, Noam Shazeer"].exists)
 
         let summary = noteField("summary", in: app)
         summary.tap()
         summary.typeText("Ablation")
         let method = noteField("method", in: app)
+        // iPad: the keyboard's Done bar covers the next field; close the keyboard first.
+        if UITestDevice.isPad { app.buttons["Done"].firstMatch.tap() }
         method.tap()
         method.typeText("Encoder")
         XCTAssertTrue(app.staticTexts["Saved"].waitForExistence(timeout: UITestTimeout.long))
         XCTAssertEqual(summary.value as? String, "Ablation")
         XCTAssertEqual(method.value as? String, "Encoder")
 
-        back(in: app)
+        // iPad shows Details beside the list: no going back.
+        if !UITestDevice.isPad { back(in: app) }
         let field = app.searchFields["Search your library"]
         XCTAssertTrue(field.waitForExistence(timeout: UITestTimeout.long))
         field.tap()

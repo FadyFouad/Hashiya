@@ -73,6 +73,8 @@ public struct PaperDetailsContent: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
             .padding(.bottom, 32)
+            // On a wide window or pane the column stops at a readable width, centered; iPhones are narrower than this.
+            .centeredMaxWidth()
         }
         .scrollDismissesKeyboard(.interactively)
         .frame(maxWidth: .infinity, maxHeight: .infinity)

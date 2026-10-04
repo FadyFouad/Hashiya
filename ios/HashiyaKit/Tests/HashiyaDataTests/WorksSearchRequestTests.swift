@@ -33,6 +33,18 @@ struct WorksSearchRequestTests {
         #expect(query.worksSearchRequest(cursor: nil).filter == expected)
     }
 
+    /// OpenAlex reads ? and * as wildcards and rejects them in its default (stemmed) search with a 400, so a pasted
+    /// title such as "ChatGPT for good? …" failed.
+    @Test(arguments: [
+        ("ChatGPT for good? On opportunities", "ChatGPT for good On opportunities"),
+        ("what is it?", "what is it"),
+        ("transform* models", "transform models"),
+        ("?", ""),
+    ])
+    func dropsWildcardCharacters(text: String, expected: String) {
+        #expect(SearchQuery(text: text).worksSearchRequest(cursor: nil).search == expected)
+    }
+
     @Test func passesTheCursorThrough() {
         let request = SearchQuery(text: "bert").worksSearchRequest(cursor: "IlsxMDAuMCwgJ1czMTc3ODI4OTA5J10i")
         #expect(request.cursor == "IlsxMDAuMCwgJ1czMTc3ODI4OTA5J10i")

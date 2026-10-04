@@ -9,6 +9,8 @@ public struct LibraryView: View {
     private let onAddPaper: () -> Void
     private let onOpenSettings: () -> Void
     private let onOpenPaper: (String) -> Void
+    private let onOpenInNewWindow: ((String) -> Void)?
+    private let selectedID: String?
 
     /// Space under the list's last row, so the Add paper button never covers it.
     static let addPaperClearance: CGFloat = 88
@@ -19,14 +21,21 @@ public struct LibraryView: View {
 
     /// - Parameters:
     ///   - onAddPaper: the Add paper button; the app opens Search ready for input.
-    ///   - onOpenPaper: a row tap, with the paper's OpenAlex ID; the app pushes Details.
+    ///   - onOpenPaper: a row tap, with the paper's OpenAlex ID; the app pushes Details, or shows it beside the list.
+    ///   - onOpenInNewWindow: a row's Open in New Window, with the paper's OpenAlex ID; nil where the app can't open
+    ///     windows (iPhone), which hides it.
+    ///   - selectedID: the paper shown in the detail pane beside the list, highlighted; nil when Details is pushed.
     public init(
         viewModel: LibraryViewModel,
         onGoToSearch: @escaping () -> Void,
         onAddPaper: @escaping () -> Void,
         onOpenSettings: @escaping () -> Void,
-        onOpenPaper: @escaping (String) -> Void = { _ in }
+        onOpenPaper: @escaping (String) -> Void = { _ in },
+        onOpenInNewWindow: ((String) -> Void)? = nil,
+        selectedID: String? = nil
     ) {
+        self.onOpenInNewWindow = onOpenInNewWindow
+        self.selectedID = selectedID
         self.viewModel = viewModel
         self.onGoToSearch = onGoToSearch
         self.onAddPaper = onAddPaper
@@ -226,6 +235,7 @@ public struct LibraryView: View {
                         .contentShape(Rectangle())
                         .onTapGesture { onOpenPaper(saved.id) }
                         .accessibilityAddTraits(.isButton)
+                        .hoverEffect(.highlight)
                     ReadingStatusBadge(status: saved.status) { status in
                         Task { await viewModel.setStatus(of: saved.paper, to: status) }
                     }
@@ -241,30 +251,35 @@ public struct LibraryView: View {
                 }
                 // Keeps the badge's menu and the row's tap separate: tapping the badge never opens Details.
                 .buttonStyle(.borderless)
-                .listRowBackground(HashiyaColors.surface)
+                .listRowBackground(saved.id == selectedID ? HashiyaColors.secondaryContainer : HashiyaColors.surface)
+                .accessibilityAddTraits(saved.id == selectedID ? .isSelected : [])
                 .listRowSeparatorTint(HashiyaColors.outlineVariant)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    if inCollection {
-                        Button(role: .destructive) {
-                            Task { await viewModel.removeFromCollection(openAlexID: saved.paper.openAlexID) }
-                        } label: {
-                            Label {
-                                Text(verbatim: L10n.string("library.removeFromCollection"))
-                            } icon: {
-                                Image(systemName: "folder.badge.minus")
-                            }
+                    removeButton(saved, inCollection: inCollection)
+                }
+                // Long press, or a secondary click with a pointer.
+                .contextMenu {
+                    Button {
+                        ContextMenuAction.afterClosing { onOpenPaper(saved.id) }
+                    } label: {
+                        Label {
+                            Text(verbatim: L10n.string("library.open"))
+                        } icon: {
+                            Image(systemName: "doc.text")
                         }
-                    } else {
-                        Button(role: .destructive) {
-                            Task { await viewModel.remove(saved.paper) }
+                    }
+                    if let onOpenInNewWindow {
+                        Button {
+                            onOpenInNewWindow(saved.id)
                         } label: {
                             Label {
-                                Text(verbatim: L10n.string("library.remove"))
+                                Text(verbatim: DesignSystemStrings.openInNewWindow)
                             } icon: {
-                                Image(systemName: "trash")
+                                Image(systemName: "macwindow.badge.plus")
                             }
                         }
                     }
+                    removeButton(saved, inCollection: inCollection)
                 }
             }
         }
@@ -272,6 +287,25 @@ public struct LibraryView: View {
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.immediately)
         .contentMargins(.bottom, Self.addPaperClearance, for: .scrollContent)
+    }
+
+    /// Removes the paper from the library, or in a collection only from that collection; both with Undo.
+    private func removeButton(_ saved: LibraryPaper, inCollection: Bool) -> some View {
+        Button(role: .destructive) {
+            Task {
+                if inCollection {
+                    await viewModel.removeFromCollection(openAlexID: saved.paper.openAlexID)
+                } else {
+                    await viewModel.remove(saved.paper)
+                }
+            }
+        } label: {
+            Label {
+                Text(verbatim: L10n.string(inCollection ? "library.removeFromCollection" : "library.remove"))
+            } icon: {
+                Image(systemName: inCollection ? "folder.badge.minus" : "trash")
+            }
+        }
     }
 }
 

@@ -16,7 +16,7 @@ final class CollectionsFlowTests: XCTestCase {
 
     /// Saves the stub search's first two papers, Attention and BERT, and leaves the app on the Search results.
     private func saveAttentionAndBERT(in app: XCUIApplication) {
-        app.tabBars.buttons["Search"].tap()
+        app.tab("Search").tap()
         let field = app.searchFields[searchField]
         XCTAssertTrue(field.waitForExistence(timeout: UITestTimeout.long))
         field.tap()
@@ -37,7 +37,7 @@ final class CollectionsFlowTests: XCTestCase {
     }
 
     private func openFromTheLibrary(_ titlePrefix: String, in app: XCUIApplication) {
-        app.tabBars.buttons["Library"].tap()
+        app.tab("Library").tap()
         let row = row(titlePrefix, in: app)
         XCTAssertTrue(row.waitForExistence(timeout: UITestTimeout.long))
         row.buttons.firstMatch.tap()
@@ -50,12 +50,12 @@ final class CollectionsFlowTests: XCTestCase {
 
     /// The Library's title menu (`toolbarTitleMenu`): the title is a button in the navigation bar.
     private func openTitleMenu(showing title: String, in app: XCUIApplication) {
-        let bar = app.navigationBars.firstMatch
-        let button = bar.buttons[title]
+        // Any bar: on iPad the list's bar sits beside the detail pane's.
+        let button = app.navigationBars.buttons[title].firstMatch
         if button.waitForExistence(timeout: UITestTimeout.long) {
             button.tap()
         } else {
-            bar.staticTexts[title].tap()
+            app.navigationBars.staticTexts[title].firstMatch.tap()
         }
     }
 
@@ -105,8 +105,8 @@ final class CollectionsFlowTests: XCTestCase {
         app.buttons["Done"].tap()
         XCTAssertTrue(app.buttons["details.collections"].staticTexts["Thesis"].waitForExistence(timeout: UITestTimeout.long))
 
-        // The Library's title menu → Thesis: only Attention.
-        back(in: app)
+        // The Library's title menu → Thesis: only Attention. (iPad shows Details beside the list: no going back.)
+        if !UITestDevice.isPad { back(in: app) }
         XCTAssertTrue(row("BERT", in: app).waitForExistence(timeout: UITestTimeout.long))
         openTitleMenu(showing: "All papers", in: app)
         app.buttons["Thesis"].tap()
@@ -152,7 +152,7 @@ final class CollectionsFlowTests: XCTestCase {
     func testExportStaysBusyUntilTheShareSheetCloses() {
         let app = launchApp()
         saveAttentionAndBERT(in: app)
-        app.tabBars.buttons["Library"].tap()
+        app.tab("Library").tap()
         let export = app.buttons["Export .bib"]
         XCTAssertTrue(export.waitForExistence(timeout: UITestTimeout.long))
 

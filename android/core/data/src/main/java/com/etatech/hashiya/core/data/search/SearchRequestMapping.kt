@@ -9,6 +9,12 @@ import com.etatech.hashiya.core.network.WorksSearchRequest
 internal const val PAGE_SIZE = 25
 internal const val FIRST_CURSOR = "*"
 
+private val WILDCARDS_AND_SPACES = Regex("[?*\\s]+")
+
+/** OpenAlex reads ? and * as wildcards and rejects them in its default (stemmed) search with a 400, so a title such as
+ * "ChatGPT for good? …" failed. They carry no meaning for a keyword search. */
+private fun String.withoutWildcards(): String = replace(WILDCARDS_AND_SPACES, " ").trim()
+
 internal fun SearchQuery.toWorksSearchRequest(cursor: String): WorksSearchRequest {
     val filters = buildList {
         when (val range = years) {
@@ -19,7 +25,7 @@ internal fun SearchQuery.toWorksSearchRequest(cursor: String): WorksSearchReques
         if (openAccessOnly) add("is_oa:true")
     }
     return WorksSearchRequest(
-        search = withoutArabicMarks(text).trim(),
+        search = withoutArabicMarks(text).withoutWildcards(),
         filter = filters.joinToString(",").ifEmpty { null },
         sort = when (sort) {
             SearchSort.Relevance -> null

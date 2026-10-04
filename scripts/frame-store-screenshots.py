@@ -5,6 +5,7 @@ Reads docs/store/raw/<platform>/<lang>/<n>-<name>.png and writes docs/store/<pla
   app-store: 1320x2868 (iPhone 6.9")
   play-store: 1080x1920 (phone, 9:16)
   play-store-tablet: 1920x1080 (tablet, 16:9 landscape)
+  app-store-ipad: 2752x2064 (iPad 13", landscape)
 Also draws the Play feature graphic (1024x500) at docs/store/play-store/feature-graphic.png.
 Needs Pillow built with libraqm for Arabic shaping (pip3 install pillow), and rsvg-convert for the glyph.
 """
@@ -26,7 +27,12 @@ PRIMARY_DEEP = (0x06, 0x4A, 0x4A)
 ON_PRIMARY = (0xFF, 0xFF, 0xFF)
 PRIMARY_CONTAINER = (0xD7, 0xEC, 0xEA)
 
-SIZES = {"app-store": (1320, 2868), "play-store": (1080, 1920), "play-store-tablet": (1920, 1080)}
+SIZES = {
+    "app-store": (1320, 2868),
+    "app-store-ipad": (2752, 2064),
+    "play-store": (1080, 1920),
+    "play-store-tablet": (1920, 1080),
+}
 
 # The width in dp each platform's raw Android captures were rendered at, for the status bar's scale.
 CAPTURE_WIDTH_DP = {"play-store": 411, "play-store-tablet": 1280}
@@ -42,6 +48,7 @@ CAPTIONS = {
         "tablet-1-search": ("Search and preview side by side", "Results and the abstract together on a bigger screen"),
         "tablet-2-reader": ("Your notes beside the PDF", "Read and write at the same time"),
         "tablet-3-details": ("Track your reading", "Status, collections, PDF and notes in one place"),
+        "ipad-6-windows": ("A paper in its own window", "Keep one beside your library,\nor two papers side by side"),
     },
     "ar": {
         "1-search": ("ابحث عن أي ورقة بحثية", "ملايين الأعمال العلمية في مكان واحد،\nأو الصق DOI أو معرّف arXiv أو رابطًا"),
@@ -53,8 +60,19 @@ CAPTIONS = {
         "tablet-1-search": ("ابحث واطّلع جنبًا إلى جنب", "النتائج والملخص معًا على الشاشة الكبيرة"),
         "tablet-2-reader": ("ملاحظاتك بجانب ملف PDF", "اقرأ ودوّن في الوقت نفسه"),
         "tablet-3-details": ("تابع قراءاتك", "الحالة والمجموعات وملف PDF والملاحظات في مكان واحد"),
+        "ipad-6-windows": ("كل ورقة في نافذتها", "ضعها بجانب مكتبتك،\nأو ورقتين جنبًا إلى جنب"),
     },
 }
+
+# iPad shots 1–5 reuse the tablet and iPhone captions; named ipad-<n>-… so they sort in upload order.
+for _captions in CAPTIONS.values():
+    _captions.update({
+        "ipad-1-search": _captions["tablet-1-search"],
+        "ipad-2-reader": _captions["tablet-2-reader"],
+        "ipad-3-details": _captions["tablet-3-details"],
+        "ipad-4-library-search": _captions["4-library-search"],
+        "ipad-5-collections": _captions["6-collections"],
+    })
 
 
 def font(lang: str, weight: str, size: int) -> ImageFont.FreeTypeFont:
@@ -143,7 +161,7 @@ def frame(capture: Path, platform: str, lang: str, key: str) -> Image.Image:
         target_w, target_h = max_w, round(shot.height * max_w / shot.width)
     shot = shot.resize((target_w, target_h), Image.LANCZOS)
     # Tablets have tighter corners than phones (which would also clip the tablet's status bar).
-    radius = round(min(target_w, target_h) * (0.03 if platform == "play-store-tablet" else 0.085))
+    radius = round(min(target_w, target_h) * (0.03 if platform in ("play-store-tablet", "app-store-ipad") else 0.085))
     bezel = round(unit * 1.1)
     x = (width - target_w) // 2
 

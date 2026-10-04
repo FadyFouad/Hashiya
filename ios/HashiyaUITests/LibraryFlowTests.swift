@@ -26,7 +26,7 @@ final class LibraryFlowTests: XCTestCase {
         app.buttons["Save"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["In library"].waitForExistence(timeout: UITestTimeout.long))
 
-        app.tabBars.buttons["Library"].tap()
+        app.tab("Library").tap()
         let row = app.cells.containing(NSPredicate(format: "label BEGINSWITH %@", "Attention Is All You Need")).firstMatch
         XCTAssertTrue(row.waitForExistence(timeout: UITestTimeout.long))
         XCTAssertTrue(app.staticTexts["1 paper"].exists)
@@ -42,7 +42,7 @@ final class LibraryFlowTests: XCTestCase {
     @MainActor
     func testPastingAnArxivIDShowsThePaperToSave() {
         let app = launchApp()
-        app.tabBars.buttons["Search"].tap()
+        app.tab("Search").tap()
         let field = app.searchFields["Search, or paste a DOI, arXiv ID or link"]
         XCTAssertTrue(field.waitForExistence(timeout: UITestTimeout.long))
         field.tap()
@@ -52,7 +52,7 @@ final class LibraryFlowTests: XCTestCase {
         app.buttons["Save to library"].tap()
         XCTAssertTrue(app.buttons["Remove from library"].waitForExistence(timeout: UITestTimeout.long))
 
-        app.tabBars.buttons["Library"].tap()
+        app.tab("Library").tap()
         XCTAssertTrue(app.staticTexts["1 paper"].waitForExistence(timeout: UITestTimeout.long))
     }
 
@@ -63,7 +63,7 @@ final class LibraryFlowTests: XCTestCase {
 
         app.buttons["Add paper"].tap()
 
-        XCTAssertTrue(app.tabBars.buttons["Search"].isSelected)
+        XCTAssertTrue(app.tab("Search").isSelected)
         let field = app.searchFields["Search, or paste a DOI, arXiv ID or link"]
         XCTAssertTrue(field.waitForExistence(timeout: UITestTimeout.long))
         let focused = expectation(for: NSPredicate(format: "hasKeyboardFocus == true"), evaluatedWith: field)
@@ -73,7 +73,7 @@ final class LibraryFlowTests: XCTestCase {
 
     /// Saves the stub search's first two papers: Attention, then BERT (the newest, listed first).
     private func saveTwoPapers(in app: XCUIApplication) {
-        app.tabBars.buttons["Search"].tap()
+        app.tab("Search").tap()
         let field = app.searchFields["Search, or paste a DOI, arXiv ID or link"]
         XCTAssertTrue(field.waitForExistence(timeout: UITestTimeout.long))
         field.tap()
@@ -83,7 +83,7 @@ final class LibraryFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["In library"].waitForExistence(timeout: UITestTimeout.long))
         app.buttons["Save"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts.matching(identifier: "In library").element(boundBy: 1).waitForExistence(timeout: UITestTimeout.long))
-        app.tabBars.buttons["Library"].tap()
+        app.tab("Library").tap()
         XCTAssertTrue(app.staticTexts["2 papers"].waitForExistence(timeout: UITestTimeout.long))
     }
 
@@ -139,7 +139,8 @@ final class LibraryFlowTests: XCTestCase {
         XCTAssertTrue(app.segmentedControls.buttons["To read"].isSelected)
         read.tap()
         XCTAssertTrue(read.isSelected)
-        app.navigationBars.buttons.element(boundBy: 0).tap()
+        // iPad shows Details beside the list: nothing to go back from.
+        if !UITestDevice.isPad { app.navigationBars.buttons.element(boundBy: 0).tap() }
         XCTAssertTrue(app.buttons["Read · 1"].waitForExistence(timeout: UITestTimeout.long))
         XCTAssertTrue(row("BERT", in: app).buttons["Status: Read. Change status"].exists)
 
@@ -158,9 +159,9 @@ final class LibraryFlowTests: XCTestCase {
     func testTheLibraryShowsItsTitle() {
         let app = launchApp()
         saveTwoPapers(in: app)
-        let bar = app.navigationBars.firstMatch
-        let button = bar.buttons["All papers"]
-        let title = button.waitForExistence(timeout: UITestTimeout.long) ? button : bar.staticTexts["All papers"]
+        // Any bar: on iPad the list's bar sits beside the detail pane's.
+        let button = app.navigationBars.buttons["All papers"].firstMatch
+        let title = button.waitForExistence(timeout: UITestTimeout.long) ? button : app.navigationBars.staticTexts["All papers"].firstMatch
         XCTAssertTrue(title.exists)
         XCTAssertTrue(title.isHittable)
     }
@@ -180,6 +181,6 @@ final class LibraryFlowTests: XCTestCase {
         app.buttons["Reset to built-in"].tap()
         XCTAssertTrue(app.staticTexts["Using built-in key"].waitForExistence(timeout: UITestTimeout.long))
         app.buttons["Done"].tap()
-        XCTAssertTrue(app.tabBars.buttons["Library"].waitForExistence(timeout: UITestTimeout.long))
+        XCTAssertTrue(app.tab("Library").waitForExistence(timeout: UITestTimeout.long))
     }
 }

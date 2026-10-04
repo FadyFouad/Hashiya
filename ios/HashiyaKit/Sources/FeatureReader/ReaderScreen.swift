@@ -15,6 +15,7 @@ public struct ReaderScreen: View {
     private let onClose: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     /// - Parameters:
     ///   - viewModel: evaluated on every update, but only the first instance is kept; its `init` starts nothing.
@@ -35,16 +36,25 @@ public struct ReaderScreen: View {
             notesSaveFailed: viewModel.notes.saveState == .failed,
             actions: actions
         ) {
-            if let document = viewModel.document, case let .ready(_, startPage) = viewModel.state {
-                PDFKitView(
-                    document: document,
-                    startPage: startPage,
-                    controller: controller,
-                    onPageChanged: { viewModel.onPageChanged($0) }
-                )
+            HStack(spacing: 0) {
+                if let document = viewModel.document, case let .ready(_, startPage) = viewModel.state {
+                    PDFKitView(
+                        document: document,
+                        startPage: startPage,
+                        controller: controller,
+                        onPageChanged: { viewModel.onPageChanged($0) }
+                    )
+                }
+                // Regular width (iPad): the notes beside the PDF, so the page stays readable while typing.
+                if notesBeside, viewModel.showingNotes {
+                    Divider()
+                    ReaderNotesPanel(sheet: notesView)
+                        .transition(.move(edge: .trailing))
+                }
             }
+            .animation(.default, value: viewModel.showingNotes)
         }
-        .toolbar(.hidden, for: .tabBar)
+        .hidesTabBarWhenCompact()
         .task { await viewModel.start() }
         .onDisappear { viewModel.onDisappear() }
         .onChange(of: scenePhase) { _, phase in
@@ -65,14 +75,10 @@ public struct ReaderScreen: View {
             guard viewModel.message != nil, (try? await Task.sleep(for: HashiyaBanner.duration)) != nil else { return }
             viewModel.message = nil
         }
-        .sheet(isPresented: $viewModel.showingNotes, onDismiss: { viewModel.notesClosed() }) {
-            ReaderNotesSheet(
-                notes: viewModel.notes.notesLoad == .loaded ? viewModel.notes.notes : nil,
-                saveState: viewModel.notes.saveState,
-                onChange: { section, text in viewModel.notes.onNoteChange(section: section, text: text) },
-                onClose: { viewModel.notesClosed() }
-            )
-            .presentationDetents([.medium, .large])
+        // Compact width (iPhone, narrow iPad windows): the notes over the PDF, in a sheet.
+        .sheet(isPresented: notesBeside ? .constant(false) : $viewModel.showingNotes, onDismiss: { viewModel.notesClosed() }) {
+            notesView
+                .presentationDetents([.medium, .large])
         }
         .fileImporter(isPresented: $importingReplacement, allowedContentTypes: [.pdf]) { result in
             switch result {
@@ -80,6 +86,17 @@ public struct ReaderScreen: View {
             case .failure: viewModel.message = .attachFailed
             }
         }
+    }
+
+    private var notesBeside: Bool { horizontalSizeClass == .regular }
+
+    private var notesView: ReaderNotesSheet {
+        ReaderNotesSheet(
+            notes: viewModel.notes.notesLoad == .loaded ? viewModel.notes.notes : nil,
+            saveState: viewModel.notes.saveState,
+            onChange: { section, text in viewModel.notes.onNoteChange(section: section, text: text) },
+            onClose: { viewModel.notesClosed() }
+        )
     }
 
     private var pageLabel: String? {
@@ -93,7 +110,8 @@ public struct ReaderScreen: View {
         let controller = controller
         actions.back = { Task { await viewModel.back() } }
         actions.search = { controller.showFind() }
-        actions.showNotes = { viewModel.showNotes() }
+        // Beside the PDF the toolbar's Notes opens and closes the panel; the sheet covers the button.
+        actions.showNotes = { viewModel.showingNotes ? viewModel.notesClosed() : viewModel.showNotes() }
         actions.replace = { importingReplacement = true }
         actions.removePdf = { Task { await viewModel.removePdf() } }
         actions.retrySave = { viewModel.notes.retry() }

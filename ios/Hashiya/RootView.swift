@@ -7,24 +7,38 @@ import HashiyaData
 import HashiyaDesignSystem
 import SwiftUI
 
-/// Library and Search tabs, each in its own navigation stack that can push a saved paper's Details and its PDF reader;
+/// Library and Search tabs, each with its own list of pushed screens (a saved paper's Details and its PDF reader);
 /// Settings as a sheet from either.
 struct RootView: View {
-    enum Tab: Hashable { case library, search }
+    enum Tab: String { case library, search }
 
     private let container: AppContainer
     @State private var selectedTab = Tab.library
     @State private var showsSettings = false
-    /// Details, and the reader above it.
-    @State private var libraryPath = NavigationPath()
-    @State private var searchPath = NavigationPath()
-    /// Bumped on every scene phase change, so a background suspend that waited for writes is dropped once the app is active again.
-    @State private var phaseGeneration = 0
+    /// Details, and the reader above it. On wide windows the Library's first route is the paper beside its list and
+    /// the rest its pane's stack; Search pushes them above the preview pane. The same lists drive both layouts.
+    @State private var libraryRoutes: [AppRoute] = []
+    @State private var searchRoutes: [AppRoute] = []
+    /// Wide windows: whether each tab's list shows beside its detail.
+    @State private var libraryColumns = NavigationSplitViewVisibility.all
+    @State private var searchColumns = NavigationSplitViewVisibility.all
+    /// What each list was before the reader opened: the reader hides the list for a wider page, and closing it brings
+    /// back what the user had.
+    @State private var libraryColumnsBeforeReader: NavigationSplitViewVisibility?
+    @State private var searchColumnsBeforeReader: NavigationSplitViewVisibility?
+    /// Each window's tab and open screens, restored when the system brings the window back.
+    @SceneStorage("selectedTab") private var savedTab: String?
+    @SceneStorage("libraryRoutes") private var savedLibraryRoutes: Data?
+    @SceneStorage("searchRoutes") private var savedSearchRoutes: Data?
+    @State private var restoredScene = false
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     @State private var libraryViewModel: LibraryViewModel
     @State private var searchViewModel: SearchViewModel
     @State private var appUpdate: AppUpdateModel
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.supportsMultipleWindows) private var supportsMultipleWindows
 
     init(container: AppContainer) {
         self.container = container
@@ -41,27 +55,11 @@ struct RootView: View {
                 tabs
             }
         }
+        // The window's width class for every screen (iPad windows, Split View, Stage Manager, rotation).
+        .measuresLayoutClass()
+        // The library database follows the whole app (HashiyaApp); each window checks for a required update.
         .onChange(of: scenePhase, initial: true) { _, phase in
-            phaseGeneration += 1
-            switch phase {
-            case .active:
-                // Papers saved in the Share Extension appear in the Library and as "In library".
-                SharedLibraryDatabase.resume()
-                Task { await container.libraryRepository.refreshAfterExternalChanges() }
-                Task { await appUpdate.check() }
-            case .background:
-                // A suspended database refuses writes: let the notes Details just flushed land first, and let a PDF
-                // download finish on its background time (iOS ends that time, which cancels it, if it runs too long).
-                let generation = phaseGeneration
-                Task {
-                    await container.pendingWrites.drained()
-                    await container.pdfRepository.storesFinished()
-                    guard phaseGeneration == generation else { return }
-                    SharedLibraryDatabase.suspend()
-                }
-            default:
-                break
-            }
+            if phase == .active { Task { await appUpdate.check() } }
         }
     }
 
@@ -69,62 +67,262 @@ struct RootView: View {
         if let url = appUpdate.requiredUpdate?.storeURL { openURL(url) }
     }
 
-    private var tabs: some View {
-        TabView(selection: $selectedTab) {
-            NavigationStack(path: $libraryPath) {
-                LibraryView(
-                    viewModel: libraryViewModel,
-                    onGoToSearch: { selectedTab = .search },
-                    onAddPaper: {
-                        searchViewModel.startFresh(focus: true)
-                        selectedTab = .search
-                    },
-                    onOpenSettings: { showsSettings = true },
-                    onOpenPaper: { libraryPath.append(PaperDetailsRoute(openAlexID: $0)) }
-                )
-                .navigationDestination(for: PaperDetailsRoute.self) { route in
-                    details(route, in: .library)
+    /// iPadOS 18+: the tab bar at the top of an iPad window, without a sidebar (the split views' own button shows and
+    /// hides their list). iPhone looks the same as before. iOS 17 keeps the plain tab bar. Search keeps the plain tab
+    /// role, so iOS 26 doesn't split it off into its own button on iPhone.
+    @ViewBuilder
+    private var tabView: some View {
+        if #available(iOS 18, *) {
+            TabView(selection: $selectedTab) {
+                SwiftUI.Tab(value: Tab.library) {
+                    libraryStack
+                } label: {
+                    tabLabel("nav.library", systemImage: "books.vertical")
                 }
-                .navigationDestination(for: ReaderRoute.self) { route in
-                    reader(route, in: .library)
+                SwiftUI.Tab(value: Tab.search) {
+                    searchStack
+                } label: {
+                    tabLabel("nav.search", systemImage: "magnifyingglass")
                 }
             }
-            .tabItem {
-                Label {
-                    Text(verbatim: AppStrings.string("nav.library"))
-                } icon: {
-                    Image(systemName: "books.vertical")
-                }
+            .tabViewStyle(.tabBarOnly)
+        } else {
+            TabView(selection: $selectedTab) {
+                libraryStack
+                    .tabItem { tabLabel("nav.library", systemImage: "books.vertical") }
+                    .tag(Tab.library)
+                searchStack
+                    .tabItem { tabLabel("nav.search", systemImage: "magnifyingglass") }
+                    .tag(Tab.search)
             }
-            .tag(Tab.library)
+        }
+    }
 
-            NavigationStack(path: $searchPath) {
+    private func tabLabel(_ key: String, systemImage: String) -> some View {
+        Label {
+            Text(verbatim: AppStrings.string(key))
+        } icon: {
+            Image(systemName: systemImage)
+        }
+    }
+
+    @ViewBuilder
+    private var libraryStack: some View {
+        if showsPanes {
+            // The split view's button hides the list, for more room to read.
+            NavigationSplitView(columnVisibility: $libraryColumns) {
+                libraryList(selectedID: libraryPaperID)
+                    .navigationSplitViewColumnWidth(min: 320, ideal: 380, max: 480)
+            } detail: {
+                // A new stack per paper (its identity): Details keeps its first view model, so another paper needs a
+                // new screen, and its reader must not stay stacked above it. The identity goes on the stack, not on
+                // its root view: a root with a changing identity doesn't show what is pushed above it.
+                NavigationStack(path: libraryPanePath) {
+                    libraryPaneRoot
+                        .navigationDestination(for: AppRoute.self) { destination($0, in: .library) }
+                }
+                .id(libraryPaperID)
+            }
+            .navigationSplitViewStyle(.balanced)
+        } else {
+            NavigationStack(path: $libraryRoutes) {
+                libraryList(selectedID: nil)
+                    .navigationDestination(for: AppRoute.self) { destination($0, in: .library) }
+            }
+        }
+    }
+
+    /// Wide windows: the paper beside the Library's list (its first route).
+    private var libraryPaperID: String? {
+        guard case .details(let route) = libraryRoutes.first else { return nil }
+        return route.openAlexID
+    }
+
+    /// Wide windows: what is pushed above the paper in the Library's pane (its reader).
+    private var libraryPanePath: Binding<[AppRoute]> {
+        Binding {
+            Array(libraryRoutes.dropFirst())
+        } set: { path in
+            libraryRoutes = Array(libraryRoutes.prefix(1)) + path
+        }
+    }
+
+    @ViewBuilder
+    private var libraryPaneRoot: some View {
+        if let id = libraryPaperID {
+            details(PaperDetailsRoute(openAlexID: id), in: .library)
+        } else {
+            NoSelectionView.library
+        }
+    }
+
+    /// Opening a paper replaces whatever was open: on a narrow window the list is the stack's root, on a wide one the
+    /// paper goes beside it.
+    private func libraryList(selectedID: String?) -> some View {
+        LibraryView(
+            viewModel: libraryViewModel,
+            onGoToSearch: { selectedTab = .search },
+            onAddPaper: addPaper,
+            onOpenSettings: { showsSettings = true },
+            onOpenPaper: { libraryRoutes = [.details(PaperDetailsRoute(openAlexID: $0))] },
+            onOpenInNewWindow: openPaperWindow,
+            selectedID: selectedID
+        )
+    }
+
+    @ViewBuilder
+    private var searchStack: some View {
+        if showsPanes {
+            NavigationSplitView(columnVisibility: $searchColumns) {
                 SearchView(
                     viewModel: searchViewModel,
                     onOpenSettings: { showsSettings = true },
-                    onOpenPaper: { searchPath.append(PaperDetailsRoute(openAlexID: $0)) }
+                    onOpenPaper: { searchRoutes = [.details(PaperDetailsRoute(openAlexID: $0))] },
+                    onOpenInNewWindow: openPaperWindow,
+                    previewsInPane: true
                 )
-                .navigationDestination(for: PaperDetailsRoute.self) { route in
-                    details(route, in: .search)
-                }
-                .navigationDestination(for: ReaderRoute.self) { route in
-                    reader(route, in: .search)
-                }
-            }
-            .tabItem {
-                Label {
-                    Text(verbatim: AppStrings.string("nav.search"))
-                } icon: {
-                    Image(systemName: "magnifyingglass")
+                    .navigationSplitViewColumnWidth(min: 320, ideal: 400, max: 480)
+            } detail: {
+                NavigationStack(path: $searchRoutes) {
+                    searchPreviewPane
+                        .navigationDestination(for: AppRoute.self) { destination($0, in: .search) }
                 }
             }
-            .tag(Tab.search)
+            .navigationSplitViewStyle(.balanced)
+            // Another result replaces whatever was opened from the last one (a result's menu opens its Details along
+            // with its preview).
+            .onChange(of: searchViewModel.selectedPaper?.id) { _, id in
+                if let id, searchRoutes.first?.openAlexID != id { searchRoutes = [] }
+            }
+        } else {
+            NavigationStack(path: $searchRoutes) {
+                SearchView(
+                    viewModel: searchViewModel,
+                    onOpenSettings: { showsSettings = true },
+                    onOpenPaper: { searchRoutes.append(.details(PaperDetailsRoute(openAlexID: $0))) },
+                    onOpenInNewWindow: openPaperWindow
+                )
+                .navigationDestination(for: AppRoute.self) { destination($0, in: .search) }
+            }
         }
+    }
+
+    /// The picked result's preview, beside the results; Open details pushes Details inside this pane.
+    @ViewBuilder
+    private var searchPreviewPane: some View {
+        if let paper = searchViewModel.selectedPaper {
+            let saved = searchViewModel.isSaved(paper)
+            PaperPreviewContent(
+                paper: paper,
+                inLibrary: saved,
+                onToggleSave: { Task { await searchViewModel.toggleSave(paper) } },
+                onOpenDOI: { doi in if let url = DOILink.url(for: doi) { openURL(url) } },
+                onOpenDetails: saved ? { searchRoutes.append(.details(PaperDetailsRoute(openAlexID: paper.openAlexID))) } : nil
+            )
+            .id(paper.id)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        searchViewModel.selectedPaper = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel(Text(verbatim: DesignSystemStrings.closePreview))
+                }
+            }
+        } else {
+            NoSelectionView.search
+        }
+    }
+
+    private var tabs: some View {
+        tabView
         .tint(HashiyaColors.primary)
         .sheet(isPresented: $showsSettings) {
             SettingsView(viewModel: container.makeSettingsViewModel())
         }
         .task { await presentUITestingShareSheetIfRequested() }
+        .focusedSceneValue(\.appCommands, commandActions)
+        .onAppear(perform: restoreScene)
+        .onChange(of: selectedTab) { savedTab = selectedTab.rawValue }
+        .onChange(of: libraryRoutes) { savedLibraryRoutes = libraryRoutes.sceneData }
+        .onChange(of: searchRoutes) { savedSearchRoutes = searchRoutes.sceneData }
+        .onChange(of: isReading(libraryRoutes)) { _, open in
+            readerChanged(isOpen: open, columns: &libraryColumns, before: &libraryColumnsBeforeReader)
+        }
+        .onChange(of: isReading(searchRoutes)) { _, open in
+            readerChanged(isOpen: open, columns: &searchColumns, before: &searchColumnsBeforeReader)
+        }
+        .onChange(of: showsPanes) { _, panes in
+            if panes {
+                // The split views mark their list hidden while they collapse for a narrow window: a wide one shows
+                // the list again, unless the reader is open.
+                libraryColumns = isReading(libraryRoutes) ? .detailOnly : .all
+                searchColumns = isReading(searchRoutes) ? .detailOnly : .all
+            } else if !searchRoutes.isEmpty {
+                // A narrow window shows Search's preview as a sheet over the results: drop it when Details or the
+                // reader is open above them, so the sheet doesn't cover what the user was reading.
+                searchViewModel.selectedPaper = nil
+            }
+        }
+    }
+
+    /// The menu bar's commands in this window.
+    private var commandActions: AppCommandActions {
+        AppCommandActions(
+            showLibrary: { selectedTab = .library },
+            showSearch: { selectedTab = .search },
+            addPaper: addPaper,
+            openSettings: { showsSettings = true }
+        )
+    }
+
+    /// Search, cleared and ready for input: the Library's Add paper and ⌘N.
+    private func addPaper() {
+        searchViewModel.startFresh(focus: true)
+        selectedTab = .search
+    }
+
+    /// iPad: a saved paper in a window of its own. Nil where the app can't open windows (iPhone): no menu item there.
+    private var openPaperWindow: ((String) -> Void)? {
+        guard supportsMultipleWindows else { return nil }
+        return { openWindow(id: PaperWindow.id, value: PaperWindow.Value(openAlexID: $0)) }
+    }
+
+    private func isReading(_ routes: [AppRoute]) -> Bool {
+        routes.contains { if case .reader = $0 { true } else { false } }
+    }
+
+    /// Wide windows: the reader hides its tab's list, so the page gets the whole width; the list's button still shows
+    /// it. Leaving the reader brings back the list as it was.
+    private func readerChanged(isOpen: Bool, columns: inout NavigationSplitViewVisibility,
+                               before: inout NavigationSplitViewVisibility?) {
+        guard showsPanes else { return }
+        if isOpen {
+            before = columns
+            columns = .detailOnly
+        } else {
+            columns = before ?? .all
+            before = nil
+        }
+    }
+
+    /// Brings back this window's tab and open screens once. UI tests always start fresh at the Library.
+    private func restoreScene() {
+        guard !restoredScene else { return }
+        restoredScene = true
+        guard !UITestingFlags.stubsEnabled else { return }
+        selectedTab = savedTab.flatMap(Tab.init(rawValue:)) ?? .library
+        libraryRoutes = .init(sceneData: savedLibraryRoutes)
+        searchRoutes = .init(sceneData: savedSearchRoutes)
+    }
+
+    @ViewBuilder
+    private func destination(_ route: AppRoute, in tab: Tab) -> some View {
+        switch route {
+        case .details(let details): self.details(details, in: tab)
+        case .reader(let reader): self.reader(reader, in: tab)
+        }
     }
 
     /// Details on `tab`'s stack. Remove pops it, then removes the paper the way that tab does: the Library with its
@@ -132,9 +330,9 @@ struct RootView: View {
     private func details(_ route: PaperDetailsRoute, in tab: Tab) -> some View {
         PaperDetailsScreen(
             viewModel: container.makePaperDetailsViewModel(openAlexID: route.openAlexID),
-            onClose: { pop(tab) },
+            onClose: { close(.details(route), in: tab) },
             onRemove: { id in
-                pop(tab)
+                close(.details(route), in: tab)
                 Task {
                     switch tab {
                     case .library: await libraryViewModel.remove(openAlexID: id)
@@ -142,12 +340,7 @@ struct RootView: View {
                     }
                 }
             },
-            onReadPdf: { id in
-                switch tab {
-                case .library: libraryPath.append(ReaderRoute(openAlexID: id))
-                case .search: searchPath.append(ReaderRoute(openAlexID: id))
-                }
-            }
+            onReadPdf: { id in push(.reader(ReaderRoute(openAlexID: id)), in: tab) }
         )
     }
 
@@ -155,14 +348,26 @@ struct RootView: View {
     private func reader(_ route: ReaderRoute, in tab: Tab) -> some View {
         ReaderScreen(
             viewModel: container.makeReaderViewModel(openAlexID: route.openAlexID),
-            onClose: { pop(tab) }
+            onClose: { close(.reader(route), in: tab) }
         )
     }
 
-    private func pop(_ tab: Tab) {
+    /// List and detail side by side: on a regular-width window (iPad full screen, most iPad windows), as Apple's split
+    /// views do. Compact width (iPhone, narrow iPad windows) keeps one stack per tab.
+    private var showsPanes: Bool { horizontalSizeClass == .regular }
+
+    /// Closes `route` and anything above it. Closing the paper in the Library's pane shows the placeholder again.
+    private func close(_ route: AppRoute, in tab: Tab) {
         switch tab {
-        case .library: if !libraryPath.isEmpty { libraryPath.removeLast() }
-        case .search: if !searchPath.isEmpty { searchPath.removeLast() }
+        case .library: if let index = libraryRoutes.lastIndex(of: route) { libraryRoutes.removeSubrange(index...) }
+        case .search: if let index = searchRoutes.lastIndex(of: route) { searchRoutes.removeSubrange(index...) }
+        }
+    }
+
+    private func push(_ route: AppRoute, in tab: Tab) {
+        switch tab {
+        case .library: libraryRoutes.append(route)
+        case .search: searchRoutes.append(route)
         }
     }
 

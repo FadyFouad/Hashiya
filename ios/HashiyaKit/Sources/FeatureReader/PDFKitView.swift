@@ -100,15 +100,18 @@ struct PDFKitView: UIViewRepresentable {
             observer = nil
         }
 
-        /// Sets the zoom limits for the current width, and the first time, goes to the start page.
+        /// Sets the zoom limits for the current width, and the first time, goes to the start page. A page shown at fit
+        /// width stays at fit width when the width changes (the notes open beside it, a window resizes); a zoom the
+        /// reader chose stays as it is.
         func didLayout(_ view: PDFView) {
             guard view.bounds.width > 0, view.document != nil else { return }
             let fit = view.scaleFactorForSizeToFit
             guard fit > 0, abs(fit - fitWidth) > 0.0001 else { return }
+            let wasAtFitWidth = fitWidth > 0 && abs(view.scaleFactor - fitWidth) <= fitWidth * 0.01
             fitWidth = fit
             view.minScaleFactor = fit
             view.maxScaleFactor = fit * Self.maxScale
-            if view.scaleFactor < fit { view.scaleFactor = fit }
+            if wasAtFitWidth || view.scaleFactor < fit { view.scaleFactor = fit }
             if !placed, let page = view.document?.page(at: startPage) {
                 placed = true
                 view.go(to: page)

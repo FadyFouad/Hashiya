@@ -9,12 +9,20 @@ extension SearchQuery {
     /// The `GET /works` parameters for this query. `cursor` nil is the first page ("*").
     public func worksSearchRequest(cursor: String?) -> WorksSearchRequest {
         WorksSearchRequest(
-            search: text.trimmingCharacters(in: .whitespacesAndNewlines),
+            search: openAlexSearch,
             filter: openAlexFilter,
             sort: openAlexSort,
             cursor: cursor ?? "*",
             perPage: Self.pageSize
         )
+    }
+
+    /// The text without ? and *: OpenAlex reads them as wildcards and rejects them in its default (stemmed) search
+    /// with a 400, so a title such as "ChatGPT for good? …" failed. They carry no meaning for a keyword search.
+    private var openAlexSearch: String {
+        text.components(separatedBy: CharacterSet(charactersIn: "?*").union(.whitespacesAndNewlines))
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
     }
 
     private var openAlexFilter: String? {

@@ -142,6 +142,8 @@ public struct ReaderContent<Pages: View>: View {
                 }
             }
             .controlSize(.large)
+            // Never stretched across an iPad; untouched on iPhone.
+            .maxWidthWhenWide()
         }
         .padding(32)
         .accessibilityElement(children: .contain)

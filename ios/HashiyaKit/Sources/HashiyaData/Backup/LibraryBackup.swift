@@ -99,6 +99,11 @@ public struct PreparedBackup: Equatable, Sendable {
         self.url = url
         self.library = library
     }
+
+    /// An empty backup at `url`, for fakes: the real one is only made by `open`.
+    public static func forTesting(url: URL) -> PreparedBackup {
+        PreparedBackup(url: url, library: BackupLibrary())
+    }
 }
 
 /// Backing the library up to a `.hashiya` file and restoring from one.

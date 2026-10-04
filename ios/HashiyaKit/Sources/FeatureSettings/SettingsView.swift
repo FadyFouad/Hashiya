@@ -1,3 +1,4 @@
+import HashiyaData
 import HashiyaDesignSystem
 import HashiyaModel
 import SwiftUI
@@ -20,6 +21,7 @@ public struct SettingsView: View {
             Form {
                 apiKeySection
                 storageSection
+                BackupSection(summary: viewModel.backup.summary, onRestore: {})
                 languageSection
             }
             .scrollContentBackground(.hidden)
@@ -27,6 +29,24 @@ public struct SettingsView: View {
             .navigationTitle(Text(verbatim: L10n.string("settings.title")))
             .navigationBarTitleDisplayMode(.inline)
             .task { await viewModel.loadStorage() }
+            // Also when the Export screen or a restore returns, so the counts are never stale.
+            .onAppear { Task { await viewModel.loadBackupSummary() } }
+            .navigationDestination(for: SettingsDestination.self) { destination in
+                switch destination {
+                case .export: ExportBackupView(viewModel: viewModel)
+                }
+            }
+            .overlay(alignment: .bottom) {
+                if let message = viewModel.backup.message, let text = L10n.backupMessage(message) {
+                    HashiyaBanner(text: text)
+                }
+            }
+            .animation(.default, value: viewModel.backup.message)
+            .task(id: viewModel.backup.message) {
+                // A newer message cancels this task: then it must not clear the new one.
+                guard viewModel.backup.message != nil, (try? await Task.sleep(for: HashiyaBanner.duration)) != nil else { return }
+                viewModel.dismissMessage()
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button {
@@ -164,32 +184,5 @@ public struct SettingsView: View {
     private var languageName: String {
         let code = HashiyaLanguage.code
         return Locale(identifier: code).localizedString(forLanguageCode: code) ?? code
-    }
-}
-
-/// This target's strings.
-@MainActor
-enum L10n {
-    static func string(_ key: String) -> String {
-        HashiyaStrings.string(key, bundle: .module)
-    }
-
-    static func format(_ key: String, _ arguments: any CVarArg...) -> String {
-        HashiyaStrings.format(key, bundle: .module, arguments)
-    }
-
-    /// "Downloaded PDFs · 2.4 MB · 3 files".
-    static func downloadedPdfs(bytes: Int64, count: Int) -> String {
-        format("settings.downloadedPdfs", Int64(count), PaperFormat.fileSize(bytes), PaperFormat.number(count))
-    }
-
-    /// "Attached PDFs · 1 MB · 1 file".
-    static func attachedPdfs(bytes: Int64, count: Int) -> String {
-        format("settings.attachedPdfs", Int64(count), PaperFormat.fileSize(bytes), PaperFormat.number(count))
-    }
-
-    /// The Delete downloaded PDFs confirmation.
-    static func deleteDownloadedMessage(count: Int) -> String {
-        format("settings.deleteDownloadedMessage", Int64(count), PaperFormat.number(count))
     }
 }

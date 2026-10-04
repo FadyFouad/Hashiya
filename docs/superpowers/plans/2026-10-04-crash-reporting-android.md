@@ -272,7 +272,7 @@ git commit -m "feat(android): crash reporter interface with closed keys and site
 - Test: `UserPreferencesDataSourceTest.kt`, `SettingsViewModelTest.kt` (or a new `SettingsPrivacyViewModelTest.kt`), `SettingsContentTest.kt`, `SettingsScreenshotTest.kt`
 
 **Interfaces:**
-- Produces: `UserPreferencesRepository.crashReportsEnabled: Flow<Boolean>` (default true) and `suspend fun setCrashReportsEnabled(enabled: Boolean)`; `SettingsUiState.crashReportsEnabled: Boolean = true`; `SettingsViewModel(…, crashReporter: CrashReporter)` with `fun onCrashReportsChange(enabled: Boolean)`; `PRIVACY_POLICY_URL = "https://fadyfouad.github.io/Hashiya/privacy/"` (Arabic UI opens `…/privacy/ar`).
+- Produces: `UserPreferencesRepository.crashReportsEnabled: Flow<Boolean>` (default true) and `suspend fun setCrashReportsEnabled(enabled: Boolean)`; `SettingsUiState.crashReportsEnabled: Boolean = true`; `SettingsViewModel(…, crashReporter: CrashReporter)` with `fun onCrashReportsChange(enabled: Boolean)`; `PRIVACY_POLICY_URL = "https://fadyfouad.github.io/Hashiya-Privacy-Policy/"` (Arabic UI opens `…/#ar`, the page's Arabic section).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -301,7 +301,7 @@ fun onCrashReportsChange(enabled: Boolean) {
 ```
 
   (Call `setEnabled` first so an opt-out takes effect before the write; the bound reporter is the no-op in debug builds, so the ViewModel doesn't need to know the build type.)
-- `SettingsScreen`: a **Privacy** section after Backup — title, a row with a `Switch` (`toggleable` row, `Role.Switch`, like the export dialog's), the footer text in `bodySmall`/`onSurfaceVariant`, and a `TextButton` "Privacy policy" that opens the URL with `LocalUriHandler` (Arabic language → the `/ar` page). `SettingsContent` gets `onCrashReportsChange: (Boolean) -> Unit = {}`.
+- `SettingsScreen`: a **Privacy** section after Backup — title, a row with a `Switch` (`toggleable` row, `Role.Switch`, like the export dialog's), the footer text in `bodySmall`/`onSurfaceVariant`, and a `TextButton` "Privacy policy" that opens the URL with `LocalUriHandler` (Arabic language → the `#ar` section). `SettingsContent` gets `onCrashReportsChange: (Boolean) -> Unit = {}`.
 - Strings:
 
 | Key | English | Arabic |
@@ -581,7 +581,7 @@ fun provideCrashReporter(): CrashReporter =
 - [ ] **Step 5: Docs**
 
 - `docs/release.md`: a "Crashlytics" section — the Firebase console steps (spec §6), and the release check: install the release build, `adb shell am broadcast -a com.etatech.hashiya.TEST_CRASH -p com.etatech.hashiya`, reopen the app (reports are sent on the next launch), confirm the crash in the Crashlytics console with readable frames; turn the switch off, repeat, confirm nothing new arrives.
-- `docs/store/metadata.md` → Play Console Data safety: collected — App info and performance (Crash logs, Diagnostics) and Device or other IDs; not shared; encrypted in transit; optional (users can turn it off); purpose App functionality and analytics for stability. Privacy policy URL as in the privacy-policy PR. Leave the App Store section for the iOS PR.
+- `docs/store/metadata.md` → Play Console Data safety: collected — App info and performance (Crash logs, Diagnostics) and Device or other IDs; not shared; encrypted in transit; optional (users can turn it off); purpose App functionality and analytics for stability. The privacy policy URL stays https://fadyfouad.github.io/Hashiya-Privacy-Policy/ (updated in that repo's PR #1). Leave the App Store section for the iOS PR.
 
 - [ ] **Step 6: Run everything**
 
@@ -602,4 +602,4 @@ git commit -m "feat(android): Firebase Crashlytics in release builds"
 1. Release build, switch on: the adb test crash appears in Crashlytics with readable frames, keys `screen`, `language`, `librarySizeBucket`, `backupInProgress` set.
 2. Switch off, test crash, relaunch: nothing new arrives.
 3. A restore of a deliberately broken backup (e.g. a hand-made archive whose merge fails) shows one non-fatal `restore: <type>` with no title or path anywhere in the report.
-4. Arabic Settings: the Privacy section reads right-to-left; the policy link opens the Arabic page.
+4. Arabic Settings: the Privacy section reads right-to-left; the policy link opens the policy's Arabic section.

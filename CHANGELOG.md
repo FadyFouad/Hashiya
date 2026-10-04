@@ -7,12 +7,16 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 ### Added
 - **Android: tablets, foldables and resizable windows.** A navigation rail from 600 dp that stays on every screen; its menu button expands it to show the labels beside the icons, and collapses it again. From 840 dp, or at a book-posture hinge, the Library opens a paper beside the list, Search shows the preview beside the results, and the reader shows your notes beside the PDF. Details and Settings become a centered column. An open paper and the reader's zoom survive folding, rotating and resizing. (#28)
 - **Android: keyboard and mouse.** Ctrl+F finds, Ctrl+N adds a paper, Ctrl+, opens Settings, and Esc goes back. Right-click a Library row or a Search result for its menu, and Ctrl+scroll zooms the reader. (#28)
+- **iOS: iPad.** The app runs natively on iPad: full screen, Split View, Stage Manager and resizable windows. The tabs sit at the top. The Library and Search show a paper beside their list, with a button to hide the list. The reader shows your notes beside the PDF and hides the list for a wider page; leaving it brings the list back. An open paper survives resizing, and each window keeps its own tab and paper.
+- **iOS: more than one iPad window.** "Open in New Window" in a paper's menu opens it in a window of its own, to read it beside another paper or the Library.
+- **iOS: keyboard and pointer on iPad.** ⌘N adds a paper, ⌘1 and ⌘2 switch between the Library and Search, and ⌘, opens Settings; in the reader, ⌘F finds in the PDF. Long-press or right-click a Library row or a Search result for its menu.
 
 ### Changed
 - **Android: Details groups Collections, PDF and DOI in one list.** The PDF row's main action is a button that follows its state: Download PDF, Read PDF or Attach PDF; Replace and Remove stay in its ⋮ menu. The DOI is a row that opens the paper's DOI page, and is hidden when there is none.
 - **iOS: the same grouped Details.** Collections, PDF and DOI share one list as on Android; the PDF row's main action is a prominent button (Download PDF, Read PDF or Attach PDF), and the DOI is a row that opens its page.
 
 ### Fixed
+- **iOS: Add paper always puts the cursor in Search's field,** also when an earlier search left the field active.
 - **Android: the Save button on search results** no longer breaks into letters with the largest font size. (#28)
 - **A failed download now tries the paper's other open-access copies.** If the saved link fails as "not a PDF" or a server error, the app looks up the paper's other open-access copies on OpenAlex and tries them, arXiv first. Then it keeps the link that worked. Example: *Attention Is All You Need*, whose saved link now returns a web page. (#24)
 

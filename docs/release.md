@@ -61,7 +61,7 @@ All text is in `docs/store/metadata.md`.
 - **Version 0.1.0 → English (U.S.) and Arabic:**
   - Screenshots: iPhone 6.9" from `docs/store/app-store/<lang>/`, in order 1 to 4.
   - Promotional text, description, keywords, support URL and copyright.
-- **iPad:** 0.1.0 is iPhone-only (`TARGETED_DEVICE_FAMILY: "1"` in `ios/project.yml`), so App Store Connect asks for iPhone screenshots only; iPad users can run the iPhone version. To add iPad later, set it back to `"1,2"` and add 13" iPad screenshots.
+- **iPad:** 0.1.0 and 0.2.0 are iPhone-only. From the next version the app runs on iPad (`TARGETED_DEVICE_FAMILY: "1,2"` in `ios/project.yml`), so App Store Connect asks for 13" iPad screenshots too: upload `docs/store/app-store-ipad/<lang>/`, in order 1 to 3.
 - **Build:** choose the TestFlight build.
 - **App Review Information:** no sign-in required; paste the review notes from `metadata.md`; add your phone and email.
 - **Version release:** "Manually release this version", so you choose the launch moment.
@@ -139,6 +139,20 @@ The Android app adapts to the window it has: a bottom bar on phones, a rail from
 | Split screen | tablet at ½ and ⅓ | Everything works at each size |
 | Large text | font size at maximum (200%) | Cards keep their Save button; nothing cut off |
 | Keyboard and mouse | tablet or Chromebook with both | Ctrl+F, Ctrl+N, Ctrl+,, Esc; right-click a Library row and a Search result; Ctrl+scroll in the reader |
+
+## Large screens (iPad)
+
+The iOS app lays out by the window it has, not by device: compact width (iPhone, narrow iPad windows) keeps one stack per tab; regular width shows the list beside the paper, Search's preview beside its results, and the reader's notes beside the PDF. The UI tests run on an iPad simulator in CI (`IPadFlowTests`: panes, resizing a window, shortcuts and menus, a second window), and the whole UI suite passes on iPad locally. What only a device or simulator shows, check before a release that touches layouts:
+
+| Case | Where | Check |
+| --- | --- | --- |
+| iPhone | iPhone simulator, iOS 18 and 26 | Unchanged: bottom tab bar, preview sheet, Details and the reader as screens |
+| iPad, portrait and landscape | iPad Pro 13" simulator, full screen | Library and Search show two panes; the reader hides the list and its button brings it back |
+| Resizable windows | iPad in Windowed Apps (Settings → Multitasking & Gestures) | Drag a window across the compact/regular width with a paper and its reader open: neither closes, and the list comes back when wide |
+| Stage Manager, Split View | iPad | Smallest window (375 pt) and short windows work; window controls don't cover any button |
+| Several windows | iPad | "Open in New Window" from a Library row; change a status in one window, the other follows; close one window, the other still saves |
+| Keyboard and pointer | iPad with a keyboard (Simulator → I/O → Keyboard) | ⌘N, ⌘1, ⌘2, ⌘,; ⌘F in the reader; right-click a row and a result |
+| Arabic | iPad in Arabic | Panes mirror; the list sits on the right |
 
 ## Forcing an update
 

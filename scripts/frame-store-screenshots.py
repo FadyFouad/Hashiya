@@ -5,6 +5,7 @@ Reads docs/store/raw/<platform>/<lang>/<n>-<name>.png and writes docs/store/<pla
   app-store: 1320x2868 (iPhone 6.9")
   play-store: 1080x1920 (phone, 9:16)
   play-store-tablet: 1920x1080 (tablet, 16:9 landscape)
+  app-store-ipad: 2752x2064 (iPad 13", landscape)
 Also draws the Play feature graphic (1024x500) at docs/store/play-store/feature-graphic.png.
 Needs Pillow built with libraqm for Arabic shaping (pip3 install pillow), and rsvg-convert for the glyph.
 """
@@ -26,7 +27,12 @@ PRIMARY_DEEP = (0x06, 0x4A, 0x4A)
 ON_PRIMARY = (0xFF, 0xFF, 0xFF)
 PRIMARY_CONTAINER = (0xD7, 0xEC, 0xEA)
 
-SIZES = {"app-store": (1320, 2868), "play-store": (1080, 1920), "play-store-tablet": (1920, 1080)}
+SIZES = {
+    "app-store": (1320, 2868),
+    "app-store-ipad": (2752, 2064),
+    "play-store": (1080, 1920),
+    "play-store-tablet": (1920, 1080),
+}
 
 # The width in dp each platform's raw Android captures were rendered at, for the status bar's scale.
 CAPTURE_WIDTH_DP = {"play-store": 411, "play-store-tablet": 1280}
@@ -143,7 +149,7 @@ def frame(capture: Path, platform: str, lang: str, key: str) -> Image.Image:
         target_w, target_h = max_w, round(shot.height * max_w / shot.width)
     shot = shot.resize((target_w, target_h), Image.LANCZOS)
     # Tablets have tighter corners than phones (which would also clip the tablet's status bar).
-    radius = round(min(target_w, target_h) * (0.03 if platform == "play-store-tablet" else 0.085))
+    radius = round(min(target_w, target_h) * (0.03 if platform in ("play-store-tablet", "app-store-ipad") else 0.085))
     bezel = round(unit * 1.1)
     x = (width - target_w) // 2
 

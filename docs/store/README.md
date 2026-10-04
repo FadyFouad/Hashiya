@@ -5,6 +5,7 @@ Ready to upload, in English (`en`) and Arabic (`ar`):
 | Folder | Size | Store slot |
 |---|---|---|
 | `app-store/<lang>/` | 1320 × 2868 | App Store, iPhone 6.9" display |
+| `app-store-ipad/<lang>/` | 2752 × 2064 | App Store, iPad 13" display |
 | `play-store/<lang>/` | 1080 × 1920 | Google Play, phone screenshots |
 | `play-store/feature-graphic.png` | 1024 × 500 | Google Play, feature graphic |
 | `play-store-tablet/<lang>/` | 1920 × 1080 | Google Play, 7" and 10" tablet screenshots |
@@ -18,7 +19,7 @@ Ready to upload, in English (`en`) and Arabic (`ar`):
 | 5 | Read with your notes | اقرأ وملاحظاتك بجانبك | PDF reader with the notes sheet open |
 | 6 | Organize into collections | نظّم أوراقك في مجموعات | iOS: a collection; Android: the collection picker |
 
-Tablet (Play only, landscape):
+Tablet (Play and the App Store's iPad, landscape; same captions):
 
 | # | English caption | Arabic caption | Screen |
 |---|---|---|---|
@@ -38,6 +39,7 @@ The same script also redraws the feature graphic. It needs `rsvg-convert` and a 
 
 - **iOS** captures come from the iPhone 17 Pro Max simulator, with the status bar set to 9:41 and full signal and battery (`xcrun simctl status_bar`).
 - **Android** captures are rendered with Robolectric at 411 × 891 dp and 420 dpi. They have no system bars, so the script draws a status bar on them.
+- **iPad** captures come from the iPad Pro 13-inch (M5) simulator, in landscape, with Full Screen Apps on (Settings → Multitasking & Gestures) and the status bar at 9:41. They show the same six papers. Shot 2 is "Attention Is All You Need" in the reader with notes in Summary and Method beside the PDF (the reader hides the list); shot 3 is "A Survey of Large Language Models" beside the Library list, in the collection "Thesis — Chapter 2" (Arabic: "الفصل الثاني"), with its PDF downloaded. XCUITest screenshots in landscape are stored portrait with an EXIF rotation, so turn it into pixels (Pillow's `ImageOps.exif_transpose`) before framing.
 - **Android tablet** captures are light English and Arabic Robolectric renders at 1280 × 800 dp, so they show the tests' sample papers and a stub PDF. Shots 1 and 2 are the `SearchTabletScreenshotTest` and `ReaderTabletScreenshotTest` renders. Shot 3 is Details on its own, full width, as opened from Search, with a downloaded PDF: the `PaperDetailsTabletScreenshotTest` renders put it beside a stand-in list, which doesn't belong in a store listing. Record them locally with `./gradlew recordRoborazziDebug --tests '*TabletScreenshotTest'`, copy the `-EnglishLight` / `-ArabicLight` images into `raw/play-store-tablet/<lang>/`, and delete the recorded baselines again: baselines are only committed from Linux CI.
 
 Both apps showed the same six real papers from OpenAlex, saved in the library as To read, Reading and Read, and a live search for "large language models".

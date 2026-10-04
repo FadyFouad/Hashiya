@@ -11,13 +11,15 @@ class FirebaseCrashReporter internal constructor(
     private val setCollectionEnabled: (Boolean) -> Unit,
     private val deleteUnsentReports: () -> Unit,
     private val setCustomKey: (String, String) -> Unit,
-    private val recordException: (Throwable) -> Unit
+    private val recordException: (Throwable) -> Unit,
+    private val isCollectionEnabled: () -> Boolean
 ) : CrashReporter {
     constructor(crashlytics: FirebaseCrashlytics) : this(
         crashlytics::setCrashlyticsCollectionEnabled,
         crashlytics::deleteUnsentReports,
         crashlytics::setCustomKey,
-        crashlytics::recordException
+        crashlytics::recordException,
+        crashlytics::isCrashlyticsCollectionEnabled
     )
 
     override fun setEnabled(enabled: Boolean) {
@@ -27,5 +29,8 @@ class FirebaseCrashReporter internal constructor(
 
     override fun setKey(key: CrashKey, value: String) = setCustomKey(key.id, value)
 
-    override fun recordNonFatal(error: Throwable, site: CrashSite) = recordException(sanitized(error, site))
+    // Crashlytics keeps a non-fatal recorded while collection is off and sends it once collection is on again.
+    override fun recordNonFatal(error: Throwable, site: CrashSite) {
+        if (isCollectionEnabled()) recordException(sanitized(error, site))
+    }
 }

@@ -48,4 +48,24 @@ class BackupRulesTest {
     fun legacyBackupMatchesCloud() {
         assertEquals(core, includes(R.xml.backup_rules)["full-backup-content"])
     }
+
+    /** The value of [attribute] on each start tag that has it, as "tag[domain:path]" or "tag" → value. */
+    private fun attributes(xml: Int, attribute: String): Map<String, String> {
+        val parser = context.resources.getXml(xml)
+        val result = mutableMapOf<String, String>()
+        while (parser.next() != XmlPullParser.END_DOCUMENT) {
+            if (parser.eventType != XmlPullParser.START_TAG) continue
+            val value = parser.getAttributeValue(null, attribute) ?: continue
+            val path = parser.getAttributeValue(null, "path")
+            result[if (path == null) parser.name else "${parser.name}[${parser.getAttributeValue(null, "domain")}:$path]"] = value
+        }
+        return result
+    }
+
+    @Test
+    fun theApiKeyIsOnlyBackedUpEncrypted() {
+        // The settings file holds the API key.
+        assertEquals(mapOf("cloud-backup" to "true"), attributes(R.xml.data_extraction_rules, "disableIfNoEncryptionCapabilities"))
+        assertEquals(mapOf("include[file:datastore/]" to "clientSideEncryption"), attributes(R.xml.backup_rules, "requireFlags"))
+    }
 }

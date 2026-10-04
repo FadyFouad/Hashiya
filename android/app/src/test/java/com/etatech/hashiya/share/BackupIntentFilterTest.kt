@@ -6,7 +6,9 @@ import android.content.Intent
 import android.net.Uri
 import androidx.test.core.app.ApplicationProvider
 import com.etatech.hashiya.MainActivity
+import com.etatech.hashiya.openedBackup
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -33,5 +35,14 @@ class BackupIntentFilterTest {
     @Test
     fun otherFilesAreNotHandled() {
         assertTrue(activitiesFor("application/pdf").isEmpty())
+    }
+
+    @Test
+    fun onlyAContentUriIsOpenedAsABackup() {
+        assertEquals("content://docs/backup.hashiya", Intent(Intent.ACTION_VIEW, Uri.parse("content://docs/backup.hashiya")).openedBackup())
+        // A file URI would let any app point the restore at the app's own private files.
+        assertNull(Intent(Intent.ACTION_VIEW, Uri.parse("file:///data/data/com.etatech.hashiya/x.hashiya")).openedBackup())
+        assertNull(Intent(Intent.ACTION_VIEW, Uri.parse("https://example.org/backup.hashiya")).openedBackup())
+        assertNull(Intent(Intent.ACTION_SEND, Uri.parse("content://docs/backup.hashiya")).openedBackup())
     }
 }

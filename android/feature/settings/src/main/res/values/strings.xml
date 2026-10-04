@@ -85,7 +85,7 @@
     <string name="restore_cancel">Cancel</string>
     <string name="restore_applying">Adding to your library…</string>
     <string name="restore_done_title">Backup restored</string>
-    <string name="restore_done_body">Added %1$d papers, notes on %2$d existing papers, %3$d collections and %4$d PDFs.</string>
+    <string name="restore_done_body">Papers added: %1$d · Notes added to existing papers: %2$d · Collections added: %3$d · PDFs added: %4$d</string>
     <plurals name="restore_done_missing_pdfs">
         <item quantity="one">%1$d PDF in the backup couldn\'t be restored.</item>
         <item quantity="other">%1$d PDFs in the backup couldn\'t be restored.</item>

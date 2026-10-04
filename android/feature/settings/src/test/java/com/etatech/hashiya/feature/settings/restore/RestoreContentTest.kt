@@ -45,6 +45,13 @@ class RestoreContentTest {
     }
 
     @Test
+    fun theResultReadsWellForOne() {
+        show(RestoreUiState.Done(RestoreResult(1, 1, 1, 1, 0)))
+
+        composeRule.onNodeWithText("Papers added: 1 · Notes added to existing papers: 1 · Collections added: 1 · PDFs added: 1").assertIsDisplayed()
+    }
+
+    @Test
     fun theResultSaysNothingWhenNoneWereSkipped() {
         show(RestoreUiState.Done(RestoreResult(2, 0, 2, 1, 0, papersSkipped = 0)))
 

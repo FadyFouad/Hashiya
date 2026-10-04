@@ -113,9 +113,6 @@ class MainActivity : AppCompatActivity() {
         runCatching { startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
     }
 
-    /** A `.hashiya` file opened from Files, Drive or a mail app. */
-    private fun Intent.openedBackup(): String? = if (action == Intent.ACTION_VIEW) data?.toString() else null
-
     private fun Intent.sharedSearchRoute(): SearchRoute? {
         if (action != Intent.ACTION_SEND || type?.startsWith("text/") != true) return null
         // These extras may be styled (Spanned), which getStringExtra would return as null.
@@ -124,3 +121,6 @@ class MainActivity : AppCompatActivity() {
         return shareToSearchRoute(getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString(), subject)
     }
 }
+
+/** A `.hashiya` file opened from Files, Drive or a mail app. Only a content URI: a file URI could point at the app's own files. */
+internal fun Intent.openedBackup(): String? = data?.takeIf { action == Intent.ACTION_VIEW && it.scheme == "content" }?.toString()

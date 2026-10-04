@@ -2,6 +2,7 @@
 import PackageDescription
 
 let grdb: Target.Dependency = .product(name: "GRDB", package: "GRDB.swift")
+let zip: Target.Dependency = .product(name: "ZIPFoundation", package: "ZIPFoundation")
 let snapshotTesting: Target.Dependency = .product(name: "SnapshotTesting", package: "swift-snapshot-testing")
 
 let package = Package(
@@ -24,6 +25,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1"),
+        .package(url: "https://github.com/weichsel/ZIPFoundation.git", exact: "0.9.19"),
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing.git", exact: "1.19.6"),
     ],
     targets: [
@@ -31,7 +33,7 @@ let package = Package(
         .target(name: "HashiyaBibTeX", dependencies: ["HashiyaModel"]),
         .target(name: "HashiyaNetwork"),
         .target(name: "HashiyaDatabase", dependencies: ["HashiyaModel", grdb]),
-        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX"]),
+        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX", zip]),
         .target(name: "HashiyaDesignSystem", dependencies: ["HashiyaModel"], resources: [.process("Resources")]),
         .target(
             name: "FeatureSearch",
@@ -69,7 +71,7 @@ let package = Package(
         .testTarget(name: "HashiyaDatabaseTests", dependencies: ["HashiyaDatabase", "HashiyaModel", grdb]),
         .testTarget(
             name: "HashiyaDataTests",
-            dependencies: ["HashiyaData", "HashiyaDatabase", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting", grdb]
+            dependencies: ["HashiyaData", "HashiyaDatabase", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting", grdb, zip]
         ),
         .testTarget(
             name: "HashiyaDesignSystemTests",

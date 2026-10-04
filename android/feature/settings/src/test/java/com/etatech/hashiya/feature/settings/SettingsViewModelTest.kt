@@ -1,5 +1,6 @@
 package com.etatech.hashiya.feature.settings
 
+import com.etatech.hashiya.core.crash.CrashKey
 import com.etatech.hashiya.core.model.PdfStorage
 import com.etatech.hashiya.core.testing.FakeCrashReporter
 import com.etatech.hashiya.core.testing.FakeLibraryBackup
@@ -88,6 +89,20 @@ class SettingsViewModelTest {
 
         assertEquals(AppLanguage.Arabic, languageController.language)
         assertEquals(AppLanguage.Arabic, viewModel.uiState.value.language)
+    }
+
+    @Test
+    fun selectingLanguageUpdatesTheCrashKey() = runTest {
+        val viewModel = viewModel()
+
+        viewModel.onLanguageSelected(AppLanguage.Arabic)
+        viewModel.onLanguageSelected(AppLanguage.English)
+        viewModel.onLanguageSelected(AppLanguage.System)
+
+        assertEquals(
+            listOf(CrashKey.Language to "ar", CrashKey.Language to "en", CrashKey.Language to "system"),
+            crashReporter.keyHistory
+        )
     }
 
     @Test

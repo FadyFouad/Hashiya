@@ -3,6 +3,7 @@ package com.etatech.hashiya.feature.settings
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etatech.hashiya.core.crash.CrashKey
 import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.data.backup.BackupException
 import com.etatech.hashiya.core.data.backup.BackupFailure
@@ -129,6 +130,14 @@ class SettingsViewModel @Inject constructor(
     fun onLanguageSelected(selected: AppLanguage) {
         languageController.set(selected)
         language.value = selected
+        crashReporter.setKey(
+            CrashKey.Language,
+            when (selected) {
+                AppLanguage.English -> "en"
+                AppLanguage.Arabic -> "ar"
+                AppLanguage.System -> "system"
+            }
+        )
     }
 
     /** The reporter is told first, so an opt-out takes effect before the preference is written. */

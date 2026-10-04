@@ -3,13 +3,16 @@ package com.etatech.hashiya.core.data.backup
 import com.etatech.hashiya.core.database.model.LibrarySnapshot
 import com.etatech.hashiya.core.database.model.PDF_SOURCE_ATTACHED
 import com.etatech.hashiya.core.database.model.PDF_SOURCE_DOWNLOADED
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
 
 /** What [writeArchive] wrote. */
@@ -121,3 +124,63 @@ internal fun parseIsoUtc(text: String): Long? =
     runCatching { utcFormat("yyyy-MM-dd'T'HH:mm:ss'Z'").apply { isLenient = false }.parse(text)?.time }.getOrNull()
 
 private fun utcFormat(pattern: String) = SimpleDateFormat(pattern, Locale.ROOT).apply { timeZone = TimeZone.getTimeZone("UTC") }
+
+internal sealed interface ArchiveRead {
+    data class Valid(val manifest: BackupManifest, val library: BackupLibrary) : ArchiveRead
+
+    data class Invalid(val reason: OpenFailure) : ArchiveRead
+}
+
+/** Reads and checks [file]'s manifest and library. Only those two entries are read; PDFs are read by name at restore. */
+internal fun readArchive(file: File): ArchiveRead {
+    val zip = try {
+        ZipFile(file)
+    } catch (e: IOException) {
+        return ArchiveRead.Invalid(OpenFailure.NotABackup)
+    }
+    zip.use {
+        val manifestEntry = zip.getEntry(MANIFEST_ENTRY) ?: return ArchiveRead.Invalid(OpenFailure.NotABackup)
+        val manifestText = zip.readText(manifestEntry, MAX_MANIFEST_BYTES) ?: return ArchiveRead.Invalid(OpenFailure.NotABackup)
+        val manifest = try {
+            backupJson.decodeFromString(BackupManifest.serializer(), manifestText)
+        } catch (e: IllegalArgumentException) {
+            // SerializationException is an IllegalArgumentException.
+            return ArchiveRead.Invalid(OpenFailure.NotABackup)
+        }
+        if (manifest.format > BACKUP_FORMAT) return ArchiveRead.Invalid(OpenFailure.NewerFormat)
+        if (manifest.format < 1) return ArchiveRead.Invalid(OpenFailure.Damaged)
+        val libraryEntry = zip.getEntry(LIBRARY_ENTRY) ?: return ArchiveRead.Invalid(OpenFailure.Damaged)
+        val libraryText = zip.readText(libraryEntry, MAX_LIBRARY_BYTES) ?: return ArchiveRead.Invalid(OpenFailure.Damaged)
+        val library = try {
+            backupJson.decodeFromString(BackupLibrary.serializer(), libraryText)
+        } catch (e: IllegalArgumentException) {
+            return ArchiveRead.Invalid(OpenFailure.Damaged)
+        }
+        val refs = library.papers.map { it.ref }
+        if (refs.size != refs.toSet().size) return ArchiveRead.Invalid(OpenFailure.Damaged)
+        val known = refs.toSet()
+        if (library.collections.any { collection -> collection.papers.any { it !in known } }) {
+            return ArchiveRead.Invalid(OpenFailure.Damaged)
+        }
+        return ArchiveRead.Valid(manifest, library)
+    }
+}
+
+/** The entry as UTF-8, or null when it is longer than [maxBytes] or can't be read. Never trusts the entry's declared size. */
+private fun ZipFile.readText(entry: ZipEntry, maxBytes: Int): String? = try {
+    getInputStream(entry).use { input ->
+        val out = ByteArrayOutputStream()
+        val buffer = ByteArray(64 * 1024)
+        var total = 0L
+        while (true) {
+            val read = input.read(buffer)
+            if (read == -1) break
+            total += read
+            if (total > maxBytes) return null
+            out.write(buffer, 0, read)
+        }
+        out.toString(Charsets.UTF_8.name())
+    }
+} catch (e: IOException) {
+    null
+}

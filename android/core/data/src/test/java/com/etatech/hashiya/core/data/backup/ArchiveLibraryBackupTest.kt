@@ -173,4 +173,30 @@ class ArchiveLibraryBackupTest {
         assertTrue(failure is IllegalStateException)
         assertEquals(emptyList<String>(), File(tmp.root, "work").list()!!.toList())
     }
+
+    private val fixture = File(System.getProperty("hashiya.testdata"), "backup/format-1.hashiya")
+
+    @Test
+    fun openPreviewsTheFixtureAgainstTheLibrary() = runTest {
+        library.save(paper("W3"))
+
+        val ready = backup.open(Uri.fromFile(fixture)) as OpenResult.Ready
+
+        assertEquals(RestorePreview(exportedAt = 1_791_122_700_000L, papers = 3, collections = 2, pdfs = 1, newPapers = 2, existingPapers = 1), ready.preview)
+        backup.discard(ready.backup)
+        assertFalse(ready.backup.file.exists())
+    }
+
+    @Test
+    fun openRejectsANonBackupAndKeepsNoCopy() = runTest {
+        val text = tmp.newFile("notes.txt").apply { writeText("hello") }
+
+        assertEquals(OpenResult.Failed(OpenFailure.NotABackup), backup.open(Uri.fromFile(text)))
+        assertTrue(File(tmp.root, "work").listFiles().orEmpty().isEmpty())
+    }
+
+    @Test
+    fun openReportsAnUnreadableSource() = runTest {
+        assertEquals(OpenResult.Failed(OpenFailure.Unreadable), backup.open(Uri.fromFile(File(tmp.root, "missing.hashiya"))))
+    }
 }

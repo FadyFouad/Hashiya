@@ -6,6 +6,7 @@ import android.provider.DocumentsContract
 import com.etatech.hashiya.core.data.pdf.PdfFileStore
 import com.etatech.hashiya.core.data.pdf.PdfStoreGate
 import com.etatech.hashiya.core.database.dao.BackupDao
+import com.etatech.hashiya.core.model.normalizeDoi
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
@@ -77,6 +78,42 @@ internal class ArchiveLibraryBackup(
 
     override fun discard(exported: ExportedFile) {
         exported.file.delete()
+    }
+
+    override suspend fun open(source: Uri): OpenResult {
+        val file = File(workDir.apply { mkdirs() }, "restore-${newId()}.hashiya")
+        val read = withContext(io) {
+            try {
+                val input = contentResolver.openInputStream(source) ?: throw IOException("No input stream")
+                input.use { from -> file.outputStream().use { from.copyTo(it) } }
+                readArchive(file)
+            } catch (e: Exception) {
+                if (e !is IOException && e !is SecurityException) {
+                    file.delete()
+                    throw e
+                }
+                ArchiveRead.Invalid(OpenFailure.Unreadable)
+            }
+        }
+        if (read !is ArchiveRead.Valid) {
+            file.delete()
+            return OpenResult.Failed((read as ArchiveRead.Invalid).reason)
+        }
+        val papers = read.library.papers
+        val existing = papers.count { backupDao.matchFor(it.openAlexId?.trim()?.ifEmpty { null }, it.doi?.let(::normalizeDoi)) != null }
+        val preview = RestorePreview(
+            exportedAt = parseIsoUtc(read.manifest.exportedAt),
+            papers = papers.size,
+            collections = read.library.collections.size,
+            pdfs = papers.count { it.pdf?.file != null },
+            newPapers = papers.size - existing,
+            existingPapers = existing
+        )
+        return OpenResult.Ready(PreparedBackup(file, read.library), preview)
+    }
+
+    override fun discard(backup: PreparedBackup) {
+        backup.file.delete()
     }
 
     private companion object {

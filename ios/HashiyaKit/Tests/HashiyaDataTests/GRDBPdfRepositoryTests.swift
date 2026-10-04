@@ -827,6 +827,27 @@ struct GRDBPdfRepositoryTests {
         }
     }
 
+    @Test func storesFinishedWaitsForAGateStore() async throws {
+        let release = AsyncStream<Void>.makeStream()
+        let running = Task { [repository] in
+            try await repository.withStoreGate {
+                for await _ in release.stream { break }
+            }
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        let finished = OSAllocatedUnfairLock(initialState: false)
+        let waiter = Task { [repository] in
+            await repository.storesFinished()
+            finished.withLock { $0 = true }
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(!finished.withLock { $0 })
+        release.continuation.yield(())
+        try await running.value
+        await waiter.value
+        #expect(finished.withLock { $0 })
+    }
+
     @Test func storesFinishedReturnsAtOnceWhenNothingRuns() async throws {
         try await library.save(paper("W1"))
         repository.download(openAlexID: "W1")

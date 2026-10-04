@@ -141,4 +141,55 @@ struct ArchiveLibraryBackupTests {
         backup.discard(exported)
         #expect(!FileManager.default.fileExists(atPath: exported.url.path))
     }
+
+    @Test func openPreviewsTheFixtureAgainstTheLibrary() async throws {
+        try await library.save(paper("W3"))
+        guard case let .ready(prepared, preview) = await backup.open(sharedFixtureURL) else {
+            Issue.record("not ready")
+            return
+        }
+        // Fixture: W2741809807 (new), ref 2 without an OpenAlex id (skipped), W3 (already saved).
+        #expect(preview == RestorePreview(exportedAt: 1_791_122_700_000, papers: 3, collections: 2, pdfs: 1, newPapers: 1, existingPapers: 1, papersSkipped: 1))
+        backup.discard(prepared)
+        #expect(!FileManager.default.fileExists(atPath: prepared.url.path))
+    }
+
+    @Test func openRejectsANonBackupAndKeepsNoCopy() async throws {
+        let text = root.appending(path: "notes.txt")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data("hello".utf8).write(to: text)
+        #expect(await backup.open(text) == .failed(.notABackup))
+        #expect(((try? FileManager.default.contentsOfDirectory(atPath: root.appending(path: "work").path)) ?? []).isEmpty)
+    }
+
+    @Test func openReportsAnUnreadableSource() async {
+        #expect(await backup.open(root.appending(path: "missing.hashiya")) == .failed(.unreadable))
+    }
+
+    @Test func leftoversFromAnEarlierProcessAreClearedOnFirstUse() async throws {
+        let work = root.appending(path: "work", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
+        let stale = work.appending(path: "restore-old.hashiya")
+        try Data("x".utf8).write(to: stale)
+        try await library.save(paper("W1"))
+        let exported = try await backup.export(includePdfs: false, onProgress: { _ in })
+        #expect(!FileManager.default.fileExists(atPath: stale.path))
+        #expect(FileManager.default.fileExists(atPath: exported.url.path))
+    }
+
+    @Test func concurrentFirstUsesDoNotDeleteEachOthersFiles() async throws {
+        try await library.save(paper("W1"))
+        let work = root.appending(path: "work", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: work.appending(path: "restore-old.hashiya"))
+        async let exported = backup.export(includePdfs: false, onProgress: { _ in })
+        async let opened = backup.open(sharedFixtureURL)
+        let file = try await exported
+        guard case let .ready(prepared, _) = await opened else {
+            Issue.record("not ready")
+            return
+        }
+        #expect(FileManager.default.fileExists(atPath: file.url.path))
+        #expect(FileManager.default.fileExists(atPath: prepared.url.path))
+    }
 }

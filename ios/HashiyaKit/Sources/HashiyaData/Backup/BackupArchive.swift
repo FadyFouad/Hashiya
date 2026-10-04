@@ -110,3 +110,69 @@ private func add(_ archive: Archive, _ path: String, _ data: Data) throws {
         data.subdata(in: Int(position)..<(Int(position) + size))
     }
 }
+
+enum ArchiveRead: Equatable {
+    case valid(BackupManifest, BackupLibrary)
+    case invalid(OpenFailure)
+}
+
+/// Reads and checks the manifest and library of the archive at `url`. Only those two entries are read; PDFs are read by
+/// exact name at restore. Never throws: anything unreadable is a typed failure.
+func readArchive(_ url: URL) -> ArchiveRead {
+    guard let archive = try? Archive(url: url, accessMode: .read) else {
+        return .invalid(.notABackup)
+    }
+    guard let manifestEntry = archive[BackupFormat.manifestEntry],
+          let manifestData = readEntry(archive, manifestEntry, max: BackupFormat.maxManifestBytes),
+          let manifest = try? BackupFormat.decoder.decode(BackupManifest.self, from: manifestData)
+    else {
+        return .invalid(.notABackup)
+    }
+    if manifest.format > BackupFormat.version {
+        return .invalid(.newerFormat)
+    }
+    if manifest.format < 1 {
+        return .invalid(.damaged)
+    }
+    guard let libraryEntry = archive[BackupFormat.libraryEntry],
+          let libraryData = readEntry(archive, libraryEntry, max: BackupFormat.maxLibraryBytes),
+          let library = try? BackupFormat.decoder.decode(BackupLibrary.self, from: libraryData)
+    else {
+        return .invalid(.damaged)
+    }
+    let refs = library.papers.map(\.ref)
+    guard Set(refs).count == refs.count else {
+        return .invalid(.damaged)
+    }
+    let known = Set(refs)
+    guard library.collections.allSatisfy({ $0.papers.allSatisfy(known.contains) }) else {
+        return .invalid(.damaged)
+    }
+    return .valid(manifest, library)
+}
+
+/// The entry's bytes, or nil when more than `max` come out or it can't be read. Never trusts the declared size.
+private func readEntry(_ archive: Archive, _ entry: Entry, max: Int) -> Data? {
+    struct TooLarge: Error {}
+    var data = Data()
+    do {
+        _ = try archive.extract(entry, skipCRC32: false) { chunk in
+            data.append(chunk)
+            if data.count > max {
+                throw TooLarge()
+            }
+        }
+        return data
+    } catch {
+        return nil
+    }
+}
+
+extension BackupPaper {
+    /// The OpenAlex id trimmed; nil when missing or blank. Papers without one are skipped on restore: the app keys every
+    /// paper by its OpenAlex id.
+    var usableOpenAlexID: String? {
+        let trimmed = openAlexId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}

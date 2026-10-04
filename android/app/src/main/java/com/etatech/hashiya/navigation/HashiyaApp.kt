@@ -106,7 +106,7 @@ fun HashiyaApp(
                 onReadPdf = { openAlexId -> navController.navigateToReader(openAlexId) }
             )
             readerScreen(onBack = { navController.popBackStack() })
-            settingsScreen(onBack = { navController.popBackStack() })
+            settingsScreen(onBack = { navController.popBackStack() }, onOpenRestore = {})
         }
 
         // Details opened from the Library on a narrow window moves into the Library's pane once the window is wide

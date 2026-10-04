@@ -39,4 +39,49 @@
     </plurals>
     <string name="settings_delete">حذف</string>
     <string name="settings_cancel">إلغاء</string>
+    <string name="settings_backup">النسخ الاحتياطي</string>
+    <string name="settings_backup_description">احفظ مكتبتك في ملف، أو أضف أوراقًا من نسخة احتياطية.</string>
+    <string name="settings_export_library">تصدير المكتبة</string>
+    <string name="settings_restore_backup">الاستعادة من نسخة احتياطية</string>
+    <string name="settings_export_title">تصدير المكتبة</string>
+    <string name="settings_export_counts">%1$s · %2$s</string>
+    <plurals name="settings_export_papers">
+        <item quantity="zero">لا أوراق</item>
+        <item quantity="one">ورقة واحدة</item>
+        <item quantity="two">ورقتان</item>
+        <item quantity="few">%1$d أوراق</item>
+        <item quantity="many">%1$d ورقة</item>
+        <item quantity="other">%1$d ورقة</item>
+    </plurals>
+    <plurals name="settings_export_collections">
+        <item quantity="zero">لا مجموعات</item>
+        <item quantity="one">مجموعة واحدة</item>
+        <item quantity="two">مجموعتان</item>
+        <item quantity="few">%1$d مجموعات</item>
+        <item quantity="many">%1$d مجموعة</item>
+        <item quantity="other">%1$d مجموعة</item>
+    </plurals>
+    <string name="settings_export_include_pdfs">تضمين ملفات PDF</string>
+    <plurals name="settings_export_pdfs_size">
+        <item quantity="zero">لا ملفات PDF، %2$s</item>
+        <item quantity="one">ملف PDF واحد، %2$s</item>
+        <item quantity="two">ملفا PDF، %2$s</item>
+        <item quantity="few">%1$d ملفات PDF، %2$s</item>
+        <item quantity="many">%1$d ملف PDF، %2$s</item>
+        <item quantity="other">%1$d ملف PDF، %2$s</item>
+    </plurals>
+    <string name="settings_export_no_settings">لا يتضمن الملف مفتاح API ولا الإعدادات.</string>
+    <string name="settings_export">تصدير</string>
+    <string name="settings_exporting">جارٍ تجهيز النسخة الاحتياطية…</string>
+    <string name="settings_exported">تم تصدير المكتبة</string>
+    <plurals name="settings_exported_missing">
+        <item quantity="zero">تم تصدير المكتبة.</item>
+        <item quantity="one">تم تصدير المكتبة. ملف PDF واحد كان مفقودًا ولم يُضمَّن.</item>
+        <item quantity="two">تم تصدير المكتبة. ملفا PDF كانا مفقودين ولم يُضمَّنا.</item>
+        <item quantity="few">تم تصدير المكتبة. %1$d ملفات PDF كانت مفقودة ولم تُضمَّن.</item>
+        <item quantity="many">تم تصدير المكتبة. %1$d ملف PDF كان مفقودًا ولم يُضمَّن.</item>
+        <item quantity="other">تم تصدير المكتبة. %1$d ملف PDF كان مفقودًا ولم يُضمَّن.</item>
+    </plurals>
+    <string name="settings_export_failed_space">تعذّر التصدير — لا توجد مساحة تخزين كافية.</string>
+    <string name="settings_export_failed">تعذّر تصدير المكتبة.</string>
 </resources>

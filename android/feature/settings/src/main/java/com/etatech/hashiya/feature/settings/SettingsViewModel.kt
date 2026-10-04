@@ -1,7 +1,13 @@
 package com.etatech.hashiya.feature.settings
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etatech.hashiya.core.data.backup.BackupException
+import com.etatech.hashiya.core.data.backup.BackupFailure
+import com.etatech.hashiya.core.data.backup.BackupSummary
+import com.etatech.hashiya.core.data.backup.ExportedFile
+import com.etatech.hashiya.core.data.backup.LibraryBackup
 import com.etatech.hashiya.core.data.repository.PdfRepository
 import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
 import com.etatech.hashiya.core.model.PdfStorage
@@ -12,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class SettingsUiState(
@@ -19,27 +26,70 @@ data class SettingsUiState(
     val keyInput: String = "",
     val language: AppLanguage = AppLanguage.System,
     /** Null until loaded; the Storage section is hidden while null. */
-    val storage: PdfStorage? = null
+    val storage: PdfStorage? = null,
+    val backup: BackupUiState = BackupUiState()
 )
+
+data class BackupUiState(
+    val summary: BackupSummary? = null,
+    val export: ExportState = ExportState.Idle,
+    val message: BackupMessage? = null
+)
+
+sealed interface ExportState {
+    data object Idle : ExportState
+
+    data class Choosing(val includePdfs: Boolean) : ExportState
+
+    data class Building(val includePdfs: Boolean, val progress: Float) : ExportState
+
+    /** The UI opens the save dialog with [fileName] once, then reports back with onSaveDestination. */
+    data class ReadyToSave(val fileName: String) : ExportState
+
+    data object Saving : ExportState
+}
+
+sealed interface BackupMessage {
+    data class Exported(val missingPdfs: Int) : BackupMessage
+
+    data class ExportFailed(val failure: BackupFailure) : BackupMessage
+}
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val preferences: UserPreferencesRepository,
     private val languageController: AppLanguageController,
-    private val pdfRepository: PdfRepository
+    private val pdfRepository: PdfRepository,
+    private val libraryBackup: LibraryBackup
 ) : ViewModel() {
     /** Null until the user edits the field; the stored key is shown until then. */
     private val editedKey = MutableStateFlow<String?>(null)
     private val language = MutableStateFlow(languageController.current())
     private val storage = MutableStateFlow<PdfStorage?>(null)
+    private val backup = MutableStateFlow(BackupUiState())
+
+    /** The archive waiting for the save dialog; deleted once saved, cancelled or the screen goes away. */
+    private var exported: ExportedFile? = null
 
     val uiState: StateFlow<SettingsUiState> =
-        combine(preferences.userApiKey, editedKey, language, storage) { stored, edited, lang, pdfs ->
-            SettingsUiState(usingUserKey = stored != null, keyInput = edited ?: stored.orEmpty(), language = lang, storage = pdfs)
+        combine(preferences.userApiKey, editedKey, language, storage, backup) { stored, edited, lang, pdfs, backupState ->
+            SettingsUiState(
+                usingUserKey = stored != null,
+                keyInput = edited ?: stored.orEmpty(),
+                language = lang,
+                storage = pdfs,
+                backup = backupState
+            )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(language = language.value))
 
     init {
         viewModelScope.launch { storage.value = pdfRepository.storage() }
+        viewModelScope.launch { refreshSummary() }
+    }
+
+    private suspend fun refreshSummary() {
+        val summary = libraryBackup.summary()
+        backup.update { it.copy(summary = summary) }
     }
 
     fun onKeyInputChange(value: String) {
@@ -72,5 +122,70 @@ class SettingsViewModel @Inject constructor(
             pdfRepository.deleteDownloaded()
             storage.value = pdfRepository.storage()
         }
+    }
+
+    fun onExportClick() {
+        backup.update { it.copy(export = ExportState.Choosing(includePdfs = false)) }
+    }
+
+    fun onIncludePdfsChange(include: Boolean) {
+        backup.update { state -> (state.export as? ExportState.Choosing)?.let { state.copy(export = it.copy(includePdfs = include)) } ?: state }
+    }
+
+    fun onDismissExport() {
+        backup.update { if (it.export is ExportState.Choosing) it.copy(export = ExportState.Idle) else it }
+    }
+
+    fun onConfirmExport() {
+        val choosing = backup.value.export as? ExportState.Choosing ?: return
+        backup.update { it.copy(export = ExportState.Building(choosing.includePdfs, progress = 0f)) }
+        viewModelScope.launch {
+            try {
+                // Progress arrives on an IO thread; updating the flow is thread-safe.
+                val file = libraryBackup.export(choosing.includePdfs) { progress ->
+                    backup.update { state ->
+                        (state.export as? ExportState.Building)?.let { state.copy(export = it.copy(progress = progress)) } ?: state
+                    }
+                }
+                exported = file
+                backup.update { it.copy(export = ExportState.ReadyToSave(file.fileName)) }
+            } catch (e: BackupException) {
+                backup.update { it.copy(export = ExportState.Idle, message = BackupMessage.ExportFailed(e.failure)) }
+            }
+        }
+    }
+
+    /** The save dialog's answer; null when it was cancelled. */
+    fun onSaveDestination(uri: Uri?) {
+        val file = exported ?: return
+        if (uri == null) {
+            discardExport()
+            backup.update { it.copy(export = ExportState.Idle) }
+            return
+        }
+        backup.update { it.copy(export = ExportState.Saving) }
+        viewModelScope.launch {
+            val message = try {
+                libraryBackup.save(file, uri)
+                BackupMessage.Exported(file.missingPdfs)
+            } catch (e: BackupException) {
+                BackupMessage.ExportFailed(e.failure)
+            }
+            discardExport()
+            backup.update { it.copy(export = ExportState.Idle, message = message) }
+        }
+    }
+
+    fun onMessageShown() {
+        backup.update { it.copy(message = null) }
+    }
+
+    private fun discardExport() {
+        exported?.let(libraryBackup::discard)
+        exported = null
+    }
+
+    override fun onCleared() {
+        discardExport()
     }
 }

@@ -29,4 +29,33 @@
     </plurals>
     <string name="settings_delete">Delete</string>
     <string name="settings_cancel">Cancel</string>
+    <string name="settings_backup">Backup</string>
+    <string name="settings_backup_description">Save your library to a file, or add papers from a backup.</string>
+    <string name="settings_export_library">Export library</string>
+    <string name="settings_restore_backup">Restore from backup</string>
+    <string name="settings_export_title">Export library</string>
+    <string name="settings_export_counts">%1$s · %2$s</string>
+    <plurals name="settings_export_papers">
+        <item quantity="one">%1$d paper</item>
+        <item quantity="other">%1$d papers</item>
+    </plurals>
+    <plurals name="settings_export_collections">
+        <item quantity="one">%1$d collection</item>
+        <item quantity="other">%1$d collections</item>
+    </plurals>
+    <string name="settings_export_include_pdfs">Include PDFs</string>
+    <plurals name="settings_export_pdfs_size">
+        <item quantity="one">%1$d PDF, %2$s</item>
+        <item quantity="other">%1$d PDFs, %2$s</item>
+    </plurals>
+    <string name="settings_export_no_settings">Your API key and settings aren\'t included.</string>
+    <string name="settings_export">Export</string>
+    <string name="settings_exporting">Preparing backup…</string>
+    <string name="settings_exported">Library exported</string>
+    <plurals name="settings_exported_missing">
+        <item quantity="one">Library exported. %1$d PDF was missing and wasn\'t included.</item>
+        <item quantity="other">Library exported. %1$d PDFs were missing and weren\'t included.</item>
+    </plurals>
+    <string name="settings_export_failed_space">Couldn\'t export — not enough storage space.</string>
+    <string name="settings_export_failed">Couldn\'t export the library.</string>
 </resources>

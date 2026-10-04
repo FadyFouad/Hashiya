@@ -16,6 +16,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Hashiya"
         tools:targetApi="33">
+        <!-- Off until the app decides at launch: release builds with the Settings switch on (CrashStartup). -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

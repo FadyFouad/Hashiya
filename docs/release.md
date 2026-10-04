@@ -108,7 +108,7 @@ All text is in `docs/store/metadata.md`.
   - App access: all functionality available.
   - Content rating: IARC questionnaire, Reference/News/Educational category, "No" throughout.
   - Target audience: 18+.
-  - Data safety: no data collected or shared.
+  - Data safety: crash logs and diagnostics collected, not shared, optional (see `docs/store/metadata.md`).
   - Government app: No. Financial features: None. Health: None.
 - **Main store listing, English:**
   - App name, short and full descriptions.
@@ -124,6 +124,23 @@ All text is in `docs/store/metadata.md`.
 1. **Internal testing** → Create release → upload the `.aab` → release notes → roll out. Install from the opt-in link and try the same flows as on iOS, plus sharing a link from Chrome.
 2. **Closed testing:** personal developer accounts created after 13 November 2023 must run a closed test with **at least 12 testers opted in for 14 continuous days** before they can apply for production. Organization accounts skip this step. Create a closed track, add testers by email list or Google Group, upload the same bundle, and keep 12+ testers opted in for the full 14 days.
 3. **Production:** after the closed test (or directly for organization accounts), Production → Create release → promote the tested bundle → roll out, optionally as a staged rollout (e.g. 20%). Reviews usually take a few hours to a few days.
+
+## Crashlytics (Android)
+
+Release builds send crash reports through Firebase Crashlytics, only while Settings → Send crash reports is on. Debug builds, unit tests and UI tests never send anything. No Firebase Analytics is included.
+
+### One-time setup (console.firebase.google.com)
+
+1. Create the Firebase project (`hashiya-research`) and turn Google Analytics off for it.
+2. Add an Android app with the package `com.etatech.hashiya`, download `google-services.json` and put it at `android/app/google-services.json`. It is committed on purpose: the repository is public and the API key is restricted to this app in Google Cloud.
+3. Crashlytics → Enable. Mapping files are uploaded by the Gradle plugin on release builds.
+
+### Check before a release that touches crash reporting
+
+1. Install the release build (`./gradlew :app:installRelease`, signed) with Send crash reports on, and launch the app first: the test-crash broadcast only works while the app is running.
+2. `adb shell am broadcast -a com.etatech.hashiya.TEST_CRASH -p com.etatech.hashiya`
+3. Reopen the app: reports are sent on the next launch. In the Crashlytics console the crash appears with readable frames and the keys `screen`, `language`, `librarySizeBucket`, `backupInProgress`.
+4. Turn the switch off, repeat steps 2 and 3, and confirm nothing new arrives.
 
 ## Large screens (Android)
 

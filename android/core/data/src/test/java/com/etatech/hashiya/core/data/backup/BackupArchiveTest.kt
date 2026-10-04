@@ -48,27 +48,47 @@ class BackupArchiveTest {
     fun zipWithoutManifest() = assertEquals(OpenFailure.NotABackup, invalid(zipText("other.txt" to "x")))
 
     @Test
-    fun manifestThatIsNotJson() = assertEquals(OpenFailure.NotABackup, invalid(zipText(MANIFEST_ENTRY to "<xml/>", LIBRARY_ENTRY to library)))
+    fun manifestThatIsNotJson() =
+        assertEquals(OpenFailure.NotABackup, invalid(zipText(MANIFEST_ENTRY to "<xml/>", LIBRARY_ENTRY to library)))
 
     @Test
-    fun newerFormat() = assertEquals(OpenFailure.NewerFormat, invalid(zipText(MANIFEST_ENTRY to """{"format":2}""", LIBRARY_ENTRY to library)))
+    fun newerFormat() =
+        assertEquals(OpenFailure.NewerFormat, invalid(zipText(MANIFEST_ENTRY to """{"format":2}""", LIBRARY_ENTRY to library)))
 
     @Test
     fun missingLibrary() = assertEquals(OpenFailure.Damaged, invalid(zipText(MANIFEST_ENTRY to manifest)))
 
     @Test
-    fun malformedLibrary() = assertEquals(OpenFailure.Damaged, invalid(zipText(MANIFEST_ENTRY to manifest, LIBRARY_ENTRY to """{"papers":[{"ref":1}]}""")))
+    fun malformedLibrary() = assertEquals(
+        OpenFailure.Damaged,
+        invalid(
+            zipText(
+                MANIFEST_ENTRY to manifest,
+                LIBRARY_ENTRY to """{"papers":[{"ref":1}]}"""
+            )
+        )
+    )
 
     @Test
     fun duplicateRefs() = assertEquals(
         OpenFailure.Damaged,
-        invalid(zipText(MANIFEST_ENTRY to manifest, LIBRARY_ENTRY to """{"papers":[{"ref":1,"title":"A","savedAt":1},{"ref":1,"title":"B","savedAt":1}]}"""))
+        invalid(
+            zipText(
+                MANIFEST_ENTRY to manifest,
+                LIBRARY_ENTRY to """{"papers":[{"ref":1,"title":"A","savedAt":1},{"ref":1,"title":"B","savedAt":1}]}"""
+            )
+        )
     )
 
     @Test
     fun collectionPointingAtAnUnknownRef() = assertEquals(
         OpenFailure.Damaged,
-        invalid(zipText(MANIFEST_ENTRY to manifest, LIBRARY_ENTRY to """{"papers":[],"collections":[{"name":"C","createdAt":1,"papers":[5]}]}"""))
+        invalid(
+            zipText(
+                MANIFEST_ENTRY to manifest,
+                LIBRARY_ENTRY to """{"papers":[],"collections":[{"name":"C","createdAt":1,"papers":[5]}]}"""
+            )
+        )
     )
 
     @Test

@@ -223,7 +223,14 @@ internal class ArchiveLibraryBackup(
             }
             staged.clear()
             onProgress(1f)
-            RestoreResult(outcome.added, outcome.notesAdded, outcome.collectionsCreated, pdfsAdded, pdfsMissing, backup.library.papers.size - restorable.size)
+            RestoreResult(
+                outcome.added,
+                outcome.notesAdded,
+                outcome.collectionsCreated,
+                pdfsAdded,
+                pdfsMissing,
+                backup.library.papers.size - restorable.size
+            )
         } finally {
             staged.values.forEach { it.file.delete() }
         }

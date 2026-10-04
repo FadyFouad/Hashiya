@@ -53,7 +53,9 @@ internal fun BackupPaper.toIncoming(localId: String, staged: StageResult.Staged?
     )
     val noteRow = notes?.let {
         PaperNotesEntity(localId, it.summary, it.researchQuestion, it.method, it.keyFindings, it.limitations, it.thoughts, it.updatedAt)
-    }?.takeIf { row -> listOf(row.summary, row.researchQuestion, row.method, row.keyFindings, row.limitations, row.thoughts).any { it.isNotBlank() } }
+    }?.takeIf { row ->
+        listOf(row.summary, row.researchQuestion, row.method, row.keyFindings, row.limitations, row.thoughts).any { it.isNotBlank() }
+    }
     return IncomingPaper(
         ref = ref,
         paper = entity,

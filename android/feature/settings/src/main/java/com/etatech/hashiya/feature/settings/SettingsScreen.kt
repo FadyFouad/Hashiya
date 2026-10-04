@@ -81,7 +81,9 @@ internal fun SettingsScreen(onBack: () -> Unit, onOpenRestore: (String) -> Unit,
                 launchedFileName = export.fileName
                 saveDialog.launch(export.fileName)
             }
+
             ExportState.Idle -> launchedFileName = null
+
             else -> Unit
         }
     }

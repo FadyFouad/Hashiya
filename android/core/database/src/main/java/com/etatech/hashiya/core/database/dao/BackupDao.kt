@@ -97,7 +97,9 @@ abstract class BackupDao {
         }
         for (collection in collections) {
             val id = idForNameKey(collection.nameKey)
-                ?: insertCollection(CollectionEntity(name = collection.name, nameKey = collection.nameKey, createdAt = collection.createdAt))
+                ?: insertCollection(
+                    CollectionEntity(name = collection.name, nameKey = collection.nameKey, createdAt = collection.createdAt)
+                )
                     .also { collectionsCreated++ }
             collection.refs.mapNotNull(localIds::get).distinct().forEach { link(id, it, now) }
         }

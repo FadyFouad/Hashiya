@@ -62,7 +62,9 @@ internal fun RestoreContent(uiState: RestoreUiState, onConfirm: () -> Unit, onLe
                 title = { Text(stringResource(R.string.restore_title)) },
                 navigationIcon = {
                     if (uiState !is RestoreUiState.Applying) {
-                        IconButton(onClick = onLeave) { Icon(HashiyaIcons.Back, contentDescription = stringResource(R.string.restore_back)) }
+                        IconButton(onClick = onLeave) {
+                            Icon(HashiyaIcons.Back, contentDescription = stringResource(R.string.restore_back))
+                        }
                     }
                 }
             )
@@ -100,7 +102,15 @@ internal fun RestoreContent(uiState: RestoreUiState, onConfirm: () -> Unit, onLe
                     val result = uiState.result
                     Text(stringResource(R.string.restore_done_title), style = MaterialTheme.typography.titleMedium)
                     Spacer(Modifier.height(8.dp))
-                    Text(stringResource(R.string.restore_done_body, result.papersAdded, result.notesAdded, result.collectionsCreated, result.pdfsAdded))
+                    Text(
+                        stringResource(
+                            R.string.restore_done_body,
+                            result.papersAdded,
+                            result.notesAdded,
+                            result.collectionsCreated,
+                            result.pdfsAdded
+                        )
+                    )
                     if (result.pdfsMissing > 0) {
                         Spacer(Modifier.height(8.dp))
                         Text(pluralStringResource(R.plurals.restore_done_missing_pdfs, result.pdfsMissing, result.pdfsMissing))
@@ -115,7 +125,15 @@ internal fun RestoreContent(uiState: RestoreUiState, onConfirm: () -> Unit, onLe
 
                 is RestoreUiState.Failed -> {
                     Text(
-                        stringResource(if (uiState.failure == BackupFailure.NoSpace) R.string.restore_failed_space else R.string.restore_failed),
+                        stringResource(
+                            if (uiState.failure ==
+                                BackupFailure.NoSpace
+                            ) {
+                                R.string.restore_failed_space
+                            } else {
+                                R.string.restore_failed
+                            }
+                        ),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Spacer(Modifier.height(16.dp))

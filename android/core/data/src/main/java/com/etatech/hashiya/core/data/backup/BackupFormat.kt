@@ -28,10 +28,7 @@ internal data class BackupManifest(
 )
 
 @Serializable
-internal data class BackupLibrary(
-    val papers: List<BackupPaper> = emptyList(),
-    val collections: List<BackupCollection> = emptyList()
-)
+internal data class BackupLibrary(val papers: List<BackupPaper> = emptyList(), val collections: List<BackupCollection> = emptyList())
 
 @Serializable
 internal data class BackupPaper(

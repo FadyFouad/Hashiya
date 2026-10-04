@@ -48,7 +48,9 @@ class RestoreContentTest {
     fun theResultReadsWellForOne() {
         show(RestoreUiState.Done(RestoreResult(1, 1, 1, 1, 0)))
 
-        composeRule.onNodeWithText("Papers added: 1 · Notes added to existing papers: 1 · Collections added: 1 · PDFs added: 1").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "Papers added: 1 · Notes added to existing papers: 1 · Collections added: 1 · PDFs added: 1"
+        ).assertIsDisplayed()
     }
 
     @Test

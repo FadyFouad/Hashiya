@@ -38,7 +38,10 @@ class BackupFormatTest {
             assertNull(second.pdf?.file)
 
             assertEquals("read", library.papers[2].readingStatus)
-            assertEquals(listOf(BackupCollection("Thesis", 1790000600000, listOf(1, 2)), BackupCollection("مراجعة", 1790000700000, listOf(3))), library.collections)
+            assertEquals(
+                listOf(BackupCollection("Thesis", 1790000600000, listOf(1, 2)), BackupCollection("مراجعة", 1790000700000, listOf(3))),
+                library.collections
+            )
             assertTrue(zip.getEntry(pdfEntryName(1)) != null)
         }
     }

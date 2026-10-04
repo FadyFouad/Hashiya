@@ -24,6 +24,7 @@ class BackupRulesTest {
             if (parser.eventType != XmlPullParser.START_TAG) continue
             when (parser.name) {
                 "cloud-backup", "device-transfer", "full-backup-content" -> section = parser.name
+
                 "include" -> result.getOrPut(section) { mutableListOf() } +=
                     "${parser.getAttributeValue(null, "domain")}:${parser.getAttributeValue(null, "path")}"
             }

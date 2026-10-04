@@ -4,8 +4,11 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.etatech.hashiya.core.data.FakeOpenAlexLookupDataSource
+import com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES
 import com.etatech.hashiya.core.data.pdf.PdfFileStore
 import com.etatech.hashiya.core.data.pdf.PdfStoreGate
+import com.etatech.hashiya.core.data.repository.RoomCitationRepository
 import com.etatech.hashiya.core.data.repository.RoomLibraryRepository
 import com.etatech.hashiya.core.database.HashiyaDatabase
 import com.etatech.hashiya.core.model.Author
@@ -66,8 +69,14 @@ class ArchiveLibraryBackupTest {
         io = Dispatchers.Unconfined
     )
 
-    private fun paper(id: String, title: String = "Paper $id") =
-        Paper(id, "10.1/$id", title, listOf(Author("Jane Doe", "A1"), Author("Omar", null)), 2020, "Nature", "Abstract", 3, true, "https://x/$id.pdf")
+    private fun paper(id: String, title: String = "Paper $id") = Paper(
+        id, "10.1/$id", title,
+        listOf(
+            Author("Jane Doe", "A1"),
+            Author("Omar", null)
+        ),
+        2020, "Nature", "Abstract", 3, true, "https://x/$id.pdf"
+    )
 
     private fun storePdf(localId: String, text: String = "%PDF-1.4 $localId") {
         pdfDir.mkdirs()
@@ -102,7 +111,10 @@ class ArchiveLibraryBackupTest {
         ZipFile(exported.file).use { zip ->
             assertNull(zip.getEntry("pdfs/1.pdf"))
             val manifest = backupJson.decodeFromString(BackupManifest.serializer(), zip.text(MANIFEST_ENTRY))
-            assertEquals(BackupManifest(1, "0.3.0 (Android)", "2026-09-21T14:13:20Z", papers = 1, collections = 1, includesPdfs = false), manifest)
+            assertEquals(
+                BackupManifest(1, "0.3.0 (Android)", "2026-09-21T14:13:20Z", papers = 1, collections = 1, includesPdfs = false),
+                manifest
+            )
             val written = backupJson.decodeFromString(BackupLibrary.serializer(), zip.text(LIBRARY_ENTRY))
             val paper = written.papers.single()
             assertEquals(1, paper.ref)
@@ -185,7 +197,15 @@ class ArchiveLibraryBackupTest {
 
         // Paper 2 has no OpenAlex id: it is skipped, so it is neither new nor existing.
         assertEquals(
-            RestorePreview(exportedAt = 1_791_122_700_000L, papers = 3, collections = 2, pdfs = 1, newPapers = 1, existingPapers = 1, papersSkipped = 1),
+            RestorePreview(
+                exportedAt = 1_791_122_700_000L,
+                papers = 3,
+                collections = 2,
+                pdfs = 1,
+                newPapers = 1,
+                existingPapers = 1,
+                papersSkipped = 1
+            ),
             ready.preview
         )
         backup.discard(ready.backup)
@@ -242,7 +262,10 @@ class ArchiveLibraryBackupTest {
     fun applyingTheFixtureRestoresEverything() = runTest {
         val result = backup.apply(ready(fixture).backup)
 
-        assertEquals(RestoreResult(papersAdded = 2, notesAdded = 0, collectionsCreated = 2, pdfsAdded = 1, pdfsMissing = 0, papersSkipped = 1), result)
+        assertEquals(
+            RestoreResult(papersAdded = 2, notesAdded = 0, collectionsCreated = 2, pdfsAdded = 1, pdfsMissing = 0, papersSkipped = 1),
+            result
+        )
         val deep = db.paperDao().getByOpenAlexId("W2741809807")!!
         assertEquals("reading", deep.paper.readingStatus)
         assertEquals("lecun2015deep", deep.paper.citeKey)
@@ -250,7 +273,13 @@ class ArchiveLibraryBackupTest {
         assertEquals(4, deep.paper.pdfLastPage)
         assertTrue(File(pdfDir, "${deep.paper.id}.pdf").readText().startsWith("%PDF-1.4"))
         assertEquals(1, db.paperDao().observeLibrary("chapter*", null, null).first().size)
-        assertEquals(mapOf("Thesis" to 1, "مراجعة" to 1), db.collectionDao().observeCollections().first().associate { it.name to it.paperCount })
+        assertEquals(
+            mapOf("Thesis" to 1, "مراجعة" to 1),
+            db.collectionDao().observeCollections().first().associate {
+                it.name to
+                    it.paperCount
+            }
+        )
         // No staged file is left behind.
         assertTrue(pdfDir.listFiles().orEmpty().none { it.name.endsWith(".part") })
     }
@@ -290,7 +319,13 @@ class ArchiveLibraryBackupTest {
         assertEquals(1, second.papersSkipped)
         assertEquals(0, second.collectionsCreated)
         assertEquals(0, second.pdfsAdded)
-        assertEquals(mapOf("Thesis" to 1, "مراجعة" to 1), db.collectionDao().observeCollections().first().associate { it.name to it.paperCount })
+        assertEquals(
+            mapOf("Thesis" to 1, "مراجعة" to 1),
+            db.collectionDao().observeCollections().first().associate {
+                it.name to
+                    it.paperCount
+            }
+        )
     }
 
     @Test
@@ -310,7 +345,9 @@ class ArchiveLibraryBackupTest {
         val archive = File(tmp.root, name)
         java.util.zip.ZipOutputStream(archive.outputStream()).use { out ->
             fun put(entry: String, input: java.io.InputStream) {
-                out.putNextEntry(java.util.zip.ZipEntry(entry)); input.use { it.copyTo(out) }; out.closeEntry()
+                out.putNextEntry(java.util.zip.ZipEntry(entry))
+                input.use { it.copyTo(out) }
+                out.closeEntry()
             }
             put(MANIFEST_ENTRY, """{"format":1}""".byteInputStream())
             put(LIBRARY_ENTRY, library.byteInputStream())
@@ -323,7 +360,9 @@ class ArchiveLibraryBackupTest {
     fun pdfEntryNameMustMatchRef() = runTest {
         val archive = archive(
             "evil.hashiya",
-            """{"papers":[{"ref":1,"openAlexId":"W1","title":"A","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/2.pdf"}},{"ref":2,"openAlexId":"W2","title":"B","savedAt":1}]}""",
+            """{"papers":[{"ref":1,"openAlexId":"W1","title":"A","savedAt":1,""" +
+                """"pdf":{"source":"attached","addedAt":1,"file":"pdfs/2.pdf"}},""" +
+                """{"ref":2,"openAlexId":"W2","title":"B","savedAt":1}]}""",
             "pdfs/2.pdf" to "%PDF-1.4 not yours".byteInputStream()
         )
 
@@ -355,7 +394,8 @@ class ArchiveLibraryBackupTest {
     fun aPaperWithNoOpenAlexIdIsSkippedAndTheLibraryStillLoads() = runTest {
         val blank = archive(
             "blank-id.hashiya",
-            """{"papers":[{"ref":1,"openAlexId":"  ","title":"Blank","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/1.pdf"}}],""" +
+            """{"papers":[{"ref":1,"openAlexId":"  ","title":"Blank","savedAt":1,""" +
+                """"pdf":{"source":"attached","addedAt":1,"file":"pdfs/1.pdf"}}],""" +
                 """"collections":[{"name":"Only blank","createdAt":1,"papers":[1]}]}""",
             "pdfs/1.pdf" to "%PDF-1.4 blank".byteInputStream()
         )
@@ -364,13 +404,18 @@ class ArchiveLibraryBackupTest {
         val fromBlank = backup.apply(ready(blank).backup)
 
         assertEquals(1, fromFixture.papersSkipped)
-        assertEquals(RestoreResult(papersAdded = 0, notesAdded = 0, collectionsCreated = 1, pdfsAdded = 0, pdfsMissing = 0, papersSkipped = 1), fromBlank)
+        assertEquals(0, fromBlank.papersAdded)
+        assertEquals(1, fromBlank.papersSkipped)
+        assertEquals(1, fromBlank.collectionsCreated)
+        assertEquals(0, fromBlank.pdfsAdded + fromBlank.pdfsMissing)
         // Both read every row through the domain mapping, which rejects a paper with no OpenAlex id.
         assertEquals(setOf("W2741809807", "W3"), library.observeLibrary("", null, null).first().map { it.paper.openAlexId }.toSet())
-        com.etatech.hashiya.core.data.repository.RoomCitationRepository(db.citationDao(), com.etatech.hashiya.core.data.FakeOpenAlexLookupDataSource())
-            .export(null)
+        RoomCitationRepository(db.citationDao(), FakeOpenAlexLookupDataSource()).export(null)
         assertEquals(2, db.backupDao().paperCount())
-        assertEquals(mapOf("Thesis" to 1, "مراجعة" to 1, "Only blank" to 0), db.collectionDao().observeCollections().first().associate { it.name to it.paperCount })
+        assertEquals(
+            mapOf("Thesis" to 1, "مراجعة" to 1, "Only blank" to 0),
+            db.collectionDao().observeCollections().first().associate { it.name to it.paperCount }
+        )
         // The skipped paper's PDF was never staged.
         assertTrue(pdfDir.listFiles().orEmpty().none { it.name.endsWith(".part") })
     }
@@ -381,10 +426,10 @@ class ArchiveLibraryBackupTest {
             backupDao = db.backupDao(), fileStore = PdfFileStore(pdfDir), gate = PdfStoreGate(), contentResolver = context.contentResolver,
             workDir = File(tmp.root, "work"), appVersion = "x", now = { 1L }, newId = { "id-${++ids}" }, io = Dispatchers.Unconfined,
             // Room for any PDF the app accepts, but not for what the hostile entry declares.
-            usableSpace = { com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES }
+            usableSpace = { MAX_PDF_BYTES }
         )
         val zeros = object : java.io.InputStream() {
-            var left = com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES + 1
+            var left = MAX_PDF_BYTES + 1
             override fun read(): Int = if (left-- > 0) 0 else -1
             override fun read(b: ByteArray, off: Int, len: Int): Int {
                 if (left <= 0) return -1
@@ -396,7 +441,8 @@ class ArchiveLibraryBackupTest {
         }
         val archive = archive(
             "oversized.hashiya",
-            """{"papers":[{"ref":1,"openAlexId":"W1","title":"Huge","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/1.pdf"}},""" +
+            """{"papers":[{"ref":1,"openAlexId":"W1","title":"Huge","savedAt":1,""" +
+                """"pdf":{"source":"attached","addedAt":1,"file":"pdfs/1.pdf"}},""" +
                 """{"ref":2,"openAlexId":"W2","title":"Small","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/2.pdf"}}]}""",
             "pdfs/1.pdf" to zeros,
             "pdfs/2.pdf" to "%PDF-1.4 small".byteInputStream()

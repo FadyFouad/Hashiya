@@ -68,7 +68,11 @@ class SettingsScreenshotTest(private val variant: ScreenshotVariant) {
                     export = ExportState.Choosing(includePdfs = true)
                 )
             ),
-            onBack = {}, onKeyInputChange = {}, onSaveKey = {}, onResetKey = {}, onLanguageSelected = {}
+            onBack = {},
+            onKeyInputChange = {},
+            onSaveKey = {},
+            onResetKey = {},
+            onLanguageSelected = {}
         )
     }
 }

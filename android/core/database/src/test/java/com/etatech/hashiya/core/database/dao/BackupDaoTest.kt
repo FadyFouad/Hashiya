@@ -62,7 +62,11 @@ class BackupDaoTest {
 
     @Test
     fun addsNewPapersWithAuthorsNotesAndSearchRow() = runTest {
-        val outcome = dao.merge(listOf(incoming(1, entity("n1", "W1"), notes("n1", "Backup summary"), listOf("Ada", "Grace"))), emptyList(), now = 9)
+        val outcome = dao.merge(
+            listOf(incoming(1, entity("n1", "W1"), notes("n1", "Backup summary"), listOf("Ada", "Grace"))),
+            emptyList(),
+            now = 9
+        )
 
         assertEquals(1, outcome.added)
         val paper = db.paperDao().getByOpenAlexId("W1")!!
@@ -132,9 +136,15 @@ class BackupDaoTest {
         saved(entity("d1", "W1"))
         saved(entity("d2", "W2"))
         db.paperDao().setPdf("d2", "attached", 5, 1)
-        val withPdf = { id: String, oa: String -> entity(id, oa).copy(pdfSource = "downloaded", pdfSize = 7, pdfAddedAt = 3, pdfLastPage = 2) }
+        val withPdf = { id: String, oa: String ->
+            entity(id, oa).copy(pdfSource = "downloaded", pdfSize = 7, pdfAddedAt = 3, pdfLastPage = 2)
+        }
 
-        val outcome = dao.merge(listOf(incoming(1, withPdf("n1", "W1")), incoming(2, withPdf("n2", "W2")), incoming(3, withPdf("n3", "W3"))), emptyList(), now = 9)
+        val outcome = dao.merge(
+            listOf(incoming(1, withPdf("n1", "W1")), incoming(2, withPdf("n2", "W2")), incoming(3, withPdf("n3", "W3"))),
+            emptyList(),
+            now = 9
+        )
 
         assertEquals(mapOf(1 to "d1", 3 to "n3"), outcome.pdfTargets)
         assertEquals(2, db.paperDao().getByOpenAlexId("W1")!!.paper.pdfLastPage)

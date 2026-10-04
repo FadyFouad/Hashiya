@@ -26,7 +26,10 @@ class SettingsBackupViewModelTest {
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
-    private val backup = FakeLibraryBackup().apply { summary = BackupSummary(papers = 182, collections = 6, pdfCount = 41, pdfBytes = 238_000_000) }
+    private val backup = FakeLibraryBackup().apply {
+        summary =
+            BackupSummary(papers = 182, collections = 6, pdfCount = 41, pdfBytes = 238_000_000)
+    }
 
     private val pdfs = FakePdfRepository()
 

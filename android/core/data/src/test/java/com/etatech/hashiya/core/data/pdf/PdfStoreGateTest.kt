@@ -14,7 +14,13 @@ class PdfStoreGateTest {
         val gate = PdfStoreGate()
         val events = mutableListOf<String>()
         val release = CompletableDeferred<Unit>()
-        val store = launch { gate.storing { events += "store start"; release.await(); events += "store end" } }
+        val store = launch {
+            gate.storing {
+                events += "store start"
+                release.await()
+                events += "store end"
+            }
+        }
         yield()
         val sweep = async { gate.sweeping { events += "sweep" } }
         yield()

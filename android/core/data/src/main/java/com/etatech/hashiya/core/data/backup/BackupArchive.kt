@@ -106,7 +106,9 @@ internal fun writeArchive(
         zip.write(backupJson.encodeToString(BackupLibrary.serializer(), BackupLibrary(papers, collections)).toByteArray(Charsets.UTF_8))
         zip.closeEntry()
         zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
-        zip.write(backupJson.encodeToString(BackupManifest.serializer(), manifest(papers.size, collections.size)).toByteArray(Charsets.UTF_8))
+        zip.write(
+            backupJson.encodeToString(BackupManifest.serializer(), manifest(papers.size, collections.size)).toByteArray(Charsets.UTF_8)
+        )
         zip.closeEntry()
     }
     onProgress(1f)

@@ -31,11 +31,7 @@ data class SettingsUiState(
     val backup: BackupUiState = BackupUiState()
 )
 
-data class BackupUiState(
-    val summary: BackupSummary? = null,
-    val export: ExportState = ExportState.Idle,
-    val message: BackupMessage? = null
-)
+data class BackupUiState(val summary: BackupSummary? = null, val export: ExportState = ExportState.Idle, val message: BackupMessage? = null)
 
 sealed interface ExportState {
     data object Idle : ExportState
@@ -142,7 +138,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onIncludePdfsChange(include: Boolean) {
-        backup.update { state -> (state.export as? ExportState.Choosing)?.let { state.copy(export = it.copy(includePdfs = include)) } ?: state }
+        backup.update { state ->
+            (state.export as? ExportState.Choosing)?.let { state.copy(export = it.copy(includePdfs = include)) }
+                ?: state
+        }
     }
 
     fun onDismissExport() {

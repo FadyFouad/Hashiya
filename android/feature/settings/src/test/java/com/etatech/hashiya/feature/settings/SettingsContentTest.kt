@@ -117,12 +117,19 @@ class SettingsContentTest {
     @Test
     fun exportOpensTheDialogWithCounts() {
         var state by mutableStateOf(
-            SettingsUiState(backup = BackupUiState(summary = BackupSummary(papers = 182, collections = 6, pdfCount = 41, pdfBytes = 238_000_000)))
+            SettingsUiState(
+                backup = BackupUiState(summary = BackupSummary(papers = 182, collections = 6, pdfCount = 41, pdfBytes = 238_000_000))
+            )
         )
         composeRule.setContent {
             HashiyaTheme {
                 SettingsContent(
-                    uiState = state, onBack = {}, onKeyInputChange = {}, onSaveKey = {}, onResetKey = {}, onLanguageSelected = {},
+                    uiState = state,
+                    onBack = {},
+                    onKeyInputChange = {},
+                    onSaveKey = {},
+                    onResetKey = {},
+                    onLanguageSelected = {},
                     onExportClick = { state = state.copy(backup = state.backup.copy(export = ExportState.Choosing(includePdfs = false))) }
                 )
             }

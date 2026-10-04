@@ -13,6 +13,7 @@ public final class FakeLibraryBackup: LibraryBackup {
         var applyResult = RestoreResult(papersAdded: 0, notesAdded: 0, collectionsCreated: 0, pdfsAdded: 0, pdfsMissing: 0, papersSkipped: 0)
         var applyFailure: BackupError?
         var exportGate: AsyncStream<Void>?
+        var openGate: AsyncStream<Void>?
         var exports: [Bool] = []
         var discardedExports = 0
         var opened: [URL] = []
@@ -71,6 +72,12 @@ public final class FakeLibraryBackup: LibraryBackup {
         set { state.withLock { $0.exportGate = newValue } }
     }
 
+    /// When set, `open` waits for one value from it before it returns.
+    public var openGate: AsyncStream<Void>? {
+        get { state.withLock { $0.openGate } }
+        set { state.withLock { $0.openGate = newValue } }
+    }
+
     /// The `includePdfs` of every export, in order.
     public var exports: [Bool] { state.withLock { $0.exports } }
     public var discardedExports: Int { state.withLock { $0.discardedExports } }
@@ -107,10 +114,15 @@ public final class FakeLibraryBackup: LibraryBackup {
     }
 
     public func open(_ source: URL) async -> OpenResult {
-        state.withLock { state in
+        let gate = state.withLock { state in
             state.opened.append(source)
-            return state.openResult
+            return state.openGate
         }
+        if let gate {
+            var values = gate.makeAsyncIterator()
+            _ = await values.next()
+        }
+        return state.withLock { $0.openResult }
     }
 
     public func apply(_ backup: PreparedBackup, onProgress: @escaping @Sendable (Double) -> Void) async throws -> RestoreResult {

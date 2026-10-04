@@ -95,7 +95,8 @@ struct RootView: View {
         if !applying && !showsSettings { showNextBackup() }
     }
 
-    /// The restore works on its own copy, so the one the system put in Inbox isn't needed any more.
+    /// The restore works on its own copy, so the one the system put in Inbox isn't needed any more. Usually already
+    /// deleted once the restore read it; this covers a sheet closed before then.
     private func restoreSheetDismissed() {
         presentedBackup?.removeInboxCopy()
         presentedBackup = nil
@@ -287,7 +288,7 @@ struct RootView: View {
             NavigationStack {
                 OpenedBackupRestore(
                     container: container,
-                    source: opened.url,
+                    opened: opened,
                     onDone: { openedBackup = nil },
                     onApplyingChange: restoreApplyingChanged
                 )
@@ -461,8 +462,9 @@ private struct OpenedBackupRestore: View {
     let onDone: () -> Void
     let onApplyingChange: (Bool) -> Void
 
-    init(container: AppContainer, source: URL, onDone: @escaping () -> Void, onApplyingChange: @escaping (Bool) -> Void) {
-        _viewModel = State(initialValue: container.makeRestoreViewModel(source: source))
+    /// The Inbox copy goes as soon as the restore has its own copy, so a restore the user never finishes doesn't keep it.
+    init(container: AppContainer, opened: OpenedBackup, onDone: @escaping () -> Void, onApplyingChange: @escaping (Bool) -> Void) {
+        _viewModel = State(initialValue: container.makeRestoreViewModel(source: opened.url, onSourceRead: opened.removeInboxCopy))
         self.onDone = onDone
         self.onApplyingChange = onApplyingChange
     }

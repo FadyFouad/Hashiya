@@ -18,17 +18,30 @@ public enum RestoreState: Equatable, Sendable {
     @ObservationIgnored private let backup: any LibraryBackup
     @ObservationIgnored private var prepared: PreparedBackup?
     @ObservationIgnored private var opened = false
+    /// Set by `cancel`: a copy that `open` prepares afterwards is discarded at once.
+    @ObservationIgnored private var cancelled = false
+    @ObservationIgnored private let onSourceRead: () -> Void
 
-    public init(source: URL, backup: any LibraryBackup) {
+    /// `onSourceRead` runs once `open` has made its own copy of `source` (or given up on it), so the caller can delete
+    /// a source it no longer needs.
+    public init(source: URL, backup: any LibraryBackup, onSourceRead: @escaping () -> Void = {}) {
         self.source = source
         self.backup = backup
+        self.onSourceRead = onSourceRead
     }
 
     /// Opens the file once, however often the view appears.
     public func load() async {
         guard !opened else { return }
         opened = true
-        switch await backup.open(source) {
+        let result = await backup.open(source)
+        onSourceRead()
+        // The screen went away while the file was being read: nothing will restore or discard this copy.
+        if cancelled || Task.isCancelled {
+            if case let .ready(prepared, _) = result { backup.discard(prepared) }
+            return
+        }
+        switch result {
         case let .ready(prepared, preview):
             self.prepared = prepared
             state = .preview(preview)
@@ -62,9 +75,11 @@ public enum RestoreState: Equatable, Sendable {
         }
     }
 
-    /// Discards the prepared copy. Does nothing while a restore is running: it finishes and discards it itself.
+    /// Discards the prepared copy, or the one a `load` still running prepares. Does nothing while a restore is running:
+    /// it finishes and discards it itself.
     public func cancel() {
         if case .applying = state { return }
+        cancelled = true
         if let prepared { backup.discard(prepared) }
         prepared = nil
     }

@@ -17,6 +17,31 @@ public struct OpenedBackup: Identifiable, Equatable, Sendable {
     public func removeInboxCopy() {
         if deletesWhenDone { try? FileManager.default.removeItem(at: url) }
     }
+
+    /// Where the system puts the files other apps hand over.
+    public static var inbox: URL {
+        URL.documentsDirectory.appending(path: "Inbox", directoryHint: .isDirectory)
+    }
+
+    /// Deletes what an earlier run left in Inbox (the app quit before a restore read its file, or a queued file was
+    /// never shown). The app calls this at launch; a file added in the last `age` seconds may be the one this launch is
+    /// about to show, so it stays.
+    public static func removeStaleInboxFiles(in inbox: URL = inbox, olderThan age: TimeInterval = 5 * 60, now: Date = .now) {
+        let keys: Set<URLResourceKey> = [
+            .creationDateKey, .contentModificationDateKey, .attributeModificationDateKey, .addedToDirectoryDateKey,
+        ]
+        guard let files = try? FileManager.default.contentsOfDirectory(at: inbox, includingPropertiesForKeys: Array(keys)) else {
+            return
+        }
+        for file in files {
+            guard let values = try? file.resourceValues(forKeys: keys) else { continue }
+            // The newest of its dates: a copied file can keep the dates of its original.
+            let dates = [values.creationDate, values.contentModificationDate, values.attributeModificationDate, values.addedToDirectoryDate]
+            if let newest = dates.compactMap({ $0 }).max(), now.timeIntervalSince(newest) > age {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
+    }
 }
 
 /// Files opened in a window, shown one at a time. An incoming file never interrupts a restore that is running, and

@@ -1,4 +1,5 @@
 import FeaturePaperDetails
+import FeatureSettings
 import HashiyaData
 import HashiyaDesignSystem
 import SwiftUI
@@ -16,6 +17,12 @@ struct HashiyaApp: App {
         HashiyaFonts.register()
         HashiyaFonts.applyNavigationBarFonts()
         _container = State(initialValue: Self.isSnapshotTestHost ? nil : AppContainer.make())
+        // Backups another app handed over that an earlier run never got to restore.
+        if !Self.isSnapshotTestHost {
+            Task.detached(priority: .utility) {
+                OpenedBackup.removeStaleInboxFiles()
+            }
+        }
     }
 
     var body: some Scene {

@@ -19,6 +19,8 @@ import java.io.File
 import java.io.IOException
 import java.util.zip.ZipFile
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
@@ -162,22 +164,27 @@ internal class ArchiveLibraryBackup(
             val collections = backup.library.collections
                 .filter { it.name.isNotBlank() }
                 .map { IncomingCollection(it.name.trim(), collectionNameKey(it.name), it.createdAt, it.papers) }
-            val outcome = try {
-                merge(papers, collections, now())
-            } catch (e: SQLiteException) {
-                throw BackupException(BackupFailure.WriteFailed, e)
-            }
-            var pdfsAdded = 0
-            withContext(io) {
-                staged.forEach { (ref, file) ->
-                    val target = outcome.pdfTargets[ref]
-                    if (target == null) {
-                        file.file.delete()
-                    } else {
-                        // A failed rename leaves a row without its file; the next startup sweep clears it.
-                        runCatching { fileStore.commit(file.file, target) }.onSuccess { pdfsAdded++ }.onFailure { pdfsMissing++ }
+            currentCoroutineContext().ensureActive()
+            // Once the merge may have committed, the PDF moves must finish whatever happens to the caller.
+            val (outcome, pdfsAdded) = withContext(NonCancellable) {
+                val outcome = try {
+                    merge(papers, collections, now())
+                } catch (e: SQLiteException) {
+                    throw BackupException(BackupFailure.WriteFailed, e)
+                }
+                var added = 0
+                withContext(io) {
+                    staged.forEach { (ref, file) ->
+                        val target = outcome.pdfTargets[ref]
+                        if (target == null) {
+                            file.file.delete()
+                        } else {
+                            // A failed rename leaves a row without its file; the next startup sweep clears it.
+                            runCatching { fileStore.commit(file.file, target) }.onSuccess { added++ }.onFailure { pdfsMissing++ }
+                        }
                     }
                 }
+                outcome to added
             }
             staged.clear()
             onProgress(1f)

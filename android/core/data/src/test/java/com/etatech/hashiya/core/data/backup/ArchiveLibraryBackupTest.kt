@@ -305,4 +305,22 @@ class ArchiveLibraryBackupTest {
         assertEquals(0, db.backupDao().paperCount())
         assertTrue(pdfDir.listFiles().orEmpty().isEmpty())
     }
+
+    @Test
+    fun cancellationAfterTheMergeStillMovesThePdfs() = runTest {
+        var job: Job? = null
+        val cancelling = ArchiveLibraryBackup(
+            backupDao = db.backupDao(), fileStore = PdfFileStore(pdfDir), gate = PdfStoreGate(), contentResolver = context.contentResolver,
+            workDir = File(tmp.root, "work"), appVersion = "x", now = { 1L }, newId = { "id-${++ids}" }, io = Dispatchers.Unconfined,
+            merge = { papers, collections, time -> db.backupDao().merge(papers, collections, time).also { job?.cancel() } }
+        )
+        val prepared = ready(fixture, cancelling).backup
+
+        job = launch { cancelling.apply(prepared) }
+        job.join()
+
+        val deep = db.paperDao().getByOpenAlexId("W2741809807")!!
+        assertTrue(File(pdfDir, "${deep.paper.id}.pdf").readText().startsWith("%PDF-1.4"))
+        assertTrue(pdfDir.listFiles().orEmpty().none { it.name.endsWith(".part") })
+    }
 }

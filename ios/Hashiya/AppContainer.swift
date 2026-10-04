@@ -102,6 +102,10 @@ final class AppContainer {
         SettingsViewModel(preferences: preferences, pdfs: pdfRepository, backup: backup)
     }
 
+    func makeRestoreViewModel(source: URL) -> RestoreViewModel {
+        RestoreViewModel(source: source, backup: backup)
+    }
+
     func makeAppUpdateModel() -> AppUpdateModel {
         AppUpdateModel(repository: appUpdateRepository, currentBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String)
     }

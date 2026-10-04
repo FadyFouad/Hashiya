@@ -9,11 +9,15 @@ public struct SettingsView: View {
     @Bindable private var viewModel: SettingsViewModel
     @State private var showsKey = false
     @State private var confirmingDelete = false
+    @State private var importing = false
+    @State private var restoreSource: URL?
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    private let makeRestoreViewModel: (URL) -> RestoreViewModel
 
-    public init(viewModel: SettingsViewModel) {
+    public init(viewModel: SettingsViewModel, makeRestoreViewModel: @escaping (URL) -> RestoreViewModel) {
         self.viewModel = viewModel
+        self.makeRestoreViewModel = makeRestoreViewModel
     }
 
     public var body: some View {
@@ -21,7 +25,7 @@ public struct SettingsView: View {
             Form {
                 apiKeySection
                 storageSection
-                BackupSection(summary: viewModel.backup.summary, onRestore: {})
+                BackupSection(summary: viewModel.backup.summary, onRestore: { importing = true })
                 languageSection
             }
             .scrollContentBackground(.hidden)
@@ -35,6 +39,12 @@ public struct SettingsView: View {
                 switch destination {
                 case .export: ExportBackupView(viewModel: viewModel)
                 }
+            }
+            .fileImporter(isPresented: $importing, allowedContentTypes: [.hashiyaBackup, .zip]) { result in
+                if case let .success(url) = result { restoreSource = url }
+            }
+            .navigationDestination(item: $restoreSource) { url in
+                RestoreDestination(source: url, makeViewModel: makeRestoreViewModel, onDone: { restoreSource = nil })
             }
             .overlay(alignment: .bottom) {
                 if let message = viewModel.backup.message, let text = L10n.backupMessage(message) {
@@ -184,5 +194,21 @@ public struct SettingsView: View {
     private var languageName: String {
         let code = HashiyaLanguage.code
         return Locale(identifier: code).localizedString(forLanguageCode: code) ?? code
+    }
+}
+
+/// Restore with one view model for as long as it is shown: the destination is rebuilt whenever Settings re-renders, and a
+/// new view model would open the file again and lose the progress.
+private struct RestoreDestination: View {
+    @State private var viewModel: RestoreViewModel
+    let onDone: () -> Void
+
+    init(source: URL, makeViewModel: (URL) -> RestoreViewModel, onDone: @escaping () -> Void) {
+        _viewModel = State(initialValue: makeViewModel(source))
+        self.onDone = onDone
+    }
+
+    var body: some View {
+        RestoreView(viewModel: viewModel, onDone: onDone)
     }
 }

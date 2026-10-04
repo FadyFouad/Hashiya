@@ -15,6 +15,9 @@ struct RootView: View {
     private let container: AppContainer
     @State private var selectedTab = Tab.library
     @State private var showsSettings = false
+    /// A `.hashiya` file opened from another app: this window shows Restore for it.
+    @State private var openedBackup: OpenedBackup?
+    @State private var inboxCopy: URL?
     /// Details, and the reader above it. On wide windows the Library's first route is the paper beside its list and
     /// the rest its pane's stack; Search pushes them above the preview pane. The same lists drive both layouts.
     @State private var libraryRoutes: [AppRoute] = []
@@ -61,6 +64,26 @@ struct RootView: View {
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active { Task { await appUpdate.check() } }
         }
+    }
+
+    /// Shows Restore for a `.hashiya` file the system handed over (a copy in Documents/Inbox).
+    private func openBackup(_ url: URL) {
+        guard url.pathExtension.lowercased() == "hashiya" else { return }
+        let settingsWasOpen = showsSettings
+        inboxCopy = url
+        showsSettings = false
+        Task {
+            // A sheet can't be presented while Settings is still leaving.
+            if settingsWasOpen { try? await Task.sleep(for: .milliseconds(600)) }
+            openedBackup = OpenedBackup(url: url)
+        }
+    }
+
+    /// The restore works on its own copy, so the one the system put in Inbox isn't needed any more.
+    private func removeInboxCopy() {
+        guard let url = inboxCopy else { return }
+        inboxCopy = nil
+        if url.pathComponents.contains("Inbox") { try? FileManager.default.removeItem(at: url) }
     }
 
     private func openStore() {
@@ -239,7 +262,14 @@ struct RootView: View {
         tabView
         .tint(HashiyaColors.primary)
         .sheet(isPresented: $showsSettings) {
-            SettingsView(viewModel: container.makeSettingsViewModel())
+            SettingsSheet(container: container)
+        }
+        // The system activates one window for the file, so only that window shows Restore.
+        .onOpenURL(perform: openBackup)
+        .sheet(item: $openedBackup, onDismiss: removeInboxCopy) { opened in
+            NavigationStack {
+                OpenedBackupRestore(container: container, source: opened.url, onDone: { openedBackup = nil })
+            }
         }
         .task { await presentUITestingShareSheetIfRequested() }
         .focusedSceneValue(\.appCommands, commandActions)
@@ -378,5 +408,42 @@ struct RootView: View {
             Task { await container.libraryRepository.refreshAfterExternalChanges() }
         }
         #endif
+    }
+}
+
+/// A backup file to restore, as a sheet's item.
+private struct OpenedBackup: Identifiable {
+    let url: URL
+    var id: URL { url }
+}
+
+/// Settings with one view model for as long as the sheet is open: the sheet's content is rebuilt whenever the window
+/// re-renders, and a new view model would lose what the Backup section has loaded.
+private struct SettingsSheet: View {
+    private let container: AppContainer
+    @State private var viewModel: SettingsViewModel
+
+    init(container: AppContainer) {
+        self.container = container
+        _viewModel = State(initialValue: container.makeSettingsViewModel())
+    }
+
+    var body: some View {
+        SettingsView(viewModel: viewModel, makeRestoreViewModel: { container.makeRestoreViewModel(source: $0) })
+    }
+}
+
+/// Restore with one view model for as long as the sheet is open (see `SettingsSheet`).
+private struct OpenedBackupRestore: View {
+    @State private var viewModel: RestoreViewModel
+    let onDone: () -> Void
+
+    init(container: AppContainer, source: URL, onDone: @escaping () -> Void) {
+        _viewModel = State(initialValue: container.makeRestoreViewModel(source: source))
+        self.onDone = onDone
+    }
+
+    var body: some View {
+        RestoreView(viewModel: viewModel, onDone: onDone)
     }
 }

@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.database.di
 import android.content.Context
 import androidx.room.Room
 import com.etatech.hashiya.core.database.HashiyaDatabase
+import com.etatech.hashiya.core.database.dao.BackupDao
 import com.etatech.hashiya.core.database.dao.CitationDao
 import com.etatech.hashiya.core.database.dao.CollectionDao
 import com.etatech.hashiya.core.database.dao.PaperDao
@@ -36,4 +37,7 @@ internal object DatabaseModule {
 
     @Provides
     fun provideCitationDao(database: HashiyaDatabase): CitationDao = database.citationDao()
+
+    @Provides
+    fun provideBackupDao(database: HashiyaDatabase): BackupDao = database.backupDao()
 }

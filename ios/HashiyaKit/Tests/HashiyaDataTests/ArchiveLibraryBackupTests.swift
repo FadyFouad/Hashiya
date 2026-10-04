@@ -290,6 +290,33 @@ struct ArchiveLibraryBackupTests {
         #expect(result.pdfsAdded == 0 && result.pdfsMissing == 1)
     }
 
+    @Test func aPdfEntryFailingItsChecksumCountsAsMissing() async throws {
+        let url = root.appending(path: "corrupt.hashiya")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        do {
+            let archive = try Archive(url: url, accessMode: .create)
+            for (name, text) in [(BackupFormat.manifestEntry, #"{"format":1}"#),
+                                 (BackupFormat.libraryEntry, #"{"papers":[{"ref":1,"openAlexId":"W1","title":"A","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/1.pdf"}}]}"#),
+                                 ("pdfs/1.pdf", "%PDF-1.4 intact-content")] {
+                let data = Data(text.utf8)
+                // Stored, not deflated: the changed bytes still extract, and only the checksum can tell.
+                try archive.addEntry(with: name, type: .file, uncompressedSize: Int64(data.count), compressionMethod: .none) { p, s in data.subdata(in: Int(p)..<(Int(p) + s)) }
+            }
+        }
+        var bytes = try Data(contentsOf: url)
+        let range = try #require(bytes.range(of: Data("intact".utf8)))
+        bytes.replaceSubrange(range, with: Data("broken".utf8))
+        try bytes.write(to: url)
+
+        let result = try await backup.apply(try await ready(url), onProgress: { _ in })
+
+        #expect(result.papersAdded == 1 && result.pdfsAdded == 0 && result.pdfsMissing == 1)
+        let paper = try #require(await store.citablePaper(openAlexID: "W1"))
+        #expect(paper.paper.pdfSource == nil)
+        #expect(!FileManager.default.fileExists(atPath: files.file(paperID: paper.paper.id).path))
+        #expect(partFiles().isEmpty)
+    }
+
     @Test func anOversizedPdfEntryIsSkippedNotNoSpace() async throws {
         // The fixture's pdfs/1.pdf is 142 bytes, far over this limit, so it counts as missing before any space check.
         let small = Self.backup(store: store, files: files, work: root.appending(path: "small-work", directoryHint: .isDirectory), maxPdfBytes: 4)

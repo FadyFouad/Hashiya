@@ -317,7 +317,7 @@ public final class ArchiveLibraryBackup: LibraryBackup {
     }
 
     /// Copies the entry to a temporary file, counting bytes as they come out (never trusting the entry header), and stages
-    /// it in the PDF folder. Nil when it is larger than `maxPdfBytes` or isn't a PDF.
+    /// it in the PDF folder. Nil when it is larger than `maxPdfBytes`, fails its checksum or isn't a PDF.
     private func stagePdf(_ entry: Entry, from archive: Archive) throws -> (url: URL, size: Int64)? {
         struct TooLarge: Error {}
         let temp = workDirectory.appending(path: "entry-\(newID()).pdf", directoryHint: .notDirectory)
@@ -333,8 +333,9 @@ public final class ArchiveLibraryBackup: LibraryBackup {
             try? handle.close()
         }
         var total: Int64 = 0
+        let checksum: CRC32
         do {
-            _ = try archive.extract(entry, skipCRC32: false) { chunk in
+            checksum = try archive.extract(entry, skipCRC32: false) { chunk in
                 total += Int64(chunk.count)
                 if total > maxPdfBytes {
                     throw TooLarge()
@@ -346,6 +347,10 @@ public final class ArchiveLibraryBackup: LibraryBackup {
                 }
             }
         } catch is TooLarge {
+            return nil
+        }
+        // The zip reader computes the checksum but doesn't compare it: damaged bytes would otherwise pass as the PDF.
+        guard checksum == entry.checksum else {
             return nil
         }
         switch try files.stage(prefix: "restore", copying: temp, maxBytes: maxPdfBytes) {

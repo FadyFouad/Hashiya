@@ -2,6 +2,9 @@ package com.etatech.hashiya.core.data.repository
 
 import android.content.ContentResolver
 import android.net.Uri
+import com.etatech.hashiya.core.crash.CrashReporter
+import com.etatech.hashiya.core.crash.CrashSite
+import com.etatech.hashiya.core.crash.NoOpCrashReporter
 import com.etatech.hashiya.core.data.di.ApplicationScope
 import com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES
 import com.etatech.hashiya.core.data.pdf.PdfFileStore
@@ -53,7 +56,8 @@ internal class RoomPdfRepository(
     private val now: () -> Long,
     private val maxBytes: Long = MAX_PDF_BYTES,
     private val io: CoroutineDispatcher = Dispatchers.IO,
-    private val gate: PdfStoreGate = PdfStoreGate()
+    private val gate: PdfStoreGate = PdfStoreGate(),
+    private val crashReporter: CrashReporter = NoOpCrashReporter
 ) : PdfRepository {
     @Inject
     constructor(
@@ -63,8 +67,12 @@ internal class RoomPdfRepository(
         pdfLinks: OpenAlexPdfLinksDataSource,
         contentResolver: ContentResolver,
         @ApplicationScope scope: CoroutineScope,
-        gate: PdfStoreGate
-    ) : this(paperDao, fileStore, downloader, pdfLinks, contentResolver, scope, System::currentTimeMillis, gate = gate)
+        gate: PdfStoreGate,
+        crashReporter: CrashReporter
+    ) : this(
+        paperDao, fileStore, downloader, pdfLinks, contentResolver, scope, System::currentTimeMillis,
+        gate = gate, crashReporter = crashReporter
+    )
 
     /** Running and failed downloads by OpenAlex id. A finished or cancelled download has no entry. */
     private val downloads = MutableStateFlow<Map<String, DownloadState>>(emptyMap())
@@ -178,6 +186,7 @@ internal class RoomPdfRepository(
                 Attempt.Failed(DownloadFailure.Http, triesOtherLinks = true)
             }
         } catch (e: PdfWriteException) {
+            crashReporter.recordNonFatal(e, CrashSite.PdfStore)
             return@storing Attempt.Failed(DownloadFailure.Http, triesOtherLinks = false, wroteNothing = true)
         }
         when (result) {
@@ -218,6 +227,7 @@ internal class RoomPdfRepository(
                 } catch (e: SecurityException) {
                     null
                 } catch (e: PdfWriteException) {
+                    crashReporter.recordNonFatal(e, CrashSite.PdfStore)
                     null
                 }
             } ?: return@storing AttachResult.Unreadable

@@ -4,6 +4,8 @@ import android.content.Context
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.etatech.hashiya.core.crash.CrashKey
+import com.etatech.hashiya.core.crash.CrashSite
 import com.etatech.hashiya.core.data.FakeOpenAlexLookupDataSource
 import com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES
 import com.etatech.hashiya.core.data.pdf.PdfFileStore
@@ -14,6 +16,7 @@ import com.etatech.hashiya.core.database.HashiyaDatabase
 import com.etatech.hashiya.core.model.Author
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperNotes
+import com.etatech.hashiya.core.testing.FakeCrashReporter
 import java.io.File
 import java.util.zip.ZipFile
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +29,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
@@ -44,6 +48,7 @@ class ArchiveLibraryBackupTest {
     private lateinit var library: RoomLibraryRepository
     private lateinit var pdfDir: File
     private lateinit var backup: ArchiveLibraryBackup
+    private val crash = FakeCrashReporter()
     private var ids = 0
 
     @Before
@@ -66,7 +71,8 @@ class ArchiveLibraryBackupTest {
         appVersion = "0.3.0 (Android)",
         now = { 1_790_000_000_000L },
         newId = { "restored-${++ids}" },
-        io = Dispatchers.Unconfined
+        io = Dispatchers.Unconfined,
+        crashReporter = crash
     )
 
     private fun paper(id: String, title: String = "Paper $id") = Paper(
@@ -513,5 +519,133 @@ class ArchiveLibraryBackupTest {
         val deep = db.paperDao().getByOpenAlexId("W2741809807")!!
         assertTrue(File(pdfDir, "${deep.paper.id}.pdf").readText().startsWith("%PDF-1.4"))
         assertTrue(pdfDir.listFiles().orEmpty().none { it.name.endsWith(".part") })
+    }
+
+    @Test
+    fun aFailedMergeIsReportedAsRestore() = runTest {
+        val broken = IllegalStateException("broken")
+        val failing = ArchiveLibraryBackup(
+            backupDao = db.backupDao(), fileStore = PdfFileStore(pdfDir), gate = PdfStoreGate(), contentResolver = context.contentResolver,
+            workDir = File(tmp.root, "work"), appVersion = "x", now = { 1L }, newId = { "id-${++ids}" }, io = Dispatchers.Unconfined,
+            merge = { _, _, _ -> throw broken }, crashReporter = crash
+        )
+
+        val failure = runCatching { failing.apply(ready(fixture, failing).backup) }.exceptionOrNull()
+
+        assertEquals(BackupFailure.WriteFailed, (failure as? BackupException)?.failure)
+        val (reported, site) = crash.nonFatals.single()
+        assertSame(broken, reported)
+        assertEquals(CrashSite.Restore, site)
+    }
+
+    @Test
+    fun anUnreadableArchiveDuringStagingIsReportedAsRestore() = runTest {
+        val text = "%PDF-1.4 " + "A".repeat(2_000)
+        val archive = archive(
+            "corrupt.hashiya",
+            """{"papers":[{"ref":1,"openAlexId":"W1","title":"A","savedAt":1,""" +
+                """"pdf":{"source":"attached","addedAt":1,"file":"pdfs/1.pdf"}}]}""",
+            "pdfs/1.pdf" to text.byteInputStream()
+        )
+        // The entry's compressed data starts after its local header (30 bytes, no extra field) and name; 0xFF is an invalid block.
+        val bytes = archive.readBytes()
+        val name = "pdfs/1.pdf".toByteArray()
+        val at = (0..bytes.size - name.size).first { i -> name.indices.all { bytes[i + it] == name[it] } }
+        bytes[at + name.size] = 0xFF.toByte()
+        archive.writeBytes(bytes)
+
+        val failure = runCatching { backup.apply(ready(archive).backup) }.exceptionOrNull()
+
+        assertEquals(BackupFailure.Unreadable, (failure as? BackupException)?.failure)
+        val (reported, site) = crash.nonFatals.single()
+        assertTrue(reported is java.io.IOException)
+        assertEquals(CrashSite.Restore, site)
+    }
+
+    @Test
+    fun noSpaceIsNotReported() = runTest {
+        val full = ArchiveLibraryBackup(
+            backupDao = db.backupDao(), fileStore = PdfFileStore(pdfDir), gate = PdfStoreGate(), contentResolver = context.contentResolver,
+            workDir = File(tmp.root, "work"), appVersion = "x", now = { 1L }, newId = { "id-${++ids}" }, io = Dispatchers.Unconfined,
+            usableSpace = { 0L }, crashReporter = crash
+        )
+
+        val failure = runCatching { full.apply(ready(fixture, full).backup) }.exceptionOrNull()
+
+        assertEquals(BackupFailure.NoSpace, (failure as? BackupException)?.failure)
+        assertEquals(emptyList<Any>(), crash.nonFatals)
+    }
+
+    @Test
+    fun aFailedExportIsReportedAsExport() = runTest {
+        library.save(paper("W1"))
+        // A work folder that is a file: the archive can't be created inside it.
+        val blocked = backup(db, work = tmp.newFile("blocked"))
+
+        val failure = runCatching { blocked.export(includePdfs = false) }.exceptionOrNull()
+
+        assertEquals(BackupFailure.WriteFailed, (failure as? BackupException)?.failure)
+        val (reported, site) = crash.nonFatals.single()
+        assertTrue(reported is java.io.IOException)
+        assertEquals(CrashSite.Export, site)
+    }
+
+    @Test
+    fun aFailedSaveIsReportedAsExport() = runTest {
+        library.save(paper("W1"))
+        val exported = backup.export(includePdfs = false)
+        val destination = Uri.parse("content://docs/broken.hashiya")
+        val broken = IllegalStateException("provider bug")
+        org.robolectric.Shadows.shadowOf(context.contentResolver).registerOutputStream(
+            destination,
+            object : java.io.OutputStream() {
+                override fun write(b: Int) = throw broken
+            }
+        )
+
+        runCatching { backup.save(exported, destination) }
+
+        val (reported, site) = crash.nonFatals.single()
+        assertSame(broken, reported)
+        assertEquals(CrashSite.Export, site)
+        backup.discard(exported)
+    }
+
+    @Test
+    fun anOpenOfANonBackupIsNotReported() = runTest {
+        backup.open(Uri.fromFile(tmp.newFile("notes.txt").apply { writeText("hello") }))
+
+        assertEquals(emptyList<Any>(), crash.nonFatals)
+    }
+
+    @Test
+    fun backupInProgressIsSetDuringWorkAndClearedAfterSuccessFailureAndCancel() = runTest {
+        val running = { operation: String -> listOf(CrashKey.BackupInProgress to operation, CrashKey.BackupInProgress to "none") }
+        library.save(paper("W1"))
+
+        // Success.
+        backup.discard(backup.export(includePdfs = false))
+        assertEquals(running("export"), crash.keyHistory)
+        backup.apply(ready(fixture).backup)
+        assertEquals(running("export") + running("restore"), crash.keyHistory)
+
+        // Failure.
+        runCatching { backup(db, work = tmp.newFile("blocked")).export(includePdfs = false) }
+        val failing = ArchiveLibraryBackup(
+            backupDao = db.backupDao(), fileStore = PdfFileStore(pdfDir), gate = PdfStoreGate(), contentResolver = context.contentResolver,
+            workDir = File(tmp.root, "work"), appVersion = "x", now = { 1L }, newId = { "id-${++ids}" }, io = Dispatchers.Unconfined,
+            merge = { _, _, _ -> throw IllegalStateException("broken") }, crashReporter = crash
+        )
+        runCatching { failing.apply(ready(fixture, failing).backup) }
+        assertEquals(running("export") + running("restore") + running("export") + running("restore"), crash.keyHistory)
+
+        // Cancellation.
+        twoStoredPdfs()
+        lateinit var job: Job
+        job = launch { backup.export(includePdfs = true, onProgress = { job.cancel() }) }
+        job.join()
+        assertTrue(job.isCancelled)
+        assertEquals(running("export") + running("restore") + running("export") + running("restore") + running("export"), crash.keyHistory)
+        assertEquals("none", crash.keys[CrashKey.BackupInProgress])
     }
 }

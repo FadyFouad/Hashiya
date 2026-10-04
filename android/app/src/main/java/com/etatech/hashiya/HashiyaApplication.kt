@@ -9,6 +9,7 @@ import com.etatech.hashiya.core.data.repository.PdfRepository
 import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
 import com.etatech.hashiya.crash.CrashStartup
 import com.etatech.hashiya.crash.isDebuggable
+import com.etatech.hashiya.crash.sanitizingHandler
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +37,11 @@ class HashiyaApplication : Application() {
         super.onCreate()
         // First, so collection and the context keys are decided before anything else can fail.
         val isRelease = !isDebuggable(this)
+        if (isRelease) {
+            // Crashlytics installed its handler before onCreate (FirebaseInitProvider), so this one runs first and hands it
+            // the crash without messages.
+            Thread.setDefaultUncaughtExceptionHandler(sanitizingHandler(Thread.getDefaultUncaughtExceptionHandler()))
+        }
         scope.launch {
             CrashStartup(
                 reporter = crashReporter,

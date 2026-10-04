@@ -16,6 +16,7 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 - **iOS: the same grouped Details.** Collections, PDF and DOI share one list as on Android; the PDF row's main action is a prominent button (Download PDF, Read PDF or Attach PDF), and the DOI is a row that opens its page.
 
 ### Fixed
+- **Searching for a title with "?" or "*" works.** OpenAlex reads them as wildcards and refused the search, so pasting a title such as *ChatGPT for good? …* showed "Something went wrong". Search now leaves them out.
 - **iOS: Add paper always puts the cursor in Search's field,** also when an earlier search left the field active.
 - **Android: the Save button on search results** no longer breaks into letters with the largest font size. (#28)
 - **A failed download now tries the paper's other open-access copies.** If the saved link fails as "not a PDF" or a server error, the app looks up the paper's other open-access copies on OpenAlex and tries them, arXiv first. Then it keeps the link that worked. Example: *Attention Is All You Need*, whose saved link now returns a web page. (#24)

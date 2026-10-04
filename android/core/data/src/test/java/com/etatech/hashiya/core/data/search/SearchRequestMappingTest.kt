@@ -16,6 +16,18 @@ class SearchRequestMappingTest {
         )
     }
 
+    /** OpenAlex reads ? and * as wildcards and rejects them in its default (stemmed) search with a 400. */
+    @Test
+    fun dropsWildcardCharacters() {
+        assertEquals(
+            "ChatGPT for good On opportunities",
+            SearchQuery("ChatGPT for good? On opportunities").toWorksSearchRequest("*").search
+        )
+        assertEquals("what is it", SearchQuery("what is it?").toWorksSearchRequest("*").search)
+        assertEquals("transform models", SearchQuery("transform* models").toWorksSearchRequest("*").search)
+        assertEquals("", SearchQuery("?").toWorksSearchRequest("*").search)
+    }
+
     @Test
     fun mapsSortOptions() {
         assertEquals(null, SearchQuery("x", sort = SearchSort.Relevance).toWorksSearchRequest("*").sort)

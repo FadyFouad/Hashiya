@@ -44,7 +44,8 @@
     <string name="settings_export_library">تصدير المكتبة</string>
     <string name="settings_restore_backup">الاستعادة من نسخة احتياطية</string>
     <string name="settings_export_title">تصدير المكتبة</string>
-    <string name="settings_export_counts">%1$s · %2$s</string>
+    <!-- The Arabic comma, not "·": next to Arabic-Indic digits a middle dot reads as the digit zero (٠). -->
+    <string name="settings_export_counts">%1$s، %2$s</string>
     <plurals name="settings_export_papers">
         <item quantity="zero">لا أوراق</item>
         <item quantity="one">ورقة واحدة</item>
@@ -89,7 +90,7 @@
     <string name="restore_back">رجوع</string>
     <string name="restore_reading">جارٍ قراءة النسخة الاحتياطية…</string>
     <string name="restore_from_date">نسخة احتياطية من %1$s</string>
-    <string name="restore_counts">%1$s · %2$s · %3$s</string>
+    <string name="restore_counts">%1$s، %2$s، %3$s</string>
     <plurals name="restore_pdfs">
         <item quantity="zero">لا ملفات PDF</item>
         <item quantity="one">ملف PDF واحد</item>

@@ -50,7 +50,8 @@ public protocol PdfRepository: Sendable {
     func deleteDownloaded() async throws
     /// Deletes a removed paper's file once its removal is final (the Undo banner went away), unless Undo put it back.
     func discardRemoved(_ removed: RemovedPaper) async
-    /// Deletes files no saved paper owns and `.part` files left by a store that never finished. Called once at launch.
+    /// Deletes files no saved paper owns and `.part` files left by a store that never finished, clears the PDF of papers whose
+    /// file is gone, and marks downloaded PDFs excluded from backups. Called once at launch.
     /// Waits for downloads and attaches that are writing a file, and holds new ones back until it is done, since a running
     /// store's `.part` file looks just like an abandoned one.
     func sweepOrphans() async

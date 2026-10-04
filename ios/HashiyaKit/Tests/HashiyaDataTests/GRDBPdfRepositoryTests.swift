@@ -717,6 +717,48 @@ struct GRDBPdfRepositoryTests {
         #expect(names() == ["local-1.pdf"])
     }
 
+    private func savedPaperID(_ openAlexID: String) async throws -> String {
+        try await library.save(paper(openAlexID))
+        return try #require(await store.paperID(openAlexID: openAlexID))
+    }
+
+    @Test func sweepClearsRowsWhoseFileIsGone() async throws {
+        let w1 = try await savedPaperID("W1")
+        let w2 = try await savedPaperID("W2")
+        try await store.setPdf(paperID: w1, source: "downloaded", size: 10, addedAt: 1)
+        try await store.setPdf(paperID: w2, source: "attached", size: 10, addedAt: 1)
+        try FileManager.default.createDirectory(at: files.directory, withIntermediateDirectories: true)
+        try Data("%PDF-1.4".utf8).write(to: files.file(paperID: w2))
+
+        await repository.sweepOrphans()
+
+        #expect(try await store.pdfPaperIDs() == [w2])
+        #expect(FileManager.default.fileExists(atPath: files.file(paperID: w2).path))
+    }
+
+    @Test func sweepMarksDownloadedPdfsExcludedFromBackup() async throws {
+        let w1 = try await savedPaperID("W1")
+        let w2 = try await savedPaperID("W2")
+        try FileManager.default.createDirectory(at: files.directory, withIntermediateDirectories: true)
+        for id in [w1, w2] { try Data("%PDF-1.4".utf8).write(to: files.file(paperID: id)) }
+        try await store.setPdf(paperID: w1, source: "downloaded", size: 8, addedAt: 1)
+        try await store.setPdf(paperID: w2, source: "attached", size: 8, addedAt: 1)
+
+        await repository.sweepOrphans()
+
+        #expect(files.isExcludedFromBackup(paperID: w1))
+        #expect(!files.isExcludedFromBackup(paperID: w2))
+    }
+
+    @Test func aDownloadedPdfIsExcludedFromBackupWhenStored() async throws {
+        try await library.save(paper("W1"))
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitStored("W1") != nil)
+        #expect(files.isExcludedFromBackup(paperID: "local-1"))
+    }
+
     // MARK: Background suspension
 
     /// The app's setup: an on-disk pool that refuses writes while the database is suspended (`HashiyaDatabase.suspend()`),

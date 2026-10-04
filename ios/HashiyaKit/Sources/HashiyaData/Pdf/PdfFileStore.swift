@@ -42,6 +42,19 @@ public struct PdfFileStore: Sendable {
         directory.appending(path: "\(paperID).pdf", directoryHint: .notDirectory)
     }
 
+    /// Marks the paper's file as left out of (or back in) iCloud and device backups. A downloaded PDF can be fetched again,
+    /// so Apple's storage guidelines keep it out; an attached one can't, so it stays. Best effort: a missing file is fine.
+    public func setExcludedFromBackup(_ excluded: Bool, paperID: String) {
+        var url = file(paperID: paperID)
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = excluded
+        try? url.setResourceValues(values)
+    }
+
+    func isExcludedFromBackup(paperID: String) -> Bool {
+        (try? file(paperID: paperID).resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup) ?? false
+    }
+
     /// Copies `chunks` to a `.part` file, checks it is a PDF and at most `maxBytes`, then moves it over `<paperID>.pdf`.
     /// A rejected, failed or cancelled store leaves the current file as it was and no `.part` file. `onProgress` gets the
     /// bytes copied so far. Errors from `chunks` are rethrown; write failures throw `PdfWriteError`; cancelling throws

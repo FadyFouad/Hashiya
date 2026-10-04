@@ -204,8 +204,15 @@ public final class GRDBPdfRepository: PdfRepository {
     public func sweepOrphans() async {
         await gate.sweep { [store, files] in
             // A failed read must not count as "no PDFs": that would delete every file.
-            guard let keep = try? await store.pdfPaperIDs() else { return }
-            files.sweep(keeping: keep)
+            guard let stored = try? await store.pdfPaperIDs() else { return }
+            // Rows whose file is gone (a device restore, a lost file) go back to "no PDF", so Details offers it again.
+            let missing = stored.filter { !FileManager.default.fileExists(atPath: files.file(paperID: $0).path) }
+            for paperID in missing { try? await store.clearPdf(paperID: paperID) }
+            files.sweep(keeping: stored.subtracting(missing))
+            // Downloaded PDFs stored before this version are marked too; setting it again is harmless.
+            for paperID in (try? await store.downloadedPdfPaperIDs()) ?? [] {
+                files.setExcludedFromBackup(true, paperID: paperID)
+            }
         }
     }
 
@@ -322,6 +329,7 @@ public final class GRDBPdfRepository: PdfRepository {
                             files.delete(paperID: paperID)
                             return .stopped
                         }
+                        files.setExcludedFromBackup(true, paperID: paperID)
                     } catch {
                         // Also how a removal that cancels the download during the write ends: no state, as for any cancel.
                         await Self.deleteUnlessRecorded(paperID: paperID, store: store, files: files)

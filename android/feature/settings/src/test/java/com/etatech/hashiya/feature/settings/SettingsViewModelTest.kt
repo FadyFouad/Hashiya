@@ -1,6 +1,7 @@
 package com.etatech.hashiya.feature.settings
 
 import com.etatech.hashiya.core.model.PdfStorage
+import com.etatech.hashiya.core.testing.FakeCrashReporter
 import com.etatech.hashiya.core.testing.FakeLibraryBackup
 import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
@@ -24,9 +25,10 @@ class SettingsViewModelTest {
     private val preferences = FakeUserPreferencesRepository()
     private val languageController = FakeAppLanguageController()
     private val pdfs = FakePdfRepository()
+    private val crashReporter = FakeCrashReporter()
 
     private fun TestScope.viewModel(): SettingsViewModel {
-        val viewModel = SettingsViewModel(preferences, languageController, pdfs, FakeLibraryBackup())
+        val viewModel = SettingsViewModel(preferences, languageController, pdfs, FakeLibraryBackup(), crashReporter)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }
@@ -106,5 +108,33 @@ class SettingsViewModelTest {
 
         assertEquals(1, pdfs.deleteDownloadedCalls)
         assertEquals(PdfStorage(0, 0, 1_000_000, 1), viewModel.uiState.value.storage)
+    }
+
+    @Test
+    fun crashReportsFollowTheStoredChoice() = runTest {
+        val viewModel = viewModel()
+        assertTrue(viewModel.uiState.value.crashReportsEnabled)
+
+        preferences.setCrashReportsEnabled(false)
+        assertFalse(viewModel.uiState.value.crashReportsEnabled)
+    }
+
+    @Test
+    fun turningCrashReportsOffStoresItAndStopsTheReporter() = runTest {
+        val viewModel = viewModel()
+        viewModel.onCrashReportsChange(false)
+
+        assertFalse(viewModel.uiState.value.crashReportsEnabled)
+        assertEquals(listOf(false), crashReporter.enabledCalls)
+    }
+
+    @Test
+    fun turningCrashReportsOnStoresItAndStartsTheReporter() = runTest {
+        preferences.setCrashReportsEnabled(false)
+        val viewModel = viewModel()
+        viewModel.onCrashReportsChange(true)
+
+        assertTrue(viewModel.uiState.value.crashReportsEnabled)
+        assertEquals(listOf(true), crashReporter.enabledCalls)
     }
 }

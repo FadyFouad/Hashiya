@@ -56,6 +56,7 @@ dependencies {
     implementation(project(":feature:settings"))
     // Brings the data layer's Hilt modules (and, through it, network/database/datastore) into the app graph.
     implementation(project(":core:data"))
+    implementation(project(":core:crash"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

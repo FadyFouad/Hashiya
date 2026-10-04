@@ -2,6 +2,7 @@ package com.etatech.hashiya.core.datastore
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import javax.inject.Inject
@@ -24,7 +25,15 @@ class UserPreferencesDataSource @Inject constructor(private val dataStore: DataS
         }
     }
 
+    /** Whether crash reports may be sent; on until the user turns it off. */
+    val crashReportsEnabled: Flow<Boolean> = dataStore.data.map { it[CRASH_REPORTS_ENABLED] ?: true }
+
+    suspend fun setCrashReportsEnabled(enabled: Boolean) {
+        dataStore.edit { it[CRASH_REPORTS_ENABLED] = enabled }
+    }
+
     private companion object {
+        val CRASH_REPORTS_ENABLED = booleanPreferencesKey("crash_reports_enabled")
         val USER_API_KEY = stringPreferencesKey("user_api_key")
     }
 }

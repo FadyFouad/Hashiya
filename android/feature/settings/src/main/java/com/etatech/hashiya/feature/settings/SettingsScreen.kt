@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -29,6 +30,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -41,7 +43,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -101,11 +105,14 @@ internal fun SettingsScreen(onBack: () -> Unit, onOpenRestore: (String) -> Unit,
         onDismissExport = viewModel::onDismissExport,
         onCancelExport = viewModel::onCancelExport,
         onRestoreClick = { openDialog.launch(arrayOf(BACKUP_MIME_TYPE, "application/octet-stream")) },
+        onCrashReportsChange = viewModel::onCrashReportsChange,
         onMessageShown = viewModel::onMessageShown
     )
 }
 
 internal const val BACKUP_MIME_TYPE = "application/zip"
+
+internal const val PRIVACY_POLICY_URL = "https://fadyfouad.github.io/Hashiya-Privacy-Policy/"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,6 +130,7 @@ internal fun SettingsContent(
     onDismissExport: () -> Unit = {},
     onCancelExport: () -> Unit = {},
     onRestoreClick: () -> Unit = {},
+    onCrashReportsChange: (Boolean) -> Unit = {},
     onMessageShown: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -221,6 +229,8 @@ internal fun SettingsContent(
                 Spacer(Modifier.height(32.dp))
                 StorageSection(storage, onDeleteDownloadedPdfs)
             }
+            Spacer(Modifier.height(32.dp))
+            PrivacySection(uiState.crashReportsEnabled, onCrashReportsChange)
         }
         val summary = uiState.backup.summary
         val export = uiState.backup.export
@@ -299,5 +309,34 @@ private fun StorageSection(storage: PdfStorage, onDeleteDownloadedPdfs: () -> Un
                 TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.settings_cancel)) }
             }
         )
+    }
+}
+
+@Composable
+private fun PrivacySection(crashReportsEnabled: Boolean, onCrashReportsChange: (Boolean) -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    // The language in effect, whether chosen in the app or inherited from the system.
+    val arabic = LocalConfiguration.current.locales[0].language == "ar"
+    Text(stringResource(R.string.settings_privacy), style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(8.dp))
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = crashReportsEnabled, role = Role.Switch, onValueChange = onCrashReportsChange)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(stringResource(R.string.settings_crash_reports), modifier = Modifier.weight(1f))
+        Switch(checked = crashReportsEnabled, onCheckedChange = null)
+    }
+    Text(
+        stringResource(R.string.settings_crash_reports_footer),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Spacer(Modifier.height(4.dp))
+    // The policy page holds both languages; the Arabic UI jumps to its Arabic section.
+    TextButton(onClick = { uriHandler.openUri(if (arabic) "$PRIVACY_POLICY_URL#ar" else PRIVACY_POLICY_URL) }) {
+        Text(stringResource(R.string.settings_privacy_policy))
     }
 }

@@ -12,4 +12,12 @@ class FakeUserPreferencesRepository(initialKey: String? = null) : UserPreference
     override suspend fun setUserApiKey(key: String?) {
         this.key.value = key?.trim()?.takeIf { it.isNotEmpty() }
     }
+
+    private val crashReports = MutableStateFlow(true)
+
+    override val crashReportsEnabled: StateFlow<Boolean> = crashReports
+
+    override suspend fun setCrashReportsEnabled(enabled: Boolean) {
+        crashReports.value = enabled
+    }
 }

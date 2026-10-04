@@ -127,13 +127,18 @@ All text is in `docs/store/metadata.md`.
 
 ## Crashlytics (Android)
 
-Release builds send crash reports through Firebase Crashlytics, only while Settings → Send crash reports is on. Debug builds, unit tests and UI tests never send anything. No Firebase Analytics is included.
+Release builds send crash reports through Firebase Crashlytics, only while Settings → Send crash reports is on. Firebase also initializes in debug builds (its content provider starts it), but debug builds, unit tests and UI tests never enable collection, so nothing is sent. Crashlytics may keep crash files on the device that are never uploaded. No Firebase Analytics is included.
 
 ### One-time setup (console.firebase.google.com)
 
 1. Create the Firebase project (`hashiya-research`) and turn Google Analytics off for it.
 2. Add an Android app with the package `com.etatech.hashiya`, download `google-services.json` and put it at `android/app/google-services.json`. It is committed on purpose: the repository is public and the API key is restricted to this app in Google Cloud.
-3. Crashlytics → Enable. Mapping files are uploaded by the Gradle plugin on release builds.
+3. Crashlytics → Enable. R8 is off, so no mapping file is needed and frames are readable. If R8 is turned on later, the Crashlytics Gradle plugin uploads the mapping.
+4. Restrict the API key, because the key in the committed `google-services.json` is public. In the Google Cloud console go to APIs & Services → Credentials, open the "Android key (auto created by Firebase)" for project `hashiya-research`, and under Application restrictions choose Android apps. Add package `com.etatech.hashiya` with the SHA-1 of:
+   - the upload key: `keytool -list -v -keystore <UPLOAD_STORE_FILE from local.properties> -alias <UPLOAD_KEY_ALIAS>`
+   - Play's app-signing key: Play Console → Test and release → App integrity → App signing.
+5. Add the same SHA-1s to the Android app in Firebase project settings.
+6. The iOS key is restricted the same way, with the iOS apps restriction and bundle ID `com.etatech.hashiya`. The iOS app relies on it.
 
 ### Check before a release that touches crash reporting
 

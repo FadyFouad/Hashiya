@@ -30,7 +30,8 @@ enum UITestingStubs {
             collections: repositories.collections,
             citations: repositories.citations,
             exportFiles: .live,
-            pdfs: repositories.pdfs
+            pdfs: repositories.pdfs,
+            backup: repositories.backup
         )
     }
 

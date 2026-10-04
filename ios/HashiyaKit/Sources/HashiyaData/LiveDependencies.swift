@@ -12,6 +12,7 @@ public struct LiveDependencies: Sendable {
     public let citations: any CitationRepository
     public let exportFiles: ExportFiles
     public let pdfs: any PdfRepository
+    public let backup: any LibraryBackup
 
     public init(
         libraryRepository: any LibraryRepository,
@@ -21,7 +22,8 @@ public struct LiveDependencies: Sendable {
         collections: any CollectionsRepository,
         citations: any CitationRepository,
         exportFiles: ExportFiles,
-        pdfs: any PdfRepository
+        pdfs: any PdfRepository,
+        backup: any LibraryBackup
     ) {
         self.libraryRepository = libraryRepository
         self.searchRepository = searchRepository
@@ -31,6 +33,7 @@ public struct LiveDependencies: Sendable {
         self.citations = citations
         self.exportFiles = exportFiles
         self.pdfs = pdfs
+        self.backup = backup
     }
 
     /// The real graph: the App Group database (one store for the library, collections, citations and PDFs), the Keychain,
@@ -61,7 +64,8 @@ public struct LiveDependencies: Sendable {
             collections: repositories.collections,
             citations: repositories.citations,
             exportFiles: .live,
-            pdfs: repositories.pdfs
+            pdfs: repositories.pdfs,
+            backup: repositories.backup
         )
     }
 

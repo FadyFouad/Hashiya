@@ -9,6 +9,7 @@ public struct LibraryRepositories: Sendable {
     public let collections: GRDBCollectionsRepository
     public let citations: GRDBCitationRepository
     public let pdfs: GRDBPdfRepository
+    public let backup: ArchiveLibraryBackup
 
     init(store: PaperStore, lookup: any OpenAlexLookupService, pdf: PdfDependencies) {
         library = GRDBLibraryRepository(store: store)
@@ -20,6 +21,16 @@ public struct LibraryRepositories: Sendable {
             downloader: pdf.downloader,
             pdfLinks: pdf.pdfLinks,
             background: pdf.background
+        )
+        backup = ArchiveLibraryBackup(
+            store: store,
+            pdfs: pdfs,
+            files: pdf.files,
+            workDirectory: FileManager.default.temporaryDirectory.appending(path: "backup", directoryHint: .isDirectory),
+            appVersion: "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?") (iOS)",
+            background: pdf.background,
+            now: { Int64((Date().timeIntervalSince1970 * 1000).rounded()) },
+            newID: { UUID().uuidString.lowercased() }
         )
     }
 

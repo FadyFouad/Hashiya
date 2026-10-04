@@ -1,5 +1,6 @@
 package com.etatech.hashiya.feature.settings
 
+import android.content.ActivityNotFoundException
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -323,6 +325,7 @@ private fun PrivacySection(crashReportsEnabled: Boolean, onCrashReportsChange: (
         Modifier
             .fillMaxWidth()
             .toggleable(value = crashReportsEnabled, role = Role.Switch, onValueChange = onCrashReportsChange)
+            .heightIn(min = 48.dp)
             .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -336,7 +339,14 @@ private fun PrivacySection(crashReportsEnabled: Boolean, onCrashReportsChange: (
     )
     Spacer(Modifier.height(4.dp))
     // The policy page holds both languages; the Arabic UI jumps to its Arabic section.
-    TextButton(onClick = { uriHandler.openUri(if (arabic) "$PRIVACY_POLICY_URL#ar" else PRIVACY_POLICY_URL) }) {
+    TextButton(onClick = {
+        try {
+            uriHandler.openUri(if (arabic) "$PRIVACY_POLICY_URL#ar" else PRIVACY_POLICY_URL)
+        } catch (_: IllegalArgumentException) {
+            // No app can open a link on this device (a locked-down or work profile); the link does nothing.
+        } catch (_: ActivityNotFoundException) {
+        }
+    }) {
         Text(stringResource(R.string.settings_privacy_policy))
     }
 }

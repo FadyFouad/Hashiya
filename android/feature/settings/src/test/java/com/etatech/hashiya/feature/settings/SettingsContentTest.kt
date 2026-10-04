@@ -1,9 +1,11 @@
 package com.etatech.hashiya.feature.settings
 
+import android.content.res.Configuration
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.test.assertIsDisplayed
@@ -19,6 +21,7 @@ import com.etatech.hashiya.core.data.backup.BackupSummary
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.PdfStorage
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -147,6 +150,55 @@ class SettingsContentTest {
         ).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Privacy policy").performScrollTo().performClick()
         assertEquals(listOf("https://fadyfouad.github.io/Hashiya-Privacy-Policy/"), opened)
+    }
+
+    private fun showWithUriHandler(handler: UriHandler, locale: Locale? = null) = composeRule.setContent {
+        val configuration = LocalConfiguration.current
+        val effective = if (locale == null) {
+            configuration
+        } else {
+            Configuration(configuration).apply { setLocale(locale) }
+        }
+        CompositionLocalProvider(LocalUriHandler provides handler, LocalConfiguration provides effective) {
+            HashiyaTheme {
+                SettingsContent(uiState = SettingsUiState(), onBack = {
+                }, onKeyInputChange = {}, onSaveKey = {}, onResetKey = {}, onLanguageSelected = {})
+            }
+        }
+    }
+
+    @Test
+    fun arabicOpensTheArabicSectionOfThePolicy() {
+        val opened = mutableListOf<String>()
+        showWithUriHandler(
+            object : UriHandler {
+                override fun openUri(uri: String) {
+                    opened += uri
+                }
+            },
+            locale = Locale("ar")
+        )
+
+        // Only the configuration's locale is swapped, so the label still comes from the English resources.
+        composeRule.onNodeWithText("Privacy policy").performScrollTo().performClick()
+        assertEquals(listOf("https://fadyfouad.github.io/Hashiya-Privacy-Policy/#ar"), opened)
+    }
+
+    @Test
+    fun policyLinkWithNoAppToOpenItDoesNotCrash() {
+        var attempts = 0
+        showWithUriHandler(
+            object : UriHandler {
+                override fun openUri(uri: String) {
+                    attempts++
+                    throw IllegalArgumentException("Can't open $uri")
+                }
+            }
+        )
+
+        composeRule.onNodeWithText("Privacy policy").performScrollTo().performClick()
+        assertEquals(1, attempts)
+        composeRule.onNodeWithText("Privacy policy").assertIsDisplayed()
     }
 
     @Test

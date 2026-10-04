@@ -16,6 +16,7 @@ import com.etatech.hashiya.core.model.PdfStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SettingsUiState(
     val usingUserKey: Boolean = false,
@@ -140,10 +142,13 @@ class SettingsViewModel @Inject constructor(
         )
     }
 
-    /** The reporter is told first, so an opt-out takes effect before the preference is written. */
+    /**
+     * The reporter is told first, so an opt-out takes effect before the preference is written. The write finishes even if
+     * Settings closes meanwhile, or the next launch would turn collection back on.
+     */
     fun onCrashReportsChange(enabled: Boolean) {
         crashReporter.setEnabled(enabled)
-        viewModelScope.launch { preferences.setCrashReportsEnabled(enabled) }
+        viewModelScope.launch { withContext(NonCancellable) { preferences.setCrashReportsEnabled(enabled) } }
     }
 
     /** Deletes downloaded PDFs only; attached ones can't be fetched again, so they stay. */

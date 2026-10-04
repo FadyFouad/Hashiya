@@ -1,16 +1,23 @@
 package com.etatech.hashiya.feature.settings
 
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import com.etatech.hashiya.core.crash.CrashKey
+import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
 import com.etatech.hashiya.core.model.PdfStorage
 import com.etatech.hashiya.core.testing.FakeCrashReporter
 import com.etatech.hashiya.core.testing.FakeLibraryBackup
 import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -151,5 +158,27 @@ class SettingsViewModelTest {
 
         assertTrue(viewModel.uiState.value.crashReportsEnabled)
         assertEquals(listOf(true), crashReporter.enabledCalls)
+    }
+
+    @Test
+    fun theCrashReportsChoiceIsStoredEvenWhenSettingsCloses() = runTest {
+        val slowPreferences = object : UserPreferencesRepository by preferences {
+            override suspend fun setCrashReportsEnabled(enabled: Boolean) {
+                delay(1_000)
+                preferences.setCrashReportsEnabled(enabled)
+            }
+        }
+        val store = ViewModelStore()
+        val factory = viewModelFactory {
+            initializer { SettingsViewModel(slowPreferences, languageController, pdfs, FakeLibraryBackup(), crashReporter) }
+        }
+        val viewModel = ViewModelProvider(store, factory)[SettingsViewModel::class.java]
+
+        viewModel.onCrashReportsChange(false)
+        store.clear()
+        advanceUntilIdle()
+
+        assertEquals(listOf(false), crashReporter.enabledCalls)
+        assertFalse(preferences.crashReportsEnabled.value)
     }
 }

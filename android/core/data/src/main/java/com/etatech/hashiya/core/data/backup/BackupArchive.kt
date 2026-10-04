@@ -26,7 +26,9 @@ internal fun writeArchive(
     pdfFile: (paperId: String) -> File,
     manifest: (papers: Int, collections: Int) -> BackupManifest,
     out: OutputStream,
-    onProgress: (Float) -> Unit
+    onProgress: (Float) -> Unit,
+    /** Called before each PDF; throws to stop the export. */
+    checkCancelled: () -> Unit = {}
 ): WrittenArchive {
     val refs = snapshot.papers.mapIndexed { index, row -> row.paper.id to index + 1 }.toMap()
     val notesByPaper = snapshot.notes.associateBy { it.paperId }
@@ -36,6 +38,7 @@ internal fun writeArchive(
     ZipOutputStream(out.buffered()).use { zip ->
         if (includePdfs) {
             withPdf.forEachIndexed { index, row ->
+                checkCancelled()
                 val input = runCatching { pdfFile(row.paper.id).inputStream() }.getOrNull()
                 if (input == null) {
                     missing++

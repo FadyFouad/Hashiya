@@ -14,6 +14,9 @@ import com.etatech.hashiya.core.model.PaperNotes
 import java.io.File
 import java.util.zip.ZipFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -141,5 +144,33 @@ class ArchiveLibraryBackupTest {
 
         assertTrue(destination.length() > 0)
         assertFalse(exported.file.exists())
+    }
+
+    private fun twoStoredPdfs() = runBlocking {
+        library.save(paper("W1"))
+        library.save(paper("W2"))
+        storePdf("local-1")
+        storePdf("local-2")
+    }
+
+    @Test
+    fun cancellingAnExportLeavesNoTempFile() = runTest {
+        twoStoredPdfs()
+        lateinit var job: Job
+        job = launch { backup.export(includePdfs = true, onProgress = { job.cancel() }) }
+        job.join()
+
+        assertTrue(job.isCancelled)
+        assertEquals(emptyList<String>(), File(tmp.root, "work").list()!!.toList())
+    }
+
+    @Test
+    fun aFailureThatIsNotAnIoErrorLeavesNoTempFileAndPropagates() = runTest {
+        twoStoredPdfs()
+
+        val failure = runCatching { backup.export(includePdfs = true, onProgress = { error("boom") }) }.exceptionOrNull()
+
+        assertTrue(failure is IllegalStateException)
+        assertEquals(emptyList<String>(), File(tmp.root, "work").list()!!.toList())
     }
 }

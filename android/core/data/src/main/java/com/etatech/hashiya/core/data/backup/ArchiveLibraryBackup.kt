@@ -9,6 +9,7 @@ import com.etatech.hashiya.core.database.dao.BackupDao
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 internal class ArchiveLibraryBackup(
@@ -34,6 +35,7 @@ internal class ArchiveLibraryBackup(
         withContext(io) {
             val time = now()
             val file = File(workDir.apply { mkdirs() }, "export-${newId()}.hashiya")
+            var done = false
             try {
                 val written = file.outputStream().use { out ->
                     writeArchive(
@@ -44,13 +46,17 @@ internal class ArchiveLibraryBackup(
                             BackupManifest(BACKUP_FORMAT, appVersion, isoUtc(time), papers, collections, includePdfs)
                         },
                         out = out,
-                        onProgress = onProgress
+                        onProgress = onProgress,
+                        checkCancelled = { ensureActive() }
                     )
                 }
+                done = true
                 ExportedFile(file, backupFileName(time), written.missingPdfs)
             } catch (e: IOException) {
-                file.delete()
                 throw BackupException(if (workDir.usableSpace < MIN_FREE_BYTES) BackupFailure.NoSpace else BackupFailure.WriteFailed, e)
+            } finally {
+                // Cancel and any other failure end here too; nobody holds an ExportedFile to discard.
+                if (!done) file.delete()
             }
         }
     }

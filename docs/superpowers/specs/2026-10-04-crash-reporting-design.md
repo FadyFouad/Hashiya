@@ -136,7 +136,7 @@ These steps go into `docs/release.md`.
 
 ### CI
 
-Nothing to configure: the config files are committed, debug builds and tests never start Firebase, and CI still compiles the Firebase code paths.
+Nothing to configure: the config files are committed, Firebase may initialize, but debug builds and tests never enable collection, so nothing is sent, and CI still compiles the Firebase code paths.
 
 ## 7. Privacy and store answers
 

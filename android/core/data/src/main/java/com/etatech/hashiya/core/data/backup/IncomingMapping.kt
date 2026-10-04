@@ -11,6 +11,9 @@ import com.etatech.hashiya.core.model.normalizeDoi
 
 private val STORED_STATUSES = setOf("to_read", "reading", "read")
 
+/** The OpenAlex id the paper is stored under; null when it has none, and then the restore skips it. */
+internal val BackupPaper.usableOpenAlexId: String? get() = openAlexId?.trim()?.ifEmpty { null }
+
 /**
  * The paper as rows under [localId]. Its PDF columns are set only when [staged] holds its file; notes with no text are dropped,
  * like the app never stores empty notes.
@@ -19,7 +22,7 @@ internal fun BackupPaper.toIncoming(localId: String, staged: StageResult.Staged?
     val backupPdf = pdf
     val entity = PaperEntity(
         id = localId,
-        openAlexId = openAlexId?.trim()?.ifEmpty { null },
+        openAlexId = usableOpenAlexId,
         doi = doi?.let(::normalizeDoi),
         title = title,
         year = year,

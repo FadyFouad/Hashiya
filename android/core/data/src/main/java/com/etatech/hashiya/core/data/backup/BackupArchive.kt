@@ -131,39 +131,43 @@ internal sealed interface ArchiveRead {
     data class Invalid(val reason: OpenFailure) : ArchiveRead
 }
 
-/** Reads and checks [file]'s manifest and library. Only those two entries are read; PDFs are read by name at restore. */
-internal fun readArchive(file: File): ArchiveRead {
-    val zip = try {
-        ZipFile(file)
-    } catch (e: IOException) {
+/**
+ * Reads and checks [file]'s manifest and library. Only those two entries are read; PDFs are read by name at restore. A zip the reader
+ * can't handle, malformed entry names included, is not a backup.
+ */
+internal fun readArchive(file: File): ArchiveRead = try {
+    ZipFile(file).use(::readEntries)
+} catch (e: IOException) {
+    ArchiveRead.Invalid(OpenFailure.NotABackup)
+} catch (e: RuntimeException) {
+    ArchiveRead.Invalid(OpenFailure.NotABackup)
+}
+
+private fun readEntries(zip: ZipFile): ArchiveRead {
+    val manifestEntry = zip.getEntry(MANIFEST_ENTRY) ?: return ArchiveRead.Invalid(OpenFailure.NotABackup)
+    val manifestText = zip.readText(manifestEntry, MAX_MANIFEST_BYTES) ?: return ArchiveRead.Invalid(OpenFailure.NotABackup)
+    val manifest = try {
+        backupJson.decodeFromString(BackupManifest.serializer(), manifestText)
+    } catch (e: IllegalArgumentException) {
+        // SerializationException is an IllegalArgumentException.
         return ArchiveRead.Invalid(OpenFailure.NotABackup)
     }
-    zip.use {
-        val manifestEntry = zip.getEntry(MANIFEST_ENTRY) ?: return ArchiveRead.Invalid(OpenFailure.NotABackup)
-        val manifestText = zip.readText(manifestEntry, MAX_MANIFEST_BYTES) ?: return ArchiveRead.Invalid(OpenFailure.NotABackup)
-        val manifest = try {
-            backupJson.decodeFromString(BackupManifest.serializer(), manifestText)
-        } catch (e: IllegalArgumentException) {
-            // SerializationException is an IllegalArgumentException.
-            return ArchiveRead.Invalid(OpenFailure.NotABackup)
-        }
-        if (manifest.format > BACKUP_FORMAT) return ArchiveRead.Invalid(OpenFailure.NewerFormat)
-        if (manifest.format < 1) return ArchiveRead.Invalid(OpenFailure.Damaged)
-        val libraryEntry = zip.getEntry(LIBRARY_ENTRY) ?: return ArchiveRead.Invalid(OpenFailure.Damaged)
-        val libraryText = zip.readText(libraryEntry, MAX_LIBRARY_BYTES) ?: return ArchiveRead.Invalid(OpenFailure.Damaged)
-        val library = try {
-            backupJson.decodeFromString(BackupLibrary.serializer(), libraryText)
-        } catch (e: IllegalArgumentException) {
-            return ArchiveRead.Invalid(OpenFailure.Damaged)
-        }
-        val refs = library.papers.map { it.ref }
-        if (refs.size != refs.toSet().size) return ArchiveRead.Invalid(OpenFailure.Damaged)
-        val known = refs.toSet()
-        if (library.collections.any { collection -> collection.papers.any { it !in known } }) {
-            return ArchiveRead.Invalid(OpenFailure.Damaged)
-        }
-        return ArchiveRead.Valid(manifest, library)
+    if (manifest.format > BACKUP_FORMAT) return ArchiveRead.Invalid(OpenFailure.NewerFormat)
+    if (manifest.format < 1) return ArchiveRead.Invalid(OpenFailure.Damaged)
+    val libraryEntry = zip.getEntry(LIBRARY_ENTRY) ?: return ArchiveRead.Invalid(OpenFailure.Damaged)
+    val libraryText = zip.readText(libraryEntry, MAX_LIBRARY_BYTES) ?: return ArchiveRead.Invalid(OpenFailure.Damaged)
+    val library = try {
+        backupJson.decodeFromString(BackupLibrary.serializer(), libraryText)
+    } catch (e: IllegalArgumentException) {
+        return ArchiveRead.Invalid(OpenFailure.Damaged)
     }
+    val refs = library.papers.map { it.ref }
+    if (refs.size != refs.toSet().size) return ArchiveRead.Invalid(OpenFailure.Damaged)
+    val known = refs.toSet()
+    if (library.collections.any { collection -> collection.papers.any { it !in known } }) {
+        return ArchiveRead.Invalid(OpenFailure.Damaged)
+    }
+    return ArchiveRead.Valid(manifest, library)
 }
 
 /** The entry as UTF-8, or null when it is longer than [maxBytes] or can't be read. Never trusts the entry's declared size. */

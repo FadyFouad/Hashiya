@@ -25,7 +25,7 @@ class FakeLibraryBackup : LibraryBackup {
     /** When set, [export] suspends until this completes. */
     var exportGate: CompletableDeferred<Unit>? = null
     var openResult: OpenResult = OpenResult.Failed(OpenFailure.NotABackup)
-    var applyResult = RestoreResult(papersAdded = 0, notesAdded = 0, collectionsCreated = 0, pdfsAdded = 0, pdfsMissing = 0)
+    var applyResult = RestoreResult(papersAdded = 0, notesAdded = 0, collectionsCreated = 0, pdfsAdded = 0, pdfsMissing = 0, papersSkipped = 0)
     var applyFailure: BackupFailure? = null
 
     val exports = mutableListOf<Boolean>()

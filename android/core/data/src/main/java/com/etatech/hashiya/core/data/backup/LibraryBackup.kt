@@ -46,14 +46,18 @@ sealed interface OpenResult {
 
 enum class OpenFailure { NotABackup, NewerFormat, Damaged, Unreadable }
 
-/** [exportedAt] is null when the manifest's date doesn't parse. [pdfs] counts PDFs in the archive. */
+/**
+ * [exportedAt] is null when the manifest's date doesn't parse. [pdfs] counts PDFs in the archive. [papersSkipped] counts papers with no
+ * OpenAlex id, which this app can't show yet; they are neither new nor existing.
+ */
 data class RestorePreview(
     val exportedAt: Long?,
     val papers: Int,
     val collections: Int,
     val pdfs: Int,
     val newPapers: Int,
-    val existingPapers: Int
+    val existingPapers: Int,
+    val papersSkipped: Int = 0
 )
 
 class PreparedBackup internal constructor(internal val file: File, internal val library: BackupLibrary)
@@ -64,5 +68,7 @@ data class RestoreResult(
     val collectionsCreated: Int,
     val pdfsAdded: Int,
     /** PDFs the backup names but couldn't give: not in the archive, not a PDF, or too large. */
-    val pdfsMissing: Int
+    val pdfsMissing: Int,
+    /** Papers with no OpenAlex id, left out because this app can't show them yet. */
+    val papersSkipped: Int = 0
 )

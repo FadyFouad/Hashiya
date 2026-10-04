@@ -105,6 +105,10 @@ internal fun RestoreContent(uiState: RestoreUiState, onConfirm: () -> Unit, onLe
                         Spacer(Modifier.height(8.dp))
                         Text(pluralStringResource(R.plurals.restore_done_missing_pdfs, result.pdfsMissing, result.pdfsMissing))
                     }
+                    if (result.papersSkipped > 0) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(pluralStringResource(R.plurals.restore_done_skipped_papers, result.papersSkipped, result.papersSkipped))
+                    }
                     Spacer(Modifier.height(16.dp))
                     Button(onClick = onLeave) { Text(stringResource(R.string.restore_done)) }
                 }
@@ -147,6 +151,9 @@ private fun PreviewBody(state: RestoreUiState.Preview, onConfirm: () -> Unit, on
     Text(pluralStringResource(R.plurals.restore_new_papers, preview.newPapers, preview.newPapers))
     if (preview.existingPapers > 0) {
         Text(pluralStringResource(R.plurals.restore_existing_papers, preview.existingPapers, preview.existingPapers))
+    }
+    if (preview.papersSkipped > 0) {
+        Text(pluralStringResource(R.plurals.restore_skipped_papers, preview.papersSkipped, preview.papersSkipped))
     }
     Spacer(Modifier.height(8.dp))
     Text(

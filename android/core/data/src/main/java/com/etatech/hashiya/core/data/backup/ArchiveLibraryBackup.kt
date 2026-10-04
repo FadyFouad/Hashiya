@@ -1,7 +1,6 @@
 package com.etatech.hashiya.core.data.backup
 
 import android.content.ContentResolver
-import android.database.sqlite.SQLiteException
 import android.net.Uri
 import android.provider.DocumentsContract
 import com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES
@@ -19,6 +18,7 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.zip.ZipFile
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -36,7 +36,8 @@ internal class ArchiveLibraryBackup(
     private val now: () -> Long,
     private val newId: () -> String,
     private val io: CoroutineDispatcher,
-    private val merge: suspend (List<IncomingPaper>, List<IncomingCollection>, Long) -> MergeOutcome = backupDao::merge
+    private val merge: suspend (List<IncomingPaper>, List<IncomingCollection>, Long) -> MergeOutcome = backupDao::merge,
+    private val usableSpace: () -> Long = fileStore::usableSpace
 ) : LibraryBackup {
     private val workDirCleared = AtomicBoolean(false)
 
@@ -92,9 +93,10 @@ internal class ArchiveLibraryBackup(
             try {
                 val out = contentResolver.openOutputStream(destination, "wt") ?: throw IOException("No output stream")
                 out.use { exported.file.inputStream().use { input -> input.copyTo(it) } }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e !is IOException && e !is SecurityException) throw e
-                // A half-written file at the destination is worse than none.
+                // Any failure, a provider's own bugs included. A half-written file at the destination is worse than none.
                 runCatching { DocumentsContract.deleteDocument(contentResolver, destination) }
                 throw BackupException(BackupFailure.WriteFailed, e)
             }
@@ -106,7 +108,7 @@ internal class ArchiveLibraryBackup(
     }
 
     override suspend fun open(source: Uri): OpenResult {
-        val file = File(readyWorkDir(), "restore-${newId()}.hashiya")
+        val file = withContext(io) { File(readyWorkDir(), "restore-${newId()}.hashiya") }
         var ready = false
         try {
             val read = withContext(io) {
@@ -114,21 +116,25 @@ internal class ArchiveLibraryBackup(
                     val input = contentResolver.openInputStream(source) ?: throw IOException("No input stream")
                     input.use { from -> file.outputStream().use { from.copyTo(it) } }
                     readArchive(file)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    if (e !is IOException && e !is SecurityException) throw e
+                    // Any failure, a provider's own bugs included.
                     ArchiveRead.Invalid(OpenFailure.Unreadable)
                 }
             }
             if (read !is ArchiveRead.Valid) return OpenResult.Failed((read as ArchiveRead.Invalid).reason)
             val papers = read.library.papers
-            val existing = papers.count { backupDao.matchFor(it.openAlexId?.trim()?.ifEmpty { null }, it.doi?.let(::normalizeDoi)) != null }
+            val restorable = papers.filter { it.usableOpenAlexId != null }
+            val existing = restorable.count { backupDao.matchFor(it.usableOpenAlexId, it.doi?.let(::normalizeDoi)) != null }
             val preview = RestorePreview(
                 exportedAt = parseIsoUtc(read.manifest.exportedAt),
                 papers = papers.size,
                 collections = read.library.collections.size,
                 pdfs = papers.count { it.pdf?.file != null },
-                newPapers = papers.size - existing,
-                existingPapers = existing
+                newPapers = restorable.size - existing,
+                existingPapers = existing,
+                papersSkipped = papers.size - restorable.size
             )
             return OpenResult.Ready(PreparedBackup(file, read.library), preview).also { ready = true }
         } finally {
@@ -145,18 +151,23 @@ internal class ArchiveLibraryBackup(
         // Inside the gate: the sweep would delete the staged `.part` files.
         val staged = mutableMapOf<Int, StageResult.Staged>()
         try {
+            // This app can't show a paper with no OpenAlex id yet, so those are left out with their PDFs and collection links.
+            val restorable = backup.library.papers.filter { it.usableOpenAlexId != null }
+            val refs = restorable.map { it.ref }.toSet()
             var pdfsMissing = 0
             withContext(io) {
-                val named = backup.library.papers.filter { it.pdf?.file != null }
+                val named = restorable.filter { it.pdf?.file != null }
                 try {
                     ZipFile(backup.file).use { zip ->
                         named.forEachIndexed { index, paper ->
                             // Only the paper's own entry name is ever read, so no entry can reach outside the PDF folder.
                             val entry = paper.pdf?.file?.takeIf { it == pdfEntryName(paper.ref) }?.let(zip::getEntry)
-                            if (entry == null) {
+                            // An entry declaring more than any PDF the app keeps is missing, checked before the space so a hostile
+                            // size can't stop the whole restore.
+                            if (entry == null || entry.size > MAX_PDF_BYTES) {
                                 pdfsMissing++
                             } else {
-                                if (entry.size > 0 && fileStore.usableSpace() < entry.size + MIN_FREE_BYTES) {
+                                if (entry.size > 0 && usableSpace() < entry.size + MIN_FREE_BYTES) {
                                     throw BackupException(BackupFailure.NoSpace)
                                 }
                                 when (val result = zip.getInputStream(entry).use { fileStore.stage("restore", it, MAX_PDF_BYTES) {} }) {
@@ -167,22 +178,29 @@ internal class ArchiveLibraryBackup(
                             onProgress((index + 1).toFloat() / (named.size + 1))
                         }
                     }
-                } catch (e: IOException) {
-                    throw BackupException(BackupFailure.Unreadable, e)
+                } catch (e: BackupException) {
+                    throw e
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: PdfWriteException) {
                     throw BackupException(BackupFailure.NoSpace, e)
+                } catch (e: Exception) {
+                    // IO errors and anything a malformed archive makes the zip reader throw.
+                    throw BackupException(BackupFailure.Unreadable, e)
                 }
             }
-            val papers = backup.library.papers.map { it.toIncoming(newId(), staged[it.ref]) }
+            val papers = restorable.map { it.toIncoming(newId(), staged[it.ref]) }
             val collections = backup.library.collections
                 .filter { it.name.isNotBlank() }
-                .map { IncomingCollection(it.name.trim(), collectionNameKey(it.name), it.createdAt, it.papers) }
+                .map { IncomingCollection(it.name.trim(), collectionNameKey(it.name), it.createdAt, it.papers.filter(refs::contains)) }
             currentCoroutineContext().ensureActive()
             // Once the merge may have committed, the PDF moves must finish whatever happens to the caller.
             val (outcome, pdfsAdded) = withContext(NonCancellable) {
                 val outcome = try {
                     merge(papers, collections, now())
-                } catch (e: SQLiteException) {
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
                     throw BackupException(BackupFailure.WriteFailed, e)
                 }
                 var added = 0
@@ -201,7 +219,7 @@ internal class ArchiveLibraryBackup(
             }
             staged.clear()
             onProgress(1f)
-            RestoreResult(outcome.added, outcome.notesAdded, outcome.collectionsCreated, pdfsAdded, pdfsMissing)
+            RestoreResult(outcome.added, outcome.notesAdded, outcome.collectionsCreated, pdfsAdded, pdfsMissing, backup.library.papers.size - restorable.size)
         } finally {
             staged.values.forEach { it.file.delete() }
         }

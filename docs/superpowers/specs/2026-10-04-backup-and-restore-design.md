@@ -123,6 +123,8 @@ A backup paper matches a library paper by, in order:
 2. otherwise the same DOI, compared lowercase without a `https://doi.org/` or `doi:` prefix;
 3. otherwise it is new.
 
+Android note: the Android app can't show a paper with no `openAlexId` yet, so its restore skips those papers (null or blank id), with their PDFs and collection links. The preview and the result say how many were skipped.
+
 ### Merge rules (the device wins)
 
 | Case | Result |

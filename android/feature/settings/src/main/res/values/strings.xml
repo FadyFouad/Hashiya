@@ -75,6 +75,10 @@
         <item quantity="one">%1$d is already in your library and stays as it is</item>
         <item quantity="other">%1$d are already in your library and stay as they are</item>
     </plurals>
+    <plurals name="restore_skipped_papers">
+        <item quantity="one">%1$d has no OpenAlex ID and will be skipped</item>
+        <item quantity="other">%1$d have no OpenAlex ID and will be skipped</item>
+    </plurals>
     <string name="restore_keeps_library">Nothing in your library is changed or removed.</string>
     <string name="restore_add">Add to library</string>
     <string name="restore_cancel">Cancel</string>
@@ -84,6 +88,10 @@
     <plurals name="restore_done_missing_pdfs">
         <item quantity="one">%1$d PDF in the backup couldn\'t be restored.</item>
         <item quantity="other">%1$d PDFs in the backup couldn\'t be restored.</item>
+    </plurals>
+    <plurals name="restore_done_skipped_papers">
+        <item quantity="one">%1$d paper without an OpenAlex ID was skipped.</item>
+        <item quantity="other">%1$d papers without an OpenAlex ID were skipped.</item>
     </plurals>
     <string name="restore_done">Done</string>
     <string name="restore_not_backup">This isn\'t a Hashiya backup.</string>

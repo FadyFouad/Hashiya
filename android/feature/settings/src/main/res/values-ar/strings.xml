@@ -113,6 +113,14 @@
         <item quantity="many">%1$d ورقة موجودة في مكتبتك وتبقى كما هي</item>
         <item quantity="other">%1$d ورقة موجودة في مكتبتك وتبقى كما هي</item>
     </plurals>
+    <plurals name="restore_skipped_papers">
+        <item quantity="zero">لن تُتخطّى أي ورقة</item>
+        <item quantity="one">ورقة واحدة ليس لها معرّف OpenAlex وستُتخطّى</item>
+        <item quantity="two">ورقتان ليس لهما معرّف OpenAlex وستُتخطّيان</item>
+        <item quantity="few">%1$d أوراق ليس لها معرّف OpenAlex وستُتخطّى</item>
+        <item quantity="many">%1$d ورقة ليس لها معرّف OpenAlex وستُتخطّى</item>
+        <item quantity="other">%1$d ورقة ليس لها معرّف OpenAlex وستُتخطّى</item>
+    </plurals>
     <string name="restore_keeps_library">لن يُغيَّر أو يُحذف شيء من مكتبتك.</string>
     <string name="restore_add">إضافة إلى المكتبة</string>
     <string name="restore_cancel">إلغاء</string>
@@ -126,6 +134,14 @@
         <item quantity="few">تعذّرت استعادة %1$d ملفات PDF من النسخة.</item>
         <item quantity="many">تعذّرت استعادة %1$d ملف PDF من النسخة.</item>
         <item quantity="other">تعذّرت استعادة %1$d ملف PDF من النسخة.</item>
+    </plurals>
+    <plurals name="restore_done_skipped_papers">
+        <item quantity="zero">لم تُتخطَّ أي ورقة.</item>
+        <item quantity="one">تُخطّيت ورقة واحدة ليس لها معرّف OpenAlex.</item>
+        <item quantity="two">تُخطّيت ورقتان ليس لهما معرّف OpenAlex.</item>
+        <item quantity="few">تُخطّيت %1$d أوراق ليس لها معرّف OpenAlex.</item>
+        <item quantity="many">تُخطّيت %1$d ورقة ليس لها معرّف OpenAlex.</item>
+        <item quantity="other">تُخطّيت %1$d ورقة ليس لها معرّف OpenAlex.</item>
     </plurals>
     <string name="restore_done">تم</string>
     <string name="restore_not_backup">هذا الملف ليس نسخة احتياطية من حاشية.</string>

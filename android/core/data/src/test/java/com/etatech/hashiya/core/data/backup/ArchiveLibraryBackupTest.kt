@@ -183,7 +183,11 @@ class ArchiveLibraryBackupTest {
 
         val ready = backup.open(Uri.fromFile(fixture)) as OpenResult.Ready
 
-        assertEquals(RestorePreview(exportedAt = 1_791_122_700_000L, papers = 3, collections = 2, pdfs = 1, newPapers = 2, existingPapers = 1), ready.preview)
+        // Paper 2 has no OpenAlex id: it is skipped, so it is neither new nor existing.
+        assertEquals(
+            RestorePreview(exportedAt = 1_791_122_700_000L, papers = 3, collections = 2, pdfs = 1, newPapers = 1, existingPapers = 1, papersSkipped = 1),
+            ready.preview
+        )
         backup.discard(ready.backup)
         assertFalse(ready.backup.file.exists())
     }
@@ -238,7 +242,7 @@ class ArchiveLibraryBackupTest {
     fun applyingTheFixtureRestoresEverything() = runTest {
         val result = backup.apply(ready(fixture).backup)
 
-        assertEquals(RestoreResult(papersAdded = 3, notesAdded = 0, collectionsCreated = 2, pdfsAdded = 1, pdfsMissing = 0), result)
+        assertEquals(RestoreResult(papersAdded = 2, notesAdded = 0, collectionsCreated = 2, pdfsAdded = 1, pdfsMissing = 0, papersSkipped = 1), result)
         val deep = db.paperDao().getByOpenAlexId("W2741809807")!!
         assertEquals("reading", deep.paper.readingStatus)
         assertEquals("lecun2015deep", deep.paper.citeKey)
@@ -246,7 +250,7 @@ class ArchiveLibraryBackupTest {
         assertEquals(4, deep.paper.pdfLastPage)
         assertTrue(File(pdfDir, "${deep.paper.id}.pdf").readText().startsWith("%PDF-1.4"))
         assertEquals(1, db.paperDao().observeLibrary("chapter*", null, null).first().size)
-        assertEquals(1, db.paperDao().observeLibrary("العربية*", null, null).first().size)
+        assertEquals(mapOf("Thesis" to 1, "مراجعة" to 1), db.collectionDao().observeCollections().first().associate { it.name to it.paperCount })
         // No staged file is left behind.
         assertTrue(pdfDir.listFiles().orEmpty().none { it.name.endsWith(".part") })
     }
@@ -282,11 +286,11 @@ class ArchiveLibraryBackupTest {
         backup.apply(ready(fixture).backup)
         val second = backup.apply(ready(fixture).backup)
 
-        // Paper 2 has neither id, so it is new each time; the others match.
-        assertEquals(1, second.papersAdded)
+        assertEquals(0, second.papersAdded)
+        assertEquals(1, second.papersSkipped)
         assertEquals(0, second.collectionsCreated)
         assertEquals(0, second.pdfsAdded)
-        assertEquals(mapOf("Thesis" to 3, "مراجعة" to 1), db.collectionDao().observeCollections().first().associate { it.name to it.paperCount })
+        assertEquals(mapOf("Thesis" to 1, "مراجعة" to 1), db.collectionDao().observeCollections().first().associate { it.name to it.paperCount })
     }
 
     @Test
@@ -301,17 +305,27 @@ class ArchiveLibraryBackupTest {
         assertTrue(pdfDir.listFiles().orEmpty().none { it.name.endsWith(".part") })
     }
 
+    /** A format-1 archive holding [library] and the entries in [extra]. */
+    private fun archive(name: String, library: String, vararg extra: Pair<String, java.io.InputStream>): File {
+        val archive = File(tmp.root, name)
+        java.util.zip.ZipOutputStream(archive.outputStream()).use { out ->
+            fun put(entry: String, input: java.io.InputStream) {
+                out.putNextEntry(java.util.zip.ZipEntry(entry)); input.use { it.copyTo(out) }; out.closeEntry()
+            }
+            put(MANIFEST_ENTRY, """{"format":1}""".byteInputStream())
+            put(LIBRARY_ENTRY, library.byteInputStream())
+            extra.forEach { (entry, input) -> put(entry, input) }
+        }
+        return archive
+    }
+
     @Test
     fun pdfEntryNameMustMatchRef() = runTest {
-        val archive = File(tmp.root, "evil.hashiya")
-        java.util.zip.ZipOutputStream(archive.outputStream()).use { out ->
-            fun put(name: String, text: String) {
-                out.putNextEntry(java.util.zip.ZipEntry(name)); out.write(text.toByteArray()); out.closeEntry()
-            }
-            put(MANIFEST_ENTRY, """{"format":1}""")
-            put(LIBRARY_ENTRY, """{"papers":[{"ref":1,"title":"A","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/2.pdf"}},{"ref":2,"title":"B","savedAt":1}]}""")
-            put("pdfs/2.pdf", "%PDF-1.4 not yours")
-        }
+        val archive = archive(
+            "evil.hashiya",
+            """{"papers":[{"ref":1,"openAlexId":"W1","title":"A","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/2.pdf"}},{"ref":2,"openAlexId":"W2","title":"B","savedAt":1}]}""",
+            "pdfs/2.pdf" to "%PDF-1.4 not yours".byteInputStream()
+        )
 
         val result = backup.apply(ready(archive).backup)
 
@@ -335,6 +349,106 @@ class ArchiveLibraryBackupTest {
         }
         assertEquals(0, db.backupDao().paperCount())
         assertTrue(pdfDir.listFiles().orEmpty().isEmpty())
+    }
+
+    @Test
+    fun aPaperWithNoOpenAlexIdIsSkippedAndTheLibraryStillLoads() = runTest {
+        val blank = archive(
+            "blank-id.hashiya",
+            """{"papers":[{"ref":1,"openAlexId":"  ","title":"Blank","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/1.pdf"}}],""" +
+                """"collections":[{"name":"Only blank","createdAt":1,"papers":[1]}]}""",
+            "pdfs/1.pdf" to "%PDF-1.4 blank".byteInputStream()
+        )
+
+        val fromFixture = backup.apply(ready(fixture).backup)
+        val fromBlank = backup.apply(ready(blank).backup)
+
+        assertEquals(1, fromFixture.papersSkipped)
+        assertEquals(RestoreResult(papersAdded = 0, notesAdded = 0, collectionsCreated = 1, pdfsAdded = 0, pdfsMissing = 0, papersSkipped = 1), fromBlank)
+        // Both read every row through the domain mapping, which rejects a paper with no OpenAlex id.
+        assertEquals(setOf("W2741809807", "W3"), library.observeLibrary("", null, null).first().map { it.paper.openAlexId }.toSet())
+        com.etatech.hashiya.core.data.repository.RoomCitationRepository(db.citationDao(), com.etatech.hashiya.core.data.FakeOpenAlexLookupDataSource())
+            .export(null)
+        assertEquals(2, db.backupDao().paperCount())
+        assertEquals(mapOf("Thesis" to 1, "مراجعة" to 1, "Only blank" to 0), db.collectionDao().observeCollections().first().associate { it.name to it.paperCount })
+        // The skipped paper's PDF was never staged.
+        assertTrue(pdfDir.listFiles().orEmpty().none { it.name.endsWith(".part") })
+    }
+
+    @Test
+    fun anOversizedPdfEntryIsMissingNotOutOfSpace() = runTest {
+        val roomy = ArchiveLibraryBackup(
+            backupDao = db.backupDao(), fileStore = PdfFileStore(pdfDir), gate = PdfStoreGate(), contentResolver = context.contentResolver,
+            workDir = File(tmp.root, "work"), appVersion = "x", now = { 1L }, newId = { "id-${++ids}" }, io = Dispatchers.Unconfined,
+            // Room for any PDF the app accepts, but not for what the hostile entry declares.
+            usableSpace = { com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES }
+        )
+        val zeros = object : java.io.InputStream() {
+            var left = com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES + 1
+            override fun read(): Int = if (left-- > 0) 0 else -1
+            override fun read(b: ByteArray, off: Int, len: Int): Int {
+                if (left <= 0) return -1
+                val n = minOf(len.toLong(), left).toInt()
+                b.fill(0, off, off + n)
+                left -= n
+                return n
+            }
+        }
+        val archive = archive(
+            "oversized.hashiya",
+            """{"papers":[{"ref":1,"openAlexId":"W1","title":"Huge","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/1.pdf"}},""" +
+                """{"ref":2,"openAlexId":"W2","title":"Small","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/2.pdf"}}]}""",
+            "pdfs/1.pdf" to zeros,
+            "pdfs/2.pdf" to "%PDF-1.4 small".byteInputStream()
+        )
+
+        val result = roomy.apply(ready(archive, roomy).backup)
+
+        assertEquals(2, result.papersAdded)
+        assertEquals(1, result.pdfsAdded)
+        assertEquals(1, result.pdfsMissing)
+    }
+
+    @Test
+    fun aMergeThatThrowsAnythingFailsAsWriteFailed() = runTest {
+        val failing = ArchiveLibraryBackup(
+            backupDao = db.backupDao(), fileStore = PdfFileStore(pdfDir), gate = PdfStoreGate(), contentResolver = context.contentResolver,
+            workDir = File(tmp.root, "work"), appVersion = "x", now = { 1L }, newId = { "id-${++ids}" }, io = Dispatchers.Unconfined,
+            merge = { _, _, _ -> throw IllegalStateException("broken") }
+        )
+
+        val failure = runCatching { failing.apply(ready(fixture, failing).backup) }.exceptionOrNull()
+
+        assertEquals(BackupFailure.WriteFailed, (failure as? BackupException)?.failure)
+        assertTrue(pdfDir.listFiles().orEmpty().isEmpty())
+    }
+
+    @Test
+    fun aSaveThatThrowsAnythingFailsAsWriteFailed() = runTest {
+        library.save(paper("W1"))
+        val exported = backup.export(includePdfs = false)
+        val destination = Uri.parse("content://docs/broken.hashiya")
+        val broken = object : java.io.OutputStream() {
+            override fun write(b: Int) = throw IllegalStateException("provider bug")
+        }
+        org.robolectric.Shadows.shadowOf(context.contentResolver).registerOutputStream(destination, broken)
+
+        val failure = runCatching { backup.save(exported, destination) }.exceptionOrNull()
+
+        assertEquals(BackupFailure.WriteFailed, (failure as? BackupException)?.failure)
+        backup.discard(exported)
+    }
+
+    @Test
+    fun anOpenThatThrowsAnythingIsUnreadable() = runTest {
+        val source = Uri.parse("content://docs/broken.hashiya")
+        val broken = object : java.io.InputStream() {
+            override fun read(): Int = throw IllegalStateException("provider bug")
+        }
+        org.robolectric.Shadows.shadowOf(context.contentResolver).registerInputStream(source, broken)
+
+        assertEquals(OpenResult.Failed(OpenFailure.Unreadable), backup.open(source))
+        assertEquals(emptyList<String>(), File(tmp.root, "work").list()!!.toList())
     }
 
     @Test

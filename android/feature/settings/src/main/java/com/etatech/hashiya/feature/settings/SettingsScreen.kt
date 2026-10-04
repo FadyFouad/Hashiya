@@ -93,6 +93,7 @@ internal fun SettingsScreen(onBack: () -> Unit, onOpenRestore: (String) -> Unit,
         onIncludePdfsChange = viewModel::onIncludePdfsChange,
         onConfirmExport = viewModel::onConfirmExport,
         onDismissExport = viewModel::onDismissExport,
+        onCancelExport = viewModel::onCancelExport,
         onRestoreClick = { openDialog.launch(arrayOf(BACKUP_MIME_TYPE, "application/octet-stream")) },
         onMessageShown = viewModel::onMessageShown
     )
@@ -114,6 +115,7 @@ internal fun SettingsContent(
     onIncludePdfsChange: (Boolean) -> Unit = {},
     onConfirmExport: () -> Unit = {},
     onDismissExport: () -> Unit = {},
+    onCancelExport: () -> Unit = {},
     onRestoreClick: () -> Unit = {},
     onMessageShown: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -217,7 +219,7 @@ internal fun SettingsContent(
         val summary = uiState.backup.summary
         val export = uiState.backup.export
         if (summary != null && (export is ExportState.Choosing || export is ExportState.Building)) {
-            ExportDialog(summary, export, onIncludePdfsChange, onConfirmExport, onDismissExport)
+            ExportDialog(summary, export, onIncludePdfsChange, onConfirmExport, onDismissExport, onCancelExport)
         }
     }
 }

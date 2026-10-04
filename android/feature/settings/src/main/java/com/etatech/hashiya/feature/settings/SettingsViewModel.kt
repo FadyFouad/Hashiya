@@ -13,6 +13,7 @@ import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
 import com.etatech.hashiya.core.model.PdfStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -70,6 +71,7 @@ class SettingsViewModel @Inject constructor(
 
     /** The archive waiting for the save dialog; deleted once saved, cancelled or the screen goes away. */
     private var exported: ExportedFile? = null
+    private var exportJob: Job? = null
 
     val uiState: StateFlow<SettingsUiState> =
         combine(preferences.userApiKey, editedKey, language, storage, backup) { stored, edited, lang, pdfs, backupState ->
@@ -139,7 +141,7 @@ class SettingsViewModel @Inject constructor(
     fun onConfirmExport() {
         val choosing = backup.value.export as? ExportState.Choosing ?: return
         backup.update { it.copy(export = ExportState.Building(choosing.includePdfs, progress = 0f)) }
-        viewModelScope.launch {
+        exportJob = viewModelScope.launch {
             try {
                 // Progress arrives on an IO thread; updating the flow is thread-safe.
                 val file = libraryBackup.export(choosing.includePdfs) { progress ->
@@ -153,6 +155,14 @@ class SettingsViewModel @Inject constructor(
                 backup.update { it.copy(export = ExportState.Idle, message = BackupMessage.ExportFailed(e.failure)) }
             }
         }
+    }
+
+    /** Stops an export being built; the archive's temporary file is deleted by the export itself. */
+    fun onCancelExport() {
+        if (backup.value.export !is ExportState.Building) return
+        exportJob?.cancel()
+        exportJob = null
+        backup.update { it.copy(export = ExportState.Idle) }
     }
 
     /** The save dialog's answer; null when it was cancelled. */

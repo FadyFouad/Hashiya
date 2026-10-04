@@ -51,13 +51,14 @@ internal fun ExportDialog(
     export: ExportState,
     onIncludePdfsChange: (Boolean) -> Unit,
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onCancel: () -> Unit
 ) {
     val context = LocalContext.current
     val building = export as? ExportState.Building
     val includePdfs = (export as? ExportState.Choosing)?.includePdfs ?: building?.includePdfs ?: false
     AlertDialog(
-        onDismissRequest = { if (building == null) onDismiss() },
+        onDismissRequest = { if (building == null) onDismiss() else onCancel() },
         title = { Text(stringResource(R.string.settings_export_title)) },
         text = {
             Column {
@@ -116,7 +117,7 @@ internal fun ExportDialog(
             TextButton(onClick = onConfirm, enabled = building == null) { Text(stringResource(R.string.settings_export)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = building == null) { Text(stringResource(R.string.settings_cancel)) }
+            TextButton(onClick = if (building == null) onDismiss else onCancel) { Text(stringResource(R.string.settings_cancel)) }
         }
     )
 }

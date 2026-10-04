@@ -13,6 +13,7 @@ import com.etatech.hashiya.core.data.backup.RestoreResult
 import com.etatech.hashiya.core.data.backup.exportedFileForTest
 import com.etatech.hashiya.core.data.backup.preparedBackupForTest
 import java.io.File
+import kotlinx.coroutines.CompletableDeferred
 
 /** Records every call; tests set what each operation returns or throws. */
 class FakeLibraryBackup : LibraryBackup {
@@ -20,6 +21,9 @@ class FakeLibraryBackup : LibraryBackup {
     var exportFailure: BackupFailure? = null
     var saveFailure: BackupFailure? = null
     var missingPdfs = 0
+
+    /** When set, [export] suspends until this completes. */
+    var exportGate: CompletableDeferred<Unit>? = null
     var openResult: OpenResult = OpenResult.Failed(OpenFailure.NotABackup)
     var applyResult = RestoreResult(papersAdded = 0, notesAdded = 0, collectionsCreated = 0, pdfsAdded = 0, pdfsMissing = 0)
     var applyFailure: BackupFailure? = null
@@ -39,6 +43,7 @@ class FakeLibraryBackup : LibraryBackup {
 
     override suspend fun export(includePdfs: Boolean, onProgress: (Float) -> Unit): ExportedFile {
         exports += includePdfs
+        exportGate?.await()
         exportFailure?.let { throw BackupException(it) }
         onProgress(1f)
         return exportedFileForTest(File("export.hashiya"), "Hashiya-library-2026-10-04.hashiya", missingPdfs)

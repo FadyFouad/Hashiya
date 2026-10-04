@@ -7,10 +7,12 @@ import com.etatech.hashiya.core.testing.FakeLibraryBackup
 import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -96,5 +98,22 @@ class SettingsBackupViewModelTest {
         viewModel.onConfirmExport()
         viewModel.onSaveDestination(Uri.parse("content://docs/1"))
         assertEquals(BackupMessage.Exported(missingPdfs = 2), viewModel.backupState.message)
+    }
+
+    @Test
+    fun cancellingABuildingExportReturnsToIdle() = runTest {
+        val gate = CompletableDeferred<Unit>()
+        backup.exportGate = gate
+        val viewModel = viewModel()
+        viewModel.onExportClick()
+        viewModel.onConfirmExport()
+        assertEquals(ExportState.Building(includePdfs = false, progress = 0f), viewModel.backupState.export)
+
+        viewModel.onCancelExport()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(ExportState.Idle, viewModel.backupState.export)
+        assertEquals(null, viewModel.backupState.message)
     }
 }

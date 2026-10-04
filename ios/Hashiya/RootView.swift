@@ -22,6 +22,10 @@ struct RootView: View {
     /// Wide windows: whether each tab's list shows beside its detail.
     @State private var libraryColumns = NavigationSplitViewVisibility.all
     @State private var searchColumns = NavigationSplitViewVisibility.all
+    /// What each list was before the reader opened: the reader hides the list for a wider page, and closing it brings
+    /// back what the user had.
+    @State private var libraryColumnsBeforeReader: NavigationSplitViewVisibility?
+    @State private var searchColumnsBeforeReader: NavigationSplitViewVisibility?
     /// Each window's tab and open screens, restored when the system brings the window back.
     @SceneStorage("selectedTab") private var savedTab: String?
     @SceneStorage("libraryRoutes") private var savedLibraryRoutes: Data?
@@ -243,12 +247,18 @@ struct RootView: View {
         .onChange(of: selectedTab) { savedTab = selectedTab.rawValue }
         .onChange(of: libraryRoutes) { savedLibraryRoutes = libraryRoutes.sceneData }
         .onChange(of: searchRoutes) { savedSearchRoutes = searchRoutes.sceneData }
+        .onChange(of: isReading(libraryRoutes)) { _, open in
+            readerChanged(isOpen: open, columns: &libraryColumns, before: &libraryColumnsBeforeReader)
+        }
+        .onChange(of: isReading(searchRoutes)) { _, open in
+            readerChanged(isOpen: open, columns: &searchColumns, before: &searchColumnsBeforeReader)
+        }
         .onChange(of: showsPanes) { _, panes in
             if panes {
                 // The split views mark their list hidden while they collapse for a narrow window: a wide one shows
-                // the list again.
-                libraryColumns = .all
-                searchColumns = .all
+                // the list again, unless the reader is open.
+                libraryColumns = isReading(libraryRoutes) ? .detailOnly : .all
+                searchColumns = isReading(searchRoutes) ? .detailOnly : .all
             } else if !searchRoutes.isEmpty {
                 // A narrow window shows Search's preview as a sheet over the results: drop it when Details or the
                 // reader is open above them, so the sheet doesn't cover what the user was reading.
@@ -277,6 +287,24 @@ struct RootView: View {
     private var openPaperWindow: ((String) -> Void)? {
         guard supportsMultipleWindows else { return nil }
         return { openWindow(id: PaperWindow.id, value: PaperWindow.Value(openAlexID: $0)) }
+    }
+
+    private func isReading(_ routes: [AppRoute]) -> Bool {
+        routes.contains { if case .reader = $0 { true } else { false } }
+    }
+
+    /// Wide windows: the reader hides its tab's list, so the page gets the whole width; the list's button still shows
+    /// it. Leaving the reader brings back the list as it was.
+    private func readerChanged(isOpen: Bool, columns: inout NavigationSplitViewVisibility,
+                               before: inout NavigationSplitViewVisibility?) {
+        guard showsPanes else { return }
+        if isOpen {
+            before = columns
+            columns = .detailOnly
+        } else {
+            columns = before ?? .all
+            before = nil
+        }
     }
 
     /// Brings back this window's tab and open screens once. UI tests always start fresh at the Library.

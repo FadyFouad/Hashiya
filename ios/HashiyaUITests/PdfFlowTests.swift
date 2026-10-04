@@ -127,8 +127,9 @@ final class PdfFlowTests: XCTestCase {
         // The picker's own navigation bar, not the dialog's Cancel, which can linger while the dialog closes.
         let picker = app.navigationBars["FullDocumentManagerViewControllerNavigationBar"]
         XCTAssertTrue(picker.waitForExistence(timeout: UITestTimeout.long), "The Files picker appears")
-        // iPad: the picker has a sidebar, and Cancel sits in the sidebar's bar.
-        (UITestDevice.isPad ? app.navigationBars["DOCSidebarView"] : picker).buttons["Cancel"].tap()
+        // A wide iPad window: the picker has a sidebar, and Cancel sits in the sidebar's bar.
+        let sidebar = app.navigationBars["DOCSidebarView"]
+        (sidebar.exists ? sidebar : picker).buttons["Cancel"].tap()
         XCTAssertTrue(picker.waitForNonExistence(timeout: UITestTimeout.long))
         XCTAssertTrue(storedPdfRow(in: app).waitForExistence(timeout: UITestTimeout.long), "Cancelling keeps the PDF")
         XCTAssertTrue(storedPdfRow(in: app).isHittable)

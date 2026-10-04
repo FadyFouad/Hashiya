@@ -1,10 +1,12 @@
 import XCTest
 
 extension XCUIApplication {
-    /// A tab: in the tab bar at the bottom on iPhone; on iPad the tabs sit at the top of the window, where XCUITest
-    /// sees them as plain buttons named after their symbols (so the keyboard's Search key is never taken for one).
+    /// A tab: in the tab bar at the bottom on iPhone and in narrow iPad windows; in a wide iPad window the tabs sit at
+    /// the top, where XCUITest sees them as plain buttons named after their symbols (so the keyboard's Search key is
+    /// never taken for one).
     func tab(_ name: String) -> XCUIElement {
-        guard UITestDevice.isPad else { return tabBars.buttons[name] }
+        let bottom = tabBars.buttons[name]
+        guard UITestDevice.isPad, !bottom.waitForExistence(timeout: 2) else { return bottom }
         let symbols = ["books.vertical", "magnifyingglass"]
         return buttons.matching(NSPredicate(format: "label == %@ AND identifier IN %@", name, symbols)).firstMatch
     }

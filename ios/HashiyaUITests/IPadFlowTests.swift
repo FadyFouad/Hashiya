@@ -13,6 +13,14 @@ final class IPadFlowTests: XCTestCase {
         app.launchArguments += ["-ui-testing", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
         XCTAssertTrue(app.staticTexts["No saved papers yet"].waitForExistence(timeout: UITestTimeout.long))
+        // These flows need a wide window; an earlier run can leave a windowed app narrow.
+        let screen = XCUIApplication(bundleIdentifier: "com.apple.springboard").frame
+        if app.windows.firstMatch.frame.width < 900 {
+            dragWindowCorner(of: app, to: CGVector(dx: screen.maxX, dy: screen.maxY - 70))
+            // Let the resize settle: right after it, a long press can land as a tap.
+            sleep(2)
+        }
+        XCTAssertGreaterThan(app.windows.firstMatch.frame.width, 900, "A wide window")
         return app
     }
 
@@ -56,17 +64,24 @@ final class IPadFlowTests: XCTestCase {
         // An inspector in the pane used to pop the reader a moment after it opened.
         sleep(3)
         XCTAssertTrue(back.exists, "The reader stays open")
-        XCTAssertTrue(attentionRow(in: app).isHittable, "The list stays beside the reader")
+        XCTAssertFalse(attentionRow(in: app).isHittable, "The reader hides the list, for a wider page")
 
         app.buttons["reader.notes"].firstMatch.tap()
         XCTAssertTrue(app.descendants(matching: .any)["note.summary"].waitForExistence(timeout: UITestTimeout.long))
         XCTAssertTrue(back.exists, "The notes open beside the PDF, not over the reader")
+
+        // Leaving the reader brings the list back beside Details.
+        back.tap()
+        let listBack = NSPredicate(format: "hittable == true")
+        wait(for: [expectation(for: listBack, evaluatedWith: attentionRow(in: app))], timeout: UITestTimeout.long)
     }
 
     func testResizingTheWindowKeepsTheOpenPaper() throws {
         let app = try launchApp()
         let back = openTheReader(in: app)
         let full = app.windows.firstMatch.frame
+        // Whatever happens, the next tests get the window back at full size.
+        addTeardownBlock { @MainActor in self.dragWindowCorner(of: app, to: CGVector(dx: full.maxX, dy: full.maxY - 70)) }
 
         // Narrow (the system's smallest width): one stack, with the reader still on top.
         dragWindowCorner(of: app, to: CGVector(dx: full.minX + 420, dy: full.maxY - 70))
@@ -76,10 +91,14 @@ final class IPadFlowTests: XCTestCase {
         )
         XCTAssertTrue(back.exists, "The reader stays open in a narrow window")
 
-        // Wide again: the list comes back beside the paper, and the reader is still open.
+        // Wide again: the reader is still open, its list still hidden; leaving it brings the list back.
         dragWindowCorner(of: app, to: CGVector(dx: full.maxX, dy: full.maxY - 70))
+        XCTAssertGreaterThan(app.windows.firstMatch.frame.width, 900, "The window is wide again")
         XCTAssertTrue(back.exists, "The reader stays open after widening")
-        XCTAssertTrue(attentionRow(in: app).isHittable, "The list shows again beside the reader")
+        XCTAssertFalse(attentionRow(in: app).isHittable, "The reader keeps its list hidden")
+        back.tap()
+        let listBack = NSPredicate(format: "hittable == true")
+        wait(for: [expectation(for: listBack, evaluatedWith: attentionRow(in: app))], timeout: UITestTimeout.long)
     }
 
     func testKeyboardShortcutsAndContextMenus() throws {
@@ -102,10 +121,10 @@ final class IPadFlowTests: XCTestCase {
         // A result's menu: Save, then Open details beside the results.
         let card = app.descendants(matching: .any)
             .matching(NSPredicate(format: "label BEGINSWITH %@", "Attention Is All You Need")).firstMatch
-        card.press(forDuration: 1.2)
+        card.press(forDuration: 2)
         app.buttons["Save to library"].tap()
         XCTAssertTrue(app.staticTexts["In library"].firstMatch.waitForExistence(timeout: UITestTimeout.long))
-        card.press(forDuration: 1.2)
+        card.press(forDuration: 2)
         XCTAssertTrue(app.buttons["Remove from library"].waitForExistence(timeout: UITestTimeout.long))
         app.buttons["Open details"].firstMatch.tap()
         XCTAssertTrue(app.buttons["Download PDF"].waitForExistence(timeout: UITestTimeout.long))
@@ -119,10 +138,10 @@ final class IPadFlowTests: XCTestCase {
         app.typeKey("1", modifierFlags: .command)
         let row = attentionRow(in: app)
         XCTAssertTrue(row.waitForExistence(timeout: UITestTimeout.long))
-        row.press(forDuration: 1.2)
+        row.press(forDuration: 2)
         app.buttons["Open"].tap()
         XCTAssertTrue(app.buttons["Download PDF"].waitForExistence(timeout: UITestTimeout.long))
-        row.press(forDuration: 1.2)
+        row.press(forDuration: 2)
         app.buttons["Remove"].firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Removed from library"].waitForExistence(timeout: UITestTimeout.long))
 
@@ -136,7 +155,7 @@ final class IPadFlowTests: XCTestCase {
         app.tab("Library").tap()
         let row = attentionRow(in: app)
         XCTAssertTrue(row.waitForExistence(timeout: UITestTimeout.long))
-        row.press(forDuration: 1.2)
+        row.press(forDuration: 2)
         app.buttons["Open in New Window"].tap()
         XCTAssertTrue(app.buttons["Download PDF"].waitForExistence(timeout: UITestTimeout.long), "The new window shows Details")
 

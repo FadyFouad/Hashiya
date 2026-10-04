@@ -3,6 +3,7 @@ package com.etatech.hashiya.feature.settings
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.data.backup.BackupException
 import com.etatech.hashiya.core.data.backup.BackupFailure
 import com.etatech.hashiya.core.data.backup.BackupSummary
@@ -28,7 +29,8 @@ data class SettingsUiState(
     val language: AppLanguage = AppLanguage.System,
     /** Null until loaded; the Storage section is hidden while null. */
     val storage: PdfStorage? = null,
-    val backup: BackupUiState = BackupUiState()
+    val backup: BackupUiState = BackupUiState(),
+    val crashReportsEnabled: Boolean = true
 )
 
 data class BackupUiState(val summary: BackupSummary? = null, val export: ExportState = ExportState.Idle, val message: BackupMessage? = null)
@@ -57,7 +59,8 @@ class SettingsViewModel @Inject constructor(
     private val preferences: UserPreferencesRepository,
     private val languageController: AppLanguageController,
     private val pdfRepository: PdfRepository,
-    private val libraryBackup: LibraryBackup
+    private val libraryBackup: LibraryBackup,
+    private val crashReporter: CrashReporter
 ) : ViewModel() {
     /** Null until the user edits the field; the stored key is shown until then. */
     private val editedKey = MutableStateFlow<String?>(null)
@@ -70,14 +73,19 @@ class SettingsViewModel @Inject constructor(
     private var exportJob: Job? = null
 
     val uiState: StateFlow<SettingsUiState> =
-        combine(preferences.userApiKey, editedKey, language, storage, backup) { stored, edited, lang, pdfs, backupState ->
-            SettingsUiState(
-                usingUserKey = stored != null,
-                keyInput = edited ?: stored.orEmpty(),
-                language = lang,
-                storage = pdfs,
-                backup = backupState
-            )
+        combine(
+            combine(preferences.userApiKey, editedKey, language, storage, backup) { stored, edited, lang, pdfs, backupState ->
+                SettingsUiState(
+                    usingUserKey = stored != null,
+                    keyInput = edited ?: stored.orEmpty(),
+                    language = lang,
+                    storage = pdfs,
+                    backup = backupState
+                )
+            },
+            preferences.crashReportsEnabled
+        ) { state, crashReports ->
+            state.copy(crashReportsEnabled = crashReports)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(language = language.value))
 
     init {
@@ -121,6 +129,12 @@ class SettingsViewModel @Inject constructor(
     fun onLanguageSelected(selected: AppLanguage) {
         languageController.set(selected)
         language.value = selected
+    }
+
+    /** The reporter is told first, so an opt-out takes effect before the preference is written. */
+    fun onCrashReportsChange(enabled: Boolean) {
+        crashReporter.setEnabled(enabled)
+        viewModelScope.launch { preferences.setCrashReportsEnabled(enabled) }
     }
 
     /** Deletes downloaded PDFs only; attached ones can't be fetched again, so they stay. */

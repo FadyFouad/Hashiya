@@ -1,10 +1,15 @@
 package com.etatech.hashiya.feature.settings
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -40,7 +45,8 @@ class SettingsContentTest {
                 onSaveKey = { events += "save" },
                 onResetKey = { events += "reset" },
                 onLanguageSelected = { events += "language:$it" },
-                onDeleteDownloadedPdfs = { events += "deletePdfs" }
+                onDeleteDownloadedPdfs = { events += "deletePdfs" },
+                onCrashReportsChange = { events += "crashReports:$it" }
             )
         }
     }
@@ -97,6 +103,50 @@ class SettingsContentTest {
 
         composeRule.onNodeWithText("Delete").performClick()
         assertEquals(listOf("deletePdfs"), events)
+    }
+
+    @Test
+    fun crashReportsSwitchIsOnAndTurnsOff() {
+        show(SettingsUiState(crashReportsEnabled = true))
+
+        composeRule.onNodeWithText("Privacy").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Send crash reports").performScrollTo().assertIsOn()
+        composeRule.onNodeWithText("Send crash reports").performClick()
+        assertEquals(listOf("crashReports:false"), events)
+    }
+
+    @Test
+    fun crashReportsSwitchIsOffAndTurnsOn() {
+        show(SettingsUiState(crashReportsEnabled = false))
+
+        composeRule.onNodeWithText("Send crash reports").performScrollTo().assertIsOff()
+        composeRule.onNodeWithText("Send crash reports").performClick()
+        assertEquals(listOf("crashReports:true"), events)
+    }
+
+    @Test
+    fun privacyFooterAndPolicyLinkAreShown() {
+        val opened = mutableListOf<String>()
+        composeRule.setContent {
+            CompositionLocalProvider(
+                LocalUriHandler provides object : UriHandler {
+                    override fun openUri(uri: String) {
+                        opened += uri
+                    }
+                }
+            ) {
+                HashiyaTheme {
+                    SettingsContent(uiState = SettingsUiState(), onBack = {
+                    }, onKeyInputChange = {}, onSaveKey = {}, onResetKey = {}, onLanguageSelected = {})
+                }
+            }
+        }
+
+        composeRule.onNodeWithText(
+            "Crash details and app errors help fix bugs. They never include your papers, notes or searches."
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Privacy policy").performScrollTo().performClick()
+        assertEquals(listOf("https://fadyfouad.github.io/Hashiya-Privacy-Policy/"), opened)
     }
 
     @Test

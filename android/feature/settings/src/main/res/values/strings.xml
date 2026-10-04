@@ -101,4 +101,8 @@
     <string name="restore_unreadable">The file couldn\'t be read.</string>
     <string name="restore_failed_space">Not enough storage space to restore this backup. Nothing was changed.</string>
     <string name="restore_failed">The backup couldn\'t be restored. Nothing was changed.</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="settings_crash_reports">Send crash reports</string>
+    <string name="settings_crash_reports_footer">Crash details and app errors help fix bugs. They never include your papers, notes or searches.</string>
+    <string name="settings_privacy_policy">Privacy policy</string>
 </resources>

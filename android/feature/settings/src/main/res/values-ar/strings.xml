@@ -152,4 +152,8 @@
     <string name="restore_unreadable">تعذّرت قراءة الملف.</string>
     <string name="restore_failed_space">لا توجد مساحة تخزين كافية لاستعادة هذه النسخة. لم يتغيّر شيء.</string>
     <string name="restore_failed">تعذّرت استعادة النسخة الاحتياطية. لم يتغيّر شيء.</string>
+    <string name="settings_privacy">الخصوصية</string>
+    <string name="settings_crash_reports">إرسال تقارير الأعطال</string>
+    <string name="settings_crash_reports_footer">تساعد تفاصيل الأعطال وأخطاء التطبيق على إصلاح المشكلات، ولا تتضمّن أبدًا أوراقك أو ملاحظاتك أو عمليات بحثك.</string>
+    <string name="settings_privacy_policy">سياسة الخصوصية</string>
 </resources>

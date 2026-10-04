@@ -11,6 +11,16 @@ public enum StoreResult: Equatable, Sendable {
     case tooLarge
 }
 
+/// What staging a PDF did.
+public enum StageResult: Equatable, Sendable {
+    /// The checked PDF waits in this `.part` file, `size` bytes long.
+    case staged(URL, size: Int64)
+    /// No `%PDF-` in the first 1024 bytes.
+    case notPDF
+    /// Over the size limit; nothing was kept.
+    case tooLarge
+}
+
 /// Writing the file failed (the disk is full, or the move didn't happen). Not a network failure, so callers never mistake it
 /// for the source failing.
 public struct PdfWriteError: Error, Sendable {}
@@ -102,6 +112,38 @@ public struct PdfFileStore: Sendable {
         }
     }
 
+    /// `store(copying:)` without the final move: the checked PDF stays in a `.part` file in this folder, named after `prefix`.
+    /// `commit` moves it into place, or the caller deletes it; the next `sweep` removes one that is left behind.
+    public func stage(prefix: String, copying source: URL, maxBytes: Int64) throws -> StageResult {
+        let reader = try FileHandle(forReadingFrom: source)
+        defer { try? reader.close() }
+        let writer = try PartWriter(directory: directory, paperID: prefix)
+        do {
+            while let chunk = try reader.read(upToCount: Self.chunkSize), !chunk.isEmpty {
+                if let verdict = try writer.append(chunk, maxBytes: maxBytes) {
+                    writer.discard()
+                    return verdict == .tooLarge ? .tooLarge : .notPDF
+                }
+            }
+            return try writer.finishStaged()
+        } catch {
+            writer.discard()
+            throw error
+        }
+    }
+
+    /// Moves a staged file over `<paperID>.pdf`; rename(2) replaces the target atomically within one folder.
+    public func commit(staged: URL, paperID: String) throws {
+        guard rename(staged.path, file(paperID: paperID).path) == 0 else { throw PdfWriteError() }
+    }
+
+    /// Bytes free for important data where the PDFs are kept; `Int64.max` when the system doesn't say.
+    public func usableSpace() -> Int64 {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let values = try? directory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+        return values?.volumeAvailableCapacityForImportantUsage ?? Int64.max
+    }
+
     public func delete(paperID: String) {
         try? FileManager.default.removeItem(at: file(paperID: paperID))
     }
@@ -175,6 +217,21 @@ private final class PartWriter {
         // rename(2) replaces the target atomically within one folder.
         guard rename(url.path, target.path) == 0 else { throw PdfWriteError() }
         return .stored(size: total)
+    }
+
+    /// Syncs and closes the file and checks the header, keeping the `.part` file in place.
+    func finishStaged() throws -> StageResult {
+        do {
+            try handle.synchronize()
+            try handle.close()
+        } catch {
+            throw PdfWriteError()
+        }
+        guard PdfFileStore.hasHeader(head) else {
+            discard()
+            return .notPDF
+        }
+        return .staged(url, size: total)
     }
 
     func discard() {

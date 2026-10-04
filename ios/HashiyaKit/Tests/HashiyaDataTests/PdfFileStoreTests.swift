@@ -184,6 +184,45 @@ struct PdfFileStoreTests {
         #expect(names() == ["local-1.pdf"])
     }
 
+    @Test func stageKeepsAPartFileAndCommitMovesItIntoPlace() throws {
+        let source = directory.appending(path: "in.pdf")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data("%PDF-1.4 hello".utf8).write(to: source)
+        guard case let .staged(url, size) = try store.stage(prefix: "restore", copying: source, maxBytes: 1024) else {
+            Issue.record("not staged")
+            return
+        }
+        #expect(url.lastPathComponent.hasSuffix(".part"))
+        #expect(size == 14)
+        #expect(!FileManager.default.fileExists(atPath: store.file(paperID: "p1").path))
+
+        try store.commit(staged: url, paperID: "p1")
+
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+        #expect(try String(contentsOf: store.file(paperID: "p1"), encoding: .utf8) == "%PDF-1.4 hello")
+    }
+
+    @Test func stageRejectsANonPdfAndLeavesNothing() throws {
+        let source = directory.appending(path: "page.html")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data("<html>".utf8).write(to: source)
+        #expect(try store.stage(prefix: "restore", copying: source, maxBytes: 1024) == .notPDF)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path) == ["page.html"])
+    }
+
+    @Test func sweepDeletesUncommittedStagedFiles() throws {
+        let source = directory.appending(path: "in.pdf")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try Data("%PDF-1.4".utf8).write(to: source)
+        guard case let .staged(url, _) = try store.stage(prefix: "restore", copying: source, maxBytes: 1024) else {
+            Issue.record("not staged")
+            return
+        }
+        #expect(FileManager.default.fileExists(atPath: url.path))
+        store.sweep(keeping: [])
+        #expect(!FileManager.default.fileExists(atPath: url.path))
+    }
+
     @Test func sweepWithNoFolderYetDoesNothing() {
         store.sweep(keeping: [])
 

@@ -429,6 +429,14 @@ public final class GRDBPdfRepository: PdfRepository {
         await task.value
     }
 
+    /// Runs `body`, which writes PDFs into this repository's folder and records them, as one store: never alongside the
+    /// startup sweep, and `storesFinished()` waits for it. The backup's restore uses it.
+    func withStoreGate<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
+        beginStore()
+        defer { endStore() }
+        return try await storing(body)
+    }
+
     /// Runs `body`, which writes a PDF and records it, never while the sweep runs, so the sweep can't delete its file.
     private func storing<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
         await gate.enter()

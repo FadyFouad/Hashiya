@@ -5,6 +5,8 @@ plugins {
     id("hashiya.android.compose")
     id("hashiya.hilt")
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.services)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 android {
@@ -65,6 +67,8 @@ dependencies {
     implementation(libs.androidx.compose.material3.adaptive)
     implementation(libs.androidx.compose.material3.adaptive.navigation.suite)
     implementation(libs.kotlinx.serialization.json)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.crashlytics)
 
     testImplementation(project(":core:testing"))
     testImplementation(libs.junit)

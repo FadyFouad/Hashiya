@@ -27,6 +27,9 @@ windowTesting = "1.5.0"
 roborazzi = "1.75.0"
 spotless = "8.10.3"
 ktlint = "1.8.0"
+firebaseBom = "34.19.0"
+googleServices = "4.5.0"
+firebaseCrashlyticsGradle = "3.0.8"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -81,6 +84,8 @@ android-gradlePlugin = { group = "com.android.tools.build", name = "gradle", ver
 kotlin-gradlePlugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 ksp-gradlePlugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp" }
 room-gradlePlugin = { group = "androidx.room", name = "room-gradle-plugin", version.ref = "room" }
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -93,3 +98,5 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 room = { id = "androidx.room", version.ref = "room" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 spotless = { id = "com.diffplug.spotless", version.ref = "spotless" }
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServices" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsGradle" }

@@ -256,9 +256,11 @@ public struct SearchView: View {
         }
         if saved {
             Button {
-                // Beside the results, Details opens above this paper's preview.
-                if previewsInPane { viewModel.selectedPaper = paper }
-                onOpenPaper(paper.openAlexID)
+                ContextMenuAction.afterClosing {
+                    // Beside the results, Details opens above this paper's preview.
+                    if previewsInPane { viewModel.selectedPaper = paper }
+                    onOpenPaper(paper.openAlexID)
+                }
             } label: {
                 Label {
                     Text(verbatim: DesignSystemStrings.openDetails)

@@ -260,7 +260,7 @@ public struct LibraryView: View {
                 // Long press, or a secondary click with a pointer.
                 .contextMenu {
                     Button {
-                        onOpenPaper(saved.id)
+                        ContextMenuAction.afterClosing { onOpenPaper(saved.id) }
                     } label: {
                         Label {
                             Text(verbatim: L10n.string("library.open"))

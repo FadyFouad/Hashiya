@@ -21,6 +21,13 @@ interface LibraryBackup {
 
     /** Deletes the copied archive. Safe to call more than once. */
     fun discard(backup: PreparedBackup)
+
+    /**
+     * Merges [backup] into the library; the library wins every conflict. All of it lands or none of it does. Throws
+     * [BackupException]: [BackupFailure.NoSpace] before anything is written, [BackupFailure.Unreadable] when the archive can't be
+     * read, [BackupFailure.WriteFailed] when the database write fails.
+     */
+    suspend fun apply(backup: PreparedBackup, onProgress: (Float) -> Unit = {}): RestoreResult
 }
 
 data class BackupSummary(val papers: Int, val collections: Int, val pdfCount: Int, val pdfBytes: Long)
@@ -50,3 +57,12 @@ data class RestorePreview(
 )
 
 class PreparedBackup internal constructor(internal val file: File, internal val library: BackupLibrary)
+
+data class RestoreResult(
+    val papersAdded: Int,
+    val notesAdded: Int,
+    val collectionsCreated: Int,
+    val pdfsAdded: Int,
+    /** PDFs the backup names but couldn't give: not in the archive, not a PDF, or too large. */
+    val pdfsMissing: Int
+)

@@ -1,14 +1,23 @@
 package com.etatech.hashiya.core.data.backup
 
 import android.content.ContentResolver
+import android.database.sqlite.SQLiteException
 import android.net.Uri
 import android.provider.DocumentsContract
+import com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES
 import com.etatech.hashiya.core.data.pdf.PdfFileStore
 import com.etatech.hashiya.core.data.pdf.PdfStoreGate
+import com.etatech.hashiya.core.data.pdf.PdfWriteException
+import com.etatech.hashiya.core.data.pdf.StageResult
 import com.etatech.hashiya.core.database.dao.BackupDao
+import com.etatech.hashiya.core.database.model.IncomingCollection
+import com.etatech.hashiya.core.database.model.IncomingPaper
+import com.etatech.hashiya.core.database.model.MergeOutcome
+import com.etatech.hashiya.core.model.collectionNameKey
 import com.etatech.hashiya.core.model.normalizeDoi
 import java.io.File
 import java.io.IOException
+import java.util.zip.ZipFile
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -23,7 +32,8 @@ internal class ArchiveLibraryBackup(
     private val appVersion: String,
     private val now: () -> Long,
     private val newId: () -> String,
-    private val io: CoroutineDispatcher
+    private val io: CoroutineDispatcher,
+    private val merge: suspend (List<IncomingPaper>, List<IncomingCollection>, Long) -> MergeOutcome = backupDao::merge
 ) : LibraryBackup {
     override suspend fun summary(): BackupSummary {
         val pdfs = backupDao.pdfTotals()
@@ -114,6 +124,67 @@ internal class ArchiveLibraryBackup(
 
     override fun discard(backup: PreparedBackup) {
         backup.file.delete()
+    }
+
+    override suspend fun apply(backup: PreparedBackup, onProgress: (Float) -> Unit): RestoreResult = gate.storing {
+        // Inside the gate: the sweep would delete the staged `.part` files.
+        val staged = mutableMapOf<Int, StageResult.Staged>()
+        try {
+            var pdfsMissing = 0
+            withContext(io) {
+                val named = backup.library.papers.filter { it.pdf?.file != null }
+                try {
+                    ZipFile(backup.file).use { zip ->
+                        named.forEachIndexed { index, paper ->
+                            // Only the paper's own entry name is ever read, so no entry can reach outside the PDF folder.
+                            val entry = paper.pdf?.file?.takeIf { it == pdfEntryName(paper.ref) }?.let(zip::getEntry)
+                            if (entry == null) {
+                                pdfsMissing++
+                            } else {
+                                if (entry.size > 0 && fileStore.usableSpace() < entry.size + MIN_FREE_BYTES) {
+                                    throw BackupException(BackupFailure.NoSpace)
+                                }
+                                when (val result = zip.getInputStream(entry).use { fileStore.stage("restore", it, MAX_PDF_BYTES) {} }) {
+                                    is StageResult.Staged -> staged[paper.ref] = result
+                                    StageResult.NotPdf, StageResult.TooLarge -> pdfsMissing++
+                                }
+                            }
+                            onProgress((index + 1).toFloat() / (named.size + 1))
+                        }
+                    }
+                } catch (e: IOException) {
+                    throw BackupException(BackupFailure.Unreadable, e)
+                } catch (e: PdfWriteException) {
+                    throw BackupException(BackupFailure.NoSpace, e)
+                }
+            }
+            val papers = backup.library.papers.map { it.toIncoming(newId(), staged[it.ref]) }
+            val collections = backup.library.collections
+                .filter { it.name.isNotBlank() }
+                .map { IncomingCollection(it.name.trim(), collectionNameKey(it.name), it.createdAt, it.papers) }
+            val outcome = try {
+                merge(papers, collections, now())
+            } catch (e: SQLiteException) {
+                throw BackupException(BackupFailure.WriteFailed, e)
+            }
+            var pdfsAdded = 0
+            withContext(io) {
+                staged.forEach { (ref, file) ->
+                    val target = outcome.pdfTargets[ref]
+                    if (target == null) {
+                        file.file.delete()
+                    } else {
+                        // A failed rename leaves a row without its file; the next startup sweep clears it.
+                        runCatching { fileStore.commit(file.file, target) }.onSuccess { pdfsAdded++ }.onFailure { pdfsMissing++ }
+                    }
+                }
+            }
+            staged.clear()
+            onProgress(1f)
+            RestoreResult(outcome.added, outcome.notesAdded, outcome.collectionsCreated, pdfsAdded, pdfsMissing)
+        } finally {
+            staged.values.forEach { it.file.delete() }
+        }
     }
 
     private companion object {

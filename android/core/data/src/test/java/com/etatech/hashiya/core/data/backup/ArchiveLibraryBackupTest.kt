@@ -15,6 +15,7 @@ import java.io.File
 import java.util.zip.ZipFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -198,5 +199,110 @@ class ArchiveLibraryBackupTest {
     @Test
     fun openReportsAnUnreadableSource() = runTest {
         assertEquals(OpenResult.Failed(OpenFailure.Unreadable), backup.open(Uri.fromFile(File(tmp.root, "missing.hashiya"))))
+    }
+
+    private suspend fun ready(file: File, using: ArchiveLibraryBackup = backup) = using.open(Uri.fromFile(file)) as OpenResult.Ready
+
+    @Test
+    fun applyingTheFixtureRestoresEverything() = runTest {
+        val result = backup.apply(ready(fixture).backup)
+
+        assertEquals(RestoreResult(papersAdded = 3, notesAdded = 0, collectionsCreated = 2, pdfsAdded = 1, pdfsMissing = 0), result)
+        val deep = db.paperDao().getByOpenAlexId("W2741809807")!!
+        assertEquals("reading", deep.paper.readingStatus)
+        assertEquals("lecun2015deep", deep.paper.citeKey)
+        assertEquals(listOf("Yann LeCun", "Yoshua Bengio", "Geoffrey Hinton"), deep.authors.sortedBy { it.position }.map { it.name })
+        assertEquals(4, deep.paper.pdfLastPage)
+        assertTrue(File(pdfDir, "${deep.paper.id}.pdf").readText().startsWith("%PDF-1.4"))
+        assertEquals(1, db.paperDao().observeLibrary("chapter*", null, null).first().size)
+        assertEquals(1, db.paperDao().observeLibrary("العربية*", null, null).first().size)
+        // No staged file is left behind.
+        assertTrue(pdfDir.listFiles().orEmpty().none { it.name.endsWith(".part") })
+    }
+
+    @Test
+    fun roundTripIntoAnEmptyLibrary() = runTest {
+        library.save(paper("W1"))
+        library.save(paper("W2", title = "Second"))
+        library.saveNotes("W1", PaperNotes(summary = "S", thoughts = "T"))
+        library.setStatus("W2", com.etatech.hashiya.core.model.ReadingStatus.Read)
+        storePdf("local-1")
+        val c = db.collectionDao().insertCollection("Thesis", "thesis", 7)!!
+        db.collectionDao().addToCollection(c, "W2", 8)
+        val exported = backup.export(includePdfs = true)
+
+        val other = Room.inMemoryDatabaseBuilder(context, HashiyaDatabase::class.java).allowMainThreadQueries().build()
+        val otherPdfs = File(tmp.root, "other-pdfs")
+        val target = backup(other, otherPdfs)
+        val result = target.apply(ready(exported.file, target).backup)
+
+        assertEquals(2, result.papersAdded)
+        assertEquals(1, result.pdfsAdded)
+        val w1 = other.paperDao().getByOpenAlexId("W1")!!
+        assertEquals("S", other.paperDao().observeNotes("W1").first()?.summary)
+        assertEquals("read", other.paperDao().getByOpenAlexId("W2")!!.paper.readingStatus)
+        assertEquals("%PDF-1.4 local-1", File(otherPdfs, "${w1.paper.id}.pdf").readText())
+        assertEquals(mapOf("Thesis" to 1), other.collectionDao().observeCollections().first().associate { it.name to it.paperCount })
+        other.close()
+    }
+
+    @Test
+    fun restoringTwiceAddsNothing() = runTest {
+        backup.apply(ready(fixture).backup)
+        val second = backup.apply(ready(fixture).backup)
+
+        // Paper 2 has neither id, so it is new each time; the others match.
+        assertEquals(1, second.papersAdded)
+        assertEquals(0, second.collectionsCreated)
+        assertEquals(0, second.pdfsAdded)
+        assertEquals(mapOf("Thesis" to 3, "مراجعة" to 1), db.collectionDao().observeCollections().first().associate { it.name to it.paperCount })
+    }
+
+    @Test
+    fun theDevicesPdfIsKept() = runTest {
+        library.save(Paper("W2741809807", null, "Mine", emptyList(), null, null, null, 0, false, null))
+        storePdf("local-1", "%PDF-1.4 mine")
+
+        val result = backup.apply(ready(fixture).backup)
+
+        assertEquals(0, result.pdfsAdded)
+        assertEquals("%PDF-1.4 mine", File(pdfDir, "local-1.pdf").readText())
+        assertTrue(pdfDir.listFiles().orEmpty().none { it.name.endsWith(".part") })
+    }
+
+    @Test
+    fun pdfEntryNameMustMatchRef() = runTest {
+        val archive = File(tmp.root, "evil.hashiya")
+        java.util.zip.ZipOutputStream(archive.outputStream()).use { out ->
+            fun put(name: String, text: String) {
+                out.putNextEntry(java.util.zip.ZipEntry(name)); out.write(text.toByteArray()); out.closeEntry()
+            }
+            put(MANIFEST_ENTRY, """{"format":1}""")
+            put(LIBRARY_ENTRY, """{"papers":[{"ref":1,"title":"A","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/2.pdf"}},{"ref":2,"title":"B","savedAt":1}]}""")
+            put("pdfs/2.pdf", "%PDF-1.4 not yours")
+        }
+
+        val result = backup.apply(ready(archive).backup)
+
+        assertEquals(0, result.pdfsAdded)
+        assertEquals(1, result.pdfsMissing)
+    }
+
+    @Test
+    fun aFailedMergeLeavesNoStagedPdfs() = runTest {
+        val failing = ArchiveLibraryBackup(
+            backupDao = db.backupDao(), fileStore = PdfFileStore(pdfDir), gate = PdfStoreGate(), contentResolver = context.contentResolver,
+            workDir = File(tmp.root, "work"), appVersion = "x", now = { 1L }, newId = { "id-${++ids}" }, io = Dispatchers.Unconfined,
+            merge = { _, _, _ -> throw android.database.sqlite.SQLiteException("disk I/O error") }
+        )
+
+        try {
+            failing.apply(ready(fixture, failing).backup)
+            org.junit.Assert.fail("Expected a BackupException")
+        } catch (e: BackupException) {
+            assertEquals(BackupFailure.WriteFailed, e.failure)
+        }
+        assertEquals(0, db.backupDao().paperCount())
+        assertTrue(pdfDir.listFiles().orEmpty().isEmpty())
     }
 }

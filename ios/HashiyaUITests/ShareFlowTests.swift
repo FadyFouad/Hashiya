@@ -24,7 +24,7 @@ final class ShareFlowTests: XCTestCase {
         XCTAssertTrue(app.buttons["Remove from library"].waitForExistence(timeout: UITestTimeout.long))
         app.buttons["Done"].tap()
 
-        app.tabBars.buttons["Library"].tap()
+        app.tab("Library").tap()
         XCTAssertTrue(app.staticTexts["1 paper"].waitForExistence(timeout: UITestTimeout.long))
         let row = app.cells.containing(NSPredicate(format: "label BEGINSWITH %@", "Attention Is All You Need")).firstMatch
         XCTAssertTrue(row.exists)

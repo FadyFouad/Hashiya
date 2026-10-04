@@ -71,6 +71,20 @@ jobs:
             -only-testing:HashiyaUITests \
             -collect-test-diagnostics never \
             -resultBundlePath ${{ runner.temp }}/ui-tests-ios18.xcresult
+      # iPad on its own simulator: launch, and the iPad flows (panes side by side, a resized window, shortcuts and
+      # menus, a second window). The rest of the suite drives the iPhone layout and runs above.
+      - name: UI tests on iPad (iPadOS 26)
+        if: ${{ !cancelled() && steps.ui26.outcome != 'skipped' }}
+        run: |
+          xcrun simctl shutdown all
+          xcrun simctl create "CI iPad" com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch-M4-8GB \
+            com.apple.CoreSimulator.SimRuntime.iOS-26-2
+          xcodebuild test -project ios/Hashiya.xcodeproj -scheme Hashiya \
+            -destination 'platform=iOS Simulator,name=CI iPad,OS=26.2' \
+            -only-testing:HashiyaUITests/LaunchTests \
+            -only-testing:HashiyaUITests/IPadFlowTests \
+            -collect-test-diagnostics never \
+            -resultBundlePath ${{ runner.temp }}/ui-tests-ipad.xcresult
       # The step's log names a failing UI test but not the line or the screen; the result bundles have both.
       - name: Upload UI test results
         if: failure()
@@ -80,6 +94,7 @@ jobs:
           path: |
             ${{ runner.temp }}/ui-tests-ios26.xcresult
             ${{ runner.temp }}/ui-tests-ios18.xcresult
+            ${{ runner.temp }}/ui-tests-ipad.xcresult
           if-no-files-found: ignore
       - name: Upload snapshot diffs
         if: failure()

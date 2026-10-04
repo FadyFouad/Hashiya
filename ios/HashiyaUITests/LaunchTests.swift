@@ -8,8 +8,8 @@ final class LaunchTests: XCTestCase {
         app.launchArguments += ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
         app.launch()
 
-        XCTAssertTrue(app.tabBars.buttons["Library"].waitForExistence(timeout: UITestTimeout.long))
-        XCTAssertTrue(app.tabBars.buttons["Search"].exists)
-        XCTAssertTrue(app.tabBars.buttons["Library"].isSelected)
+        XCTAssertTrue(app.tab("Library").waitForExistence(timeout: UITestTimeout.long))
+        XCTAssertTrue(app.tab("Search").exists)
+        XCTAssertTrue(app.tab("Library").isSelected)
     }
 }

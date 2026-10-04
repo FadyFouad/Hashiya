@@ -5,6 +5,7 @@ import android.net.Uri
 import com.etatech.hashiya.core.data.di.ApplicationScope
 import com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES
 import com.etatech.hashiya.core.data.pdf.PdfFileStore
+import com.etatech.hashiya.core.data.pdf.PdfStoreGate
 import com.etatech.hashiya.core.data.pdf.PdfWriteException
 import com.etatech.hashiya.core.data.pdf.StoreResult
 import com.etatech.hashiya.core.database.dao.PaperDao
@@ -39,8 +40,6 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 @Singleton
@@ -53,7 +52,8 @@ internal class RoomPdfRepository(
     private val scope: CoroutineScope,
     private val now: () -> Long,
     private val maxBytes: Long = MAX_PDF_BYTES,
-    private val io: CoroutineDispatcher = Dispatchers.IO
+    private val io: CoroutineDispatcher = Dispatchers.IO,
+    private val gate: PdfStoreGate = PdfStoreGate()
 ) : PdfRepository {
     @Inject
     constructor(
@@ -62,8 +62,9 @@ internal class RoomPdfRepository(
         downloader: PdfDownloadDataSource,
         pdfLinks: OpenAlexPdfLinksDataSource,
         contentResolver: ContentResolver,
-        @ApplicationScope scope: CoroutineScope
-    ) : this(paperDao, fileStore, downloader, pdfLinks, contentResolver, scope, System::currentTimeMillis)
+        @ApplicationScope scope: CoroutineScope,
+        gate: PdfStoreGate
+    ) : this(paperDao, fileStore, downloader, pdfLinks, contentResolver, scope, System::currentTimeMillis, gate = gate)
 
     /** Running and failed downloads by OpenAlex id. A finished or cancelled download has no entry. */
     private val downloads = MutableStateFlow<Map<String, DownloadState>>(emptyMap())
@@ -72,20 +73,6 @@ internal class RoomPdfRepository(
 
     /** Guarded by [lock]. */
     private val jobs = mutableMapOf<String, Job>()
-
-    /** Held by [sweepOrphans], which waits for [activeStores] to reach 0; stores take it briefly to count themselves in. */
-    private val sweepLock = Mutex()
-    private val activeStores = MutableStateFlow(0)
-
-    /** Runs [block], which writes a PDF and records it, never while the sweep runs, so the sweep can't delete its file. */
-    private suspend fun <T> storing(block: suspend () -> T): T {
-        sweepLock.withLock { activeStores.update { it + 1 } }
-        try {
-            return block()
-        } finally {
-            activeStores.update { it - 1 }
-        }
-    }
 
     override fun observePdf(openAlexId: String): Flow<PaperPdf?> = paperDao.observePdf(openAlexId).map { it?.asPaperPdf() }
 
@@ -178,7 +165,7 @@ internal class RoomPdfRepository(
     }
 
     /** Downloads [url] into the paper's file and records it. Throws only [CancellationException]. */
-    private suspend fun attempt(paperId: String, url: String, report: (DownloadState?) -> Unit): Attempt = storing {
+    private suspend fun attempt(paperId: String, url: String, report: (DownloadState?) -> Unit): Attempt = gate.storing {
         val result = try {
             downloader.download(url) { body, length ->
                 report(DownloadState.Running(bytes = 0, totalBytes = length))
@@ -222,7 +209,7 @@ internal class RoomPdfRepository(
     override suspend fun attach(openAlexId: String, uri: Uri): AttachResult {
         stopDownload(openAlexId)
         val paperId = paperDao.paperIdFor(openAlexId) ?: return AttachResult.Unreadable
-        return storing {
+        return gate.storing {
             val result = withContext(io) {
                 try {
                     contentResolver.openInputStream(uri)?.use { input -> fileStore.store(paperId, input, maxBytes) {} }
@@ -287,9 +274,8 @@ internal class RoomPdfRepository(
     }
 
     override suspend fun sweepOrphans() {
-        // A download or attach running alongside would lose its temporary file, or its new file before its row is set.
-        sweepLock.withLock {
-            activeStores.first { it == 0 }
+        // A download, attach or restore running alongside would lose its temporary file, or its new file before its row is set.
+        gate.sweeping {
             val stored = paperDao.pdfPaperIds().toSet()
             // Rows whose file is gone (an OS restore leaves PDFs out) go back to "no PDF", so Details offers to download it again.
             val missing = withContext(io) { stored.filterNot { fileStore.file(it).exists() } }

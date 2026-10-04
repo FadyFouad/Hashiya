@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
+import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.feature.search.navigation.SearchRoute
 import com.etatech.hashiya.navigation.AppShortcut
@@ -22,6 +23,7 @@ import com.etatech.hashiya.navigation.HashiyaApp
 import com.etatech.hashiya.share.shareToSearchRoute
 import com.etatech.hashiya.update.AppUpdateViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /** AppCompatActivity so that AppCompatDelegate.setApplicationLocales can switch the language in-app. */
 @AndroidEntryPoint
@@ -37,6 +39,9 @@ class MainActivity : AppCompatActivity() {
 
     private val appUpdate: AppUpdateViewModel by viewModels()
 
+    @Inject
+    lateinit var crashReporter: CrashReporter
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -46,6 +51,7 @@ class MainActivity : AppCompatActivity() {
             val requiredUpdate by appUpdate.requiredUpdate.collectAsState()
             HashiyaTheme {
                 HashiyaApp(
+                    crashReporter = crashReporter,
                     pendingSearch = pendingSearch,
                     onPendingSearchHandled = { pendingSearch = null },
                     pendingRestore = pendingRestore,

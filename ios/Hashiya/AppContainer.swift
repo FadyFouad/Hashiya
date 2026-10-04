@@ -21,6 +21,8 @@ final class AppContainer {
     /// Where Export .bib writes its file before sharing it.
     let exportFiles: ExportFiles
     let pdfRepository: any PdfRepository
+    /// The app's one backup service: its lock is what allows one restore at a time across windows.
+    let backup: any LibraryBackup
     /// Note writes the app waits for before it suspends the shared database in the background.
     let pendingWrites = PendingWrites()
 
@@ -33,6 +35,7 @@ final class AppContainer {
         citationRepository = dependencies.citations
         exportFiles = dependencies.exportFiles
         pdfRepository = dependencies.pdfs
+        backup = dependencies.backup
         // Files whose paper is gone (an Undo window the app didn't outlive) and unfinished downloads.
         Task { [pdfs = dependencies.pdfs] in await pdfs.sweepOrphans() }
         self.appUpdateRepository = appUpdateRepository
@@ -96,7 +99,7 @@ final class AppContainer {
     }
 
     func makeSettingsViewModel() -> SettingsViewModel {
-        SettingsViewModel(preferences: preferences, pdfs: pdfRepository)
+        SettingsViewModel(preferences: preferences, pdfs: pdfRepository, backup: backup)
     }
 
     func makeAppUpdateModel() -> AppUpdateModel {

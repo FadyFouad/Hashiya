@@ -9,20 +9,20 @@ import Testing
 @MainActor
 struct SettingsViewModelTests {
     @Test func startsOnTheBuiltInKey() async {
-        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: FakePdfRepository())
+        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: FakePdfRepository(), backup: FakeLibraryBackup())
         try? await Task.sleep(for: .milliseconds(20))
         #expect(!viewModel.usingUserKey)
         #expect(viewModel.keyInput == "")
     }
 
     @Test func showsTheStoredKey() async {
-        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(key: "stored-key"), pdfs: FakePdfRepository())
+        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(key: "stored-key"), pdfs: FakePdfRepository(), backup: FakeLibraryBackup())
         #expect(await eventually { viewModel.usingUserKey })
         #expect(viewModel.keyInput == "stored-key")
     }
 
     @Test func showsTheStoredKeyAsSoonAsItOpens() {
-        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(key: "stored-key"), pdfs: FakePdfRepository())
+        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(key: "stored-key"), pdfs: FakePdfRepository(), backup: FakeLibraryBackup())
         #expect(viewModel.usingUserKey)
         #expect(viewModel.keyInput == "stored-key")
     }
@@ -34,7 +34,7 @@ struct SettingsViewModelTests {
         let preferences = FakeUserPreferencesRepository()
         let creatorInvalidated = OSAllocatedUnfairLock(initialState: false)
         let viewModel = withObservationTracking {
-            SettingsViewModel(preferences: preferences, pdfs: FakePdfRepository())
+            SettingsViewModel(preferences: preferences, pdfs: FakePdfRepository(), backup: FakeLibraryBackup())
         } onChange: {
             creatorInvalidated.withLock { $0 = true }
         }
@@ -47,7 +47,7 @@ struct SettingsViewModelTests {
 
     @Test func savesTheKeyTrimmed() async {
         let preferences = FakeUserPreferencesRepository()
-        let viewModel = SettingsViewModel(preferences: preferences, pdfs: FakePdfRepository())
+        let viewModel = SettingsViewModel(preferences: preferences, pdfs: FakePdfRepository(), backup: FakeLibraryBackup())
         viewModel.keyInput = "  my-key  "
         await viewModel.save()
 
@@ -58,7 +58,7 @@ struct SettingsViewModelTests {
 
     @Test func savingBlankRevertsToTheBuiltInKey() async {
         let preferences = FakeUserPreferencesRepository(key: "stored-key")
-        let viewModel = SettingsViewModel(preferences: preferences, pdfs: FakePdfRepository())
+        let viewModel = SettingsViewModel(preferences: preferences, pdfs: FakePdfRepository(), backup: FakeLibraryBackup())
         #expect(await eventually { viewModel.usingUserKey })
         viewModel.keyInput = "   "
         await viewModel.save()
@@ -70,7 +70,7 @@ struct SettingsViewModelTests {
 
     @Test func resetRevertsToTheBuiltInKey() async {
         let preferences = FakeUserPreferencesRepository(key: "stored-key")
-        let viewModel = SettingsViewModel(preferences: preferences, pdfs: FakePdfRepository())
+        let viewModel = SettingsViewModel(preferences: preferences, pdfs: FakePdfRepository(), backup: FakeLibraryBackup())
         #expect(await eventually { viewModel.usingUserKey })
         viewModel.keyInput = "half-typed"
         await viewModel.reset()
@@ -83,7 +83,7 @@ struct SettingsViewModelTests {
     @Test func loadsTheStorage() async {
         let pdfs = FakePdfRepository()
         pdfs.setStorage(PdfStorage(downloadedBytes: 5_000_000, downloadedCount: 3, attachedBytes: 1_000_000, attachedCount: 1))
-        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: pdfs)
+        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: pdfs, backup: FakeLibraryBackup())
         #expect(viewModel.storage == nil)
 
         await viewModel.loadStorage()
@@ -94,7 +94,7 @@ struct SettingsViewModelTests {
     @Test func deletingDownloadedPdfsReloadsTheStorage() async {
         let pdfs = FakePdfRepository()
         pdfs.setStorage(PdfStorage(downloadedBytes: 5_000_000, downloadedCount: 3, attachedBytes: 1_000_000, attachedCount: 1))
-        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: pdfs)
+        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: pdfs, backup: FakeLibraryBackup())
         await viewModel.loadStorage()
 
         await viewModel.deleteDownloaded()

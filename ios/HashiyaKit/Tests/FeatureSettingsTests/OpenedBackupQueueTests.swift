@@ -17,6 +17,29 @@ struct OpenedBackupQueueTests {
         #expect(!backup("/var/Documents/a.hashiya").deletesWhenDone)
     }
 
+    @Test func launchClearsOnlyStaleInboxFiles() throws {
+        let inbox = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: inbox)
+        }
+        let file = inbox.appending(path: "Hashiya-library.hashiya")
+        try Data("zip".utf8).write(to: file)
+
+        // Just delivered (a file opened at cold launch): the restore about to read it keeps it.
+        OpenedBackup.removeStaleInboxFiles(in: inbox, now: .now)
+        #expect(FileManager.default.fileExists(atPath: file.path))
+
+        OpenedBackup.removeStaleInboxFiles(in: inbox, now: .now + 10 * 60)
+        #expect(!FileManager.default.fileExists(atPath: file.path))
+    }
+
+    @Test func clearingAMissingInboxDoesNothing() {
+        let inbox = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        OpenedBackup.removeStaleInboxFiles(in: inbox, now: .now)
+        #expect(!FileManager.default.fileExists(atPath: inbox.path))
+    }
+
     @Test func presentsAtOnceWhenNothingIsInTheWay() {
         var queue = OpenedBackupQueue()
         let a = backup("/Inbox/a.hashiya")

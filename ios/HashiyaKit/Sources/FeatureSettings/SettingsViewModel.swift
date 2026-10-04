@@ -120,7 +120,10 @@ public final class SettingsViewModel {
                 self?.backup.export = .idle
                 self?.backup.message = .exportFailed(error)
             } catch {
-                // Cancelled: `cancelExport` already reset the state.
+                // Cancelled: `cancelExport` already reset the state. Anything else ends the export with a message.
+                guard !Task.isCancelled else { return }
+                self?.backup.export = .idle
+                self?.backup.message = .exportFailed(.writeFailed)
             }
         }
     }

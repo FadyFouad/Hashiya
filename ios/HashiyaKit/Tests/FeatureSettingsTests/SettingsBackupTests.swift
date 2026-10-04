@@ -93,6 +93,15 @@ import Testing
         #expect(vm.backup.export == .idle)
     }
 
+    @Test func anUnexpectedErrorEndsTheExportWithAMessage() async {
+        backup.exportError = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteUnknownError)
+        let vm = viewModel()
+        vm.startExport()
+        vm.confirmExport()
+        #expect(await eventually { vm.backup.message == .exportFailed(.writeFailed) })
+        #expect(vm.backup.export == .idle)
+    }
+
     @Test func exportOnlyStartsFromIdle() async {
         let vm = viewModel()
         vm.startExport()

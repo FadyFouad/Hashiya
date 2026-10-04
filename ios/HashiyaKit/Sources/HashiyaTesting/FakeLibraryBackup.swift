@@ -7,6 +7,7 @@ public final class FakeLibraryBackup: LibraryBackup {
     private struct State {
         var summary = BackupSummary(papers: 0, collections: 0, pdfCount: 0, pdfBytes: 0)
         var exportFailure: BackupError?
+        var exportError: (any Error)?
         var missingPdfs = 0
         var openResult = OpenResult.failed(.notABackup)
         var applyResult = RestoreResult(papersAdded: 0, notesAdded: 0, collectionsCreated: 0, pdfsAdded: 0, pdfsMissing: 0, papersSkipped: 0)
@@ -32,6 +33,12 @@ public final class FakeLibraryBackup: LibraryBackup {
     public var exportFailure: BackupError? {
         get { state.withLock { $0.exportFailure } }
         set { state.withLock { $0.exportFailure = newValue } }
+    }
+
+    /// When set, `export` throws it as it is (an error that isn't a `BackupError`).
+    public var exportError: (any Error)? {
+        get { state.withLock { $0.exportError } }
+        set { state.withLock { $0.exportError = newValue } }
     }
 
     /// The `missingPdfs` of every exported file.
@@ -88,6 +95,7 @@ public final class FakeLibraryBackup: LibraryBackup {
             _ = await values.next()
         }
         try Task.checkCancellation()
+        if let error = state.withLock({ $0.exportError }) { throw error }
         let (failure, missing) = state.withLock { ($0.exportFailure, $0.missingPdfs) }
         if let failure { throw failure }
         let fileName = "Hashiya-library-2026-10-04.hashiya"

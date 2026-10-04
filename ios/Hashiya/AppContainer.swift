@@ -102,8 +102,8 @@ final class AppContainer {
         SettingsViewModel(preferences: preferences, pdfs: pdfRepository, backup: backup)
     }
 
-    func makeRestoreViewModel(source: URL) -> RestoreViewModel {
-        RestoreViewModel(source: source, backup: backup)
+    func makeRestoreViewModel(source: URL, onSourceRead: @escaping () -> Void = {}) -> RestoreViewModel {
+        RestoreViewModel(source: source, backup: backup, onSourceRead: onSourceRead)
     }
 
     func makeAppUpdateModel() -> AppUpdateModel {

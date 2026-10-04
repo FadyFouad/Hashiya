@@ -32,7 +32,14 @@ struct ArchiveLibraryBackupTests {
         backup = Self.backup(store: store, files: files, work: root.appending(path: "work", directoryHint: .isDirectory))
     }
 
-    static func backup(store: PaperStore, files: PdfFileStore, work: URL) -> ArchiveLibraryBackup {
+    static func backup(
+        store: PaperStore,
+        files: PdfFileStore,
+        work: URL,
+        maxPdfBytes: Int64 = PdfFileStore.maxPdfBytes,
+        beforeMerge: @escaping @Sendable () async -> Void = {},
+        merge: (@Sendable ([IncomingPaper], [IncomingCollection], Int64) async throws -> MergeOutcome)? = nil
+    ) -> ArchiveLibraryBackup {
         let ids = OSAllocatedUnfairLock(initialState: 0)
         return ArchiveLibraryBackup(
             store: store,
@@ -42,7 +49,10 @@ struct ArchiveLibraryBackupTests {
             appVersion: "0.3.0 (iOS)",
             background: NoBackgroundTime(),
             now: { 1_790_000_000_000 },
-            newID: { ids.withLock { $0 += 1; return "restored-\($0)" } }
+            newID: { ids.withLock { $0 += 1; return "restored-\($0)" } },
+            maxPdfBytes: maxPdfBytes,
+            beforeMerge: beforeMerge,
+            merge: merge
         )
     }
 
@@ -191,5 +201,153 @@ struct ArchiveLibraryBackupTests {
         }
         #expect(FileManager.default.fileExists(atPath: file.url.path))
         #expect(FileManager.default.fileExists(atPath: prepared.url.path))
+    }
+
+    func ready(_ url: URL, using: ArchiveLibraryBackup? = nil) async throws -> PreparedBackup {
+        guard case let .ready(prepared, _) = await (using ?? backup).open(url) else { throw BackupError.unreadable }
+        return prepared
+    }
+
+    func partFiles() -> [String] {
+        ((try? FileManager.default.contentsOfDirectory(atPath: files.directory.path)) ?? []).filter { $0.hasSuffix(".part") }
+    }
+
+    @Test func applyingTheFixtureRestoresEverythingButPapersWithoutAnOpenAlexID() async throws {
+        let result = try await backup.apply(try await ready(sharedFixtureURL), onProgress: { _ in })
+        #expect(result == RestoreResult(papersAdded: 2, notesAdded: 0, collectionsCreated: 2, pdfsAdded: 1, pdfsMissing: 0, papersSkipped: 1))
+        let deep = try #require(await store.citablePaper(openAlexID: "W2741809807"))
+        #expect(deep.paper.readingStatus == "reading")
+        #expect(deep.paper.citeKey == "lecun2015deep")
+        #expect(deep.paper.pdfLastPage == 4)
+        #expect(try String(contentsOf: files.file(paperID: deep.paper.id), encoding: .utf8).hasPrefix("%PDF-1.4"))
+        // A downloaded PDF stays out of iCloud backups.
+        #expect(files.isExcludedFromBackup(paperID: deep.paper.id))
+        #expect(partFiles().isEmpty)
+    }
+
+    @Test func papersWithoutAnOpenAlexIdAreSkipped() async throws {
+        _ = try await backup.apply(try await ready(sharedFixtureURL), onProgress: { _ in })
+        // Read back the way the Library screen does: no paper with a blank id may appear.
+        var snapshot: LibrarySnapshot?
+        for await value in library.observeLibrary(query: "", status: nil, collectionID: nil) {
+            snapshot = value
+            break
+        }
+        let ids = try #require(snapshot).papers.map(\.paper.openAlexID)
+        #expect(ids.sorted() == ["W2741809807", "W3"])
+        #expect(!ids.contains(""))
+    }
+
+    @Test func roundTripIntoAnEmptyLibrary() async throws {
+        try await library.save(paper("W1"))
+        try await library.save(paper("W2", title: "Second"))
+        try await library.saveNotes(openAlexID: "W1", notes: PaperNotes(summary: "S", thoughts: "T"))
+        try await library.setStatus(openAlexID: "W2", status: .read)
+        try await storePdf("local-1")
+        let c = try #require(await store.insertCollection(name: "Thesis", nameKey: "thesis", createdAt: 7))
+        try await store.addToCollection(collectionID: c, openAlexID: "W2", addedAt: 8)
+        let exported = try await backup.export(includePdfs: true, onProgress: { _ in })
+
+        let otherStore = PaperStore(writer: try HashiyaDatabase.openInMemory())
+        let otherFiles = PdfFileStore(directory: root.appending(path: "other-pdfs", directoryHint: .isDirectory))
+        let target = Self.backup(store: otherStore, files: otherFiles, work: root.appending(path: "other-work", directoryHint: .isDirectory))
+        let result = try await target.apply(try await ready(exported.url, using: target), onProgress: { _ in })
+
+        #expect(result.papersAdded == 2 && result.pdfsAdded == 1)
+        let w1 = try #require(await otherStore.citablePaper(openAlexID: "W1"))
+        #expect(try await otherStore.notes(openAlexID: "W1")?.summary == "S")
+        #expect(try await otherStore.citablePaper(openAlexID: "W2")?.paper.readingStatus == "read")
+        #expect(try String(contentsOf: otherFiles.file(paperID: w1.paper.id), encoding: .utf8) == "%PDF-1.4 local-1")
+    }
+
+    @Test func restoringTwiceAddsNothing() async throws {
+        _ = try await backup.apply(try await ready(sharedFixtureURL), onProgress: { _ in })
+        let second = try await backup.apply(try await ready(sharedFixtureURL), onProgress: { _ in })
+        #expect(second.papersAdded == 0 && second.collectionsCreated == 0 && second.pdfsAdded == 0)
+    }
+
+    @Test func theDevicesPdfIsKept() async throws {
+        try await library.save(Paper(openAlexID: "W2741809807", doi: nil, title: "Mine", authors: [], year: nil, venue: nil, abstract: nil,
+                                     citationCount: 0, isOpenAccess: false, openAccessPDFURL: nil))
+        try await storePdf("local-1", "%PDF-1.4 mine")
+        let result = try await backup.apply(try await ready(sharedFixtureURL), onProgress: { _ in })
+        #expect(result.pdfsAdded == 0)
+        #expect(try String(contentsOf: files.file(paperID: "local-1"), encoding: .utf8) == "%PDF-1.4 mine")
+        #expect(partFiles().isEmpty)
+    }
+
+    @Test func pdfEntryNameMustMatchRef() async throws {
+        let url = root.appending(path: "evil.hashiya")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let archive = try Archive(url: url, accessMode: .create)
+        for (name, text) in [(BackupFormat.manifestEntry, #"{"format":1}"#),
+                             (BackupFormat.libraryEntry, #"{"papers":[{"ref":1,"openAlexId":"W1","title":"A","savedAt":1,"pdf":{"source":"attached","addedAt":1,"file":"pdfs/2.pdf"}},{"ref":2,"openAlexId":"W2","title":"B","savedAt":1}]}"#),
+                             ("pdfs/2.pdf", "%PDF-1.4 not yours")] {
+            let data = Data(text.utf8)
+            try archive.addEntry(with: name, type: .file, uncompressedSize: Int64(data.count), compressionMethod: .deflate) { p, s in data.subdata(in: Int(p)..<(Int(p) + s)) }
+        }
+        let result = try await backup.apply(try await ready(url), onProgress: { _ in })
+        #expect(result.pdfsAdded == 0 && result.pdfsMissing == 1)
+    }
+
+    @Test func anOversizedPdfEntryIsSkippedNotNoSpace() async throws {
+        // The fixture's pdfs/1.pdf is 142 bytes, far over this limit, so it counts as missing before any space check.
+        let small = Self.backup(store: store, files: files, work: root.appending(path: "small-work", directoryHint: .isDirectory), maxPdfBytes: 4)
+        let result = try await small.apply(try await ready(sharedFixtureURL, using: small), onProgress: { _ in })
+        #expect(result == RestoreResult(papersAdded: 2, notesAdded: 0, collectionsCreated: 2, pdfsAdded: 0, pdfsMissing: 1, papersSkipped: 1))
+        let deep = try #require(await store.citablePaper(openAlexID: "W2741809807"))
+        #expect(deep.paper.pdfSource == nil)
+        #expect(!FileManager.default.fileExists(atPath: files.file(paperID: deep.paper.id).path))
+        #expect(partFiles().isEmpty)
+    }
+
+    @Test func aSecondApplyWhileOneRunsIsRefused() async throws {
+        let (entered, enteredContinuation) = AsyncStream<Void>.makeStream()
+        let (release, releaseContinuation) = AsyncStream<Void>.makeStream()
+        let held = Self.backup(
+            store: store,
+            files: files,
+            work: root.appending(path: "held-work", directoryHint: .isDirectory),
+            beforeMerge: {
+                enteredContinuation.yield()
+                for await _ in release {
+                    break
+                }
+            }
+        )
+        let first = try await ready(sharedFixtureURL, using: held)
+        let second = try await ready(sharedFixtureURL, using: held)
+        let running = Task { try await held.apply(first, onProgress: { _ in }) }
+        for await _ in entered {
+            break
+        }
+
+        await #expect(throws: BackupError.busy) { try await held.apply(second, onProgress: { _ in }) }
+
+        // Finishing the stream releases this restore and lets every later one through.
+        releaseContinuation.finish()
+        let result = try await running.value
+        #expect(result.papersAdded == 2)
+        // The refused restore didn't hold the lock: once the first ends, another may run.
+        let again = try await held.apply(second, onProgress: { _ in })
+        #expect(again.papersAdded == 0)
+    }
+
+    @Test func aFailedMergeLeavesNoStagedPdfsAndChangesNothing() async throws {
+        struct MergeFailed: Error {}
+        let failing = Self.backup(
+            store: store,
+            files: files,
+            work: root.appending(path: "failing-work", directoryHint: .isDirectory),
+            merge: { _, _, _ in throw MergeFailed() }
+        )
+        let prepared = try await ready(sharedFixtureURL, using: failing)
+
+        await #expect(throws: BackupError.writeFailed) { try await failing.apply(prepared, onProgress: { _ in }) }
+
+        #expect(try await store.paperCount() == 0)
+        #expect(try await store.collectionCount() == 0)
+        #expect(partFiles().isEmpty)
+        #expect(((try? FileManager.default.contentsOfDirectory(atPath: files.directory.path)) ?? []).allSatisfy { !$0.hasSuffix(".pdf") })
     }
 }

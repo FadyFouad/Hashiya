@@ -89,6 +89,8 @@ public final class SettingsViewModel {
     /// Opens the Export screen's choices. Only from idle: an export being built or waiting to be saved stays.
     public func startExport() {
         guard backup.export == .idle else { return }
+        // The Export screen leaves when a message appears, so the same message again must still be a change.
+        backup.message = nil
         backup.export = .choosing(includePdfs: false)
     }
 
@@ -136,13 +138,17 @@ public final class SettingsViewModel {
         backup.export = .idle
     }
 
-    /// What the save panel did with the file; `saved` is false when it was cancelled or failed.
-    public func exportFinished(saved: Bool) {
+    /// What the save panel did with the file. A cancelled save says nothing; a failed one says the export failed.
+    public func exportFinished(_ outcome: SaveOutcome) {
         guard case let .readyToSave(file) = backup.export else { return }
         // `.fileMover` moved the file on success; this removes its folder, and the file too when it wasn't moved.
         libraryBackup.discard(file)
         backup.export = .idle
-        backup.message = saved ? .exported(missingPdfs: file.missingPdfs) : nil
+        switch outcome {
+        case .saved: backup.message = .exported(missingPdfs: file.missingPdfs)
+        case .cancelled: backup.message = nil
+        case .failed: backup.message = .exportFailed(.writeFailed)
+        }
     }
 
     public func dismissMessage() {
@@ -176,6 +182,13 @@ public enum ExportState: Equatable, Sendable {
     case building(includePdfs: Bool, progress: Double)
     /// The view presents `.fileMover` for the file; `exportFinished` reports what happened.
     case readyToSave(ExportedFile)
+}
+
+/// How the save panel ended.
+public enum SaveOutcome: Equatable, Sendable {
+    case saved
+    case cancelled
+    case failed
 }
 
 public enum BackupMessage: Equatable, Sendable {

@@ -78,12 +78,16 @@ public struct ExportBackupView: View {
         .onAppear { viewModel.startExport() }
         .onDisappear { viewModel.cancelExport() }
         .onChange(of: viewModel.backup.message) { _, message in
-            // A failed export goes back to Settings, which shows why.
+            // Saved or failed, the export goes back to Settings, which shows the message.
             if message != nil { dismiss() }
         }
         // The system save panel moves the temporary file to the place the user picks, so no copy is held in memory.
+        // Exactly one of the two closures runs for each presentation.
         .fileMover(isPresented: isReadyToSave, file: exportedURL) { result in
-            viewModel.exportFinished(saved: (try? result.get()) != nil)
+            viewModel.exportFinished((try? result.get()) != nil ? .saved : .failed)
+        } onCancellation: {
+            // A cancelled save sets no message, so the screen leaves from here.
+            viewModel.exportFinished(.cancelled)
             dismiss()
         }
     }
@@ -109,7 +113,7 @@ public struct ExportBackupView: View {
         return false
     }
 
-    /// Read-only: the save panel's completion reports what happened, whichever way it was dismissed.
+    /// Read-only: the save panel's completion or cancellation reports what happened.
     private var isReadyToSave: Binding<Bool> {
         Binding {
             if case .readyToSave = viewModel.backup.export { return true }

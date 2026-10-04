@@ -34,7 +34,7 @@ import Testing
         vm.confirmExport()
         #expect(await eventually { isReadyToSave(vm) })
         #expect(backup.exports == [false])
-        vm.exportFinished(saved: true)
+        vm.exportFinished(.saved)
         #expect(vm.backup.export == .idle)
         #expect(vm.backup.message == .exported(missingPdfs: 0))
         #expect(backup.discardedExports == 1)
@@ -54,7 +54,7 @@ import Testing
         vm.startExport()
         vm.confirmExport()
         #expect(await eventually { isReadyToSave(vm) })
-        vm.exportFinished(saved: true)
+        vm.exportFinished(.saved)
         #expect(vm.backup.message == .exported(missingPdfs: 3))
     }
 
@@ -63,10 +63,33 @@ import Testing
         vm.startExport()
         vm.confirmExport()
         #expect(await eventually { isReadyToSave(vm) })
-        vm.exportFinished(saved: false)
+        vm.exportFinished(.cancelled)
         #expect(vm.backup.export == .idle)
         #expect(vm.backup.message == nil)
         #expect(backup.discardedExports == 1)
+    }
+
+    @Test func aFailedSaveSaysTheExportFailed() async {
+        let vm = viewModel()
+        vm.startExport()
+        vm.confirmExport()
+        #expect(await eventually { isReadyToSave(vm) })
+        vm.exportFinished(.failed)
+        #expect(vm.backup.export == .idle)
+        #expect(vm.backup.message == .exportFailed(.writeFailed))
+        #expect(backup.discardedExports == 1)
+    }
+
+    @Test func startingAnExportClearsTheLastMessage() async {
+        // The Export screen leaves when a message appears: a repeat of the same failure must still be a change.
+        backup.exportFailure = .noSpace
+        let vm = viewModel()
+        vm.startExport()
+        vm.confirmExport()
+        #expect(await eventually { vm.backup.message == .exportFailed(.noSpace) })
+        vm.startExport()
+        #expect(vm.backup.message == nil)
+        #expect(vm.backup.export == .choosing(includePdfs: false))
     }
 
     @Test func cancellingABuildingExportReturnsToIdle() async {
@@ -113,7 +136,7 @@ import Testing
 
     @Test func finishingOnlyActsWhileReadyToSave() {
         let vm = viewModel()
-        vm.exportFinished(saved: true)
+        vm.exportFinished(.saved)
         #expect(vm.backup.message == nil)
         #expect(backup.discardedExports == 0)
     }

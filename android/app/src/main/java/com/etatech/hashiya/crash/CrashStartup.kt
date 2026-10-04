@@ -32,7 +32,7 @@ class CrashStartup(
 }
 
 /** en, ar or system: the closed values the Language key allows. */
-private fun languageKey(tags: String): String = when (tags.substringBefore(',').substringBefore('-')) {
+fun languageKey(tags: String): String = when (tags.substringBefore(',').substringBefore('-')) {
     "en" -> "en"
     "ar" -> "ar"
     else -> "system"

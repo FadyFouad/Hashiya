@@ -17,7 +17,11 @@ struct RootView: View {
     @State private var showsSettings = false
     /// A `.hashiya` file opened from another app: this window shows Restore for it.
     @State private var openedBackup: OpenedBackup?
-    @State private var inboxCopy: URL?
+    /// The file whose Restore sheet is up until its dismissal has finished (`openedBackup` is cleared at its start).
+    @State private var presentedBackup: OpenedBackup?
+    @State private var backupQueue = OpenedBackupQueue()
+    /// A restore is running in this window (in Settings or in the sheet).
+    @State private var restoreApplying = false
     /// Details, and the reader above it. On wide windows the Library's first route is the paper beside its list and
     /// the rest its pane's stack; Search pushes them above the preview pane. The same lists drive both layouts.
     @State private var libraryRoutes: [AppRoute] = []
@@ -66,24 +70,37 @@ struct RootView: View {
         }
     }
 
-    /// Shows Restore for a `.hashiya` file the system handed over (a copy in Documents/Inbox).
+    /// Queues a `.hashiya` file the system handed over (a copy in Documents/Inbox).
     private func openBackup(_ url: URL) {
-        guard url.pathExtension.lowercased() == "hashiya" else { return }
-        let settingsWasOpen = showsSettings
-        inboxCopy = url
-        showsSettings = false
-        Task {
-            // A sheet can't be presented while Settings is still leaving.
-            if settingsWasOpen { try? await Task.sleep(for: .milliseconds(600)) }
-            openedBackup = OpenedBackup(url: url)
+        guard let backup = OpenedBackup(openedURL: url) else { return }
+        backupQueue.enqueue(backup)
+        showNextBackup()
+    }
+
+    /// Shows the next queued file once nothing is in the way: a running restore and a Restore on screen are never
+    /// replaced, and Settings closes first (its `onDismiss` asks again).
+    private func showNextBackup() {
+        switch backupQueue.next(isPresenting: openedBackup != nil || presentedBackup != nil, settingsOpen: showsSettings, restoreApplying: restoreApplying) {
+        case .wait: break
+        case .closeSettings: showsSettings = false
+        case let .present(backup):
+            presentedBackup = backup
+            openedBackup = backup
         }
     }
 
+    private func restoreApplyingChanged(_ applying: Bool) {
+        restoreApplying = applying
+        // A restore pushed inside Settings stays on screen until the user leaves it.
+        if !applying && !showsSettings { showNextBackup() }
+    }
+
     /// The restore works on its own copy, so the one the system put in Inbox isn't needed any more.
-    private func removeInboxCopy() {
-        guard let url = inboxCopy else { return }
-        inboxCopy = nil
-        if url.pathComponents.contains("Inbox") { try? FileManager.default.removeItem(at: url) }
+    private func restoreSheetDismissed() {
+        presentedBackup?.removeInboxCopy()
+        presentedBackup = nil
+        openedBackup = nil
+        showNextBackup()
     }
 
     private func openStore() {
@@ -261,14 +278,19 @@ struct RootView: View {
     private var tabs: some View {
         tabView
         .tint(HashiyaColors.primary)
-        .sheet(isPresented: $showsSettings) {
-            SettingsSheet(container: container)
+        .sheet(isPresented: $showsSettings, onDismiss: showNextBackup) {
+            SettingsSheet(container: container, onRestoreApplyingChange: restoreApplyingChanged)
         }
         // The system activates one window for the file, so only that window shows Restore.
         .onOpenURL(perform: openBackup)
-        .sheet(item: $openedBackup, onDismiss: removeInboxCopy) { opened in
+        .sheet(item: $openedBackup, onDismiss: restoreSheetDismissed) { opened in
             NavigationStack {
-                OpenedBackupRestore(container: container, source: opened.url, onDone: { openedBackup = nil })
+                OpenedBackupRestore(
+                    container: container,
+                    source: opened.url,
+                    onDone: { openedBackup = nil },
+                    onApplyingChange: restoreApplyingChanged
+                )
             }
         }
         .task { await presentUITestingShareSheetIfRequested() }
@@ -411,25 +433,25 @@ struct RootView: View {
     }
 }
 
-/// A backup file to restore, as a sheet's item.
-private struct OpenedBackup: Identifiable {
-    let url: URL
-    var id: URL { url }
-}
-
 /// Settings with one view model for as long as the sheet is open: the sheet's content is rebuilt whenever the window
 /// re-renders, and a new view model would lose what the Backup section has loaded.
 private struct SettingsSheet: View {
     private let container: AppContainer
+    private let onRestoreApplyingChange: (Bool) -> Void
     @State private var viewModel: SettingsViewModel
 
-    init(container: AppContainer) {
+    init(container: AppContainer, onRestoreApplyingChange: @escaping (Bool) -> Void) {
         self.container = container
+        self.onRestoreApplyingChange = onRestoreApplyingChange
         _viewModel = State(initialValue: container.makeSettingsViewModel())
     }
 
     var body: some View {
-        SettingsView(viewModel: viewModel, makeRestoreViewModel: { container.makeRestoreViewModel(source: $0) })
+        SettingsView(
+            viewModel: viewModel,
+            makeRestoreViewModel: { container.makeRestoreViewModel(source: $0) },
+            onRestoreApplyingChange: onRestoreApplyingChange
+        )
     }
 }
 
@@ -437,13 +459,15 @@ private struct SettingsSheet: View {
 private struct OpenedBackupRestore: View {
     @State private var viewModel: RestoreViewModel
     let onDone: () -> Void
+    let onApplyingChange: (Bool) -> Void
 
-    init(container: AppContainer, source: URL, onDone: @escaping () -> Void) {
+    init(container: AppContainer, source: URL, onDone: @escaping () -> Void, onApplyingChange: @escaping (Bool) -> Void) {
         _viewModel = State(initialValue: container.makeRestoreViewModel(source: source))
         self.onDone = onDone
+        self.onApplyingChange = onApplyingChange
     }
 
     var body: some View {
-        RestoreView(viewModel: viewModel, onDone: onDone)
+        RestoreView(viewModel: viewModel, onDone: onDone, onApplyingChange: onApplyingChange)
     }
 }

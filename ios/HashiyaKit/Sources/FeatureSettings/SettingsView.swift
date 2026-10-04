@@ -14,10 +14,16 @@ public struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     private let makeRestoreViewModel: (URL) -> RestoreViewModel
+    private let onRestoreApplyingChange: (Bool) -> Void
 
-    public init(viewModel: SettingsViewModel, makeRestoreViewModel: @escaping (URL) -> RestoreViewModel) {
+    public init(
+        viewModel: SettingsViewModel,
+        makeRestoreViewModel: @escaping (URL) -> RestoreViewModel,
+        onRestoreApplyingChange: @escaping (Bool) -> Void = { _ in }
+    ) {
         self.viewModel = viewModel
         self.makeRestoreViewModel = makeRestoreViewModel
+        self.onRestoreApplyingChange = onRestoreApplyingChange
     }
 
     public var body: some View {
@@ -44,7 +50,12 @@ public struct SettingsView: View {
                 if case let .success(url) = result { restoreSource = url }
             }
             .navigationDestination(item: $restoreSource) { url in
-                RestoreDestination(source: url, makeViewModel: makeRestoreViewModel, onDone: { restoreSource = nil })
+                RestoreDestination(
+                    source: url,
+                    makeViewModel: makeRestoreViewModel,
+                    onDone: { restoreSource = nil },
+                    onApplyingChange: onRestoreApplyingChange
+                )
             }
             .overlay(alignment: .bottom) {
                 if let message = viewModel.backup.message, let text = L10n.backupMessage(message) {
@@ -202,13 +213,15 @@ public struct SettingsView: View {
 private struct RestoreDestination: View {
     @State private var viewModel: RestoreViewModel
     let onDone: () -> Void
+    let onApplyingChange: (Bool) -> Void
 
-    init(source: URL, makeViewModel: (URL) -> RestoreViewModel, onDone: @escaping () -> Void) {
+    init(source: URL, makeViewModel: (URL) -> RestoreViewModel, onDone: @escaping () -> Void, onApplyingChange: @escaping (Bool) -> Void) {
         _viewModel = State(initialValue: makeViewModel(source))
         self.onDone = onDone
+        self.onApplyingChange = onApplyingChange
     }
 
     var body: some View {
-        RestoreView(viewModel: viewModel, onDone: onDone)
+        RestoreView(viewModel: viewModel, onDone: onDone, onApplyingChange: onApplyingChange)
     }
 }

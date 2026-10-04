@@ -6,10 +6,13 @@ import SwiftUI
 public struct RestoreView: View {
     @Bindable private var viewModel: RestoreViewModel
     private let onDone: () -> Void
+    private let onApplyingChange: (Bool) -> Void
 
-    public init(viewModel: RestoreViewModel, onDone: @escaping () -> Void) {
+    /// `onApplyingChange` tells the window whether a restore is running, so it can hold back a file opened meanwhile.
+    public init(viewModel: RestoreViewModel, onDone: @escaping () -> Void, onApplyingChange: @escaping (Bool) -> Void = { _ in }) {
         self.viewModel = viewModel
         self.onDone = onDone
+        self.onApplyingChange = onApplyingChange
     }
 
     public var body: some View {
@@ -30,6 +33,7 @@ public struct RestoreView: View {
         .navigationBarBackButtonHidden(isApplying)
         .interactiveDismissDisabled(isApplying)
         .task { await viewModel.load() }
+        .onChange(of: isApplying) { _, applying in onApplyingChange(applying) }
         // Leaving any way (Cancel, a swipe, the back button) frees the prepared copy; a running restore keeps its own.
         .onDisappear { viewModel.cancel() }
     }

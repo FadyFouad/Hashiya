@@ -7,6 +7,7 @@ public struct SearchView: View {
     @Bindable private var viewModel: SearchViewModel
     private let onOpenSettings: () -> Void
     private let onOpenPaper: (String) -> Void
+    private let onOpenInNewWindow: ((String) -> Void)?
     private let previewsInPane: Bool
 
     @SceneStorage(SearchSceneState.textKey) private var storedText = ""
@@ -24,14 +25,17 @@ public struct SearchView: View {
     /// - Parameters:
     ///   - onOpenPaper: Open details, with the paper's OpenAlex ID: in a saved paper's sheet once the sheet is gone,
     ///     or in a saved result's menu.
+    ///   - onOpenInNewWindow: a saved result's Open in New Window; nil where the app can't open windows (iPhone).
     ///   - previewsInPane: the app shows `viewModel.selectedPaper` in a pane beside the results (wide windows), so this
     ///     screen shows no preview sheet and highlights the picked result.
     public init(
         viewModel: SearchViewModel,
         onOpenSettings: @escaping () -> Void,
         onOpenPaper: @escaping (String) -> Void = { _ in },
+        onOpenInNewWindow: ((String) -> Void)? = nil,
         previewsInPane: Bool = false
     ) {
+        self.onOpenInNewWindow = onOpenInNewWindow
         self.previewsInPane = previewsInPane
         self.viewModel = viewModel
         self.onOpenSettings = onOpenSettings
@@ -260,6 +264,17 @@ public struct SearchView: View {
                     Text(verbatim: DesignSystemStrings.openDetails)
                 } icon: {
                     Image(systemName: "doc.text")
+                }
+            }
+            if let onOpenInNewWindow {
+                Button {
+                    onOpenInNewWindow(paper.openAlexID)
+                } label: {
+                    Label {
+                        Text(verbatim: DesignSystemStrings.openInNewWindow)
+                    } icon: {
+                        Image(systemName: "macwindow.badge.plus")
+                    }
                 }
             }
         }

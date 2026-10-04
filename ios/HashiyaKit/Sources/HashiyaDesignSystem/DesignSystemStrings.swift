@@ -9,6 +9,7 @@ public enum DesignSystemStrings {
     public static var removeFromLibrary: String { L10n.string("designsystem.removeFromLibrary") }
     public static var saveToLibrary: String { L10n.string("designsystem.saveToLibrary") }
     public static var openDetails: String { L10n.string("designsystem.openDetails") }
+    public static var openInNewWindow: String { L10n.string("designsystem.openInNewWindow") }
     /// "Done": the keyboard's Done above the note fields, and the Details collections checklist's Done.
     public static var doneEditing: String { L10n.string("notes.doneEditing") }
 

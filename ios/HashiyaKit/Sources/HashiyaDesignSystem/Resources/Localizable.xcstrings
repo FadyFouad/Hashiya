@@ -324,6 +324,23 @@
         }
       }
     },
+    "designsystem.openInNewWindow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فتح في نافذة جديدة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in New Window"
+          }
+        }
+      }
+    },
     "designsystem.pickPaperMessage" : {
       "extractionState" : "manual",
       "localizations" : {

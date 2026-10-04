@@ -28,13 +28,13 @@ struct RootView: View {
     @SceneStorage("searchRoutes") private var savedSearchRoutes: Data?
     @State private var restoredScene = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    /// Bumped on every scene phase change, so a background suspend that waited for writes is dropped once the app is active again.
-    @State private var phaseGeneration = 0
     @State private var libraryViewModel: LibraryViewModel
     @State private var searchViewModel: SearchViewModel
     @State private var appUpdate: AppUpdateModel
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.supportsMultipleWindows) private var supportsMultipleWindows
 
     init(container: AppContainer) {
         self.container = container
@@ -53,27 +53,9 @@ struct RootView: View {
         }
         // The window's width class for every screen (iPad windows, Split View, Stage Manager, rotation).
         .measuresLayoutClass()
+        // The library database follows the whole app (HashiyaApp); each window checks for a required update.
         .onChange(of: scenePhase, initial: true) { _, phase in
-            phaseGeneration += 1
-            switch phase {
-            case .active:
-                // Papers saved in the Share Extension appear in the Library and as "In library".
-                SharedLibraryDatabase.resume()
-                Task { await container.libraryRepository.refreshAfterExternalChanges() }
-                Task { await appUpdate.check() }
-            case .background:
-                // A suspended database refuses writes: let the notes Details just flushed land first, and let a PDF
-                // download finish on its background time (iOS ends that time, which cancels it, if it runs too long).
-                let generation = phaseGeneration
-                Task {
-                    await container.pendingWrites.drained()
-                    await container.pdfRepository.storesFinished()
-                    guard phaseGeneration == generation else { return }
-                    SharedLibraryDatabase.suspend()
-                }
-            default:
-                break
-            }
+            if phase == .active { Task { await appUpdate.check() } }
         }
     }
 
@@ -179,6 +161,7 @@ struct RootView: View {
             onAddPaper: addPaper,
             onOpenSettings: { showsSettings = true },
             onOpenPaper: { libraryRoutes = [.details(PaperDetailsRoute(openAlexID: $0))] },
+            onOpenInNewWindow: openPaperWindow,
             selectedID: selectedID
         )
     }
@@ -191,6 +174,7 @@ struct RootView: View {
                     viewModel: searchViewModel,
                     onOpenSettings: { showsSettings = true },
                     onOpenPaper: { searchRoutes = [.details(PaperDetailsRoute(openAlexID: $0))] },
+                    onOpenInNewWindow: openPaperWindow,
                     previewsInPane: true
                 )
                     .navigationSplitViewColumnWidth(min: 320, ideal: 400, max: 480)
@@ -211,7 +195,8 @@ struct RootView: View {
                 SearchView(
                     viewModel: searchViewModel,
                     onOpenSettings: { showsSettings = true },
-                    onOpenPaper: { searchRoutes.append(.details(PaperDetailsRoute(openAlexID: $0))) }
+                    onOpenPaper: { searchRoutes.append(.details(PaperDetailsRoute(openAlexID: $0))) },
+                    onOpenInNewWindow: openPaperWindow
                 )
                 .navigationDestination(for: AppRoute.self) { destination($0, in: .search) }
             }
@@ -286,6 +271,12 @@ struct RootView: View {
     private func addPaper() {
         searchViewModel.startFresh(focus: true)
         selectedTab = .search
+    }
+
+    /// iPad: a saved paper in a window of its own. Nil where the app can't open windows (iPhone): no menu item there.
+    private var openPaperWindow: ((String) -> Void)? {
+        guard supportsMultipleWindows else { return nil }
+        return { openWindow(id: PaperWindow.id, value: PaperWindow.Value(openAlexID: $0)) }
     }
 
     /// Brings back this window's tab and open screens once. UI tests always start fresh at the Library.

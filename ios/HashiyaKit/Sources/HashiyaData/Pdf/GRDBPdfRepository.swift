@@ -323,13 +323,14 @@ public final class GRDBPdfRepository: PdfRepository {
                 switch result {
                 case let .stored(size):
                     do {
+                        // Marked before the row is set, so nothing that sees the stored PDF finds it still in backups.
+                        files.setExcludedFromBackup(true, paperID: paperID)
                         // Removed before the row was set: nothing points at the file. A removal after this keeps the file
                         // for Undo; discardRemoved deletes it once the removal is final.
                         if try await !store.setPdf(paperID: paperID, source: PdfSource.downloaded.rawValue, size: size, addedAt: now()) {
                             files.delete(paperID: paperID)
                             return .stopped
                         }
-                        files.setExcludedFromBackup(true, paperID: paperID)
                     } catch {
                         // Also how a removal that cancels the download during the write ends: no state, as for any cancel.
                         await Self.deleteUnlessRecorded(paperID: paperID, store: store, files: files)

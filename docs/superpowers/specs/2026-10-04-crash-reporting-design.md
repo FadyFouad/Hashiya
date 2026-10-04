@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-04
 - **Status:** Approved in brainstorming; awaiting spec review
-- **Scope:** Both platforms, plus a privacy policy. Android ships first, then iOS, each with its own plan and PR. A small docs PR publishes the privacy policy first.
+- **Scope:** Both platforms, plus an update to the existing privacy policy. Android ships first, then iOS, each with its own plan and PR.
 
 ## 1. Context
 
@@ -22,7 +22,7 @@ The repository is public.
 | Config files | `google-services.json` and `GoogleService-Info.plist` are committed; the API keys are restricted in Google Cloud. |
 | Architecture | A small reporting interface per platform; Firebase only in the app target. |
 | Builds | Collection only in release builds; never in debug builds, unit, UI or snapshot tests. |
-| Privacy policy | Added now (English and Arabic), published with GitHub Pages; contact fady.fouad.a@gmail.com. |
+| Privacy policy | The existing page, https://fadyfouad.github.io/Hashiya-Privacy-Policy/ (repo FadyFouad/Hashiya-Privacy-Policy, English and Arabic), is updated; contact fady.fouad.a@gmail.com. |
 
 ## 2. Goals and non-goals
 
@@ -31,7 +31,7 @@ The repository is public.
 1. Release builds report crashes (and ANRs on Android) to Crashlytics with readable stack traces.
 2. A defined set of non-fatal failures is reported with the place it happened and the error's type, and nothing a user wrote or read.
 3. A user can turn reporting off in Settings, and an opt-out applies from launch and drops reports not yet sent.
-4. The store answers, the privacy manifest and a published privacy policy describe exactly what is collected.
+4. The store answers, the privacy manifest and the privacy policy describe exactly what is collected.
 
 ### Non-goals
 
@@ -143,7 +143,7 @@ Nothing to configure: the config files are committed, debug builds and tests nev
 - **App Store → App Privacy:** Crash Data, Other Diagnostic Data, and Device ID (the Firebase installation ID) — each not linked to identity, not used for tracking, purpose App Functionality. Check against Firebase's current Apple data-disclosure page at release.
 - **`PrivacyInfo.xcprivacy` (app):** collected types `NSPrivacyCollectedDataTypeCrashData` and `NSPrivacyCollectedDataTypeOtherDiagnosticData`, not linked, no tracking, App Functionality; `NSPrivacyTracking` stays false. The Share Extension's manifest is unchanged.
 - **Play → Data safety:** collected — App info and performance (crash logs, diagnostics) and Device or other IDs; not shared; encrypted in transit; optional; for app functionality and stability.
-- **Privacy policy:** `docs/privacy/index.md` (English) and `docs/privacy/ar.md` (Arabic), published with GitHub Pages. It covers what stays on the device, what goes to OpenAlex and arXiv, what goes to Crashlytics, how to turn it off, and the contact fady.fouad.a@gmail.com. Settings and both store listings link to it.
+- **Privacy policy:** the existing page https://fadyfouad.github.io/Hashiya-Privacy-Policy/ (repo FadyFouad/Hashiya-Privacy-Policy) gains a "Crash reports" section and catches up with notes, collections, PDFs and backups, in English and Arabic (its PR #1). It is merged when the first version with crash reporting is released. Settings links to it (`#ar` for Arabic); the store listings already point there.
 
 ## 8. Testing
 
@@ -169,7 +169,7 @@ Nothing to configure: the config files are committed, debug builds and tests nev
 
 ## 9. Delivery
 
-1. Docs PR: privacy policy (English and Arabic) and GitHub Pages; the user turns Pages on.
+1. Policy update: PR #1 in FadyFouad/Hashiya-Privacy-Policy, merged at release.
 2. Android PR: `:core:crash`, Firebase in `:app`, the Settings switch, non-fatal sites, store answers for Play.
 3. iOS PR: `HashiyaDiagnostics`, Firebase in the app target, the switch, non-fatal sites, privacy manifest, App Store answers.
 

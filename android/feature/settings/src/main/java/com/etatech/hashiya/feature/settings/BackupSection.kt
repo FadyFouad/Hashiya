@@ -42,6 +42,12 @@ internal fun BackupSection(state: BackupUiState, onExportClick: () -> Unit, onRe
         }
         OutlinedButton(onClick = onRestoreClick) { Text(stringResource(R.string.settings_restore_backup)) }
     }
+    if (state.export == ExportState.Saving) {
+        Spacer(Modifier.height(12.dp))
+        Text(stringResource(R.string.settings_saving_backup), style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(8.dp))
+        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+    }
 }
 
 /** Shown while choosing and building; the save dialog takes over after that. */

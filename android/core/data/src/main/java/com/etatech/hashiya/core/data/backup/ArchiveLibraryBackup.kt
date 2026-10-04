@@ -103,6 +103,10 @@ internal class ArchiveLibraryBackup(
         }
     }
 
+    override suspend fun deleteDestination(destination: Uri) {
+        withContext(io) { runCatching { DocumentsContract.deleteDocument(contentResolver, destination) } }
+    }
+
     override fun discard(exported: ExportedFile) {
         exported.file.delete()
     }

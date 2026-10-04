@@ -84,6 +84,7 @@
     </plurals>
     <string name="settings_export_failed_space">تعذّر التصدير — لا توجد مساحة تخزين كافية.</string>
     <string name="settings_export_failed">تعذّر تصدير المكتبة.</string>
+    <string name="settings_saving_backup">جارٍ الحفظ…</string>
     <string name="restore_title">الاستعادة من نسخة احتياطية</string>
     <string name="restore_back">رجوع</string>
     <string name="restore_reading">جارٍ قراءة النسخة الاحتياطية…</string>

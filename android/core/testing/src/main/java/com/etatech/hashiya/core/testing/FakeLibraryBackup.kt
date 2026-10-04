@@ -24,12 +24,16 @@ class FakeLibraryBackup : LibraryBackup {
 
     /** When set, [export] suspends until this completes. */
     var exportGate: CompletableDeferred<Unit>? = null
+
+    /** When set, [save] suspends until this completes. */
+    var saveGate: CompletableDeferred<Unit>? = null
     var openResult: OpenResult = OpenResult.Failed(OpenFailure.NotABackup)
     var applyResult = RestoreResult(papersAdded = 0, notesAdded = 0, collectionsCreated = 0, pdfsAdded = 0, pdfsMissing = 0, papersSkipped = 0)
     var applyFailure: BackupFailure? = null
 
     val exports = mutableListOf<Boolean>()
     val saved = mutableListOf<Uri>()
+    val deletedDestinations = mutableListOf<Uri>()
     val opened = mutableListOf<Uri>()
     val applied = mutableListOf<PreparedBackup>()
     var discardedExports = 0
@@ -50,8 +54,13 @@ class FakeLibraryBackup : LibraryBackup {
     }
 
     override suspend fun save(exported: ExportedFile, destination: Uri) {
+        saveGate?.await()
         saveFailure?.let { throw BackupException(it) }
         saved += destination
+    }
+
+    override suspend fun deleteDestination(destination: Uri) {
+        deletedDestinations += destination
     }
 
     override fun discard(exported: ExportedFile) {

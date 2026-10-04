@@ -137,4 +137,10 @@ class SettingsContentTest {
         show(SettingsUiState(backup = BackupUiState(summary = BackupSummary(0, 0, 0, 0))))
         composeRule.onNodeWithText("Export library").performScrollTo().assertIsNotEnabled()
     }
+
+    @Test
+    fun savingShowsProgress() {
+        show(SettingsUiState(backup = BackupUiState(summary = BackupSummary(1, 0, 0, 0), export = ExportState.Saving)))
+        composeRule.onNodeWithText("Saving…").performScrollTo().assertIsDisplayed()
+    }
 }

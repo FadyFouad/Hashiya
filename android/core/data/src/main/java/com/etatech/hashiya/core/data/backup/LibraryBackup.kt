@@ -13,6 +13,9 @@ interface LibraryBackup {
     /** Copies [exported] to [destination] (from the system save dialog). Throws [BackupException]; a failed copy is deleted. */
     suspend fun save(exported: ExportedFile, destination: Uri)
 
+    /** Deletes [destination], a document the save dialog created that will never be written. Best effort; never throws. */
+    suspend fun deleteDestination(destination: Uri)
+
     /** Deletes the temporary file. Safe to call more than once. */
     fun discard(exported: ExportedFile)
 

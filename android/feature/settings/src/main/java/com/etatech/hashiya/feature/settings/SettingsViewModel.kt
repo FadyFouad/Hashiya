@@ -85,6 +85,15 @@ class SettingsViewModel @Inject constructor(
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(language = language.value))
 
     init {
+        refresh()
+    }
+
+    /** The screen calls this each time it is shown again: a restore or a deleted PDF elsewhere changes both. */
+    fun onResume() {
+        refresh()
+    }
+
+    private fun refresh() {
         viewModelScope.launch { storage.value = pdfRepository.storage() }
         viewModelScope.launch { refreshSummary() }
     }
@@ -127,7 +136,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onExportClick() {
+        if (backup.value.export != ExportState.Idle) return
         backup.update { it.copy(export = ExportState.Choosing(includePdfs = false)) }
+        viewModelScope.launch { refreshSummary() }
     }
 
     fun onIncludePdfsChange(include: Boolean) {
@@ -167,7 +178,19 @@ class SettingsViewModel @Inject constructor(
 
     /** The save dialog's answer; null when it was cancelled. */
     fun onSaveDestination(uri: Uri?) {
-        val file = exported ?: return
+        val file = exported
+        if (file == null) {
+            // No archive to write, as after process death while the dialog was open: the dialog already created an empty
+            // document, which must not be left looking like a backup.
+            if (uri != null) {
+                viewModelScope.launch {
+                    libraryBackup.deleteDestination(uri)
+                    backup.update { it.copy(message = BackupMessage.ExportFailed(BackupFailure.WriteFailed)) }
+                }
+            }
+            return
+        }
+        if (backup.value.export !is ExportState.ReadyToSave) return
         if (uri == null) {
             discardExport()
             backup.update { it.copy(export = ExportState.Idle) }

@@ -58,6 +58,7 @@
     </plurals>
     <string name="settings_export_failed_space">Couldn\'t export — not enough storage space.</string>
     <string name="settings_export_failed">Couldn\'t export the library.</string>
+    <string name="settings_saving_backup">Saving…</string>
     <string name="restore_title">Restore from backup</string>
     <string name="restore_back">Back</string>
     <string name="restore_reading">Reading backup…</string>

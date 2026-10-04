@@ -50,6 +50,8 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.etatech.hashiya.core.data.backup.BackupFailure
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
@@ -61,6 +63,8 @@ import com.etatech.hashiya.core.model.PdfStorage
 @Composable
 internal fun SettingsScreen(onBack: () -> Unit, onOpenRestore: (String) -> Unit, viewModel: SettingsViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    // Coming back from a restore, the counts and the stored PDFs may have changed.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onResume() }
     val saveDialog = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument(BACKUP_MIME_TYPE)) { uri ->
         viewModel.onSaveDestination(uri)
     }

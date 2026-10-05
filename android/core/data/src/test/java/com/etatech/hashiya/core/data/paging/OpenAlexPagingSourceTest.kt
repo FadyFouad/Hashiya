@@ -1,9 +1,11 @@
 package com.etatech.hashiya.core.data.paging
 
 import androidx.paging.PagingConfig
+import androidx.paging.PagingSource
 import androidx.paging.PagingSource.LoadResult
 import androidx.paging.testing.TestPager
 import com.etatech.hashiya.core.analytics.ResearchCategory
+import com.etatech.hashiya.core.analytics.SearchRoute
 import com.etatech.hashiya.core.data.FakeOpenAlexDataSource
 import com.etatech.hashiya.core.data.repository.FirstPage
 import com.etatech.hashiya.core.data.repository.SearchException
@@ -13,6 +15,7 @@ import com.etatech.hashiya.core.model.SearchQuery
 import com.etatech.hashiya.core.network.NetworkFailure
 import com.etatech.hashiya.core.network.model.NetworkTopic
 import com.etatech.hashiya.core.network.model.NetworkTopicRef
+import com.etatech.hashiya.core.network.model.RequestRoute
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -24,6 +27,7 @@ class OpenAlexPagingSourceTest {
     private var reportedPages = 0
     private var maxPages = 8
     private var reportedCap: Int? = null
+    private var dailyLimitCalls = 0
     private val pager = TestPager(
         PagingConfig(pageSize = 25, initialLoadSize = 25, enablePlaceholders = false),
         OpenAlexPagingSource(
@@ -32,7 +36,8 @@ class OpenAlexPagingSourceTest {
             onFirstPage = { reportedFirstPage = it },
             onPage = { reportedPages = it },
             maxPages = { maxPages },
-            onCapReached = { reportedCap = it }
+            onCapReached = { reportedCap = it },
+            onDailyLimit = { dailyLimitCalls += 1 }
         )
     )
 
@@ -168,5 +173,78 @@ class OpenAlexPagingSourceTest {
         maxPages = 2
         assertNull(pager.append()!!.page().nextKey)
         assertEquals(50, reportedCap)
+    }
+
+    @Test
+    fun eachRequestRouteReachesTheFirstPageAsItsSearchRoute() = runTest {
+        val expected = mapOf(
+            RequestRoute.User to SearchRoute.User,
+            RequestRoute.Shared to SearchRoute.Shared,
+            RequestRoute.Keyless to SearchRoute.Keyless,
+            RequestRoute.Cached to SearchRoute.Cached
+        )
+        expected.forEach { (route, searchRoute) ->
+            val source = OpenAlexPagingSource(SearchQuery("bert"), dataSource, onFirstPage = { reportedFirstPage = it }, onPage = {})
+            dataSource.enqueuePage("W1", nextCursor = null, route = route)
+            reportedFirstPage = null
+
+            source.load(PagingSource.LoadParams.Refresh(null, 25, false))
+
+            assertEquals(route.name, searchRoute, reportedFirstPage?.route)
+        }
+    }
+
+    @Test
+    fun aResponseWithoutARouteGivesAFirstPageWithoutOne() = runTest {
+        dataSource.enqueuePage("W1", nextCursor = null, route = null)
+
+        pager.refresh()
+
+        assertNull(reportedFirstPage?.route)
+    }
+
+    @Test
+    fun laterPagesDoNotReplaceTheFirstPageRoute() = runTest {
+        dataSource.enqueuePage("W1", nextCursor = "c2", route = RequestRoute.Shared)
+        dataSource.enqueuePage("W2", nextCursor = null, route = RequestRoute.Keyless)
+
+        pager.refresh()
+        val first = reportedFirstPage
+        pager.append()
+
+        assertEquals(SearchRoute.Shared, first?.route)
+        assertEquals(first, reportedFirstPage)
+    }
+
+    @Test
+    fun aDailyLimitOnTheFirstPageCallsTheCallbackOnce() = runTest {
+        dataSource.enqueueFailure(NetworkFailure.DailyLimit(1_000))
+
+        val result = pager.refresh() as LoadResult.Error
+
+        assertEquals(SearchError.DailyLimit(1_000), (result.throwable as SearchException).error)
+        assertEquals(1, dailyLimitCalls)
+    }
+
+    @Test
+    fun aDailyLimitOnALaterPageCallsTheCallback() = runTest {
+        dataSource.enqueuePage("W1", nextCursor = "c2")
+        dataSource.enqueueFailure(NetworkFailure.DailyLimit(1_000))
+
+        pager.refresh()
+        assertEquals(0, dailyLimitCalls)
+        val result = pager.append() as LoadResult.Error
+
+        assertEquals(SearchError.DailyLimit(1_000), (result.throwable as SearchException).error)
+        assertEquals(1, dailyLimitCalls)
+    }
+
+    @Test
+    fun otherFailuresDoNotCallTheDailyLimitCallback() = runTest {
+        dataSource.enqueueFailure(NetworkFailure.Connectivity)
+
+        pager.refresh()
+
+        assertEquals(0, dailyLimitCalls)
     }
 }

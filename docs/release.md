@@ -219,6 +219,10 @@ Without a personal key, each install searches on the shared route — the built-
 to a daily cap per device, then without a key, then shows "Daily search limit reached" with the reset time. Lookups
 by id or DOI are free and always go out. Searches are cached on the device for 24 hours.
 
+This applies to both apps. Android reads the same `openAlex` section, from the first version with the quota; its quota
+state (today's shared calls and used-up budgets) lives in the app's private `openalex_quota` preferences, which are not
+backed up. On iOS it lives in the app's UserDefaults.
+
 Usage of the built-in key: openalex.org → Settings → API (budget used today, resets at midnight UTC).
 
 ### The `openAlex` section of `app-config.json`

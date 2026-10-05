@@ -32,11 +32,12 @@ class AnalyticsManifestTest {
     }
 
     @Test
-    fun theAppDoesNotRequestTheAdvertisingIdPermission() {
+    fun theAppDoesNotRequestTheAdvertisingIdOrAdAttributionPermissions() {
         val requested = context.packageManager.getPackageInfo(context.packageName, PackageManager.GET_PERMISSIONS)
             .requestedPermissions.orEmpty()
 
         assertFalse(requested.contains("com.google.android.gms.permission.AD_ID"))
         assertFalse(requested.contains("android.permission.ACCESS_ADSERVICES_AD_ID"))
+        assertFalse(requested.contains("android.permission.ACCESS_ADSERVICES_ATTRIBUTION"))
     }
 }

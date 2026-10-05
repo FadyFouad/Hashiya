@@ -61,7 +61,9 @@ import com.etatech.hashiya.feature.search.components.NoResultsState
 import com.etatech.hashiya.feature.search.components.SearchErrorState
 import com.etatech.hashiya.feature.search.components.SearchField
 import com.etatech.hashiya.feature.search.components.SearchNoteBanner
+import com.etatech.hashiya.feature.search.components.dailyLimitMessage
 import java.text.NumberFormat
+import java.time.ZoneId
 import java.util.Calendar
 
 @Composable
@@ -138,7 +140,8 @@ internal fun SearchContent(
     lookupState: LookupUiState? = null,
     note: SearchNote? = null,
     focusSearch: Boolean = false,
-    currentYear: Int = Calendar.getInstance().get(Calendar.YEAR)
+    currentYear: Int = Calendar.getInstance().get(Calendar.YEAR),
+    resetZone: ZoneId = ZoneId.systemDefault()
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -208,7 +211,7 @@ internal fun SearchContent(
                             onOpenSettings = actions.onOpenSettings
                         )
                     } else {
-                        SearchBody(uiState, papers, savedIds, actions, selectedId)
+                        SearchBody(uiState, papers, savedIds, actions, selectedId, resetZone)
                     }
                 }
             }
@@ -265,7 +268,8 @@ private fun SearchBody(
     papers: LazyPagingItems<Paper>,
     savedIds: Set<String>,
     actions: SearchActions,
-    selectedId: String?
+    selectedId: String?,
+    resetZone: ZoneId
 ) {
     // Branch on the first-page state before the item count: when a new query starts, the previous query's items
     // stay in the list until the new first page arrives, so its loading or error state must replace them.
@@ -276,7 +280,8 @@ private fun SearchBody(
         refresh is LoadState.Error -> SearchErrorState(
             error = refresh.error.asSearchError(),
             onRetry = papers::retry,
-            onOpenSettings = actions.onOpenSettings
+            onOpenSettings = actions.onOpenSettings,
+            resetZone = resetZone
         )
 
         refresh is LoadState.Loading -> LoadingSkeleton()
@@ -286,7 +291,7 @@ private fun SearchBody(
             onClearFilters = actions.onClearFilters
         )
 
-        else -> ResultsList(uiState.totalCount, papers, savedIds, actions, selectedId)
+        else -> ResultsList(uiState.totalCount, papers, savedIds, actions, selectedId, resetZone)
     }
 }
 
@@ -296,7 +301,8 @@ private fun ResultsList(
     papers: LazyPagingItems<Paper>,
     savedIds: Set<String>,
     actions: SearchActions,
-    selectedId: String?
+    selectedId: String?,
+    resetZone: ZoneId
 ) {
     val locale = LocalConfiguration.current.locales[0]
     LazyColumn(Modifier.fillMaxSize()) {
@@ -337,13 +343,24 @@ private fun ResultsList(
             }
 
             is LoadState.Error -> item {
+                val error = append.error.asSearchError()
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(stringResource(R.string.search_append_error), style = MaterialTheme.typography.bodyMedium)
-                    TextButton(onClick = papers::retry) { Text(stringResource(R.string.search_retry)) }
+                    if (error is SearchError.DailyLimit) {
+                        // Retrying can't help until the reset, so the footer points at the user's own key instead.
+                        Text(
+                            dailyLimitMessage(error, resetZone),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = actions.onOpenSettings) { Text(stringResource(R.string.search_open_settings)) }
+                    } else {
+                        Text(stringResource(R.string.search_append_error), style = MaterialTheme.typography.bodyMedium)
+                        TextButton(onClick = papers::retry) { Text(stringResource(R.string.search_retry)) }
+                    }
                 }
             }
 

@@ -13,7 +13,13 @@ sealed interface NetworkFailure {
     data object MalformedResponse : NetworkFailure
 
     data object Unknown : NetworkFailure
+
+    /** Every route's daily budget is used up until [resetAtMillis] (epoch millis). */
+    data class DailyLimit(val resetAtMillis: Long) : NetworkFailure
 }
+
+/** Thrown inside the HTTP stack when no route has budget left; becomes [NetworkFailure.DailyLimit]. */
+class DailyLimitException(val resetAtMillis: Long) : IOException("dailyLimit")
 
 /** Message is the failure only: never the URL, which carries the API key. */
 class NetworkException(val failure: NetworkFailure, cause: Throwable? = null) : Exception(failure.toString(), cause)
@@ -30,6 +36,8 @@ internal fun Throwable.toNetworkException(): NetworkException = when (this) {
     )
 
     is SerializationException -> NetworkException(NetworkFailure.MalformedResponse, this)
+
+    is DailyLimitException -> NetworkException(NetworkFailure.DailyLimit(resetAtMillis), this)
 
     is IOException -> NetworkException(NetworkFailure.Connectivity, this)
 

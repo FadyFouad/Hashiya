@@ -13,5 +13,7 @@ internal fun NetworkFailure.asSearchError(): SearchError = when (this) {
         else -> SearchError.Unexpected
     }
 
+    is NetworkFailure.DailyLimit -> SearchError.DailyLimit(resetAtMillis)
+
     NetworkFailure.MalformedResponse, NetworkFailure.Unknown -> SearchError.Unexpected
 }

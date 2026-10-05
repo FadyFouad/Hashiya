@@ -31,6 +31,10 @@ import com.etatech.hashiya.core.model.YearFilter
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.feature.search.components.SEARCH_FIELD_TAG
+import com.etatech.hashiya.feature.search.components.formatResetTime
+import java.time.Instant
+import java.time.ZoneId
+import java.util.Locale
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
@@ -63,6 +67,10 @@ class SearchContentTest {
         onOpenSettings = { events += "settings" }
     )
 
+    private val zone = ZoneId.of("Asia/Riyadh")
+
+    private fun dailyLimitMessage(reset: Long) = "Search will be available again at ${formatResetTime(reset, Locale.US, zone)}."
+
     private val searching = SearchUiState(text = "transformers", isIdle = false, totalCount = 48210)
 
     private fun show(uiState: SearchUiState, data: PagingData<Paper>, savedIds: Set<String> = emptySet()) = composeRule.setContent {
@@ -74,7 +82,8 @@ class SearchContentTest {
                 selectedItem = null,
                 message = null,
                 actions = actions,
-                currentYear = 2026
+                currentYear = 2026,
+                resetZone = zone
             )
         }
     }
@@ -180,6 +189,36 @@ class SearchContentTest {
         show(searching, PagingData.empty(states(refresh = LoadState.Error(SearchException(SearchError.InvalidUserKey)))))
 
         composeRule.onNodeWithText("Your API key was rejected").assertIsDisplayed()
+        composeRule.onNodeWithText("Open Settings").performClick()
+        assertEquals(listOf("settings"), events)
+    }
+
+    @Test
+    fun dailyLimitExplainsWhenSearchReturnsAndOpensSettings() {
+        val reset = Instant.parse("2026-10-06T00:00:00Z").toEpochMilli()
+        show(searching, PagingData.empty(states(refresh = LoadState.Error(SearchException(SearchError.DailyLimit(reset))))))
+
+        composeRule.onNodeWithText("Daily search limit reached").assertIsDisplayed()
+        composeRule.onNodeWithText(dailyLimitMessage(reset), substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Open Settings").performClick()
+        assertEquals(listOf("settings"), events)
+    }
+
+    @Test
+    fun appendDailyLimitShowsTheMessageAndOpenSettingsInTheFooter() {
+        val reset = Instant.parse("2026-10-06T00:00:00Z").toEpochMilli()
+        val data = PagingData.from(
+            listOf(SamplePapers.bert),
+            states(
+                refresh = LoadState.NotLoading(endOfPaginationReached = false),
+                append = LoadState.Error(SearchException(SearchError.DailyLimit(reset)))
+            )
+        )
+        show(searching, data)
+
+        composeRule.onNodeWithText(SamplePapers.bert.title).assertIsDisplayed()
+        composeRule.onNodeWithText(dailyLimitMessage(reset), substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Couldn't load more results").assertDoesNotExist()
         composeRule.onNodeWithText("Open Settings").performClick()
         assertEquals(listOf("settings"), events)
     }

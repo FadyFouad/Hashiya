@@ -286,11 +286,15 @@ New: notes for every paper, an in-app PDF reader with your notes beside the page
 
 ### App Store Connect: App Privacy
 
-- **Data collection:** "No, we do not collect data from this app." The library and settings stay on
-  the device. Search queries and identifiers go straight to OpenAlex and arXiv to answer that
-  request only; there is no Hashiya server, analytics or crash reporting.
-- **Privacy manifest:** `PrivacyInfo.xcprivacy` in the app and the share extension declares no
-  tracking and no collected data.
+- **Data collection:** "Yes, we collect data from this app."
+  - **Crash Data** — App Functionality; not linked to the user; not used for tracking.
+  - **Other Diagnostic Data** — App Functionality; not linked; no tracking.
+  - **Product Interaction** — Analytics; not linked; no tracking.
+  - **Device ID** (Firebase's installation and app-instance ids) — App Functionality and Analytics; not linked; no tracking.
+  - Nothing else: search text, papers, notes and the library stay on the device; searches go straight to OpenAlex and arXiv.
+- **Tracking:** none. No advertising id (the app uses `FirebaseAnalyticsCore`, which has no IDFA support), no App Tracking Transparency prompt.
+- **Privacy manifest:** `PrivacyInfo.xcprivacy` in the app declares the four types above and the required-reason APIs (UserDefaults CA92.1, file timestamps C617.1, disk space E174.1); the share extension declares no collected data and the same APIs.
+- Check against Firebase's current Apple data-disclosure page before each release that changes Firebase.
 
 ### App Store Connect: Age rating
 

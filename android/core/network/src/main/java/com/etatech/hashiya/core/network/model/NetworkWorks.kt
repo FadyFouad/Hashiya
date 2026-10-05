@@ -4,6 +4,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.Transient
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
@@ -16,8 +17,16 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
+/** How a search's response was obtained: the user's key, the shared route, no key, or the on-device cache. */
+enum class RequestRoute { User, Shared, Keyless, Cached }
+
 @Serializable
-data class NetworkWorksResponse(val meta: NetworkMeta, val results: List<NetworkWork> = emptyList())
+data class NetworkWorksResponse(
+    val meta: NetworkMeta,
+    val results: List<NetworkWork> = emptyList(),
+    /** How the response was obtained; set by the data source, not decoded. */
+    @Transient val route: RequestRoute? = null
+)
 
 @Serializable
 data class NetworkMeta(val count: Long = 0, @SerialName("next_cursor") val nextCursor: String? = null)

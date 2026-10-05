@@ -18,13 +18,14 @@ Crash reporting (`docs/superpowers/specs/2026-10-04-crash-reporting-design.md`) 
 | Consent | On by default, with its own **Share usage statistics** switch in Settings. |
 | Service | Firebase Analytics (GA4), in the existing project `hashiya-research`, minimised (§5). |
 | Content | A closed list of events and enum-valued parameters (§4). Nothing a user typed or read. |
+| Research areas | Keyword searches carry a coarse research `category`, derived on the device from the OpenAlex topics of the results — never from the query text, never by an external service (§4.1). |
 | Delivery | Android analytics → Android OpenAlex quota → iOS crash reporting + analytics in one plan. |
 
 ## 2. Goals and non-goals
 
 ### Goals
 
-1. Answer, from the Firebase console: how many people search, save, take notes, use collections, export and open PDFs; the search → save funnel; searches per user per day by route; how often the page cap and the daily limit are hit; how many users bring their own key.
+1. Answer, from the Firebase console: how many people search, save, take notes, use collections, export and open PDFs; the search → save funnel; searches per user per day by route; how often the page cap and the daily limit are hit; how many users bring their own key; which research areas people search most.
 2. Nothing a user typed or read ever leaves the device through analytics.
 3. A user can turn it off in Settings; turning it off stops collection and clears the analytics id and unsent events.
 4. Store answers, privacy manifests and the policy describe exactly what is collected.
@@ -64,7 +65,8 @@ enum class AnalyticsProperty { LibrarySizeBucket, Language, HasOwnKey }
 
 ### Who sends what
 
-- `search`, `search_more` and `search_limit_reached`: the search layer (Android: the search repository / paging source; iOS: `OpenAlexSearchRepository` and `SearchViewModel` for the page cap), because it knows the route and the result count.
+- `search`, `search_more` and `search_limit_reached`: the search layer (Android: the search repository / paging source; iOS: `OpenAlexSearchRepository` and `SearchViewModel` for the page cap), because it knows the route, the result count and the first page's topics (for `category`, §4.1).
+- The category classifier is a pure function in the analytics module (`:core:analytics` / `HashiyaDiagnostics`) taking plain subfield, field and domain numbers, so it is tested without network types.
 - Every other event: the view model where the action happens.
 - `screen_view`: where the crash `screen` key is set (Android: the NavController listener; iOS: RootView and each screen's `onAppear`).
 - User properties: at launch, next to the crash keys; `has_own_key` again when the key changes in Settings.
@@ -77,7 +79,7 @@ Events, parameters and their values are closed enums. A caller can't attach free
 
 | Event | Parameters (values) | Sent when |
 |---|---|---|
-| `search` | `kind`: `keyword` / `doi` / `arxiv` / `link`; `has_filters`: `yes` / `no`; `route`: `user` / `shared` / `keyless`; `results_bucket`: `0` / `1-25` / `26-200` / `200+` | a keyword search's first page arrives, or an id lookup finishes (`results_bucket` `0` or `1-25` for lookups) |
+| `search` | `kind`: `keyword` / `doi` / `arxiv` / `link`; `has_filters`: `yes` / `no`; `route`: `user` / `shared` / `keyless`; `results_bucket`: `0` / `1-25` / `26-200` / `200+`; `category`: §4.1 (keyword searches only) | a keyword search's first page arrives, or an id lookup finishes (`results_bucket` `0` or `1-25` for lookups) |
 | `search_more` | `page`: `2`…`40` | a further page of a keyword search arrives |
 | `search_limit_reached` | `kind`: `daily` / `page_cap` | Search shows the daily-limit state, or a search reaches the page cap |
 | `paper_saved` | `from`: `search` / `lookup` / `share` | a paper is saved |
@@ -96,6 +98,41 @@ User properties: `library_size_bucket` (`0`, `1-50`, `51-500`, `501-5000`, `5000
 - `route` is the route the first page actually used. Until Android's quota protection lands, Android sends `user` with a personal key and `shared` otherwise; the quota PR fills in the real value.
 - Firebase's automatic events (`first_open`, `session_start`, `app_update`, …) stay on: they give active users, sessions and retention. `screen_view` is sent manually; automatic screen reporting is off.
 - Never sent: titles, DOIs, OpenAlex ids, search text, notes, collection names, file names or paths, URLs, the API key, error messages.
+
+### 4.1 Research category
+
+Answers "which research areas do people search most?" without the query leaving the device.
+
+**Source.** Each work's `primary_topic` from OpenAlex: its subfield, field and domain ids (e.g. `https://openalex.org/subfields/1707`, `…/fields/17`, `…/domains/3`). The search request's `select` gains `primary_topic`; nothing else is requested and nothing is stored in the library. The query text is never classified, and no external service or model is involved: the mapping is a fixed table in the app.
+
+**Taxonomy** (closed enum; the value sent is the left column):
+
+| `category` | OpenAlex source |
+|---|---|
+| `ai` | subfield 1702 Artificial Intelligence |
+| `computer_vision` | subfield 1707 Computer Vision and Pattern Recognition |
+| `theory` | subfield 1703 Computational Theory and Mathematics |
+| `networks` | subfield 1705 Computer Networks and Communications |
+| `systems` | subfield 1708 Hardware and Architecture |
+| `software` | subfield 1712 Software |
+| `hci` | subfield 1709 Human-Computer Interaction |
+| `information_systems` | subfield 1710 Information Systems |
+| `graphics` | subfield 1704 Computer Graphics and Computer-Aided Design |
+| `signal_processing` | subfield 1711 Signal Processing |
+| `cs_other` | any other subfield of field 17 Computer Science (e.g. 1706 Computer Science Applications) |
+| `mathematics` | field 26 Mathematics |
+| `engineering` | field 22 Engineering |
+| `physical_sciences` | any other field in domain 3 Physical Sciences |
+| `life_sciences` | domain 1 Life Sciences |
+| `social_sciences` | domain 2 Social Sciences |
+| `health_sciences` | domain 4 Health Sciences |
+| `unknown` | none of the above, no topic, or no clear winner |
+
+Rows are checked top to bottom (subfield, then field, then domain). An id that isn't a URL ending in a number, or a number not in the table, falls through to the next level and finally to `unknown`, so a change to OpenAlex's taxonomy degrades to `unknown`, never to a wrong guess or a crash.
+
+**Rule.** From the first page of a keyword search, take the first 10 results that have a `primary_topic`, in OpenAlex's order, and map each to a category. If at least 3 results were mapped and one category has the most votes with at least 40% of them (no tie for first), send it; otherwise send `unknown`. A search with no results sends `unknown`. Further pages don't change it. DOI, arXiv and link lookups don't send `category`.
+
+**Why this is private.** The value is one of 18 coarse areas describing what OpenAlex returned, not what was typed; a rare query and a common one in the same area are indistinguishable. Paper ids, topic names, titles and the query never reach the analytics layer: the classifier gets only subfield, field and domain numbers, and returns the enum.
 
 ## 5. Firebase setup (minimised)
 
@@ -129,7 +166,7 @@ User properties: `library_size_bucket` (`0`, `1-50`, `51-500`, `501-5000`, `5000
 - **Play → Data safety:** add App activity → App interactions, and Device or other IDs for Analytics (already declared for crash logs); collected, not shared, encrypted in transit, optional; purpose Analytics.
 - **App Store → App Privacy:** add Product Interaction and Device ID for Analytics; not linked to identity; not used for tracking.
 - **`PrivacyInfo.xcprivacy` (app):** add `NSPrivacyCollectedDataTypeProductInteraction` and `NSPrivacyCollectedDataTypeDeviceID` (purpose `NSPrivacyCollectedDataTypePurposeAnalytics`, not linked, no tracking). `NSPrivacyTracking` stays false; no tracking domains. Share Extension unchanged.
-- **Privacy policy:** a "Usage statistics" section (English and Arabic) in the policy update (FadyFouad/Hashiya-Privacy-Policy PR #1): what is counted, what never is, the switch, Google as processor, 2-month retention.
+- **Privacy policy:** a "Usage statistics" section (English and Arabic) in the policy update (FadyFouad/Hashiya-Privacy-Policy PR #1): what is counted, what never is, the switch, Google as processor, 2-month retention. It says searches are counted with a broad research area worked out on the device from the results (e.g. "artificial intelligence"), and that search text is never sent.
 - **`docs/store/metadata.md`:** updated answers.
 
 ## 8. Testing
@@ -138,6 +175,8 @@ User properties: `library_size_bucket` (`0`, `1-50`, `51-500`, `501-5000`, `5000
 - The switch defaults on; turning it off calls `setEnabled(false)` (and the Firebase implementation resets data); debug builds never enable collection.
 - Each event fires once, from the right place, with the right parameters — e.g. a filtered keyword search with 48,210 results sends `search(keyword, yes, shared, 200+)`; a DOI lookup sends `kind: doi`; reaching the page cap sends `search_limit_reached(page_cap)`; `note_edited` once per paper per session; `restore` and `pdf_downloaded` send nothing on cancel.
 - A search for a title and a note containing a DOI produce events containing neither string.
+- Category classifier (pure, table-driven): every subfield in §4.1 maps to its value; another field-17 subfield gives `cs_other`; fields 26 and 22; each domain; malformed or unknown ids fall through to `unknown`; the vote — fewer than 3 mapped results, a tie for first, a winner under 40%, exactly 40%, results without a topic skipped, only the first 10 counted, no results.
+- The search layer sends `category` for keyword searches only, computed from the first page; the search request selects `primary_topic`; a work without one still parses.
 - Result-bucket and library-size-bucket boundaries; user properties at launch and `has_own_key` after a key change.
 - The Firebase mapping: every event and parameter maps to the names in §4 (a table-driven test in the app target, with a fake logging function).
 

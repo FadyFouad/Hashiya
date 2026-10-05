@@ -15,7 +15,7 @@ Crash reporting (`docs/superpowers/specs/2026-10-04-crash-reporting-design.md`) 
 | Topic | Decision |
 |---|---|
 | Goals | Mostly the core loop (A) and inputs for upcoming decisions — OpenAlex load, personal keys, page cap (C); active users and retention (B) as a by-product. |
-| Consent | On by default, with its own **Share usage statistics** switch in Settings. |
+| Consent | On by default, with its own **Share usage statistics** switch in Settings. Kept after review (§7.1): asking first in the EU/UK, or asking everyone, was offered and declined. |
 | Service | Firebase Analytics (GA4), in the existing project `hashiya-research`, minimised (§5). |
 | Content | A closed list of events and enum-valued parameters (§4). Nothing a user typed or read. |
 | Research areas | Keyword searches carry a coarse research `category`, derived on the device from the OpenAlex topics of the results — never from the query text, never by an external service (§4.1). |
@@ -168,6 +168,14 @@ Rows are checked top to bottom (subfield, then field, then domain). An id that i
 - **`PrivacyInfo.xcprivacy` (app):** add `NSPrivacyCollectedDataTypeProductInteraction` and `NSPrivacyCollectedDataTypeDeviceID` (purpose `NSPrivacyCollectedDataTypePurposeAnalytics`, not linked, no tracking). `NSPrivacyTracking` stays false; no tracking domains. Share Extension unchanged.
 - **Privacy policy:** a "Usage statistics" section (English and Arabic) in the policy update (FadyFouad/Hashiya-Privacy-Policy PR #1): what is counted, what never is, the switch, Google as processor, 2-month retention. It says searches are counted with a broad research area worked out on the device from the results (e.g. "artificial intelligence"), and that search text is never sent.
 - **`docs/store/metadata.md`:** updated answers.
+
+### 7.1 The live policy and the release gate
+
+The published policy (https://fadyfouad.github.io/Hashiya-Privacy-Policy/) currently says "Hashiya has no account, no usage analytics, no ads and no tracking" and promises: "If the app ever starts collecting data, we'll say so here before that version is released." So:
+
+- The policy update (a new PR in FadyFouad/Hashiya-Privacy-Policy) removes "no usage analytics", keeps "no ads and no tracking" (true: no advertising id, ads signals denied, nothing linked to Ads), and adds the "Usage statistics" section in English and Arabic, with a new effective date.
+- It must be merged **before** the first build with analytics reaches any user (TestFlight external testers or a store release). Each platform's PR carries this as a release-gate checkbox, and `docs/release.md` lists it.
+- **Accepted risk:** analytics are on by default everywhere. In the EU/UK (ePrivacy/GDPR) and under consent-based laws such as Saudi Arabia's and Egypt's data-protection laws, analytics using an on-device identifier may require consent first. The user chose on-by-default knowing this; the switch, the minimised setup (§5) and the policy disclosure reduce but don't remove the risk. Revisit if the app is promoted in those regions or a regulator or store raises it.
 
 ## 8. Testing
 

@@ -8,7 +8,10 @@ import com.etatech.hashiya.core.analytics.AnalyticsSwitch
 import com.etatech.hashiya.core.analytics.ClosedValue
 import com.google.firebase.analytics.FirebaseAnalytics
 
-/** Release builds' usage statistics: only the closed events and properties of `:core:analytics`. Nothing while off. */
+/**
+ * Release builds' usage statistics: only the closed events and properties of `:core:analytics`. Nothing while off; events from
+ * before the launch decides are held until it does.
+ */
 class FirebaseAnalyticsTracker internal constructor(
     private val logEvent: (String, Map<String, String>) -> Unit,
     setUserProperty: (String, String) -> Unit,
@@ -41,12 +44,11 @@ class FirebaseAnalyticsTracker internal constructor(
             setCollectionEnabled(enabled)
             if (!enabled) resetAnalyticsData()
         },
-        send = setUserProperty
+        send = setUserProperty,
+        logEvent = { event -> logEvent(event.name, event.parameters) }
     )
 
-    override fun log(event: AnalyticsEvent) {
-        if (switch.isOn) logEvent(event.name, event.parameters)
-    }
+    override fun log(event: AnalyticsEvent) = switch.log(event)
 
     override fun setProperty(property: AnalyticsProperty, value: ClosedValue) = switch.setProperty(property, value)
 

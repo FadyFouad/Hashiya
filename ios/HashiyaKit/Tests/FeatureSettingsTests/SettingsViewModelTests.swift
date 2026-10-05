@@ -119,4 +119,15 @@ struct SettingsViewModelTests {
         #expect(L10n.downloadedPdfs(bytes: 0, count: 3).hasSuffix("· 3 files"))
         #expect(L10n.deleteDownloadedMessage(count: 1) == "Delete 1 downloaded PDF? You can download it again. Attached PDFs are kept.")
     }
+
+    @Test func theAPIKeyFooterLinksToFreeKeysInBothLanguages() {
+        for language in ["en", "ar"] {
+            let previous = HashiyaLanguage.override
+            HashiyaLanguage.override = language
+            defer { HashiyaLanguage.override = previous }
+            let footer = L10n.string("settings.apiKeyFooter")
+            #expect(footer.contains("(https://openalex.org/settings/api)"))
+            #expect(!footer.hasPrefix("settings."))
+        }
+    }
 }

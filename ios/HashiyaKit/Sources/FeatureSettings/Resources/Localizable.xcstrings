@@ -1401,13 +1401,13 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تساعد الأعداد المجهولة لاستخدام الميزات على تحديد ما يجب تحسينه، دون أوراقك أو ملاحظاتك أو عمليات بحثك أبدًا."
+            "value" : "تساعد أعداد استخدام الميزات، المرتبطة بمعرّف عشوائي، على تحديد ما يجب تحسينه، دون أوراقك أو ملاحظاتك أو عمليات بحثك أبدًا."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Anonymous counts of how features are used help decide what to improve. Never your papers, notes or searches."
+            "value" : "Counts of how features are used, tied to a random identifier, help decide what to improve. Never your papers, notes or searches."
           }
         }
       }

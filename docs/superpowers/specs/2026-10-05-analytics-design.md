@@ -154,7 +154,7 @@ Rows are checked top to bottom (subfield, then field, then domain). An id that i
 
 ## 6. Consent
 
-- **Settings:** the Privacy section gains a second switch, **Share usage statistics**, on by default, with the footer "Anonymous counts of how features are used help decide what to improve. Never your papers, notes or searches." English and Arabic.
+- **Settings:** the Privacy section gains a second switch, **Share usage statistics**, on by default, with the footer "Counts of how features are used, tied to a random identifier, help decide what to improve. Never your papers, notes or searches." English and Arabic.
 - **Storage:** Android DataStore `analyticsEnabled` (default true); iOS app `UserDefaults` (default true).
 - **At launch:** `setEnabled(isReleaseBuild && preference)`, then consent and user properties.
 - **Turning it off:** `setAnalyticsCollectionEnabled(false)` and `resetAnalyticsData()` (clears the app-instance id and unsent events). **Turning it on** resumes from then with a new id.

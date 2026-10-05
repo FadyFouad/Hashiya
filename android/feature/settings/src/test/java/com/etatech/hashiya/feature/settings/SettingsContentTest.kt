@@ -147,6 +147,22 @@ class SettingsContentTest {
     }
 
     @Test
+    fun apiKeyFooterAndFreeKeyLinkAreShown() {
+        val opened = mutableListOf<String>()
+        showWithUriHandler(
+            object : UriHandler {
+                override fun openUri(uri: String) {
+                    opened += uri
+                }
+            }
+        )
+
+        composeRule.onNodeWithText("A free personal key gives you more daily searches.").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Get a free key").performScrollTo().performClick()
+        assertEquals(listOf("https://openalex.org/settings/api"), opened)
+    }
+
+    @Test
     fun privacyFooterAndPolicyLinkAreShown() {
         val opened = mutableListOf<String>()
         composeRule.setContent {

@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -115,6 +116,7 @@ internal fun SettingsScreen(onBack: () -> Unit, onOpenRestore: (String) -> Unit,
 
 internal const val BACKUP_MIME_TYPE = "application/zip"
 
+internal const val API_KEY_URL = "https://openalex.org/settings/api"
 internal const val PRIVACY_POLICY_URL = "https://fadyfouad.github.io/Hashiya-Privacy-Policy/"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -206,6 +208,16 @@ internal fun SettingsContent(
                     Text(stringResource(R.string.settings_reset))
                 }
             }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                stringResource(R.string.settings_api_key_footer),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            val uriHandler = LocalUriHandler.current
+            TextButton(onClick = { openLink(uriHandler, API_KEY_URL) }) {
+                Text(stringResource(R.string.settings_api_key_get_free))
+            }
             Spacer(Modifier.height(32.dp))
             Text(stringResource(R.string.settings_language_section), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
@@ -241,6 +253,15 @@ internal fun SettingsContent(
         if (summary != null && (export is ExportState.Choosing || export is ExportState.Building)) {
             ExportDialog(summary, export, onIncludePdfsChange, onConfirmExport, onDismissExport, onCancelExport)
         }
+    }
+}
+
+private fun openLink(uriHandler: UriHandler, url: String) {
+    try {
+        uriHandler.openUri(url)
+    } catch (_: IllegalArgumentException) {
+        // No app can open a link on this device (a locked-down or work profile); the link does nothing.
+    } catch (_: ActivityNotFoundException) {
     }
 }
 
@@ -363,14 +384,7 @@ private fun PrivacySection(
     )
     Spacer(Modifier.height(4.dp))
     // The policy page holds both languages; the Arabic UI jumps to its Arabic section.
-    TextButton(onClick = {
-        try {
-            uriHandler.openUri(if (arabic) "$PRIVACY_POLICY_URL#ar" else PRIVACY_POLICY_URL)
-        } catch (_: IllegalArgumentException) {
-            // No app can open a link on this device (a locked-down or work profile); the link does nothing.
-        } catch (_: ActivityNotFoundException) {
-        }
-    }) {
+    TextButton(onClick = { openLink(uriHandler, if (arabic) "$PRIVACY_POLICY_URL#ar" else PRIVACY_POLICY_URL) }) {
         Text(stringResource(R.string.settings_privacy_policy))
     }
 }

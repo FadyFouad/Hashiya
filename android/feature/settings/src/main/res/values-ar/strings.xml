@@ -7,6 +7,8 @@
     <string name="settings_api_key_using_yours">يتم استخدام مفتاحك</string>
     <string name="settings_api_key_show">إظهار المفتاح</string>
     <string name="settings_api_key_hide">إخفاء المفتاح</string>
+    <string name="settings_api_key_footer">يمنحك مفتاح شخصي مجاني المزيد من عمليات البحث اليومية.</string>
+    <string name="settings_api_key_get_free">احصل على مفتاح مجاني</string>
     <string name="settings_save">حفظ</string>
     <string name="settings_reset">الرجوع إلى المفتاح المدمج</string>
     <string name="settings_language_section">اللغة</string>

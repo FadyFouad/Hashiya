@@ -2,6 +2,7 @@ package com.etatech.hashiya.feature.search
 
 import androidx.lifecycle.SavedStateHandle
 import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.LimitKind
 import com.etatech.hashiya.core.analytics.ResearchCategory
 import com.etatech.hashiya.core.analytics.ResultsBucket
 import com.etatech.hashiya.core.analytics.SaveSource
@@ -161,6 +162,67 @@ class SearchAnalyticsTest {
         search(viewModel, "bert")
 
         assertEquals(listOf(keyword(route = SearchRoute.User)), analytics.events)
+    }
+
+    @Test
+    fun theRouteTheResponseReportsIsSent() = runTest {
+        userPreferencesRepository.setUserApiKey("my-own-key")
+        searchRepository.firstPage = bertFirstPage.copy(route = SearchRoute.Keyless)
+        val viewModel = viewModel()
+
+        search(viewModel, "bert")
+
+        assertEquals(listOf(keyword(route = SearchRoute.Keyless)), analytics.events)
+    }
+
+    @Test
+    fun aCachedFirstPageIsSentAsCached() = runTest {
+        searchRepository.firstPage = bertFirstPage.copy(route = SearchRoute.Cached)
+        val viewModel = viewModel()
+
+        search(viewModel, "bert")
+
+        assertEquals(listOf(keyword(route = SearchRoute.Cached)), analytics.events)
+    }
+
+    @Test
+    fun aFirstPageStoppedByTheDailyLimitSendsOnlyTheLimit() = runTest {
+        searchRepository.error = SearchError.DailyLimit(resetAtMillis = 1L)
+        val viewModel = viewModel()
+
+        search(viewModel, "bert")
+
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.SearchLimitReached(LimitKind.Daily)), analytics.events)
+    }
+
+    @Test
+    fun aLaterPageStoppedByTheDailyLimitSendsTheLimitOnce() = runTest {
+        searchRepository.firstPage = bertFirstPage
+        val viewModel = viewModel()
+        search(viewModel, "bert")
+
+        searchRepository.lastDailyLimitHit.value = true
+        runCurrent()
+        searchRepository.lastDailyLimitHit.value = false
+        runCurrent()
+        searchRepository.lastDailyLimitHit.value = true
+        runCurrent()
+
+        assertEquals(listOf(keyword(), AnalyticsEvent.SearchLimitReached(LimitKind.Daily)), analytics.events)
+    }
+
+    @Test
+    fun reachingThePageCapSendsTheLimitAfterSearchOnce() = runTest {
+        searchRepository.firstPage = bertFirstPage
+        val viewModel = viewModel()
+        search(viewModel, "bert")
+
+        searchRepository.lastCapReached.value = 160
+        runCurrent()
+        searchRepository.lastCapReached.value = 160
+        runCurrent()
+
+        assertEquals(listOf(keyword(), AnalyticsEvent.SearchLimitReached(LimitKind.PageCap)), analytics.events)
     }
 
     @Test

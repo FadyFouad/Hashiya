@@ -29,6 +29,8 @@ class FakeSearchRepository : SearchRepository {
         private set
     var lastCapReached = MutableStateFlow<Int?>(null)
         private set
+    var lastDailyLimitHit = MutableStateFlow(false)
+        private set
 
     override fun search(query: SearchQuery): SearchResults {
         queries += query
@@ -57,12 +59,14 @@ class FakeSearchRepository : SearchRepository {
         lastFirstPage = MutableStateFlow(firstPage)
         lastPagesLoaded = MutableStateFlow(pagesLoaded)
         lastCapReached = MutableStateFlow(capReached)
+        lastDailyLimitHit = MutableStateFlow(error is SearchError.DailyLimit)
         return SearchResults(
             papers = flowOf(data),
             totalCount = MutableStateFlow(totalCount),
             firstPage = lastFirstPage,
             pagesLoaded = lastPagesLoaded,
-            capReached = lastCapReached
+            capReached = lastCapReached,
+            dailyLimitHit = lastDailyLimitHit
         )
     }
 }

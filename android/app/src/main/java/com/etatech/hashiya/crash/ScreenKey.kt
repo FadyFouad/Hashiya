@@ -2,6 +2,8 @@ package com.etatech.hashiya.crash
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.navigation.NavController
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -28,14 +30,21 @@ fun screenFor(destination: NavDestination): Screen? = when {
     else -> null
 }
 
-/** Keeps the Screen key on the screen being shown, and counts each screen view. */
+/**
+ * Keeps the Screen key on the screen being shown, and counts each screen view. Recreating the activity (rotating, folding,
+ * resizing) registers the listener again for the screen already shown, so a view is counted only when the screen changes.
+ */
 @Composable
 fun ReportScreens(navController: NavController, reporter: CrashReporter, analytics: Analytics) {
+    val lastLogged = rememberSaveable { mutableStateOf<Screen?>(null) }
     DisposableEffect(navController, reporter, analytics) {
         val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
             screenFor(destination)?.let {
                 reporter.setKey(CrashKey.Screen, it.id)
-                analytics.log(AnalyticsEvent.ScreenView(it))
+                if (it != lastLogged.value) {
+                    lastLogged.value = it
+                    analytics.log(AnalyticsEvent.ScreenView(it))
+                }
             }
         }
         navController.addOnDestinationChangedListener(listener)

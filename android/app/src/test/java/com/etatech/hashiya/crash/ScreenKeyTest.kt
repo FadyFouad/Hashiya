@@ -2,6 +2,7 @@ package com.etatech.hashiya.crash
 
 import android.app.Application
 import androidx.compose.material3.Text
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -35,8 +36,11 @@ class ScreenKeyTest {
     private val analytics = FakeAnalytics()
     private lateinit var navController: NavHostController
 
+    private val restorationTester = StateRestorationTester(composeRule)
+
+    /** Through [restorationTester], so a test can recreate the app as rotating or resizing the window does. */
     private fun setUpApp() {
-        composeRule.setContent {
+        restorationTester.setContent {
             navController = rememberNavController()
             ReportScreens(navController, reporter, analytics)
             NavHost(navController, startDestination = LibraryRoute) {
@@ -88,5 +92,18 @@ class ScreenKeyTest {
             analytics.events
         )
         assertEquals(analytics.events.map { (it as AnalyticsEvent.ScreenView).screen.id }, screens())
+    }
+
+    /** Rotating, folding or resizing recreates the activity and registers the listener again for the screen already shown. */
+    @Test
+    fun recreatingTheAppDoesNotLogTheShownScreenAgain() {
+        setUpApp()
+        go(PaperDetailsRoute("W1"))
+
+        restorationTester.emulateSavedInstanceStateRestore()
+        composeRule.waitForIdle()
+        go(SettingsRoute)
+
+        assertEquals(listOf(Screen.Library, Screen.Details, Screen.Settings).map { AnalyticsEvent.ScreenView(it) }, analytics.events)
     }
 }

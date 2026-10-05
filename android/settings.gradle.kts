@@ -27,6 +27,7 @@ rootProject.name = "Hashiya"
 include(":app")
 include(":core:model")
 include(":core:crash")
+include(":core:analytics")
 include(":core:bibtex")
 include(":core:network")
 include(":core:database")

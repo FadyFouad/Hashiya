@@ -5,6 +5,7 @@ import com.etatech.hashiya.core.crash.NoOpCrashReporter
 import com.etatech.hashiya.core.data.backup.BackupFailure
 import com.etatech.hashiya.core.data.backup.BackupSummary
 import com.etatech.hashiya.core.model.PdfStorage
+import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeLibraryBackup
 import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
@@ -35,7 +36,15 @@ class SettingsBackupViewModelTest {
     private val pdfs = FakePdfRepository()
 
     private fun TestScope.viewModel(): SettingsViewModel {
-        val viewModel = SettingsViewModel(FakeUserPreferencesRepository(), FakeAppLanguageController(), pdfs, backup, NoOpCrashReporter)
+        val viewModel =
+            SettingsViewModel(
+                FakeUserPreferencesRepository(),
+                FakeAppLanguageController(),
+                pdfs,
+                backup,
+                NoOpCrashReporter,
+                FakeAnalytics()
+            )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }

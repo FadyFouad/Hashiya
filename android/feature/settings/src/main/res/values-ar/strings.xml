@@ -155,5 +155,7 @@
     <string name="settings_privacy">الخصوصية</string>
     <string name="settings_crash_reports">إرسال تقارير الأعطال</string>
     <string name="settings_crash_reports_footer">تساعد تفاصيل الأعطال وأخطاء التطبيق على إصلاح المشكلات، ولا تتضمّن أبدًا أوراقك أو ملاحظاتك أو عمليات بحثك.</string>
+    <string name="settings_usage_statistics">مشاركة إحصاءات الاستخدام</string>
+    <string name="settings_usage_statistics_footer">تساعد أعداد استخدام الميزات، المرتبطة بمعرّف عشوائي، على تحديد ما يجب تحسينه، دون أوراقك أو ملاحظاتك أو عمليات بحثك أبدًا.</string>
     <string name="settings_privacy_policy">سياسة الخصوصية</string>
 </resources>

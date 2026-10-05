@@ -9,5 +9,6 @@ android {
 dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.appcompat)
+    implementation(project(":core:analytics"))
     implementation(project(":core:crash"))
 }

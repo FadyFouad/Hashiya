@@ -4,9 +4,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.etatech.hashiya.core.analytics.AnalyticsProperty
 import com.etatech.hashiya.core.crash.CrashKey
 import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
 import com.etatech.hashiya.core.model.PdfStorage
+import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeCrashReporter
 import com.etatech.hashiya.core.testing.FakeLibraryBackup
 import com.etatech.hashiya.core.testing.FakePdfRepository
@@ -14,6 +16,7 @@ import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -34,9 +37,10 @@ class SettingsViewModelTest {
     private val languageController = FakeAppLanguageController()
     private val pdfs = FakePdfRepository()
     private val crashReporter = FakeCrashReporter()
+    private val analytics = FakeAnalytics()
 
     private fun TestScope.viewModel(): SettingsViewModel {
-        val viewModel = SettingsViewModel(preferences, languageController, pdfs, FakeLibraryBackup(), crashReporter)
+        val viewModel = SettingsViewModel(preferences, languageController, pdfs, FakeLibraryBackup(), crashReporter, analytics)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }
@@ -170,7 +174,7 @@ class SettingsViewModelTest {
         }
         val store = ViewModelStore()
         val factory = viewModelFactory {
-            initializer { SettingsViewModel(slowPreferences, languageController, pdfs, FakeLibraryBackup(), crashReporter) }
+            initializer { SettingsViewModel(slowPreferences, languageController, pdfs, FakeLibraryBackup(), crashReporter, analytics) }
         }
         val viewModel = ViewModelProvider(store, factory)[SettingsViewModel::class.java]
 
@@ -180,5 +184,51 @@ class SettingsViewModelTest {
 
         assertEquals(listOf(false), crashReporter.enabledCalls)
         assertFalse(preferences.crashReportsEnabled.value)
+    }
+
+    @Test
+    fun usageStatisticsFollowTheStoredChoice() = runTest {
+        preferences.setAnalyticsEnabled(false)
+        val viewModel = viewModel()
+        assertFalse(viewModel.uiState.first { !it.analyticsEnabled }.analyticsEnabled)
+    }
+
+    @Test
+    fun turningUsageStatisticsOffStoresItAndStopsCollection() = runTest {
+        val viewModel = viewModel()
+        viewModel.onAnalyticsChange(false)
+        advanceUntilIdle()
+
+        assertEquals(listOf(false), analytics.enabledCalls)
+        assertFalse(preferences.analyticsEnabled.value)
+    }
+
+    @Test
+    fun theStatisticsChoiceIsStoredEvenWhenSettingsCloses() = runTest {
+        val slowPreferences = object : UserPreferencesRepository by preferences {
+            override suspend fun setAnalyticsEnabled(enabled: Boolean) {
+                delay(1_000)
+                preferences.setAnalyticsEnabled(enabled)
+            }
+        }
+        val store = ViewModelStore()
+        val factory = viewModelFactory {
+            initializer { SettingsViewModel(slowPreferences, languageController, pdfs, FakeLibraryBackup(), crashReporter, analytics) }
+        }
+        val viewModel = ViewModelProvider(store, factory)[SettingsViewModel::class.java]
+
+        viewModel.onAnalyticsChange(false)
+        store.clear()
+        advanceUntilIdle()
+
+        assertEquals(listOf(false), analytics.enabledCalls)
+        assertFalse(preferences.analyticsEnabled.value)
+    }
+
+    @Test
+    fun selectingALanguageUpdatesTheLanguageProperty() = runTest {
+        val viewModel = viewModel()
+        viewModel.onLanguageSelected(AppLanguage.Arabic)
+        assertEquals("ar", analytics.properties[AnalyticsProperty.Language])
     }
 }

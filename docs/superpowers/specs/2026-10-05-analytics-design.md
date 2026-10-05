@@ -79,7 +79,7 @@ Events, parameters and their values are closed enums. A caller can't attach free
 
 | Event | Parameters (values) | Sent when |
 |---|---|---|
-| `search` | `kind`: `keyword` / `doi` / `arxiv` / `link`; `has_filters`: `yes` / `no`; `route`: `user` / `shared` / `keyless`; `results_bucket`: `0` / `1-25` / `26-200` / `200+`; `category`: §4.1 (keyword searches only) | a keyword search's first page arrives, or an id lookup finishes (`results_bucket` `0` or `1-25` for lookups) |
+| `search` | `kind`: `keyword` / `doi` / `arxiv` / `link`; `has_filters`: `yes` / `no`; `route`: `user` / `shared` / `keyless` / `cached`; `results_bucket`: `0` / `1-25` / `26-200` / `200+`; `category`: §4.1 (keyword searches only) | a keyword search's first page arrives, or an id lookup finishes (`results_bucket` `0` or `1-25` for lookups) |
 | `search_more` | `page`: `2`…`40` | a further page of a keyword search arrives |
 | `search_limit_reached` | `kind`: `daily` / `page_cap` | Search shows the daily-limit state, or a search reaches the page cap |
 | `paper_saved` | `from`: `search` / `lookup` / `share` | a paper is saved |
@@ -95,7 +95,7 @@ Events, parameters and their values are closed enums. A caller can't attach free
 
 User properties: `library_size_bucket` (`0`, `1-50`, `51-500`, `501-5000`, `5000+`, as for crashes), `language` (`en` / `ar` / `system`), `has_own_key` (`yes` / `no`).
 
-- `route` is the route the first page actually used. Until Android's quota protection lands, Android sends `user` with a personal key and `shared` otherwise; the quota PR fills in the real value.
+- `route` is the route the first page actually used; `cached` when the on-device search cache answered it (no OpenAlex budget used). Until Android's quota protection lands, Android sends `user` with a personal key and `shared` otherwise; the quota PR fills in the real value.
 - Firebase's automatic events (`first_open`, `session_start`, `app_update`, …) stay on: they give active users, sessions and retention. `screen_view` is sent manually; automatic screen reporting is off.
 - Never sent: titles, DOIs, OpenAlex ids, search text, notes, collection names, file names or paths, URLs, the API key, error messages.
 

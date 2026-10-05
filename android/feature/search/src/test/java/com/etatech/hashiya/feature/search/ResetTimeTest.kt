@@ -20,7 +20,7 @@ class ResetTimeTest {
 
     @Test
     fun resetTimeIsShownInTheGivenZone() {
-        val time = formatResetTime(midnightUtc, Locale.US, riyadh)
+        val time = formatResetTime(midnightUtc, Locale.US, riyadh, is24Hour = false)
 
         assertTrue(time, time.contains("3:00"))
         assertTrue(time, time.contains("AM"))
@@ -33,12 +33,35 @@ class ResetTimeTest {
             setLocale(arabic)
         }
         val context = ApplicationProvider.getApplicationContext<Context>().createConfigurationContext(config)
-        val time = formatResetTime(midnightUtc, arabic, riyadh)
+        val time = formatResetTime(midnightUtc, arabic, riyadh, is24Hour = false)
 
         val message = context.getString(R.string.search_error_daily_limit_message, time)
 
         assertTrue(message, message.contains("\u2068$time\u2069"))
         assertEquals(1, message.count { it == '\u2068' })
         assertEquals(1, message.count { it == '\u2069' })
+    }
+
+    @Test
+    fun arabicUsesArabicIndicDigits() {
+        val time = formatResetTime(midnightUtc, Locale("ar"), riyadh, is24Hour = false)
+
+        assertTrue(time, time.contains("\u0663:\u0660\u0660"))
+        assertTrue(time, time.none { it in '0'..'9' })
+    }
+
+    @Test
+    fun twentyFourHourSettingShowsAnUnmarkedTwentyFourHourClock() {
+        val time = formatResetTime(midnightUtc + 12 * 3_600_000, Locale.US, riyadh, is24Hour = true)
+
+        assertEquals("15:00", time)
+    }
+
+    @Test
+    fun twelveHourSettingShowsAMarkedClock() {
+        val time = formatResetTime(midnightUtc + 12 * 3_600_000, Locale.US, riyadh, is24Hour = false)
+
+        assertTrue(time, time.contains("3:00"))
+        assertTrue(time, time.contains("PM"))
     }
 }

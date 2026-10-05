@@ -1,5 +1,6 @@
 package com.etatech.hashiya.feature.search.components
 
+import android.text.format.DateFormat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -12,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.etatech.hashiya.core.designsystem.component.EmptyState
@@ -22,7 +24,7 @@ import com.etatech.hashiya.feature.search.R
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
+import java.time.format.DecimalStyle
 import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -102,9 +104,15 @@ internal fun SearchErrorState(
  */
 @Composable
 internal fun dailyLimitMessage(error: SearchError.DailyLimit, zone: ZoneId): String {
-    val time = formatResetTime(error.resetAtMillis, LocalConfiguration.current.locales[0], zone)
+    val is24Hour = DateFormat.is24HourFormat(LocalContext.current)
+    val time = formatResetTime(error.resetAtMillis, LocalConfiguration.current.locales[0], zone, is24Hour)
     return stringResource(R.string.search_error_daily_limit_message, time)
 }
 
-internal fun formatResetTime(resetAtMillis: Long, locale: Locale, zone: ZoneId): String =
-    DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).withZone(zone).format(Instant.ofEpochMilli(resetAtMillis))
+internal fun formatResetTime(resetAtMillis: Long, locale: Locale, zone: ZoneId, is24Hour: Boolean): String {
+    val pattern = DateFormat.getBestDateTimePattern(locale, if (is24Hour) "Hm" else "hm")
+    return DateTimeFormatter.ofPattern(pattern, locale)
+        .withDecimalStyle(DecimalStyle.of(locale))
+        .withZone(zone)
+        .format(Instant.ofEpochMilli(resetAtMillis))
+}

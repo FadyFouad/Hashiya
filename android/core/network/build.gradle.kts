@@ -32,6 +32,9 @@ dependencies {
     api(libs.okhttp)
     implementation(libs.okhttp.logging)
 
+    // :core:testing exposes Compose test APIs, whose versions come from the BOM.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(project(":core:testing"))
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)

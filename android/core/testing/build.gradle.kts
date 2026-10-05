@@ -12,6 +12,7 @@ dependencies {
     api(project(":core:crash"))
     api(project(":core:data"))
     api(project(":core:model"))
+    api(project(":core:network"))
     api(libs.junit)
     api(libs.kotlinx.coroutines.test)
     api(libs.turbine)

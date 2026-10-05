@@ -1,10 +1,12 @@
 package com.etatech.hashiya.feature.library
 
 import androidx.lifecycle.SavedStateHandle
-import com.etatech.hashiya.core.analytics.NoOpAnalytics
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.ExportFormat
 import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.ReadingStatus
+import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
@@ -21,6 +23,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -33,9 +36,10 @@ class LibraryCollectionsViewModelTest {
     private val library = FakeLibraryRepository()
     private val collections = FakeCollectionsRepository(library)
     private val citations = FakeCitationRepository()
+    private val analytics = FakeAnalytics()
 
     private fun TestScope.viewModel(handle: SavedStateHandle = SavedStateHandle()): LibraryViewModel {
-        val viewModel = LibraryViewModel(handle, library, collections, citations, FakePdfRepository(), NoOpAnalytics)
+        val viewModel = LibraryViewModel(handle, library, collections, citations, FakePdfRepository(), analytics)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.header.collect() }
         return viewModel
@@ -358,6 +362,66 @@ class LibraryCollectionsViewModelTest {
         viewModel.onExportFailed()
         assertNull(viewModel.exportReady.value)
         assertEquals(LibraryMessage.ExportFailed, viewModel.message.value)
+    }
+
+    @Test
+    fun creatingACollectionIsCountedButRenamingAndTheClashAreNot() = runTest {
+        val thesis = thesis()
+        val viewModel = viewModel()
+
+        viewModel.onNewCollection()
+        viewModel.onDialogConfirm(" thesis ")
+        advanceUntilIdle()
+        viewModel.onRenameCollection(thesis)
+        viewModel.onDialogConfirm("Dissertation")
+        advanceUntilIdle()
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+
+        viewModel.onNewCollection()
+        viewModel.onDialogConfirm("Chapter 2")
+        advanceUntilIdle()
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.CollectionCreated), analytics.events)
+        assertFalse(analytics.events.joinToString { it.parameters.toString() }.contains("Chapter"))
+    }
+
+    @Test
+    fun undoingACollectionRemovalSendsNothing() = runTest {
+        val thesis = thesis()
+        val viewModel = viewModel()
+        viewModel.onSelectCollection(thesis.id)
+        advanceUntilIdle()
+        viewModel.onRemove(SamplePapers.bert)
+        advanceUntilIdle()
+
+        viewModel.onUndoCollectionRemove()
+        advanceUntilIdle()
+
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+    }
+
+    @Test
+    fun aSharedBibTeXFileIsOneExportWithoutPdfs() = runTest {
+        thesis()
+        val viewModel = viewModel()
+        viewModel.onExport()
+        advanceUntilIdle()
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+
+        viewModel.onExportShared()
+
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.Export(ExportFormat.Bibtex, withPdfs = false)), analytics.events)
+    }
+
+    @Test
+    fun aFailedBibTeXExportSendsNothing() = runTest {
+        thesis()
+        val viewModel = viewModel()
+        viewModel.onExport()
+        advanceUntilIdle()
+
+        viewModel.onExportFailed()
+
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
     }
 }
 

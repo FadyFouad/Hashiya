@@ -3,11 +3,14 @@ package com.etatech.hashiya.feature.reader
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModelStore
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.PdfOrigin
 import com.etatech.hashiya.core.data.repository.AttachResult
 import com.etatech.hashiya.core.model.NoteSection
 import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.PaperPdf
 import com.etatech.hashiya.core.model.PdfSource
+import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
@@ -16,6 +19,7 @@ import com.etatech.hashiya.feature.reader.pdf.PdfPageSource
 import com.etatech.hashiya.feature.reader.pdf.PdfPageSourceFactory
 import java.io.File
 import java.io.IOException
+import java.util.UUID
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -40,6 +44,7 @@ class ReaderViewModelTest {
 
     private val library = FakeLibraryRepository()
     private val pdfs = FakePdfRepository()
+    private val analytics = FakeAnalytics()
     private val paper = SamplePapers.attention
     private val id = paper.openAlexId
     private val storedPdf = PaperPdf(PdfSource.Downloaded, sizeBytes = 2_400_000, addedAt = 0, lastPage = 7)
@@ -53,14 +58,17 @@ class ReaderViewModelTest {
     }
 
     /** The application scope is the test's backgroundScope: it outlives viewModelScope, like the real one. */
-    private fun TestScope.viewModel(open: suspend (File) -> PdfPageSource = { FakePdfPageSource(pageCount = 300).also(opened::add) }) =
-        ReaderViewModel(
-            SavedStateHandle(mapOf(ARG_OPEN_ALEX_ID to id)),
-            pdfs,
-            library,
-            PdfPageSourceFactory { file -> open(file) },
-            backgroundScope
-        )
+    private fun TestScope.viewModel(
+        paperId: String = id,
+        open: suspend (File) -> PdfPageSource = { FakePdfPageSource(pageCount = 300).also(opened::add) }
+    ) = ReaderViewModel(
+        SavedStateHandle(mapOf(ARG_OPEN_ALEX_ID to paperId)),
+        pdfs,
+        library,
+        PdfPageSourceFactory { file -> open(file) },
+        backgroundScope,
+        analytics
+    )
 
     private fun ReaderViewModel.ready(): ReaderState.Ready =
         state.value as? ReaderState.Ready ?: error("Expected Ready but was ${state.value}")
@@ -325,5 +333,58 @@ class ReaderViewModelTest {
         assertTrue(opened.single().closed)
         assertTrue(pages.values.all { it.isRecycled })
         assertFalse(pages.isEmpty())
+    }
+
+    @Test
+    fun readingTheFileSendsPdfOpenedWithItsSourceOnce() = runTest {
+        savedWithPdf()
+
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        viewModel.onPageChanged(3)
+        advanceUntilIdle()
+
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PdfOpened(PdfOrigin.Downloaded)), analytics.events)
+    }
+
+    @Test
+    fun anAttachedFileIsOpenedAsAttached() = runTest {
+        library.save(paper)
+        pdfs.setPdf(id, storedPdf.copy(source = PdfSource.Attached))
+
+        viewModel()
+        advanceUntilIdle()
+
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PdfOpened(PdfOrigin.Attached)), analytics.events)
+    }
+
+    @Test
+    fun aFileThatCantBeOpenedSendsNothing() = runTest {
+        savedWithPdf()
+
+        viewModel(open = { throw IOException("password-protected") })
+        advanceUntilIdle()
+
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+    }
+
+    @Test
+    fun notesTypedInTheSheetAreOneEventWithNoText() = runTest {
+        val noted = paper.copy(openAlexId = "https://openalex.org/W${UUID.randomUUID()}")
+        library.save(noted)
+        pdfs.setPdf(noted.openAlexId, storedPdf)
+        val viewModel = viewModel(paperId = noted.openAlexId)
+        advanceUntilIdle()
+
+        viewModel.onNoteChange(NoteSection.Summary, "See 10.1038/nature14539")
+        advanceUntilIdle()
+        viewModel.onNoteChange(NoteSection.Summary, "See 10.1038/nature14539 again")
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf<AnalyticsEvent>(AnalyticsEvent.PdfOpened(PdfOrigin.Downloaded), AnalyticsEvent.NoteEdited),
+            analytics.events
+        )
+        assertFalse(analytics.events.joinToString { it.parameters.toString() }.contains("nature14539"))
     }
 }

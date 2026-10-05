@@ -3,6 +3,9 @@ package com.etatech.hashiya.feature.paperdetails
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etatech.hashiya.core.analytics.Analytics
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.NotedPapers
 import com.etatech.hashiya.core.data.di.ApplicationScope
 import com.etatech.hashiya.core.data.notes.NotesEditor
 import com.etatech.hashiya.core.data.repository.AttachResult
@@ -41,14 +44,20 @@ class PaperDetailsViewModel @AssistedInject constructor(
     private val collectionsRepository: CollectionsRepository,
     private val citationRepository: CitationRepository,
     private val pdfRepository: PdfRepository,
-    @ApplicationScope private val applicationScope: CoroutineScope
+    @ApplicationScope private val applicationScope: CoroutineScope,
+    private val analytics: Analytics
 ) : ViewModel() {
     private val _message = MutableStateFlow<PaperDetailsMessage?>(null)
     val message: StateFlow<PaperDetailsMessage?> = _message.asStateFlow()
 
-    private val notesEditor = NotesEditor(openAlexId, libraryRepository, viewModelScope, applicationScope) {
-        _message.value = PaperDetailsMessage.NotesSaveFailed
-    }
+    private val notesEditor = NotesEditor(
+        openAlexId,
+        libraryRepository,
+        viewModelScope,
+        applicationScope,
+        onSaveFailed = { _message.value = PaperDetailsMessage.NotesSaveFailed },
+        onSaved = { if (NotedPapers.firstEdit(openAlexId)) analytics.log(AnalyticsEvent.NoteEdited) }
+    )
 
     /** Grows when notes written in the reader replace the ones on screen; the fields re-seed. */
     val notesVersion: StateFlow<Int> = notesEditor.version
@@ -108,7 +117,10 @@ class PaperDetailsViewModel @AssistedInject constructor(
 
     /** Applied at once. On failure nothing changes, so the checklist shows the stored state again and a failed tick un-ticks. */
     fun onToggleCollection(collectionId: Long, member: Boolean) {
-        collectionChange { collectionsRepository.setMembership(collectionId, openAlexId, member) }
+        collectionChange {
+            collectionsRepository.setMembership(collectionId, openAlexId, member)
+            if (member) analytics.log(AnalyticsEvent.PaperAddedToCollection)
+        }
     }
 
     fun onNewCollection() {
@@ -124,7 +136,9 @@ class PaperDetailsViewModel @AssistedInject constructor(
         collectionChange(closeDialogOnFailure = true) {
             when (val result = collectionsRepository.create(name)) {
                 is CollectionResult.Done -> {
+                    analytics.log(AnalyticsEvent.CollectionCreated)
                     collectionsRepository.setMembership(result.id, openAlexId, member = true)
+                    analytics.log(AnalyticsEvent.PaperAddedToCollection)
                     _newCollectionDialog.value = null
                 }
 

@@ -5,6 +5,10 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etatech.hashiya.core.analytics.Analytics
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.NotedPapers
+import com.etatech.hashiya.core.analytics.PdfOrigin
 import com.etatech.hashiya.core.data.di.ApplicationScope
 import com.etatech.hashiya.core.data.notes.NotesEditor
 import com.etatech.hashiya.core.data.repository.AttachResult
@@ -13,6 +17,7 @@ import com.etatech.hashiya.core.data.repository.PdfRepository
 import com.etatech.hashiya.core.model.NoteSection
 import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperNotes
+import com.etatech.hashiya.core.model.PdfSource
 import com.etatech.hashiya.feature.reader.pdf.PdfPageSource
 import com.etatech.hashiya.feature.reader.pdf.PdfPageSourceFactory
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -65,7 +70,8 @@ class ReaderViewModel @Inject constructor(
     private val pdfRepository: PdfRepository,
     private val libraryRepository: LibraryRepository,
     private val pageSourceFactory: PdfPageSourceFactory,
-    @ApplicationScope private val applicationScope: CoroutineScope
+    @ApplicationScope private val applicationScope: CoroutineScope,
+    private val analytics: Analytics
 ) : ViewModel() {
     val openAlexId: String = checkNotNull(savedStateHandle[ARG_OPEN_ALEX_ID]) { "ReaderRoute needs an openAlexId" }
 
@@ -83,9 +89,14 @@ class ReaderViewModel @Inject constructor(
     private val _exit = MutableStateFlow<ReaderExit?>(null)
     val exit: StateFlow<ReaderExit?> = _exit.asStateFlow()
 
-    private val notesEditor = NotesEditor(openAlexId, libraryRepository, viewModelScope, applicationScope) {
-        _message.value = ReaderMessage.NotesSaveFailed
-    }
+    private val notesEditor = NotesEditor(
+        openAlexId,
+        libraryRepository,
+        viewModelScope,
+        applicationScope,
+        onSaveFailed = { _message.value = ReaderMessage.NotesSaveFailed },
+        onSaved = { if (NotedPapers.firstEdit(openAlexId)) analytics.log(AnalyticsEvent.NoteEdited) }
+    )
     val notes: StateFlow<PaperNotes?> = notesEditor.notes
     val notesSaveState: StateFlow<NotesSaveState> = notesEditor.saveState
 
@@ -194,6 +205,9 @@ class ReaderViewModel @Inject constructor(
         }
         savedPage = pdf.lastPage
         open(file, pdf.lastPage)
+        if (_state.value is ReaderState.Ready) {
+            analytics.log(AnalyticsEvent.PdfOpened(if (pdf.source == PdfSource.Attached) PdfOrigin.Attached else PdfOrigin.Downloaded))
+        }
         // Removed from Details, Settings or the paper's removal: there is nothing left to read.
         viewModelScope.launch {
             pdfRepository.observePdf(openAlexId).first { it == null }

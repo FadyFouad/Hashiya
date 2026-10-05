@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etatech.hashiya.core.analytics.Analytics
 import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.ExportFormat
 import com.etatech.hashiya.core.data.repository.CitationRepository
 import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.data.repository.CollectionsRepository
@@ -313,7 +314,10 @@ class LibraryViewModel @Inject constructor(
                 else -> return@collectionChange
             }
             when (result) {
-                is CollectionResult.Done -> _dialog.value = null
+                is CollectionResult.Done -> {
+                    _dialog.value = null
+                    if (current is CollectionDialog.New) analytics.log(AnalyticsEvent.CollectionCreated)
+                }
 
                 // Only if the dialog is still the one confirmed, so a dismissal meanwhile isn't undone.
                 CollectionResult.NameTaken -> _dialog.compareAndSet(current, current.withNameTaken(true))
@@ -368,6 +372,7 @@ class LibraryViewModel @Inject constructor(
         // Still exporting until the file is shared, so a tap while it is written does nothing.
         exporting.value = false
         if (!shared.complete) incompleteExportPending = true
+        analytics.log(AnalyticsEvent.Export(ExportFormat.Bibtex, withPdfs = false))
     }
 
     fun onExportFailed() {

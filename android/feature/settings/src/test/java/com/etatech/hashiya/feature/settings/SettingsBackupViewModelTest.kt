@@ -1,6 +1,8 @@
 package com.etatech.hashiya.feature.settings
 
 import android.net.Uri
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.ExportFormat
 import com.etatech.hashiya.core.crash.NoOpCrashReporter
 import com.etatech.hashiya.core.data.backup.BackupFailure
 import com.etatech.hashiya.core.data.backup.BackupSummary
@@ -34,6 +36,7 @@ class SettingsBackupViewModelTest {
     }
 
     private val pdfs = FakePdfRepository()
+    private val analytics = FakeAnalytics()
 
     private fun TestScope.viewModel(): SettingsViewModel {
         val viewModel =
@@ -43,7 +46,7 @@ class SettingsBackupViewModelTest {
                 pdfs,
                 backup,
                 NoOpCrashReporter,
-                FakeAnalytics()
+                analytics
             )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
@@ -205,5 +208,48 @@ class SettingsBackupViewModelTest {
 
         assertEquals(ExportState.Idle, viewModel.backupState.export)
         assertEquals(null, viewModel.backupState.message)
+    }
+
+    @Test
+    fun aSavedBackupIsOneExportWithTheChosenPdfSetting() = runTest {
+        val viewModel = viewModel()
+        viewModel.onExportClick()
+        viewModel.onIncludePdfsChange(true)
+        viewModel.onConfirmExport()
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+
+        viewModel.onSaveDestination(Uri.parse("content://docs/1"))
+
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.Export(ExportFormat.Backup, withPdfs = true)), analytics.events)
+    }
+
+    @Test
+    fun aBackupWithoutPdfsSaysNo() = runTest {
+        val viewModel = viewModel()
+        viewModel.onExportClick()
+        viewModel.onConfirmExport()
+
+        viewModel.onSaveDestination(Uri.parse("content://docs/1"))
+
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.Export(ExportFormat.Backup, withPdfs = false)), analytics.events)
+    }
+
+    @Test
+    fun cancellingOrFailingAnExportSendsNothing() = runTest {
+        val viewModel = viewModel()
+        viewModel.onExportClick()
+        viewModel.onConfirmExport()
+        viewModel.onSaveDestination(null)
+
+        backup.saveFailure = BackupFailure.WriteFailed
+        viewModel.onExportClick()
+        viewModel.onConfirmExport()
+        viewModel.onSaveDestination(Uri.parse("content://docs/1"))
+
+        backup.exportFailure = BackupFailure.NoSpace
+        viewModel.onExportClick()
+        viewModel.onConfirmExport()
+
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
     }
 }

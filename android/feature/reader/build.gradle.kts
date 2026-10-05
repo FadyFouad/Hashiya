@@ -7,6 +7,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:analytics"))
     // The picker for Replace PDF and BackHandler.
     implementation(libs.androidx.activity.compose)
     // FileProvider, for Share.

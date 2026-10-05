@@ -4,7 +4,9 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.etatech.hashiya.core.analytics.Analytics
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
 import com.etatech.hashiya.core.analytics.AnalyticsProperty
+import com.etatech.hashiya.core.analytics.ExportFormat
 import com.etatech.hashiya.core.analytics.Language
 import com.etatech.hashiya.core.crash.CrashKey
 import com.etatech.hashiya.core.crash.CrashReporter
@@ -78,6 +80,9 @@ class SettingsViewModel @Inject constructor(
 
     /** The archive waiting for the save dialog; deleted once saved, cancelled or the screen goes away. */
     private var exported: ExportedFile? = null
+
+    /** Whether the archive in [exported] holds PDFs, for the export event. */
+    private var exportedWithPdfs = false
     private var exportJob: Job? = null
 
     val uiState: StateFlow<SettingsUiState> =
@@ -199,6 +204,7 @@ class SettingsViewModel @Inject constructor(
                     }
                 }
                 exported = file
+                exportedWithPdfs = choosing.includePdfs
                 backup.update { it.copy(export = ExportState.ReadyToSave(file.fileName)) }
             } catch (e: BackupException) {
                 backup.update { it.copy(export = ExportState.Idle, message = BackupMessage.ExportFailed(e.failure)) }
@@ -238,6 +244,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             val message = try {
                 libraryBackup.save(file, uri)
+                analytics.log(AnalyticsEvent.Export(ExportFormat.Backup, exportedWithPdfs))
                 BackupMessage.Exported(file.missingPdfs)
             } catch (e: BackupException) {
                 BackupMessage.ExportFailed(e.failure)

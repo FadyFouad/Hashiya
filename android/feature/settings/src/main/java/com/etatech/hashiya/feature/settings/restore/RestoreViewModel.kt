@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etatech.hashiya.core.analytics.Analytics
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
 import com.etatech.hashiya.core.data.backup.BackupException
 import com.etatech.hashiya.core.data.backup.BackupFailure
 import com.etatech.hashiya.core.data.backup.LibraryBackup
@@ -40,7 +42,8 @@ class RestoreViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val libraryBackup: LibraryBackup,
     /** A merge can't be cancelled halfway, so it runs on, and finishes, even if the screen goes away. */
-    @ApplicationScope private val applicationScope: CoroutineScope
+    @ApplicationScope private val applicationScope: CoroutineScope,
+    private val analytics: Analytics
 ) : ViewModel() {
     private val state = MutableStateFlow<RestoreUiState>(RestoreUiState.Loading)
     val uiState: StateFlow<RestoreUiState> = state.asStateFlow()
@@ -70,7 +73,9 @@ class RestoreViewModel @Inject constructor(
         applicationScope.launch {
             state.value = try {
                 RestoreUiState.Done(libraryBackup.apply(prepared) { progress -> state.value = RestoreUiState.Applying(progress) })
+                    .also { analytics.log(AnalyticsEvent.Restore(succeeded = true)) }
             } catch (e: BackupException) {
+                analytics.log(AnalyticsEvent.Restore(succeeded = false))
                 RestoreUiState.Failed(e.failure)
             }
             discard()

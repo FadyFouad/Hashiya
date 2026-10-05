@@ -220,6 +220,7 @@ class SearchContentTest {
         composeRule.onNodeWithText(SamplePapers.bert.title).assertIsDisplayed()
         composeRule.onNodeWithText(dailyLimitMessage(reset), substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Couldn't load more results").assertDoesNotExist()
+        composeRule.onNodeWithText("Retry").assertDoesNotExist()
         composeRule.onNodeWithText("Open Settings").performClick()
         assertEquals(listOf("settings"), events)
     }

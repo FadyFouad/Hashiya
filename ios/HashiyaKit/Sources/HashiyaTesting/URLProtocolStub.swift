@@ -5,8 +5,8 @@ import os
 /// URLSession and recorded requests, so tests that use different servers can run in parallel.
 public final class URLProtocolStub: URLProtocol, @unchecked Sendable {
     public enum Reply: Sendable {
-        /// A response with this status and body.
-        case status(Int, body: Data = Data())
+        /// A response with this status, body and headers.
+        case status(Int, body: Data = Data(), headers: [String: String] = [:])
         /// A transport failure, as URLSession reports it.
         case failure(URLError.Code)
         /// No answer: the request ends only when its task is cancelled (or times out).
@@ -95,8 +95,8 @@ public final class URLProtocolStub: URLProtocol, @unchecked Sendable {
             return
         }
         switch server.receive(request) {
-        case let .status(code, body):
-            let response = HTTPURLResponse(url: url, statusCode: code, httpVersion: "HTTP/1.1", headerFields: nil)!
+        case let .status(code, body, headers):
+            let response = HTTPURLResponse(url: url, statusCode: code, httpVersion: "HTTP/1.1", headerFields: headers)!
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
             client?.urlProtocol(self, didLoad: body)
             client?.urlProtocolDidFinishLoading(self)

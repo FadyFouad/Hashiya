@@ -1,7 +1,7 @@
 package com.etatech.hashiya.core.analytics
 
-/** A value from a closed list: the only kind of value a crash key or analytics property may take. */
-interface ClosedValue {
+/** A value from a closed list: the only kind of value a crash key or analytics property may take. Sealed, so no caller can make one. */
+sealed interface ClosedValue {
     val id: String
 }
 

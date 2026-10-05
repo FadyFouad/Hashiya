@@ -105,14 +105,14 @@ struct SearchSnapshotTests {
         assertHashiyaSnapshots(
             of: screen(viewModel).environment(\.timeZone, TimeZone(identifier: "Asia/Riyadh")!),
             named: "appendDailyLimit",
-            arabicText: "سيتوفر البحث مجددًا"
+            arabicText: "فتح الإعدادات"
         )
     }
 
     @Test func pageCapFooter() async {
         let viewModel = await resultsViewModel()
         viewModel.append = .capReached(results: 200)
-        assertHashiyaSnapshots(of: screen(viewModel), named: "pageCap", arabicText: "حسِّن بحثك لرؤية المزيد")
+        assertHashiyaSnapshots(of: screen(viewModel), named: "pageCap", arabicText: "تُعرض أول \u{2068}200\u{2069} نتيجة. حسِّن بحثك لرؤية المزيد.")
     }
 
     @Test func filtersAndBanner() async {

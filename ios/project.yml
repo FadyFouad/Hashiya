@@ -38,6 +38,7 @@ targets:
         products:
           - HashiyaData
           - HashiyaDesignSystem
+          - HashiyaDiagnostics
           - HashiyaModel
           # UITestingStubs' PDF downloader implements its `PdfDownloading`.
           - HashiyaNetwork
@@ -129,6 +130,7 @@ schemes:
         PACKAGE_RESOURCE_BUNDLE_PATH: $(BUILT_PRODUCTS_DIR)
       targets:
         - package: HashiyaKit/HashiyaModelTests
+        - package: HashiyaKit/HashiyaDiagnosticsTests
         - package: HashiyaKit/HashiyaBibTeXTests
         - package: HashiyaKit/HashiyaNetworkTests
         - package: HashiyaKit/HashiyaDatabaseTests

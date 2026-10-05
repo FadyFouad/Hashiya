@@ -14,6 +14,7 @@ let package = Package(
         .library(name: "HashiyaBibTeX", targets: ["HashiyaBibTeX"]),
         .library(name: "HashiyaNetwork", targets: ["HashiyaNetwork"]),
         .library(name: "HashiyaDatabase", targets: ["HashiyaDatabase"]),
+        .library(name: "HashiyaDiagnostics", targets: ["HashiyaDiagnostics"]),
         .library(name: "HashiyaData", targets: ["HashiyaData"]),
         .library(name: "HashiyaDesignSystem", targets: ["HashiyaDesignSystem"]),
         .library(name: "HashiyaTesting", targets: ["HashiyaTesting"]),
@@ -32,40 +33,42 @@ let package = Package(
         .target(name: "HashiyaModel"),
         .target(name: "HashiyaBibTeX", dependencies: ["HashiyaModel"]),
         .target(name: "HashiyaNetwork"),
+        .target(name: "HashiyaDiagnostics"),
         .target(name: "HashiyaDatabase", dependencies: ["HashiyaModel", grdb]),
-        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX", zip]),
+        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX", "HashiyaDiagnostics", zip]),
         .target(name: "HashiyaDesignSystem", dependencies: ["HashiyaModel"], resources: [.process("Resources")]),
         .target(
             name: "FeatureSearch",
-            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem"],
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem", "HashiyaDiagnostics"],
             resources: [.process("Resources")]
         ),
         .target(
             name: "FeatureLibrary",
-            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem"],
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem", "HashiyaDiagnostics"],
             resources: [.process("Resources")]
         ),
         .target(
             name: "FeaturePaperDetails",
-            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem"],
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem", "HashiyaDiagnostics"],
             resources: [.process("Resources")]
         ),
         .target(
             name: "FeatureReader",
-            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem"],
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem", "HashiyaDiagnostics"],
             resources: [.process("Resources")]
         ),
         .target(
             name: "FeatureSettings",
-            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem"],
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem", "HashiyaDiagnostics"],
             resources: [.process("Resources")]
         ),
         .target(
             name: "HashiyaTesting",
-            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaNetwork", "HashiyaDesignSystem", snapshotTesting],
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaNetwork", "HashiyaDesignSystem", "HashiyaDiagnostics", snapshotTesting],
             resources: [.copy("Resources/Fixtures")]
         ),
         .testTarget(name: "HashiyaModelTests", dependencies: ["HashiyaModel"]),
+        .testTarget(name: "HashiyaDiagnosticsTests", dependencies: ["HashiyaDiagnostics", "HashiyaTesting"]),
         .testTarget(name: "HashiyaBibTeXTests", dependencies: ["HashiyaBibTeX", "HashiyaModel"]),
         .testTarget(name: "HashiyaNetworkTests", dependencies: ["HashiyaNetwork", "HashiyaTesting"]),
         .testTarget(name: "HashiyaDatabaseTests", dependencies: ["HashiyaDatabase", "HashiyaModel", grdb]),

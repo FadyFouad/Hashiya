@@ -71,7 +71,8 @@ class OpenAlexDataSourceTest {
         assertEquals("cited_by_count:desc", url.queryParameter("sort"))
         assertEquals("25", url.queryParameter("per_page"))
         assertEquals("*", url.queryParameter("cursor"))
-        assertEquals(WORK_FIELDS, url.queryParameter("select"))
+        assertEquals(SEARCH_FIELDS, url.queryParameter("select"))
+        assertTrue(SEARCH_FIELDS.split(",").contains("primary_topic"))
         assertEquals(48210L, response.meta.count)
     }
 

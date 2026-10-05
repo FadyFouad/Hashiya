@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.testing
 import androidx.paging.LoadState
 import androidx.paging.LoadStates
 import androidx.paging.PagingData
+import com.etatech.hashiya.core.data.repository.FirstPage
 import com.etatech.hashiya.core.data.repository.SearchException
 import com.etatech.hashiya.core.data.repository.SearchRepository
 import com.etatech.hashiya.core.data.repository.SearchResults
@@ -17,6 +18,14 @@ class FakeSearchRepository : SearchRepository {
     var papers: List<Paper> = emptyList()
     var totalCount: Long? = null
     var error: SearchError? = null
+    var firstPage: FirstPage? = null
+    var pagesLoaded: Int = 0
+
+    /** The flows handed out by the latest [search], so a test can emit later values. */
+    var lastFirstPage = MutableStateFlow<FirstPage?>(null)
+        private set
+    var lastPagesLoaded = MutableStateFlow(0)
+        private set
 
     override fun search(query: SearchQuery): SearchResults {
         queries += query
@@ -42,6 +51,13 @@ class FakeSearchRepository : SearchRepository {
                 )
             )
         }
-        return SearchResults(papers = flowOf(data), totalCount = MutableStateFlow(totalCount))
+        lastFirstPage = MutableStateFlow(firstPage)
+        lastPagesLoaded = MutableStateFlow(pagesLoaded)
+        return SearchResults(
+            papers = flowOf(data),
+            totalCount = MutableStateFlow(totalCount),
+            firstPage = lastFirstPage,
+            pagesLoaded = lastPagesLoaded
+        )
     }
 }

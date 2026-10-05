@@ -53,4 +53,27 @@ class OpenAlexParsingTest {
         assertNull(work.type)
         assertNull(work.biblio)
     }
+
+    @Test
+    fun parsesThePrimaryTopicIds() {
+        val work = OpenAlexJson.decodeFromString<NetworkWork>(
+            """{"id":"https://openalex.org/W1","primary_topic":{"id":"https://openalex.org/T1","display_name":"Name","subfield":{"id":"https://openalex.org/subfields/1707","display_name":"CV"},"field":{"id":"https://openalex.org/fields/17"},"domain":{"id":"https://openalex.org/domains/3"}}}"""
+        )
+        assertEquals("https://openalex.org/subfields/1707", work.primaryTopic?.subfield?.id)
+        assertEquals("https://openalex.org/fields/17", work.primaryTopic?.field?.id)
+        assertEquals("https://openalex.org/domains/3", work.primaryTopic?.domain?.id)
+    }
+
+    @Test
+    fun aMissingOrOddPrimaryTopicDoesNotFailTheWork() {
+        for (topic in listOf("null", "\"x\"", "7", "[1]", """{"subfield":{"id":1707}}""", """{"subfield":"x","field":null}""")) {
+            val work = OpenAlexJson.decodeFromString<NetworkWork>("""{"id":"https://openalex.org/W1","primary_topic":$topic}""")
+            assertEquals("https://openalex.org/W1", work.id)
+        }
+        val odd = OpenAlexJson.decodeFromString<NetworkWork>(
+            """{"id":"W1","primary_topic":{"subfield":{"id":1707},"field":{"id":"https://openalex.org/fields/17"}}}"""
+        )
+        assertNull(odd.primaryTopic?.subfield?.id)
+        assertEquals("https://openalex.org/fields/17", odd.primaryTopic?.field?.id)
+    }
 }

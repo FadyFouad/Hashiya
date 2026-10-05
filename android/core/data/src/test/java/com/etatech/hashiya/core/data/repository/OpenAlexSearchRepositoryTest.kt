@@ -1,6 +1,7 @@
 package com.etatech.hashiya.core.data.repository
 
 import androidx.paging.testing.asSnapshot
+import com.etatech.hashiya.core.analytics.ResearchCategory
 import com.etatech.hashiya.core.data.FakeOpenAlexDataSource
 import com.etatech.hashiya.core.model.SearchQuery
 import kotlinx.coroutines.test.runTest
@@ -18,7 +19,11 @@ class OpenAlexSearchRepositoryTest {
         val results = repository.search(SearchQuery("bert"))
 
         assertNull(results.totalCount.value)
+        assertNull(results.firstPage.value)
+        assertEquals(0, results.pagesLoaded.value)
         assertEquals(listOf("W1", "W2"), results.papers.asSnapshot().map { it.openAlexId })
         assertEquals(2L, results.totalCount.value)
+        assertEquals(FirstPage(2, ResearchCategory.Unknown), results.firstPage.value)
+        assertEquals(1, results.pagesLoaded.value)
     }
 }

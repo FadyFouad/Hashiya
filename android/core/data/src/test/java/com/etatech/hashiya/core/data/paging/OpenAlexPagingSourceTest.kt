@@ -3,12 +3,16 @@ package com.etatech.hashiya.core.data.paging
 import androidx.paging.PagingConfig
 import androidx.paging.PagingSource.LoadResult
 import androidx.paging.testing.TestPager
+import com.etatech.hashiya.core.analytics.ResearchCategory
 import com.etatech.hashiya.core.data.FakeOpenAlexDataSource
+import com.etatech.hashiya.core.data.repository.FirstPage
 import com.etatech.hashiya.core.data.repository.SearchException
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.core.model.SearchQuery
 import com.etatech.hashiya.core.network.NetworkFailure
+import com.etatech.hashiya.core.network.model.NetworkTopic
+import com.etatech.hashiya.core.network.model.NetworkTopicRef
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -16,10 +20,11 @@ import org.junit.Test
 
 class OpenAlexPagingSourceTest {
     private val dataSource = FakeOpenAlexDataSource()
-    private var reportedCount: Long? = null
+    private var reportedFirstPage: FirstPage? = null
+    private var reportedPages = 0
     private val pager = TestPager(
         PagingConfig(pageSize = 25, initialLoadSize = 25, enablePlaceholders = false),
-        OpenAlexPagingSource(SearchQuery("bert"), dataSource) { reportedCount = it }
+        OpenAlexPagingSource(SearchQuery("bert"), dataSource, onFirstPage = { reportedFirstPage = it }, onPage = { reportedPages = it })
     )
 
     private fun LoadResult<String, Paper>.page() = this as LoadResult.Page<String, Paper>
@@ -33,7 +38,7 @@ class OpenAlexPagingSourceTest {
         assertEquals("*", dataSource.requests.single().cursor)
         assertEquals(listOf("W1", "W2"), page.data.map { it.openAlexId })
         assertEquals("c2", page.nextKey)
-        assertEquals(48210L, reportedCount)
+        assertEquals(48210L, reportedFirstPage?.total)
     }
 
     @Test
@@ -77,5 +82,25 @@ class OpenAlexPagingSourceTest {
 
         val result = pager.refresh() as LoadResult.Error
         assertEquals(SearchError.Offline, (result.throwable as SearchException).error)
+    }
+
+    @Test
+    fun theFirstPageReportsItsTotalAndCategoryAndPagesAreCounted() = runTest {
+        val ai = NetworkTopic(
+            subfield = NetworkTopicRef("https://openalex.org/subfields/1702"),
+            field = NetworkTopicRef("https://openalex.org/fields/17"),
+            domain = NetworkTopicRef("https://openalex.org/domains/3")
+        )
+        dataSource.enqueuePage("W1", "W2", "W3", nextCursor = "c2", count = 48_210, topics = listOf(ai, ai, ai))
+        dataSource.enqueuePage("W4", nextCursor = null, count = 48_210)
+
+        pager.refresh()
+        assertEquals(FirstPage(48_210, ResearchCategory.Ai), reportedFirstPage)
+        assertEquals(1, reportedPages)
+
+        reportedFirstPage = null
+        pager.append()
+        assertEquals(2, reportedPages)
+        assertNull(reportedFirstPage)
     }
 }

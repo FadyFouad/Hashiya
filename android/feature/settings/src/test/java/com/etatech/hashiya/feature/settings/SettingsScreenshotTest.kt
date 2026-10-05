@@ -55,7 +55,7 @@ class SettingsScreenshotTest(private val variant: ScreenshotVariant) {
     @Test
     fun privacy() = composeRule.captureScreenshot("settings_privacy", variant, arabicText = "إرسال تقارير الأعطال", wholeScreen = true) {
         SettingsContent(
-            uiState = SettingsUiState(language = AppLanguage.System, crashReportsEnabled = true),
+            uiState = SettingsUiState(language = AppLanguage.System, crashReportsEnabled = true, analyticsEnabled = true),
             onBack = {},
             onKeyInputChange = {},
             onSaveKey = {},

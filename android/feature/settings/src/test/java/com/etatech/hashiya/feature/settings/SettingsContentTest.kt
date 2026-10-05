@@ -49,7 +49,8 @@ class SettingsContentTest {
                 onResetKey = { events += "reset" },
                 onLanguageSelected = { events += "language:$it" },
                 onDeleteDownloadedPdfs = { events += "deletePdfs" },
-                onCrashReportsChange = { events += "crashReports:$it" }
+                onCrashReportsChange = { events += "crashReports:$it" },
+                onAnalyticsChange = { events += "analytics:$it" }
             )
         }
     }
@@ -128,6 +129,24 @@ class SettingsContentTest {
     }
 
     @Test
+    fun usageStatisticsSwitchIsOnAndTurnsOff() {
+        show(SettingsUiState(analyticsEnabled = true))
+
+        composeRule.onNodeWithText("Share usage statistics").performScrollTo().assertIsOn()
+        composeRule.onNodeWithText("Share usage statistics").performClick()
+        assertEquals(listOf("analytics:false"), events)
+    }
+
+    @Test
+    fun usageStatisticsSwitchIsOffAndTurnsOn() {
+        show(SettingsUiState(analyticsEnabled = false))
+
+        composeRule.onNodeWithText("Share usage statistics").performScrollTo().assertIsOff()
+        composeRule.onNodeWithText("Share usage statistics").performClick()
+        assertEquals(listOf("analytics:true"), events)
+    }
+
+    @Test
     fun privacyFooterAndPolicyLinkAreShown() {
         val opened = mutableListOf<String>()
         composeRule.setContent {
@@ -147,6 +166,9 @@ class SettingsContentTest {
 
         composeRule.onNodeWithText(
             "Crash details and app errors help fix bugs. They never include your papers, notes or searches."
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "Counts of how features are used, tied to a random identifier, help decide what to improve. Never your papers, notes or searches."
         ).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Privacy policy").performScrollTo().performClick()
         assertEquals(listOf("https://fadyfouad.github.io/Hashiya-Privacy-Policy/"), opened)

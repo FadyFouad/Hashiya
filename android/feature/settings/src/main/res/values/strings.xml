@@ -104,5 +104,7 @@
     <string name="settings_privacy">Privacy</string>
     <string name="settings_crash_reports">Send crash reports</string>
     <string name="settings_crash_reports_footer">Crash details and app errors help fix bugs. They never include your papers, notes or searches.</string>
+    <string name="settings_usage_statistics">Share usage statistics</string>
+    <string name="settings_usage_statistics_footer">Counts of how features are used, tied to a random identifier, help decide what to improve. Never your papers, notes or searches.</string>
     <string name="settings_privacy_policy">Privacy policy</string>
 </resources>

@@ -108,6 +108,7 @@ internal fun SettingsScreen(onBack: () -> Unit, onOpenRestore: (String) -> Unit,
         onCancelExport = viewModel::onCancelExport,
         onRestoreClick = { openDialog.launch(arrayOf(BACKUP_MIME_TYPE, "application/octet-stream")) },
         onCrashReportsChange = viewModel::onCrashReportsChange,
+        onAnalyticsChange = viewModel::onAnalyticsChange,
         onMessageShown = viewModel::onMessageShown
     )
 }
@@ -133,6 +134,7 @@ internal fun SettingsContent(
     onCancelExport: () -> Unit = {},
     onRestoreClick: () -> Unit = {},
     onCrashReportsChange: (Boolean) -> Unit = {},
+    onAnalyticsChange: (Boolean) -> Unit = {},
     onMessageShown: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -232,7 +234,7 @@ internal fun SettingsContent(
                 StorageSection(storage, onDeleteDownloadedPdfs)
             }
             Spacer(Modifier.height(32.dp))
-            PrivacySection(uiState.crashReportsEnabled, onCrashReportsChange)
+            PrivacySection(uiState.crashReportsEnabled, onCrashReportsChange, uiState.analyticsEnabled, onAnalyticsChange)
         }
         val summary = uiState.backup.summary
         val export = uiState.backup.export
@@ -315,7 +317,12 @@ private fun StorageSection(storage: PdfStorage, onDeleteDownloadedPdfs: () -> Un
 }
 
 @Composable
-private fun PrivacySection(crashReportsEnabled: Boolean, onCrashReportsChange: (Boolean) -> Unit) {
+private fun PrivacySection(
+    crashReportsEnabled: Boolean,
+    onCrashReportsChange: (Boolean) -> Unit,
+    analyticsEnabled: Boolean,
+    onAnalyticsChange: (Boolean) -> Unit
+) {
     val uriHandler = LocalUriHandler.current
     // The language in effect, whether chosen in the app or inherited from the system.
     val arabic = LocalConfiguration.current.locales[0].language == "ar"
@@ -334,6 +341,23 @@ private fun PrivacySection(crashReportsEnabled: Boolean, onCrashReportsChange: (
     }
     Text(
         stringResource(R.string.settings_crash_reports_footer),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    Spacer(Modifier.height(8.dp))
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = analyticsEnabled, role = Role.Switch, onValueChange = onAnalyticsChange)
+            .heightIn(min = 48.dp)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(stringResource(R.string.settings_usage_statistics), modifier = Modifier.weight(1f))
+        Switch(checked = analyticsEnabled, onCheckedChange = null)
+    }
+    Text(
+        stringResource(R.string.settings_usage_statistics_footer),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )

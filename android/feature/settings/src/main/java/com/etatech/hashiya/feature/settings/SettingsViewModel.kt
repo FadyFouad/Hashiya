@@ -3,6 +3,9 @@ package com.etatech.hashiya.feature.settings
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etatech.hashiya.core.analytics.Analytics
+import com.etatech.hashiya.core.analytics.AnalyticsProperty
+import com.etatech.hashiya.core.analytics.Language
 import com.etatech.hashiya.core.crash.CrashKey
 import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.data.backup.BackupException
@@ -33,7 +36,8 @@ data class SettingsUiState(
     /** Null until loaded; the Storage section is hidden while null. */
     val storage: PdfStorage? = null,
     val backup: BackupUiState = BackupUiState(),
-    val crashReportsEnabled: Boolean = true
+    val crashReportsEnabled: Boolean = true,
+    val analyticsEnabled: Boolean = true
 )
 
 data class BackupUiState(val summary: BackupSummary? = null, val export: ExportState = ExportState.Idle, val message: BackupMessage? = null)
@@ -63,7 +67,8 @@ class SettingsViewModel @Inject constructor(
     private val languageController: AppLanguageController,
     private val pdfRepository: PdfRepository,
     private val libraryBackup: LibraryBackup,
-    private val crashReporter: CrashReporter
+    private val crashReporter: CrashReporter,
+    private val analytics: Analytics
 ) : ViewModel() {
     /** Null until the user edits the field; the stored key is shown until then. */
     private val editedKey = MutableStateFlow<String?>(null)
@@ -86,9 +91,10 @@ class SettingsViewModel @Inject constructor(
                     backup = backupState
                 )
             },
-            preferences.crashReportsEnabled
-        ) { state, crashReports ->
-            state.copy(crashReportsEnabled = crashReports)
+            preferences.crashReportsEnabled,
+            preferences.analyticsEnabled
+        ) { state, crashReports, analyticsOn ->
+            state.copy(crashReportsEnabled = crashReports, analyticsEnabled = analyticsOn)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(language = language.value))
 
     init {
@@ -132,14 +138,13 @@ class SettingsViewModel @Inject constructor(
     fun onLanguageSelected(selected: AppLanguage) {
         languageController.set(selected)
         language.value = selected
-        crashReporter.setKey(
-            CrashKey.Language,
-            when (selected) {
-                AppLanguage.English -> "en"
-                AppLanguage.Arabic -> "ar"
-                AppLanguage.System -> "system"
-            }
-        )
+        val tag = when (selected) {
+            AppLanguage.English -> "en"
+            AppLanguage.Arabic -> "ar"
+            AppLanguage.System -> "system"
+        }
+        crashReporter.setKey(CrashKey.Language, tag)
+        analytics.setProperty(AnalyticsProperty.Language, Language.of(tag))
     }
 
     /**
@@ -149,6 +154,12 @@ class SettingsViewModel @Inject constructor(
     fun onCrashReportsChange(enabled: Boolean) {
         crashReporter.setEnabled(enabled)
         viewModelScope.launch { withContext(NonCancellable) { preferences.setCrashReportsEnabled(enabled) } }
+    }
+
+    /** Same order and guarantee as [onCrashReportsChange]: collection stops first, and the write outlives the screen. */
+    fun onAnalyticsChange(enabled: Boolean) {
+        analytics.setEnabled(enabled)
+        viewModelScope.launch { withContext(NonCancellable) { preferences.setAnalyticsEnabled(enabled) } }
     }
 
     /** Deletes downloaded PDFs only; attached ones can't be fetched again, so they stay. */

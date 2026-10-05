@@ -82,11 +82,11 @@ let package = Package(
         ),
         .testTarget(
             name: "FeatureSearchTests",
-            dependencies: ["FeatureSearch", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
+            dependencies: ["FeatureSearch", "HashiyaData", "HashiyaDesignSystem", "HashiyaDiagnostics", "HashiyaModel", "HashiyaTesting"]
         ),
         .testTarget(
             name: "FeatureLibraryTests",
-            dependencies: ["FeatureLibrary", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
+            dependencies: ["FeatureLibrary", "HashiyaData", "HashiyaDesignSystem", "HashiyaDiagnostics", "HashiyaModel", "HashiyaTesting"]
         ),
         .testTarget(
             name: "FeaturePaperDetailsTests",

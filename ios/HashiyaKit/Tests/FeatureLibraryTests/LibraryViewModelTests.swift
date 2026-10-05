@@ -1,6 +1,7 @@
 @testable import FeatureLibrary
 import Foundation
 import HashiyaData
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaTesting
 import Testing
@@ -9,6 +10,7 @@ import Testing
 struct LibraryViewModelTests {
     private let sleeper = ManualSleeper()
     private let pdfs = FakePdfRepository()
+    private let analytics = FakeAnalytics()
 
     private func makeViewModel(_ library: FakeLibraryRepository) -> LibraryViewModel {
         LibraryViewModel(
@@ -18,7 +20,8 @@ struct LibraryViewModelTests {
             pdfs: pdfs,
             exportFiles: ExportFiles(directory: FileManager.default.temporaryDirectory.appendingPathComponent("library-tests-\(UUID().uuidString)")),
             share: { _ in true },
-            sleep: sleeper.sleep
+            sleep: sleeper.sleep,
+            diagnostics: .fake(analytics: analytics)
         )
     }
 
@@ -314,6 +317,41 @@ struct LibraryViewModelTests {
 
         await viewModel.undo()
         #expect(await eventually { ids(viewModel) == [SamplePapers.vit.openAlexID, SamplePapers.attention.openAlexID] })
+    }
+
+    @Test func aRemovalIsCountedOnlyOnceItIsFinal() async {
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention])
+        let viewModel = makeViewModel(library)
+        #expect(await eventually { viewModel.isLoaded })
+
+        await viewModel.remove(SamplePapers.attention)
+        #expect(analytics.events.isEmpty)
+        viewModel.undoExpired()
+        #expect(analytics.events == [.paperRemoved])
+        viewModel.undoExpired()
+        #expect(analytics.events == [.paperRemoved])
+    }
+
+    @Test func undoCountsNothing() async {
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention])
+        let viewModel = makeViewModel(library)
+        #expect(await eventually { viewModel.isLoaded })
+
+        await viewModel.remove(SamplePapers.attention)
+        await viewModel.undo()
+        viewModel.undoExpired()
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func aSecondRemovalMakesTheFirstFinal() async {
+        let library = FakeLibraryRepository(saved: [SamplePapers.vit, SamplePapers.bert])
+        let viewModel = makeViewModel(library)
+        #expect(await eventually { viewModel.papers.count == 2 })
+
+        await viewModel.remove(SamplePapers.bert)
+        #expect(analytics.events.isEmpty)
+        await viewModel.remove(SamplePapers.vit)
+        #expect(analytics.events == [.paperRemoved])
     }
 
     @Test func anExpiredUndoForgetsThePaper() async {

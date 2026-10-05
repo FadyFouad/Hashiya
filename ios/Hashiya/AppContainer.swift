@@ -83,7 +83,7 @@ final class AppContainer {
     }
 
     func makeSearchViewModel() -> SearchViewModel {
-        SearchViewModel(repository: searchRepository, lookup: lookupRepository, library: libraryRepository, preferences: preferences)
+        SearchViewModel(repository: searchRepository, lookup: lookupRepository, library: libraryRepository, preferences: preferences, diagnostics: diagnostics)
     }
 
     func makeLibraryViewModel() -> LibraryViewModel {
@@ -93,7 +93,8 @@ final class AppContainer {
             citations: citationRepository,
             pdfs: pdfRepository,
             exportFiles: exportFiles,
-            share: { await ShareSheet.present(fileURL: $0) }
+            share: { await ShareSheet.present(fileURL: $0) },
+            diagnostics: diagnostics
         )
     }
 

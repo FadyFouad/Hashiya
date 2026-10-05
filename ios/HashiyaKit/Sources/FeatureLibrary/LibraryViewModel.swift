@@ -1,6 +1,7 @@
 import Foundation
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import Observation
 import os
@@ -127,6 +128,7 @@ public final class LibraryViewModel {
     @ObservationIgnored private let pdfs: any PdfRepository
     @ObservationIgnored private let exportFiles: ExportFiles
     @ObservationIgnored private let share: @MainActor (URL) async -> Bool
+    @ObservationIgnored private let diagnostics: Diagnostics
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
     @ObservationIgnored private let filterObservation = TaskSlot()
     @ObservationIgnored private let collectionsObservation = TaskSlot()
@@ -148,7 +150,8 @@ public final class LibraryViewModel {
         pdfs: any PdfRepository,
         exportFiles: ExportFiles,
         share: @escaping @MainActor (URL) async -> Bool,
-        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
+        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+        diagnostics: Diagnostics = .none
     ) {
         self.library = library
         self.collectionsRepository = collections
@@ -157,6 +160,7 @@ public final class LibraryViewModel {
         self.exportFiles = exportFiles
         self.share = share
         self.sleep = sleep
+        self.diagnostics = diagnostics
         observeFilter()
         observeCollections()
     }
@@ -510,7 +514,10 @@ public final class LibraryViewModel {
                 // replaces is final now and its PDF goes.
                 let previous = pendingUndo
                 pendingUndo = removed
-                if let previous { discardPdf(of: previous) }
+                if let previous {
+                    diagnostics.analytics.log(.paperRemoved)
+                    discardPdf(of: previous)
+                }
             }
         } catch {
             Self.log("remove failed")
@@ -533,6 +540,7 @@ public final class LibraryViewModel {
     public func undoExpired() {
         guard let removed = pendingUndo else { return }
         pendingUndo = nil
+        diagnostics.analytics.log(.paperRemoved)
         discardPdf(of: removed)
     }
 

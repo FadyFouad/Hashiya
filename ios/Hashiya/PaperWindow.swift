@@ -52,7 +52,11 @@ struct PaperWindow: View {
                 onClose: { dismissWindow() },
                 onRemove: { id in
                     dismissWindow()
-                    Task { _ = try? await container.libraryRepository.remove(openAlexID: id) }
+                    Task {
+                        if (try? await container.libraryRepository.remove(openAlexID: id)) != nil {
+                            container.diagnostics.analytics.log(.paperRemoved)
+                        }
+                    }
                 },
                 onReadPdf: { id in path.append(.reader(ReaderRoute(openAlexID: id))) }
             )

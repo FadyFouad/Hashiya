@@ -34,14 +34,14 @@ class HashiyaApplication : Application() {
     lateinit var scope: CoroutineScope
 
     override fun onCreate() {
-        super.onCreate()
-        // First, so collection and the context keys are decided before anything else can fail.
         val isRelease = !isDebuggable(this)
         if (isRelease) {
-            // Crashlytics installed its handler before onCreate (FirebaseInitProvider), so this one runs first and hands it
-            // the crash without messages.
+            // Before super.onCreate (Hilt's setup), so even a crash there reaches Crashlytics without messages. Crashlytics
+            // installed its own handler earlier, in FirebaseInitProvider, so this one runs first and hands the crash on.
             Thread.setDefaultUncaughtExceptionHandler(sanitizingHandler(Thread.getDefaultUncaughtExceptionHandler()))
         }
+        super.onCreate()
+        // First, so collection and the context keys are decided before anything else can fail.
         scope.launch {
             CrashStartup(
                 reporter = crashReporter,

@@ -30,10 +30,45 @@ class SanitizingHandlerTest {
         assertFalse(trace.contains("Attention"))
     }
 
+    private var terminated = 0
+    private val terminate: () -> Unit = { terminated++ }
+
     @Test
-    fun withNoNextHandlerNothingHappens() {
-        sanitizingHandler(null).uncaughtException(Thread.currentThread(), RuntimeException("secret"))
+    fun withNoNextHandlerTheProcessStillEnds() {
+        sanitizingHandler(null, terminate = terminate).uncaughtException(Thread.currentThread(), RuntimeException("secret"))
 
         assertTrue(received.isEmpty())
+        assertEquals(1, terminated)
+    }
+
+    @Test
+    fun ifSanitizingFailsTheProcessEndsWithoutSendingTheOriginal() {
+        val failing: (Throwable) -> Throwable = { throw OutOfMemoryError() }
+
+        sanitizingHandler(
+            next,
+            sanitize = failing,
+            terminate = terminate
+        ).uncaughtException(Thread.currentThread(), RuntimeException("secret"))
+
+        assertTrue(received.isEmpty())
+        assertEquals(1, terminated)
+    }
+
+    @Test
+    fun ifTheNextHandlerThrowsTheProcessStillEnds() {
+        val throwing = Thread.UncaughtExceptionHandler { _, _ -> throw IllegalStateException("handler broke") }
+
+        sanitizingHandler(throwing, terminate = terminate).uncaughtException(Thread.currentThread(), RuntimeException("secret"))
+
+        assertEquals(1, terminated)
+    }
+
+    @Test
+    fun aHandledCrashDoesNotTerminateHere() {
+        sanitizingHandler(next, terminate = terminate).uncaughtException(Thread.currentThread(), RuntimeException("secret"))
+
+        assertEquals(1, received.size)
+        assertEquals(0, terminated)
     }
 }

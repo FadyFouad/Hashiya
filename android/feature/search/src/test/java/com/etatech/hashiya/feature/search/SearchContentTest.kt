@@ -69,7 +69,8 @@ class SearchContentTest {
 
     private val zone = ZoneId.of("Asia/Riyadh")
 
-    private fun dailyLimitMessage(reset: Long) = "Search will be available again at ${formatResetTime(reset, Locale.US, zone)}."
+    private fun dailyLimitMessage(reset: Long) =
+        "Search will be available again at ${formatResetTime(reset, Locale.US, zone, is24Hour = false)}."
 
     private val searching = SearchUiState(text = "transformers", isIdle = false, totalCount = 48210)
 

@@ -6,17 +6,22 @@ import Testing
 struct DiagnosticsTests {
     @Test(arguments: [(0, "0"), (1, "1-50"), (50, "1-50"), (51, "51-500"), (500, "51-500"), (501, "501-5000"), (5000, "501-5000"), (5001, "5000+")])
     func librarySizeBuckets(papers: Int, bucket: String) {
-        #expect(librarySizeBucket(papers) == bucket)
+        #expect(librarySizeBucket(papers).rawValue == bucket)
     }
 
-    @Test(arguments: [("en", "en"), ("ar", "ar"), ("fr", "system"), ("", "system")])
+    @Test(arguments: [("en", "en"), ("ar", "ar"), ("fr", "system"), ("", "system"), ("ar-EG", "system"), ("EN", "system")])
     func languageKeys(code: String, key: String) {
-        #expect(languageKey(code) == key)
+        #expect(languageKey(code).rawValue == key)
     }
 
     @Test(arguments: [(0, ResultsBucket.zero), (1, .upTo25), (25, .upTo25), (26, .upTo200), (200, .upTo200), (201, .over200)])
     func resultBuckets(count: Int, bucket: ResultsBucket) {
         #expect(ResultsBucket(count: Int64(count)) == bucket)
+    }
+
+    @Test func crashKeysAndSitesAreTheClosedLists() {
+        #expect(CrashKey.allCases.map(\.rawValue) == ["screen", "language", "librarySizeBucket", "backupInProgress"])
+        #expect(CrashSite.allCases.map(\.rawValue) == ["migration", "databaseOpen", "restore", "export", "pdfStore", "unexpectedUiError"])
     }
 
     @Test func aReportedErrorKeepsOnlyTypeDomainAndCode() {

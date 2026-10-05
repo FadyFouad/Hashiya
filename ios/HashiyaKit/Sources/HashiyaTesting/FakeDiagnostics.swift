@@ -18,7 +18,7 @@ public final class FakeCrashReporting: CrashReporting {
     public var records: [ReportedError] { state.withLock { $0.records } }
 
     public func setEnabled(_ enabled: Bool) { state.withLock { $0.enabled.append(enabled) } }
-    public func setKey(_ key: CrashKey, _ value: String) { state.withLock { $0.keys[key] = value } }
+    public func setKey(_ key: CrashKey, _ value: some ClosedValue) { state.withLock { $0.keys[key] = value.rawValue } }
     public func record(_ error: any Error, site: CrashSite) {
         let reported = ReportedError(error: error, site: site)
         state.withLock { $0.records.append(reported) }
@@ -42,7 +42,7 @@ public final class FakeAnalytics: AnalyticsTracking {
     public var enabledCalls: [Bool] { state.withLock { $0.enabled } }
 
     public func log(_ event: AnalyticsEvent) { state.withLock { $0.events.append(event) } }
-    public func setProperty(_ property: AnalyticsProperty, _ value: String) { state.withLock { $0.properties[property] = value } }
+    public func setProperty(_ property: AnalyticsProperty, _ value: some ClosedValue) { state.withLock { $0.properties[property] = value.rawValue } }
     public func setEnabled(_ enabled: Bool) { state.withLock { $0.enabled.append(enabled) } }
 }
 

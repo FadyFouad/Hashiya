@@ -18,7 +18,7 @@ public struct Diagnostics: Sendable {
 
     /// The visible screen changed: the crash `screen` key and a `screen_view` event.
     public func screenShown(_ screen: Screen) {
-        crash.setKey(.screen, screen.rawValue)
+        crash.setKey(.screen, screen)
         analytics.log(.screenView(screen))
     }
 }

@@ -2,7 +2,7 @@
 /// are closed lists, so nothing a person typed or read can be attached.
 public protocol AnalyticsTracking: Sendable {
     func log(_ event: AnalyticsEvent)
-    func setProperty(_ property: AnalyticsProperty, _ value: String)
+    func setProperty(_ property: AnalyticsProperty, _ value: some ClosedValue)
     /// Starts or stops collection. Stopping also clears the analytics id and events not yet sent.
     func setEnabled(_ enabled: Bool)
 }
@@ -11,7 +11,7 @@ public protocol AnalyticsTracking: Sendable {
 public struct NoAnalytics: AnalyticsTracking {
     public init() {}
     public func log(_ event: AnalyticsEvent) {}
-    public func setProperty(_ property: AnalyticsProperty, _ value: String) {}
+    public func setProperty(_ property: AnalyticsProperty, _ value: some ClosedValue) {}
     public func setEnabled(_ enabled: Bool) {}
 }
 
@@ -21,7 +21,7 @@ public enum AnalyticsProperty: String, CaseIterable, Sendable {
     case hasOwnKey = "has_own_key"
 }
 
-public enum Screen: String, CaseIterable, Sendable {
+public enum Screen: String, CaseIterable, Sendable, ClosedValue {
     case library, search, details, reader, settings, restore, export
 }
 

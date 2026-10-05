@@ -7,6 +7,8 @@
     <string name="settings_api_key_using_yours">Using your key</string>
     <string name="settings_api_key_show">Show key</string>
     <string name="settings_api_key_hide">Hide key</string>
+    <string name="settings_api_key_footer">A free personal key gives you more daily searches.</string>
+    <string name="settings_api_key_get_free">Get a free key</string>
     <string name="settings_save">Save</string>
     <string name="settings_reset">Reset to built-in</string>
     <string name="settings_language_section">Language</string>

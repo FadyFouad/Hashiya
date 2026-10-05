@@ -7,6 +7,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import com.etatech.hashiya.core.analytics.Analytics
 import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.LimitKind
 import com.etatech.hashiya.core.analytics.ResultsBucket
 import com.etatech.hashiya.core.analytics.SaveSource
 import com.etatech.hashiya.core.analytics.SearchKind
@@ -29,6 +30,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -37,6 +39,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -129,7 +132,14 @@ class SearchViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            search.collectLatest { current -> current?.let { count(it) } }
+            search.collectLatest { current ->
+                current?.let {
+                    coroutineScope {
+                        launch { logDailyLimit(it) }
+                        count(it)
+                    }
+                }
+            }
         }
     }
 
@@ -327,12 +337,29 @@ class SearchViewModel @Inject constructor(
                 AnalyticsEvent.Search(
                     SearchKind.Keyword,
                     hasFilters = search.query.hasActiveFilters,
-                    route = search.route,
+                    route = first.route ?: search.route,
                     results = ResultsBucket.of(first.total),
                     category = first.category
                 )
             )
         }
+        // Reaching the cap ends the search's paging, so this is sent once; it follows `search` and the pages that led to it.
+        coroutineScope {
+            launch {
+                search.results.capReached.filterNotNull().first()
+                analytics.log(AnalyticsEvent.SearchLimitReached(LimitKind.PageCap))
+            }
+            countPages(search)
+        }
+    }
+
+    /** `search_limit_reached(daily)`, once per search however many pages or retries hit the limit. */
+    private suspend fun logDailyLimit(search: ActiveSearch) {
+        search.results.dailyLimitHit.filter { it }.first()
+        analytics.log(AnalyticsEvent.SearchLimitReached(LimitKind.Daily))
+    }
+
+    private suspend fun countPages(search: ActiveSearch) {
         // A refresh starts a new PagingSource whose count restarts at 1; only pages past the highest counted are new.
         var counted = 1
         search.results.pagesLoaded.collect { pages ->

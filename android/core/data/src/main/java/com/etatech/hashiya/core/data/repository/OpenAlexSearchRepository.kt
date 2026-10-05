@@ -21,6 +21,7 @@ internal class OpenAlexSearchRepository(private val dataSource: OpenAlexDataSour
         val firstPage = MutableStateFlow<FirstPage?>(null)
         val pagesLoaded = MutableStateFlow(0)
         val capReached = MutableStateFlow<Int?>(null)
+        val dailyLimitHit = MutableStateFlow(false)
         val pager = Pager(
             config = PagingConfig(pageSize = PAGE_SIZE, initialLoadSize = PAGE_SIZE, enablePlaceholders = false),
             pagingSourceFactory = {
@@ -33,7 +34,8 @@ internal class OpenAlexSearchRepository(private val dataSource: OpenAlexDataSour
                     },
                     onPage = { pagesLoaded.value = it },
                     maxPages = maxPagesPerQuery,
-                    onCapReached = { capReached.value = it }
+                    onCapReached = { capReached.value = it },
+                    onDailyLimit = { dailyLimitHit.value = true }
                 )
             }
         )
@@ -42,7 +44,8 @@ internal class OpenAlexSearchRepository(private val dataSource: OpenAlexDataSour
             totalCount = totalCount.asStateFlow(),
             firstPage = firstPage.asStateFlow(),
             pagesLoaded = pagesLoaded.asStateFlow(),
-            capReached = capReached.asStateFlow()
+            capReached = capReached.asStateFlow(),
+            dailyLimitHit = dailyLimitHit.asStateFlow()
         )
     }
 }

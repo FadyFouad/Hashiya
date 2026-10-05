@@ -25,6 +25,8 @@ internal class OpenAlexSearchRepository(private val dataSource: OpenAlexDataSour
         val pager = Pager(
             config = PagingConfig(pageSize = PAGE_SIZE, initialLoadSize = PAGE_SIZE, enablePlaceholders = false),
             pagingSourceFactory = {
+                // Each source restarts at page 0, so a cap from the previous one no longer applies.
+                capReached.value = null
                 OpenAlexPagingSource(
                     query,
                     dataSource,

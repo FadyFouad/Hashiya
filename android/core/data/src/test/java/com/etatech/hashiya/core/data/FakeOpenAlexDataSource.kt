@@ -8,19 +8,27 @@ import com.etatech.hashiya.core.network.model.NetworkMeta
 import com.etatech.hashiya.core.network.model.NetworkTopic
 import com.etatech.hashiya.core.network.model.NetworkWork
 import com.etatech.hashiya.core.network.model.NetworkWorksResponse
+import com.etatech.hashiya.core.network.model.RequestRoute
 
 /** Returns queued responses in order and records every request. */
 internal class FakeOpenAlexDataSource : OpenAlexDataSource {
     val requests = mutableListOf<WorksSearchRequest>()
     private val responses = ArrayDeque<Result<NetworkWorksResponse>>()
 
-    fun enqueuePage(vararg ids: String, nextCursor: String?, count: Long = 100, topics: List<NetworkTopic?> = emptyList()) {
+    fun enqueuePage(
+        vararg ids: String,
+        nextCursor: String?,
+        count: Long = 100,
+        topics: List<NetworkTopic?> = emptyList(),
+        route: RequestRoute? = null
+    ) {
         responses += Result.success(
             NetworkWorksResponse(
                 meta = NetworkMeta(count = count, nextCursor = nextCursor),
                 results = ids.mapIndexed { index, id ->
                     NetworkWork(id = "https://openalex.org/$id", displayName = "Paper $id", primaryTopic = topics.getOrNull(index))
-                }
+                },
+                route = route
             )
         )
     }

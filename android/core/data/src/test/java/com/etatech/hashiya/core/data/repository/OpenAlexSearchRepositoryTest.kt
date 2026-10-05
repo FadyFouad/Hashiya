@@ -2,11 +2,16 @@ package com.etatech.hashiya.core.data.repository
 
 import androidx.paging.testing.asSnapshot
 import com.etatech.hashiya.core.analytics.ResearchCategory
+import com.etatech.hashiya.core.analytics.SearchRoute
 import com.etatech.hashiya.core.data.FakeOpenAlexDataSource
 import com.etatech.hashiya.core.model.SearchQuery
+import com.etatech.hashiya.core.network.NetworkFailure
+import com.etatech.hashiya.core.network.model.RequestRoute
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OpenAlexSearchRepositoryTest {
@@ -38,5 +43,41 @@ class OpenAlexSearchRepositoryTest {
         assertEquals(listOf("W1"), results.papers.asSnapshot().map { it.openAlexId })
         assertEquals(25, results.capReached.value)
         assertEquals(1, dataSource.requests.size)
+    }
+
+    @Test
+    fun theResponseRouteReachesTheFirstPage() = runTest {
+        dataSource.enqueuePage("W1", nextCursor = null, route = RequestRoute.Keyless)
+        val results = repository.search(SearchQuery("bert"))
+
+        results.papers.asSnapshot()
+
+        assertEquals(SearchRoute.Keyless, results.firstPage.value?.route)
+    }
+
+    @Test
+    fun aDailyLimitPageSetsDailyLimitHit() = runTest {
+        dataSource.enqueueFailure(NetworkFailure.DailyLimit(1_000))
+        val results = repository.search(SearchQuery("bert"))
+        assertFalse(results.dailyLimitHit.value)
+
+        runCatching { results.papers.asSnapshot() }
+
+        assertTrue(results.dailyLimitHit.value)
+    }
+
+    @Test
+    fun aNewPagingSourceClearsTheCapOfTheLastOne() = runTest {
+        maxPages = 1
+        dataSource.enqueuePage("W1", nextCursor = "c2", count = 500)
+        val results = repository.search(SearchQuery("bert"))
+        results.papers.asSnapshot()
+        assertEquals(25, results.capReached.value)
+
+        // A fresh collection builds a new paging source; this refresh ends before the cap.
+        dataSource.enqueuePage("W1", nextCursor = null, count = 1)
+        results.papers.asSnapshot()
+
+        assertNull(results.capReached.value)
     }
 }

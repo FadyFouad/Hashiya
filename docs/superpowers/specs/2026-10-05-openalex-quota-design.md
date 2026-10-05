@@ -180,6 +180,6 @@ Switching to a proxy also needs a privacy policy line (search requests pass thro
 
 ## 11. Delivery
 
-1. iOS PR: route, cap, config, cache, page cap, Search state, Settings footer, `docs/release.md` (config fields, where to watch usage in the OpenAlex dashboard, the proxy contract and switch-on checklist).
-2. Android PR: the same on Android.
+1. iOS PR (#36, delivered): route, cap, config, cache, page cap, Search state, Settings footer, `docs/release.md` (config fields, where to watch usage in the OpenAlex dashboard, the proxy contract and switch-on checklist).
+2. Android PR (delivered): the same on Android.
 3. After both ship: add the `openAlex` section to `app-config.json` in FadyFouad/Hashiya-Privacy-Policy, so the values are visible (the defaults apply until then).

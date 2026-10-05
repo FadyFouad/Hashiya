@@ -321,10 +321,10 @@ Paper data comes from the public OpenAlex API (openalex.org).
 - **Data types collected:**
   - App activity → **App interactions**: collected for **Analytics**; not shared; optional (Settings → Privacy → Share usage statistics).
   - Location → **Approximate location**: derived by Google Analytics from the IP address; **Analytics**; not shared; optional (Share usage statistics).
-  - App info and performance → **Crash logs** and **Diagnostics**: as before; **App functionality** and **Analytics** (stability); optional (Settings → Send crash reports).
+  - App info and performance → **Crash logs** and **Diagnostics**: collected for **App functionality** and **Analytics** (stability); not shared; optional (Settings → Privacy → Send crash reports).
   - Device or other IDs: Firebase installation and app-instance ids; **App functionality** and **Analytics**.
 - **For each type:** collected, not shared; processing is not ephemeral.
-- **Does your app use advertising ID?** No (the `AD_ID` and `ACCESS_ADSERVICES_AD_ID` permissions are removed).
+- **Does your app use advertising ID?** No (the `AD_ID`, `ACCESS_ADSERVICES_AD_ID` and `ACCESS_ADSERVICES_ATTRIBUTION` permissions are removed, so the app has no advertising id and no ad attribution).
 - **Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS only).
 - **Do you provide a way for users to request that their data is deleted?** No — reports and usage statistics are tied only to a random per-install identifier, not to a name or account, so we can't single out a user's data; Crashlytics deletes crash reports after 90 days, and Google deletes detailed analytics data after 2 months (overall totals remain).
 

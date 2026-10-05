@@ -164,8 +164,8 @@ Rows are checked top to bottom (subfield, then field, then domain). An id that i
 ## 7. Privacy and store answers
 
 - **Play → Data safety:** add App activity → App interactions, and Device or other IDs for Analytics (already declared for crash logs); collected, not shared, encrypted in transit, optional; purpose Analytics.
-- **App Store → App Privacy:** add Product Interaction and Device ID for Analytics; not linked to identity; not used for tracking.
-- **`PrivacyInfo.xcprivacy` (app):** add `NSPrivacyCollectedDataTypeProductInteraction` and `NSPrivacyCollectedDataTypeDeviceID` (purpose `NSPrivacyCollectedDataTypePurposeAnalytics`, not linked, no tracking). `NSPrivacyTracking` stays false; no tracking domains. Share Extension unchanged.
+- **App Store → App Privacy:** add Product Interaction, Device ID and Coarse Location (the approximate location Google derives from the IP address) for Analytics; not linked to identity; not used for tracking.
+- **`PrivacyInfo.xcprivacy` (app):** add `NSPrivacyCollectedDataTypeProductInteraction`, `NSPrivacyCollectedDataTypeDeviceID` and `NSPrivacyCollectedDataTypeCoarseLocation` (purpose `NSPrivacyCollectedDataTypePurposeAnalytics`, not linked, no tracking). `NSPrivacyTracking` stays false; no tracking domains. Share Extension unchanged.
 - **Privacy policy:** a "Usage statistics" section (English and Arabic) in the policy update (FadyFouad/Hashiya-Privacy-Policy PR #1): what is counted, what never is, the switch, Google as processor, 2-month retention. It says searches are counted with a broad research area worked out on the device from the results (e.g. "artificial intelligence"), and that search text is never sent.
 - **`docs/store/metadata.md`:** updated answers.
 

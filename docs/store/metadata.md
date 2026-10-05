@@ -291,9 +291,10 @@ New: notes for every paper, an in-app PDF reader with your notes beside the page
   - **Other Diagnostic Data** — App Functionality; not linked; no tracking.
   - **Product Interaction** — Analytics; not linked; no tracking.
   - **Device ID** (Firebase's installation and app-instance ids) — App Functionality and Analytics; not linked; no tracking.
+  - **Coarse Location** (approximate location Google derives from the IP address) — Analytics; not linked; no tracking.
   - Nothing else: search text, papers, notes and the library stay on the device; searches go straight to OpenAlex and arXiv.
 - **Tracking:** none. No advertising id (the app uses `FirebaseAnalyticsCore`, which has no IDFA support), no App Tracking Transparency prompt.
-- **Privacy manifest:** `PrivacyInfo.xcprivacy` in the app declares the four types above and the required-reason APIs (UserDefaults CA92.1, file timestamps C617.1, disk space E174.1); the share extension declares no collected data and the same APIs.
+- **Privacy manifest:** `PrivacyInfo.xcprivacy` in the app declares the five types above and the required-reason APIs (UserDefaults CA92.1, file timestamps C617.1, disk space E174.1); the share extension declares no collected data and the same APIs.
 - Check against Firebase's current Apple data-disclosure page before each release that changes Firebase.
 
 ### App Store Connect: Age rating

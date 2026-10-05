@@ -1,8 +1,15 @@
+/// How a search's response was obtained: the user's key, the shared route, no key, or the on-device cache.
+public enum RequestRoute: Sendable, Equatable {
+    case user, shared, keyless, cached
+}
+
 /// A page of `GET /works`. Tolerant: unknown keys are ignored and every field except `id`, `meta`
 /// and `authorships[].author` may be missing or null.
 public struct NetworkWorksResponse: Decodable, Equatable, Sendable {
     public let meta: NetworkMeta
     public let results: [NetworkWork]
+    /// How the response was obtained; set by the client, not decoded.
+    public var route: RequestRoute? = nil
 
     public init(meta: NetworkMeta, results: [NetworkWork]) {
         self.meta = meta
@@ -53,6 +60,7 @@ public struct NetworkWork: Decodable, Equatable, Sendable {
     /// OpenAlex's work type, e.g. "article", "preprint", "book-chapter".
     public let type: String?
     public let biblio: NetworkBiblio?
+    public let primaryTopic: NetworkTopic?
 
     public init(
         id: String,
@@ -66,7 +74,8 @@ public struct NetworkWork: Decodable, Equatable, Sendable {
         bestOALocation: NetworkLocation? = nil,
         abstractInvertedIndex: [String: [Int]]? = nil,
         type: String? = nil,
-        biblio: NetworkBiblio? = nil
+        biblio: NetworkBiblio? = nil,
+        primaryTopic: NetworkTopic? = nil
     ) {
         self.id = id
         self.doi = doi
@@ -80,10 +89,12 @@ public struct NetworkWork: Decodable, Equatable, Sendable {
         self.abstractInvertedIndex = abstractInvertedIndex
         self.type = type
         self.biblio = biblio
+        self.primaryTopic = primaryTopic
     }
 
     enum CodingKeys: String, CodingKey {
         case id, doi, authorships, type, biblio
+        case primaryTopic = "primary_topic"
         case displayName = "display_name"
         case publicationYear = "publication_year"
         case primaryLocation = "primary_location"
@@ -107,6 +118,30 @@ public struct NetworkWork: Decodable, Equatable, Sendable {
         abstractInvertedIndex = try container.decodeIfPresent([String: [Int]].self, forKey: .abstractInvertedIndex)
         type = try container.decodeIfPresent(String.self, forKey: .type)
         biblio = try container.decodeIfPresent(NetworkBiblio.self, forKey: .biblio)
+        primaryTopic = try? container.decodeIfPresent(NetworkTopic.self, forKey: .primaryTopic)
+    }
+}
+
+/// A work's primary topic, as the ids of its subfield, field and domain. Topic and area names are not kept.
+public struct NetworkTopic: Decodable, Equatable, Sendable {
+    public let subfieldID: String?
+    public let fieldID: String?
+    public let domainID: String?
+
+    public init(subfieldID: String?, fieldID: String?, domainID: String?) {
+        self.subfieldID = subfieldID
+        self.fieldID = fieldID
+        self.domainID = domainID
+    }
+
+    private struct Ref: Decodable { let id: String? }
+    private enum CodingKeys: String, CodingKey { case subfield, field, domain }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        subfieldID = (try? container.decodeIfPresent(Ref.self, forKey: .subfield))?.id
+        fieldID = (try? container.decodeIfPresent(Ref.self, forKey: .field))?.id
+        domainID = (try? container.decodeIfPresent(Ref.self, forKey: .domain))?.id
     }
 }
 

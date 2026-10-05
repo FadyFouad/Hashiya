@@ -74,7 +74,7 @@ let package = Package(
         .testTarget(name: "HashiyaDatabaseTests", dependencies: ["HashiyaDatabase", "HashiyaModel", grdb]),
         .testTarget(
             name: "HashiyaDataTests",
-            dependencies: ["HashiyaData", "HashiyaDatabase", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting", grdb, zip]
+            dependencies: ["HashiyaData", "HashiyaDatabase", "HashiyaDiagnostics", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting", grdb, zip]
         ),
         .testTarget(
             name: "HashiyaDesignSystemTests",

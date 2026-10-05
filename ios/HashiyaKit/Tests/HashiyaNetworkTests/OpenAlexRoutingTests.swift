@@ -256,6 +256,26 @@ struct OpenAlexRoutingTests {
         _ = try await client.searchWorks(request)
         #expect(server.requests.count == 2)
     }
+
+    @Test func aSearchReportsTheRouteItUsed() async throws {
+        let server = URLProtocolStub.Server(always: .json(page))
+        #expect(try await search(server, quota()).searchWorks(request).route == .shared)
+        #expect(try await search(server, quota(), userKey: "mine").searchWorks(request).route == .user)
+    }
+
+    @Test func aCachedSearchReportsCached() async throws {
+        let server = URLProtocolStub.Server(always: .json(page))
+        let client = search(server, quota(), cache: true)
+        _ = try await client.searchWorks(request)
+        #expect(try await client.searchWorks(request).route == .cached)
+    }
+
+    @Test func aSearchAfterTheSharedBudgetIsUsedUpReportsKeyless() async throws {
+        let server = URLProtocolStub.Server { [page] request in
+            Self.query(request)["api_key"] == nil ? .json(page) : Self.usedUp()
+        }
+        #expect(try await search(server, quota()).searchWorks(request).route == .keyless)
+    }
 }
 
 /// Counts replies across the stub's threads.

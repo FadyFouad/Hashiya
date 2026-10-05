@@ -41,7 +41,7 @@ struct OpenAlexSearchClientTests {
             "sort": "cited_by_count:desc",
             "per_page": "25",
             "cursor": "*",
-            "select": "id,doi,display_name,publication_year,primary_location,authorships,cited_by_count,open_access,best_oa_location,abstract_inverted_index,type,biblio",
+            "select": "id,doi,display_name,publication_year,primary_location,authorships,cited_by_count,open_access,best_oa_location,abstract_inverted_index,type,biblio,primary_topic",
         ])
     }
 
@@ -177,7 +177,7 @@ struct OpenAlexSearchClientTests {
         let logged = lines.withLock { $0 }
         #expect(logged.count == 5)
         #expect(logged.allSatisfy { $0.contains("api_key=██") })
-        #expect(logged.first == "GET /works?search=bert&per_page=25&cursor=%2A&select=id%2Cdoi%2Cdisplay_name%2Cpublication_year%2Cprimary_location%2Cauthorships%2Ccited_by_count%2Copen_access%2Cbest_oa_location%2Cabstract_inverted_index%2Ctype%2Cbiblio&api_key=██ → 200")
+        #expect(logged.first == "GET /works?search=bert&per_page=25&cursor=%2A&select=id%2Cdoi%2Cdisplay_name%2Cpublication_year%2Cprimary_location%2Cauthorships%2Ccited_by_count%2Copen_access%2Cbest_oa_location%2Cabstract_inverted_index%2Ctype%2Cbiblio%2Cprimary_topic&api_key=██ → 200")
         #expect(descriptions.count == 12)
         for text in logged + descriptions {
             #expect(!text.contains(key))

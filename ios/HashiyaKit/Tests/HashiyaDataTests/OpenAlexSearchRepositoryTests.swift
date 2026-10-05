@@ -1,4 +1,5 @@
 import HashiyaData
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaNetwork
 import HashiyaTesting
@@ -65,5 +66,15 @@ struct OpenAlexSearchRepositoryTests {
         await #expect(throws: CancellationError.self) {
             try await OpenAlexSearchRepository(service: service).searchPage(SearchQuery(text: "bert"), cursor: nil)
         }
+    }
+
+    @Test func aFirstPageCarriesTheRouteAndTheResearchCategory() async throws {
+        let ai = NetworkTopic(subfieldID: "https://openalex.org/subfields/1702", fieldID: "https://openalex.org/fields/17", domainID: "https://openalex.org/domains/3")
+        var response = NetworkWorksResponse(meta: NetworkMeta(count: 3, nextCursor: nil), results: (1...3).map { NetworkWork(id: "https://openalex.org/W\($0)", primaryTopic: ai) })
+        response.route = .keyless
+        let service = FakeOpenAlexSearchService(replies: [.success(response)])
+        let page = try await OpenAlexSearchRepository(service: service).searchPage(SearchQuery(text: "bert"), cursor: nil)
+        #expect(page.route == .keyless)
+        #expect(page.category == .ai)
     }
 }

@@ -16,6 +16,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
+import com.etatech.hashiya.core.analytics.Analytics
+import com.etatech.hashiya.core.analytics.AnalyticsProperty
+import com.etatech.hashiya.core.analytics.Language
 import com.etatech.hashiya.core.crash.CrashKey
 import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
@@ -45,10 +48,14 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var crashReporter: CrashReporter
 
+    @Inject
+    lateinit var analytics: Analytics
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Android 12 and below only load the stored app language once an activity exists, so Application.onCreate may have seen none.
         crashReporter.setKey(CrashKey.Language, languageKey(AppCompatDelegate.getApplicationLocales().toLanguageTags()))
+        analytics.setProperty(AnalyticsProperty.Language, Language.of(AppCompatDelegate.getApplicationLocales().toLanguageTags()))
         enableEdgeToEdge()
         if (isFreshLaunch(savedInstanceState)) pendingSearch = intent.sharedSearchRoute()
         if (isFreshLaunch(savedInstanceState)) pendingRestore = intent.openedBackup()
@@ -57,6 +64,7 @@ class MainActivity : AppCompatActivity() {
             HashiyaTheme {
                 HashiyaApp(
                     crashReporter = crashReporter,
+                    analytics = analytics,
                     pendingSearch = pendingSearch,
                     onPendingSearchHandled = { pendingSearch = null },
                     pendingRestore = pendingRestore,

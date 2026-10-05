@@ -20,6 +20,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navOptions
 import androidx.navigation.toRoute
 import com.etatech.hashiya.R
+import com.etatech.hashiya.core.analytics.Analytics
 import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.designsystem.component.UpdateRequiredScreen
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
@@ -57,6 +58,7 @@ enum class TopLevelDestination(val icon: ImageVector, @StringRes val labelRes: I
 @Composable
 fun HashiyaApp(
     crashReporter: CrashReporter,
+    analytics: Analytics,
     navController: NavHostController = rememberNavController(),
     pendingSearch: SearchRoute? = null,
     onPendingSearchHandled: () -> Unit = {},
@@ -71,7 +73,7 @@ fun HashiyaApp(
         UpdateRequiredScreen(onUpdate = { onOpenStore(requiredUpdate.storeUrl) })
         return
     }
-    ReportScreens(navController, crashReporter)
+    ReportScreens(navController, crashReporter, analytics)
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
     val currentTopLevel = TopLevelDestination.entries.firstOrNull { topLevel ->

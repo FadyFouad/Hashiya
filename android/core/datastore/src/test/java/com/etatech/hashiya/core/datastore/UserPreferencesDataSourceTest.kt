@@ -65,4 +65,18 @@ class UserPreferencesDataSourceTest {
         source.setCrashReportsEnabled(true)
         assertTrue(source.crashReportsEnabled.first())
     }
+
+    @Test
+    fun analyticsOnByDefault() = runTest {
+        assertTrue(dataSource().analyticsEnabled.first())
+    }
+
+    @Test
+    fun storesAnalyticsChoice() = runTest {
+        val source = dataSource()
+        source.setAnalyticsEnabled(false)
+        assertFalse(source.analyticsEnabled.first())
+        source.setAnalyticsEnabled(true)
+        assertTrue(source.analyticsEnabled.first())
+    }
 }

@@ -1,10 +1,12 @@
 package com.etatech.hashiya.feature.library
 
 import androidx.lifecycle.SavedStateHandle
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
 import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.ReadingStatus
+import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
@@ -38,9 +40,10 @@ class LibraryViewModelTest {
     private val citations = FakeCitationRepository()
     private val savedStateHandle = SavedStateHandle()
     private val pdfs = FakePdfRepository()
+    private val analytics = FakeAnalytics()
 
     private fun TestScope.viewModel(handle: SavedStateHandle = savedStateHandle): LibraryViewModel {
-        val viewModel = LibraryViewModel(handle, repository, collections, citations, pdfs)
+        val viewModel = LibraryViewModel(handle, repository, collections, citations, pdfs, analytics)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }
@@ -262,7 +265,7 @@ class LibraryViewModelTest {
     private suspend fun TestScope.statesWhileRemovingAndRestoringTheOnlyPaper(listLags: Boolean, countsLag: Boolean): List<LibraryUiState> {
         repository.save(SamplePapers.bert)
         val lagging = LaggingLibraryRepository(repository, listLags, countsLag)
-        val viewModel = LibraryViewModel(SavedStateHandle(), lagging, collections, citations, pdfs)
+        val viewModel = LibraryViewModel(SavedStateHandle(), lagging, collections, citations, pdfs, analytics)
         val states = mutableListOf<LibraryUiState>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.toList(states) }
         advanceUntilIdle()
@@ -390,5 +393,69 @@ class LibraryViewModelTest {
         viewModel.onUndoDismissed()
 
         assertEquals(emptyList<String>(), pdfs.discarded)
+    }
+
+    @Test
+    fun aRemovalCountsOnlyOnceItsUndoIsDismissed() = runTest {
+        repository.save(SamplePapers.bert)
+        val viewModel = viewModel()
+
+        viewModel.onRemove(SamplePapers.bert)
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+
+        viewModel.onUndoDismissed()
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PaperRemoved), analytics.events)
+    }
+
+    @Test
+    fun anUndoneRemovalCountsNothing() = runTest {
+        repository.save(SamplePapers.bert)
+        val viewModel = viewModel()
+
+        viewModel.onRemove(SamplePapers.bert)
+        viewModel.onUndoRemove()
+        viewModel.onUndoDismissed()
+
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+    }
+
+    @Test
+    fun aSecondRemovalMakesTheFirstFinal() = runTest {
+        saveSamples()
+        val viewModel = viewModel()
+
+        viewModel.onRemove(SamplePapers.attention)
+        viewModel.onRemove(SamplePapers.bert)
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PaperRemoved), analytics.events)
+
+        viewModel.onUndoRemove()
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PaperRemoved), analytics.events)
+    }
+
+    @Test
+    fun aRemovalRequestedFromDetailsCountsOnceFinal() = runTest {
+        repository.save(SamplePapers.bert)
+        val viewModel = viewModel()
+
+        viewModel.onRemoveRequested(SamplePapers.bert.openAlexId)
+        viewModel.onUndoDismissed()
+
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PaperRemoved), analytics.events)
+    }
+
+    @Test
+    fun removingFromACollectionIsNotARemoval() = runTest {
+        saveSamples()
+        val thesis = (collections.create("Thesis") as CollectionResult.Done).id
+        collections.setMembership(thesis, SamplePapers.bert.openAlexId, member = true)
+        val viewModel = viewModel()
+        viewModel.onSelectCollection(thesis)
+        advanceUntilIdle()
+
+        viewModel.onRemove(SamplePapers.bert)
+        viewModel.onCollectionUndoDismissed()
+        viewModel.onUndoDismissed()
+
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
     }
 }

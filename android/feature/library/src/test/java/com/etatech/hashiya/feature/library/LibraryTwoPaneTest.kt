@@ -11,6 +11,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.lifecycle.SavedStateHandle
+import com.etatech.hashiya.core.analytics.NoOpAnalytics
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
@@ -53,7 +54,8 @@ class LibraryTwoPaneTest {
             repository,
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
-            FakePdfRepository()
+            FakePdfRepository(),
+            NoOpAnalytics
         )
         composeRule.setContentInWindow(window) {
             LibraryScreen(

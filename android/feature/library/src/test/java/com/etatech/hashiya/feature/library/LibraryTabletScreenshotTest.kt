@@ -3,6 +3,7 @@ package com.etatech.hashiya.feature.library
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.lifecycle.SavedStateHandle
+import com.etatech.hashiya.core.analytics.NoOpAnalytics
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
@@ -46,7 +47,8 @@ class LibraryTabletScreenshotTest(private val variant: ScreenshotVariant) {
             repository,
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
-            FakePdfRepository()
+            FakePdfRepository(),
+            NoOpAnalytics
         )
         composeRule.captureScreenshot(
             "library_two_pane",

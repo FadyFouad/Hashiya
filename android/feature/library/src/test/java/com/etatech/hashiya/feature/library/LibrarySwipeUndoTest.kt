@@ -7,6 +7,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
 import androidx.lifecycle.SavedStateHandle
+import com.etatech.hashiya.core.analytics.NoOpAnalytics
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.RemovedPaper
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
@@ -38,7 +39,8 @@ class LibrarySwipeUndoTest {
         repository,
         FakeCollectionsRepository(FakeLibraryRepository()),
         FakeCitationRepository(),
-        FakePdfRepository()
+        FakePdfRepository(),
+        NoOpAnalytics
     )
 
     @Test

@@ -5,6 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import com.etatech.hashiya.core.analytics.Analytics
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.ResultsBucket
+import com.etatech.hashiya.core.analytics.SaveSource
+import com.etatech.hashiya.core.analytics.SearchKind
+import com.etatech.hashiya.core.analytics.SearchRoute
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.LookupResult
 import com.etatech.hashiya.core.data.repository.PaperLookupRepository
@@ -28,9 +34,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
@@ -46,10 +54,21 @@ class SearchViewModel @Inject constructor(
     private val searchRepository: SearchRepository,
     private val libraryRepository: LibraryRepository,
     userPreferencesRepository: UserPreferencesRepository,
-    private val paperLookupRepository: PaperLookupRepository
+    private val paperLookupRepository: PaperLookupRepository,
+    private val analytics: Analytics
 ) : ViewModel() {
     /** Arguments from Share or "Add paper": applied once, never over text restored after process death. */
     private val routeArgs = savedStateHandle.consumeRouteArgs()
+
+    /**
+     * Set by the user's own actions, and by arriving from Share or "Add paper", so only searches and lookups the user started are
+     * counted: a restore after process death or an API key change re-runs them without counting.
+     */
+    private var countNextSearch = routeArgs != null
+    private var countNextLookup = routeArgs != null
+
+    /** The text came from a share (with or without a page title); forgotten with the page title once the text is edited. */
+    private var sharedText = routeArgs?.query != null
 
     /** What the user sees: the field's text as typed plus the chip selections. */
     private val draft = MutableStateFlow(
@@ -94,14 +113,29 @@ class SearchViewModel @Inject constructor(
             ?.let { current.copy(text = it) }
     }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    private var lastSearchedQuery: SearchQuery? = null
+
     /** A new API key re-runs the active search, so fixing a rejected key in Settings takes effect right away. */
-    private val results: StateFlow<SearchResults?> = combine(activeQuery, apiKey) { query, _ -> query }
-        .map { query -> query?.let(searchRepository::search) }
+    private val search: StateFlow<ActiveSearch?> = combine(activeQuery, apiKey) { query, key -> query to key }
+        .map { (query, key) ->
+            // A key change re-runs the same query, which the user didn't ask for again. The flag waits for a query to search, so
+            // a route query still counts after activeQuery's initial null.
+            val userStarted = countNextSearch && query != lastSearchedQuery
+            if (query != null) countNextSearch = false
+            lastSearchedQuery = query
+            query?.let { ActiveSearch(it, searchRepository.search(it), key.asRoute(), userStarted) }
+        }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    init {
+        viewModelScope.launch {
+            search.collectLatest { current -> if (current?.userStarted == true) count(current) }
+        }
+    }
+
     /** Cached per query. Library state is kept out of the paging stream so saving never re-maps cached pages. */
-    val papers: Flow<PagingData<Paper>> = results
-        .flatMapLatest { it?.papers ?: flowOf(PagingData.empty()) }
+    val papers: Flow<PagingData<Paper>> = search
+        .flatMapLatest { it?.results?.papers ?: flowOf(PagingData.empty()) }
         .cachedIn(viewModelScope)
 
     /** OpenAlex IDs in the library; the UI combines this with each result to show "In library". */
@@ -111,7 +145,7 @@ class SearchViewModel @Inject constructor(
     val uiState: StateFlow<SearchUiState> = combine(
         draft,
         activeQuery,
-        results.flatMapLatest { it?.totalCount ?: flowOf(null) }
+        search.flatMapLatest { it?.results?.totalCount ?: flowOf(null) }
     ) { current, active, count ->
         current.toUiState(isIdle = active == null, totalCount = count)
     }.stateIn(
@@ -128,16 +162,26 @@ class SearchViewModel @Inject constructor(
 
     private val lookupRetries = MutableStateFlow(0)
 
+    private var lastLookupRun: Pair<PaperIdentifier?, Int>? = null
+
     /** The latest lookup (a null result means "still looking"); a newer identifier, a retry or a key change cancels it. */
     private val lookup: StateFlow<Pair<PaperIdentifier, LookupResult?>?> =
-        combine(identifier, lookupRetries, apiKey) { id, _, _ -> id }
-            .flatMapLatest { id ->
+        combine(identifier, lookupRetries, apiKey) { id, retries, key ->
+            // As for searches, a key change re-runs the same lookup without counting it.
+            val userStarted = countNextLookup && (id to retries) != lastLookupRun
+            if (id != null) countNextLookup = false
+            lastLookupRun = id to retries
+            LookupRun(id, counted = if (userStarted && id != null) lookupCount(id, key) else null)
+        }
+            .flatMapLatest { (id, counted) ->
                 if (id == null) {
                     flowOf<Pair<PaperIdentifier, LookupResult?>?>(null)
                 } else {
                     flow<Pair<PaperIdentifier, LookupResult?>?> {
                         emit(id to null)
-                        emit(id to paperLookupRepository.lookup(id))
+                        val result = paperLookupRepository.lookup(id)
+                        counted?.let { count(it, result) }
+                        emit(id to result)
                     }
                 }
             }
@@ -166,7 +210,7 @@ class SearchViewModel @Inject constructor(
     fun onRemoveRequested(openAlexId: String) {
         viewModelScope.launch {
             try {
-                libraryRepository.remove(openAlexId)
+                if (libraryRepository.remove(openAlexId) != null) analytics.log(AnalyticsEvent.PaperRemoved)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -182,24 +226,29 @@ class SearchViewModel @Inject constructor(
     }
 
     fun onSearchAction() {
+        countNextSubmission()
         submittedText.value = draft.value.text
     }
 
     fun onSuggestion(text: String) {
         forgetShareContext()
+        countNextSubmission()
         draft.update { it.copy(text = text) }
         submittedText.value = text
     }
 
-    fun onSortChange(sort: SearchSort) = draft.update { it.copy(sort = sort) }
+    fun onSortChange(sort: SearchSort) = changeChips { it.copy(sort = sort) }
 
-    fun onYearFilterChange(years: YearFilter) = draft.update { it.copy(years = years) }
+    fun onYearFilterChange(years: YearFilter) = changeChips { it.copy(years = years) }
 
-    fun onOpenAccessToggle() = draft.update { it.copy(openAccessOnly = !it.openAccessOnly) }
+    fun onOpenAccessToggle() = changeChips { it.copy(openAccessOnly = !it.openAccessOnly) }
 
-    fun onClearFilters() = draft.update { it.copy(years = YearFilter.AnyTime, openAccessOnly = false) }
+    fun onClearFilters() = changeChips { it.copy(years = YearFilter.AnyTime, openAccessOnly = false) }
 
-    fun onRetryLookup() = lookupRetries.update { it + 1 }
+    fun onRetryLookup() {
+        countNextLookup = true
+        lookupRetries.update { it + 1 }
+    }
 
     /** Ctrl+F: focus the search field, keeping the current search and results. */
     fun onFocusRequested() {
@@ -219,12 +268,14 @@ class SearchViewModel @Inject constructor(
     }
 
     fun onToggleSave(item: PaperItem) {
+        val source = saveSource(item.paper)
         viewModelScope.launch {
             try {
                 if (item.inLibrary) {
-                    libraryRepository.remove(item.paper.openAlexId)
+                    if (libraryRepository.remove(item.paper.openAlexId) != null) analytics.log(AnalyticsEvent.PaperRemoved)
                 } else {
                     libraryRepository.save(item.paper)
+                    analytics.log(AnalyticsEvent.PaperSaved(source))
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -239,9 +290,70 @@ class SearchViewModel @Inject constructor(
     }
 
     private fun forgetShareContext() {
+        sharedText = false
         pageTitle.value = null
         _note.value = null
     }
+
+    private fun countNextSubmission() {
+        countNextSearch = true
+        countNextLookup = true
+    }
+
+    private fun changeChips(change: (SearchQuery) -> SearchQuery) {
+        countNextSearch = true
+        draft.update(change)
+    }
+
+    /** The found lookup's paper came from a share while its context lasts, from a typed lookup otherwise; anything else is a result. */
+    private fun saveSource(paper: Paper): SaveSource {
+        val found = (lookup.value?.second as? LookupResult.Found)?.paper
+        return when {
+            found?.openAlexId != paper.openAlexId -> SaveSource.Search
+            sharedText || pageTitle.value != null -> SaveSource.Share
+            else -> SaveSource.Lookup
+        }
+    }
+
+    /** Sends `search` when the first page arrives, then `search_more` for each page beyond the highest already counted. */
+    private suspend fun count(search: ActiveSearch) {
+        val first = search.results.firstPage.filterNotNull().first()
+        analytics.log(
+            AnalyticsEvent.Search(
+                SearchKind.Keyword,
+                hasFilters = search.query.hasActiveFilters,
+                route = search.route,
+                results = ResultsBucket.of(first.total),
+                category = first.category
+            )
+        )
+        // A refresh starts a new PagingSource whose count restarts at 1; only pages past the highest counted are new.
+        var counted = 1
+        search.results.pagesLoaded.collect { pages ->
+            while (counted < pages) analytics.log(AnalyticsEvent.SearchMore(++counted))
+        }
+    }
+
+    private fun lookupCount(id: PaperIdentifier, key: String?) = LookupCount(
+        kind = when {
+            looksLikeLink(submittedText.value) -> SearchKind.Link
+            id is PaperIdentifier.Doi -> SearchKind.Doi
+            else -> SearchKind.Arxiv
+        },
+        route = key.asRoute()
+    )
+
+    /** A failed lookup isn't counted, like a search whose first page never arrives. */
+    private fun count(lookup: LookupCount, result: LookupResult) {
+        val results = when (result) {
+            is LookupResult.Found -> ResultsBucket.UpTo25
+            is LookupResult.NotFound -> ResultsBucket.Zero
+            is LookupResult.Failed -> return
+        }
+        analytics.log(AnalyticsEvent.Search(lookup.kind, hasFilters = false, route = lookup.route, results = results, category = null))
+    }
+
+    private fun String?.asRoute() = if (this != null) SearchRoute.User else SearchRoute.Shared
 
     private fun SearchQuery.toUiState(isIdle: Boolean, totalCount: Long?) = SearchUiState(
         text = text,
@@ -259,3 +371,11 @@ class SearchViewModel @Inject constructor(
         is LookupResult.Failed -> LookupUiState.Failed(error)
     }
 }
+
+/** A keyword search and whether the user started it (rather than a restore or an API key change re-running it). */
+private class ActiveSearch(val query: SearchQuery, val results: SearchResults, val route: SearchRoute, val userStarted: Boolean)
+
+/** A lookup to run; [counted] is null when the user didn't start it. */
+private data class LookupRun(val identifier: PaperIdentifier?, val counted: LookupCount?)
+
+private class LookupCount(val kind: SearchKind, val route: SearchRoute)

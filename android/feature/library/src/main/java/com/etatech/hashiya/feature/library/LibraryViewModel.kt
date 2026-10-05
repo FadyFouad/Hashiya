@@ -3,6 +3,8 @@ package com.etatech.hashiya.feature.library
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etatech.hashiya.core.analytics.Analytics
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
 import com.etatech.hashiya.core.data.repository.CitationRepository
 import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.data.repository.CollectionsRepository
@@ -47,7 +49,8 @@ class LibraryViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val collectionsRepository: CollectionsRepository,
     private val citationRepository: CitationRepository,
-    private val pdfRepository: PdfRepository
+    private val pdfRepository: PdfRepository,
+    private val analytics: Analytics
 ) : ViewModel() {
     /** The search text as typed. */
     private val query = MutableStateFlow(savedStateHandle.get<String>(KEY_QUERY).orEmpty())
@@ -236,7 +239,7 @@ class LibraryViewModel @Inject constructor(
             val previous = _pendingUndo.value
             _pendingUndo.value = removed
             // The screen cancels the previous snackbar without a callback, so its removal is final now.
-            if (previous != null) discardPdf(previous)
+            if (previous != null) finishRemoval(previous)
         }
     }
 
@@ -250,11 +253,15 @@ class LibraryViewModel @Inject constructor(
     fun onUndoDismissed() {
         val removed = _pendingUndo.value ?: return
         _pendingUndo.value = null
-        discardPdf(removed)
+        finishRemoval(removed)
     }
 
-    /** Leaving the Library while Undo shows calls neither callback; the startup sweep deletes that file instead. */
-    private fun discardPdf(removed: RemovedPaper) {
+    /**
+     * A removal can no longer be undone: it is counted and its PDF deleted. Leaving the Library while Undo shows calls neither
+     * callback; the startup sweep deletes that file instead, and that removal isn't counted.
+     */
+    private fun finishRemoval(removed: RemovedPaper) {
+        analytics.log(AnalyticsEvent.PaperRemoved)
         viewModelScope.launch { pdfRepository.discardRemoved(removed) }
     }
 

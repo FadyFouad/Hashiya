@@ -12,6 +12,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.test.rightClick
 import androidx.lifecycle.SavedStateHandle
+import com.etatech.hashiya.core.analytics.NoOpAnalytics
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
@@ -54,7 +55,8 @@ class LibraryInputTest {
             repository,
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
-            FakePdfRepository()
+            FakePdfRepository(),
+            NoOpAnalytics
         )
         composeRule.setContentInWindow(window) {
             LibraryScreen(

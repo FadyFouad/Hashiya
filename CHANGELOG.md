@@ -7,20 +7,31 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 ### Added
 - **Android: tablets, foldables and resizable windows.** A navigation rail from 600 dp that stays on every screen; its menu button expands it to show the labels beside the icons, and collapses it again. From 840 dp, or at a book-posture hinge, the Library opens a paper beside the list, Search shows the preview beside the results, and the reader shows your notes beside the PDF. Details and Settings become a centered column. An open paper and the reader's zoom survive folding, rotating and resizing. (#28)
 - **Android: keyboard and mouse.** Ctrl+F finds, Ctrl+N adds a paper, Ctrl+, opens Settings, and Esc goes back. Right-click a Library row or a Search result for its menu, and Ctrl+scroll zooms the reader. (#28)
+- **Android: back up and restore your library.** Settings → Backup saves the library to a `.hashiya` file and Restore adds the papers from one, keeping what's already on the device; downloaded PDFs stay out of Google's cloud backup. (#33)
+- **Android: crash reports.** Release builds send crash reports (Firebase Crashlytics), tied to a random identifier rather than your name or account; never your papers, notes or searches. On by default; turn it off in Settings → Privacy. (#35)
+
+### Changed
+- **Android: Details groups Collections, PDF and DOI in one list.** The PDF row's main action is a button that follows its state: Download PDF, Read PDF or Attach PDF; Replace and Remove stay in its ⋮ menu. The DOI is a row that opens the paper's DOI page, and is hidden when there is none.
+
+### Fixed
+- **Android: the Save button on search results** no longer breaks into letters with the largest font size. (#28)
+
+## [0.3.0] — build 3, 2026-10-05 (TestFlight)
+
+### Added
 - **iOS: iPad.** The app runs natively on iPad: full screen, Split View, Stage Manager and resizable windows. The tabs sit at the top. The Library and Search show a paper beside their list, with a button to hide the list. The reader shows your notes beside the PDF and hides the list for a wider page; leaving it brings the list back. An open paper survives resizing, and each window keeps its own tab and paper.
 - **iOS: more than one iPad window.** "Open in New Window" in a paper's menu opens it in a window of its own, to read it beside another paper or the Library.
 - **iOS: keyboard and pointer on iPad.** ⌘N adds a paper, ⌘1 and ⌘2 switch between the Library and Search, and ⌘, opens Settings; in the reader, ⌘F finds in the PDF. Long-press or right-click a Library row or a Search result for its menu.
 - **iOS: searching keeps working when OpenAlex's shared budget runs out.** Searches without a personal OpenAlex key share a daily allowance per device, then fall back to OpenAlex's keyless budget; when both are used up, Search says when it works again. Repeated searches are kept for a day, and Settings links to free personal keys.
 - **iOS: crash reports and usage statistics.** Release builds send crash reports (Firebase Crashlytics) and usage statistics (Firebase Analytics), tied to a random identifier rather than your name or account: which features are used and a broad research area worked out on the device from search results — never search text, papers or notes. Both are on by default and can be turned off in Settings → Privacy.
+- **iOS: back up and restore your library.** Settings → Backup saves the library — papers, notes, collections and, if you choose, PDFs — to a `.hashiya` file, and Restore adds the papers from one, keeping what's already on the device. Downloaded PDFs are left out of the phone's iCloud backup, since they can be downloaded again. (#34)
 
 ### Changed
-- **Android: Details groups Collections, PDF and DOI in one list.** The PDF row's main action is a button that follows its state: Download PDF, Read PDF or Attach PDF; Replace and Remove stay in its ⋮ menu. The DOI is a row that opens the paper's DOI page, and is hidden when there is none.
 - **iOS: the same grouped Details.** Collections, PDF and DOI share one list as on Android; the PDF row's main action is a prominent button (Download PDF, Read PDF or Attach PDF), and the DOI is a row that opens its page.
 
 ### Fixed
 - **Searching for a title with "?" or "*" works.** OpenAlex reads them as wildcards and refused the search, so pasting a title such as *ChatGPT for good? …* showed "Something went wrong". Search now leaves them out.
 - **iOS: Add paper always puts the cursor in Search's field,** also when an earlier search left the field active.
-- **Android: the Save button on search results** no longer breaks into letters with the largest font size. (#28)
 - **A failed download now tries the paper's other open-access copies.** If the saved link fails as "not a PDF" or a server error, the app looks up the paper's other open-access copies on OpenAlex and tries them, arXiv first. Then it keeps the link that worked. Example: *Attention Is All You Need*, whose saved link now returns a web page. (#24)
 
 ## [0.2.0] — build 2, 2026-10-02 (TestFlight)

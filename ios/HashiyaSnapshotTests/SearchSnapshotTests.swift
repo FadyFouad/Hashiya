@@ -79,10 +79,40 @@ struct SearchSnapshotTests {
         assertHashiyaSnapshots(of: screen(viewModel), named: "offline", arabicText: "تعذّر الوصول إلى OpenAlex")
     }
 
+    @Test func dailyLimitError() async {
+        let reset = ISO8601DateFormatter().date(from: "2026-10-06T00:00:00Z")!
+        let viewModel = makeViewModel(FakeSearchRepository { _, _ in throw SearchError.dailyLimit(resetAt: reset) })
+        viewModel.updateText("transformers")
+        viewModel.submitNow()
+        await viewModel.waitForPendingWork()
+        #expect(viewModel.phase == .failed(.dailyLimit(resetAt: reset)))
+        assertHashiyaSnapshots(
+            of: screen(viewModel).environment(\.timeZone, TimeZone(identifier: "Asia/Riyadh")!),
+            named: "dailyLimit",
+            arabicText: "تم بلوغ الحد اليومي للبحث"
+        )
+    }
+
     @Test func appendErrorFooter() async {
         let viewModel = await resultsViewModel()
         viewModel.append = .failed(.offline)
         assertHashiyaSnapshots(of: screen(viewModel), named: "appendError", arabicText: "تعذّر تحميل المزيد من النتائج")
+    }
+
+    @Test func appendDailyLimitFooter() async {
+        let viewModel = await resultsViewModel()
+        viewModel.append = .failed(.dailyLimit(resetAt: ISO8601DateFormatter().date(from: "2026-10-06T00:00:00Z")!))
+        assertHashiyaSnapshots(
+            of: screen(viewModel).environment(\.timeZone, TimeZone(identifier: "Asia/Riyadh")!),
+            named: "appendDailyLimit",
+            arabicText: "فتح الإعدادات"
+        )
+    }
+
+    @Test func pageCapFooter() async {
+        let viewModel = await resultsViewModel()
+        viewModel.append = .capReached(results: 200)
+        assertHashiyaSnapshots(of: screen(viewModel), named: "pageCap", arabicText: "تُعرض أول \u{2068}200\u{2069} نتيجة. حسِّن بحثك لرؤية المزيد.")
     }
 
     @Test func filtersAndBanner() async {

@@ -187,6 +187,46 @@ Both apps read `app-config.json` from the [Hashiya-Privacy-Policy](https://githu
 
 If the file can't be read (offline, a typo in the JSON, GitHub down), nobody is blocked. To undo a block, lower the number and push; blocked users get back in after restarting the app.
 
+## OpenAlex quota
+
+Without a personal key, each install searches on the shared route — the built-in key, or a proxy once one is set — up
+to a daily cap per device, then without a key, then shows "Daily search limit reached" with the reset time. Lookups
+by id or DOI are free and always go out. Searches are cached on the device for 24 hours.
+
+Usage of the built-in key: openalex.org → Settings → API (budget used today, resets at midnight UTC).
+
+### The `openAlex` section of `app-config.json`
+
+In FadyFouad/Hashiya-Privacy-Policy. Optional: the defaults apply without it; each field is checked on its own.
+
+```json
+"openAlex": { "dailyDeviceCalls": 60, "maxPagesPerQuery": 8, "baseUrl": null }
+```
+
+- `dailyDeviceCalls` (0–1000): searches and filter lists per device per UTC day on the shared route; 0 turns it off.
+- `maxPagesPerQuery` (1–40): pages of 25 one search can load.
+- `baseUrl` (`https://` or null): the proxy for the shared route.
+
+Apps read it at launch; new values apply to the next search.
+
+### Switching to a proxy
+
+The proxy must:
+
+1. Accept the same paths and query parameters as `https://api.openalex.org` (at least `GET /works` and
+   `GET /works/{id}`) and return OpenAlex's bodies and status codes unchanged.
+2. Add the OpenAlex key itself (the apps send none to it).
+3. Pass through `X-RateLimit-Remaining`, `X-RateLimit-Reset` and `Retry-After`, and answer `429` with
+   `X-RateLimit-Remaining: 0` when a client's budget is used up.
+4. Limit by network address, keep no request logs, and store nothing about clients beyond short-lived counters.
+
+Then:
+
+1. Add to the privacy policy (English and Arabic): search requests pass through Hashiya's server, which sees network
+   addresses and keeps no logs. Check the App Store privacy answers and Play's Data safety form against it.
+2. Set `baseUrl` in `app-config.json`. Requests with a personal key, and keyless ones, still go straight to OpenAlex.
+3. If the proxy fails (unreachable or 5xx), apps fall back to keyless requests, so search keeps working.
+
 ## Each release
 
 1. Bump the version:

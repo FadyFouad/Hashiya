@@ -21,6 +21,7 @@ public struct SearchView: View {
     @State private var isSearchActive = false
     @State private var detailsRequest: String?
     @Environment(\.openURL) private var openURL
+    @Environment(\.timeZone) private var timeZone
 
     /// - Parameters:
     ///   - onOpenPaper: Open details, with the paper's OpenAlex ID: in a saved paper's sheet once the sheet is gone,
@@ -287,22 +288,12 @@ public struct SearchView: View {
         switch viewModel.append {
         case .loading:
             ProgressView().padding(16)
-        case .failed:
-            HStack(spacing: 12) {
-                Text(verbatim: L10n.string("search.appendError"))
-                    .font(.hashiya(.body))
-                    .foregroundStyle(HashiyaColors.onSurfaceVariant)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                Button {
-                    viewModel.retryAppend()
-                } label: {
-                    Text(verbatim: L10n.string("search.retry")).font(.hashiya(.label))
-                }
-                .buttonStyle(.bordered)
-                .tint(HashiyaColors.primary)
+        case let .failed(error):
+            if case .dailyLimit = error {
+                appendFailure(L10n.error(error, timeZone: timeZone).message, actionTitle: L10n.string("search.openSettings"), action: onOpenSettings)
+            } else {
+                appendFailure(L10n.string("search.appendError"), actionTitle: L10n.string("search.retry")) { viewModel.retryAppend() }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
         case .idle:
             // More pages exist. The last card's onAppear does not fire again after pages made only of
             // duplicates are skipped, so this invisible row asks for the next page when it comes into view.
@@ -310,9 +301,34 @@ public struct SearchView: View {
                 .frame(height: 0)
                 .accessibilityHidden(true)
                 .onAppear { viewModel.loadMore() }
+        case let .capReached(results):
+            Text(verbatim: L10n.pageCap(results))
+                .font(.hashiya(.body))
+                .foregroundStyle(HashiyaColors.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
         case .endReached:
             EmptyView()
         }
+    }
+
+    /// A next page that failed: why, and the way on (Retry, or Settings for a daily limit).
+    private func appendFailure(_ message: String, actionTitle: String, action: @escaping () -> Void) -> some View {
+        HStack(spacing: 12) {
+            Text(verbatim: message)
+                .font(.hashiya(.body))
+                .foregroundStyle(HashiyaColors.onSurfaceVariant)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(action: action) {
+                Text(verbatim: actionTitle).font(.hashiya(.label))
+            }
+            .buttonStyle(.bordered)
+            .tint(HashiyaColors.primary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 }
 

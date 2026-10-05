@@ -70,18 +70,31 @@ struct LookupLookingView: View {
     }
 }
 
-/// Spec 1's error state: Retry, or Open Settings for a rejected user key when `onOpenSettings` is given.
+/// Spec 1's error state: Retry, or Open Settings for a rejected user key or a reached daily limit when
+/// `onOpenSettings` is given.
 struct SearchErrorView: View {
     let error: SearchError
     let onRetry: () -> Void
     let onOpenSettings: (() -> Void)?
 
+    @Environment(\.timeZone) private var timeZone
+
     var body: some View {
-        let text = L10n.error(error)
-        if error == .invalidUserKey, let onOpenSettings {
+        let text = L10n.error(error, timeZone: timeZone)
+        if error.opensSettings, let onOpenSettings {
             ErrorStateView(title: text.title, message: text.message, actionTitle: L10n.string("search.openSettings"), action: onOpenSettings)
         } else {
             ErrorStateView(title: text.title, message: text.message, actionTitle: L10n.string("search.retry"), action: onRetry)
+        }
+    }
+}
+
+extension SearchError {
+    /// A personal key in Settings is the way out of these.
+    fileprivate var opensSettings: Bool {
+        switch self {
+        case .invalidUserKey, .dailyLimit: true
+        case .offline, .rateLimited, .serviceUnavailable, .unexpected: false
         }
     }
 }

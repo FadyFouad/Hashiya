@@ -1,4 +1,5 @@
 @testable import FeatureSearch
+import Foundation
 import HashiyaDesignSystem
 import HashiyaModel
 import Testing
@@ -67,12 +68,32 @@ struct SearchStringsTests {
         #expect(L10n.shortenedTitle(title) == shown)
     }
 
-    @Test(arguments: [SearchError.offline, .invalidUserKey, .serviceUnavailable, .rateLimited, .unexpected])
+    @Test(arguments: [SearchError.offline, .invalidUserKey, .serviceUnavailable, .rateLimited, .unexpected, .dailyLimit(resetAt: .distantPast)])
     func everyErrorHasATitleAndMessageInBothLanguages(error: SearchError) {
         for language in ["en", "ar"] {
             let text = inLanguage(language) { L10n.error(error) }
             #expect(!text.title.hasPrefix("search."))
             #expect(!text.message.hasPrefix("search."))
         }
+    }
+
+    @Test func theDailyLimitMessageShowsTheResetTimeInTheGivenZone() {
+        let reset = ISO8601DateFormatter().date(from: "2026-10-06T00:00:00Z")!
+        let riyadh = TimeZone(identifier: "Asia/Riyadh")!
+        #expect(inLanguage("en") { L10n.dailyLimitMessage(reset, timeZone: riyadh) }.contains("3:00\u{202F}AM"))
+        #expect(inLanguage("en") { L10n.error(.dailyLimit(resetAt: reset), timeZone: riyadh).title } == "Daily search limit reached")
+    }
+
+    @Test func theArabicDailyLimitMessageIsolatesTheTimeOnce() {
+        let reset = ISO8601DateFormatter().date(from: "2026-10-06T00:00:00Z")!
+        let message = inLanguage("ar") { L10n.dailyLimitMessage(reset, timeZone: .gmt) }
+        #expect(message.components(separatedBy: "\u{2068}").count == 2)
+        #expect(message.contains("\u{2069}"))
+        #expect(message.contains("OpenAlex"))
+    }
+
+    @Test func thePageCapFooterShowsTheNumberOfResults() {
+        #expect(inLanguage("en") { L10n.pageCap(200) } == "Showing the first 200 results. Refine your search to see more.")
+        #expect(inLanguage("ar") { L10n.pageCap(200) }.contains("\u{2068}200\u{2069}"))
     }
 }

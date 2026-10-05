@@ -544,6 +544,47 @@ struct SearchViewModelTests {
         #expect(viewModel.message == .removeFailed)
         #expect(library.savedPapers == [SamplePapers.bert])
     }
+
+    @Test func pagingStopsAtTheCapWithAFooter() async {
+        let repository = FakeSearchRepository(maxPagesPerQuery: 2) { _, cursor in
+            let paper = SamplePapers.all[cursor == nil ? 0 : 1]
+            return .of([paper], total: 500, next: "next-\(cursor ?? "first")")
+        }
+        let viewModel = makeViewModel(repository)
+        viewModel.updateText("bert")
+        viewModel.submitNow()
+        await viewModel.waitForPendingWork()
+        #expect(viewModel.append == .idle)
+        viewModel.loadMore()
+        await viewModel.waitForPendingWork()
+        #expect(viewModel.append == .capReached(results: 50))
+        viewModel.loadMore()
+        await viewModel.waitForPendingWork()
+        #expect(repository.calls.count == 2)
+    }
+
+    @Test func aLastPageBeforeTheCapEndsNormally() async {
+        let repository = FakeSearchRepository(maxPagesPerQuery: 1) { _, _ in .of([SamplePapers.attention], total: 1, next: nil) }
+        let viewModel = makeViewModel(repository)
+        viewModel.updateText("bert")
+        viewModel.submitNow()
+        await viewModel.waitForPendingWork()
+        #expect(viewModel.append == .endReached)
+    }
+
+    @Test func skippedDuplicatePagesCountTowardTheCap() async {
+        let repository = FakeSearchRepository(maxPagesPerQuery: 2) { _, cursor in
+            .of([SamplePapers.attention], total: 500, next: "next-\(cursor ?? "first")")
+        }
+        let viewModel = makeViewModel(repository)
+        viewModel.updateText("bert")
+        viewModel.submitNow()
+        await viewModel.waitForPendingWork()
+        viewModel.loadMore()
+        await viewModel.waitForPendingWork()
+        #expect(repository.calls.count == 2)
+        #expect(viewModel.append == .capReached(results: 50))
+    }
 }
 
 struct SearchSceneStateTests {

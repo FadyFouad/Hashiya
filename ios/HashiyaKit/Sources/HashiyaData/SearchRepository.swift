@@ -4,6 +4,8 @@ import HashiyaNetwork
 public protocol SearchRepository: Sendable {
     /// One page. `cursor` nil = first page. Throws `SearchError` or `CancellationError`.
     func searchPage(_ query: SearchQuery, cursor: String?) async throws -> SearchPage
+    /// Pages one search may load; read when each page arrives.
+    var maxPagesPerQuery: Int { get }
 }
 
 public struct SearchPage: Equatable, Sendable {
@@ -22,10 +24,17 @@ public struct SearchPage: Equatable, Sendable {
 
 public struct OpenAlexSearchRepository: SearchRepository {
     private let service: any OpenAlexSearchService
+    private let maxPages: @Sendable () -> Int
 
-    public init(service: any OpenAlexSearchService) {
+    public init(
+        service: any OpenAlexSearchService,
+        maxPagesPerQuery: @escaping @Sendable () -> Int = { OpenAlexLimits.defaults.maxPagesPerQuery }
+    ) {
         self.service = service
+        maxPages = maxPagesPerQuery
     }
+
+    public var maxPagesPerQuery: Int { maxPages() }
 
     public func searchPage(_ query: SearchQuery, cursor: String?) async throws -> SearchPage {
         let response: NetworkWorksResponse

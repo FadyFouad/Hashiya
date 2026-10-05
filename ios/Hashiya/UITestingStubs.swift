@@ -70,6 +70,8 @@ enum UITestingStubs {
 }
 
 private struct StubSearchRepository: SearchRepository {
+    var maxPagesPerQuery: Int { 1000 }
+
     func searchPage(_ query: SearchQuery, cursor: String?) async throws -> SearchPage {
         SearchPage(papers: UITestingStubs.papers, totalCount: Int64(UITestingStubs.papers.count), nextCursor: nil)
     }

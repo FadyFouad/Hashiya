@@ -7,7 +7,8 @@ import Testing
 
 private struct StubConfigService: AppConfigService {
     let answer: @Sendable () throws -> PlatformAppConfig?
-    func iosConfig() async throws -> PlatformAppConfig? { try answer() }
+    var openAlex = OpenAlexLimits.defaults
+    func fetch() async throws -> RemoteAppConfig { RemoteAppConfig(ios: try answer(), openAlex: openAlex) }
 }
 
 private let store = "https://apps.apple.com/app/id0000000000"
@@ -42,6 +43,29 @@ struct ConfigAppUpdateRepositoryTests {
 
     @Test func aFailureMeansNoBlock() async {
         #expect(await repository { throw NetworkFailure.connectivity }.requiredUpdate(currentBuild: 1) == nil)
+    }
+
+    @Test func savesTheOpenAlexLimitsItFetched() async {
+        let defaults = TestDefaults.make()
+        let limits = OpenAlexLimits(dailyDeviceCalls: 7, maxPagesPerQuery: 2, baseURL: nil)
+        let repository = ConfigAppUpdateRepository(
+            service: StubConfigService(answer: { nil }, openAlex: limits),
+            limitsStore: OpenAlexLimitsStore(defaults: defaults)
+        )
+        _ = await repository.requiredUpdate(currentBuild: 1)
+        #expect(OpenAlexLimitsStore(defaults: defaults).limits == limits)
+    }
+
+    @Test func aFailedFetchKeepsTheStoredLimits() async {
+        let defaults = TestDefaults.make()
+        let stored = OpenAlexLimits(dailyDeviceCalls: 9, maxPagesPerQuery: 3, baseURL: nil)
+        OpenAlexLimitsStore(defaults: defaults).save(stored)
+        let repository = ConfigAppUpdateRepository(
+            service: StubConfigService(answer: { throw NetworkFailure.connectivity }),
+            limitsStore: OpenAlexLimitsStore(defaults: defaults)
+        )
+        _ = await repository.requiredUpdate(currentBuild: 1)
+        #expect(OpenAlexLimitsStore(defaults: defaults).limits == stored)
     }
 }
 

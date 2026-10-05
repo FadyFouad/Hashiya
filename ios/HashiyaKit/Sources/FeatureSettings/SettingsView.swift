@@ -128,6 +128,11 @@ public struct SettingsView: View {
                 .font(.hashiya(.stateTitle))
                 .foregroundStyle(HashiyaColors.onSurface)
                 .textCase(nil)
+        } footer: {
+            let text = L10n.string("settings.apiKeyFooter")
+            Text((try? AttributedString(markdown: text)) ?? AttributedString(text))
+                .font(.hashiya(.label))
+                .tint(HashiyaColors.primary)
         }
     }
 

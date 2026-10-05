@@ -1378,6 +1378,23 @@
         }
       }
     },
+    "settings.apiKeyFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يمنحك مفتاح شخصي مجاني المزيد من عمليات البحث اليومية. [احصل على مفتاح مجاني](https://openalex.org/settings/api)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A free personal key gives you more daily searches. [Get a free key](https://openalex.org/settings/api)"
+          }
+        }
+      }
+    },
     "settings.apiKeyHide" : {
       "extractionState" : "manual",
       "localizations" : {

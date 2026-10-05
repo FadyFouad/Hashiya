@@ -1,3 +1,4 @@
+import Foundation
 import HashiyaData
 import HashiyaModel
 import HashiyaNetwork
@@ -23,5 +24,10 @@ struct ErrorMappingTests {
     ])
     func mapsEveryFailure(failure: NetworkFailure, expected: SearchError) {
         #expect(failure.asSearchError() == expected)
+    }
+
+    @Test func aDailyLimitKeepsItsResetTime() {
+        let reset = Date(timeIntervalSince1970: 1_790_000_000)
+        #expect(NetworkFailure.dailyLimit(resetAt: reset).asSearchError() == .dailyLimit(resetAt: reset))
     }
 }

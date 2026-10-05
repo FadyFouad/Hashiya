@@ -103,6 +103,40 @@
         }
       }
     },
+    "search.errorDailyLimitMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سيتوفر البحث مجددًا الساعة %@. لمزيد من عمليات البحث، أضف مفتاح OpenAlex مجانيًا خاصًا بك في الإعدادات."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search will be available again at %@. For more searches, add your own free OpenAlex key in Settings."
+          }
+        }
+      }
+    },
+    "search.errorDailyLimitTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم بلوغ الحد اليومي للبحث"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily search limit reached"
+          }
+        }
+      }
+    },
     "search.errorKeyMessage" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -490,6 +524,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Open Settings"
+          }
+        }
+      }
+    },
+    "search.pageCap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تُعرض أول %@ نتيجة. حسِّن بحثك لرؤية المزيد."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Showing the first %@ results. Refine your search to see more."
           }
         }
       }

@@ -1,3 +1,5 @@
+import Foundation
+
 /// Why a request to OpenAlex failed. It never carries the underlying error: a `URLError`'s
 /// `failingURL` would contain the `api_key` query item.
 public enum NetworkFailure: Error, Equatable, Sendable, CustomStringConvertible {
@@ -8,6 +10,8 @@ public enum NetworkFailure: Error, Equatable, Sendable, CustomStringConvertible 
     /// The body could not be decoded.
     case malformedResponse
     case unknown
+    /// Every route for a search is used up until `resetAt`; no request was sent.
+    case dailyLimit(resetAt: Date)
 
     /// The case name only, so the key can never reach a log or a message through it.
     public var description: String {
@@ -16,6 +20,7 @@ public enum NetworkFailure: Error, Equatable, Sendable, CustomStringConvertible 
         case .http: "http"
         case .malformedResponse: "malformedResponse"
         case .unknown: "unknown"
+        case .dailyLimit: "dailyLimit"
         }
     }
 }

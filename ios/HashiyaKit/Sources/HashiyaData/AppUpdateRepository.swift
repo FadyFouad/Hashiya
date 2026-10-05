@@ -9,20 +9,25 @@ public protocol AppUpdateRepository: Sendable {
 }
 
 /// Never blocks by mistake: offline, an error, or a missing or malformed field all mean "no update required".
+/// The same request refreshes the OpenAlex limits; a failed fetch keeps the stored ones.
 public struct ConfigAppUpdateRepository: AppUpdateRepository {
     private let service: any AppConfigService
+    private let limitsStore: OpenAlexLimitsStore?
 
-    public init(service: any AppConfigService) {
+    public init(service: any AppConfigService, limitsStore: OpenAlexLimitsStore? = nil) {
         self.service = service
+        self.limitsStore = limitsStore
     }
 
-    /// The real one, reading GitHub Pages.
+    /// The real one, reading GitHub Pages and keeping the limits in the standard defaults.
     public static func live() -> ConfigAppUpdateRepository {
-        ConfigAppUpdateRepository(service: AppConfigClient())
+        ConfigAppUpdateRepository(service: AppConfigClient(), limitsStore: OpenAlexLimitsStore())
     }
 
     public func requiredUpdate(currentBuild: Int) async -> RequiredUpdate? {
-        guard let config = try? await service.iosConfig(),
+        guard let file = try? await service.fetch() else { return nil }
+        limitsStore?.save(file.openAlex)
+        guard let config = file.ios,
               let minimum = config.minimumBuild,
               let link = config.storeUrl, let storeURL = URL(string: link), storeURL.scheme == "https", storeURL.host()?.isEmpty == false,
               currentBuild < minimum else { return nil }

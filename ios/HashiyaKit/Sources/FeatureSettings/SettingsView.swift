@@ -1,5 +1,6 @@
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import SwiftUI
 import UIKit
@@ -11,6 +12,7 @@ public struct SettingsView: View {
     @State private var confirmingDelete = false
     @State private var importing = false
     @State private var restoreSource: URL?
+    @Environment(\.diagnostics) private var diagnostics
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     private let makeRestoreViewModel: (URL) -> RestoreViewModel
@@ -40,6 +42,7 @@ public struct SettingsView: View {
             .navigationTitle(Text(verbatim: L10n.string("settings.title")))
             .navigationBarTitleDisplayMode(.inline)
             .task { await viewModel.loadStorage() }
+            .onAppear { diagnostics.screenShown(.settings) }
             // Also when the Export screen or a restore returns, so the counts are never stale.
             .onAppear { Task { await viewModel.loadBackupSummary() } }
             .navigationDestination(for: SettingsDestination.self) { destination in

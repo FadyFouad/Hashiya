@@ -1,4 +1,5 @@
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -14,6 +15,7 @@ public struct ReaderScreen: View {
     @State private var importingReplacement = false
     private let onClose: () -> Void
 
+    @Environment(\.diagnostics) private var diagnostics
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -55,6 +57,7 @@ public struct ReaderScreen: View {
             .animation(.default, value: viewModel.showingNotes)
         }
         .hidesTabBarWhenCompact()
+        .onAppear { diagnostics.screenShown(.reader) }
         .task { await viewModel.start() }
         .onDisappear { viewModel.onDisappear() }
         .onChange(of: scenePhase) { _, phase in

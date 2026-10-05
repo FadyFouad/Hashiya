@@ -117,6 +117,7 @@ public final class SettingsViewModel {
     public func confirmExport() {
         guard case let .choosing(includePdfs) = backup.export else { return }
         backup.export = .building(includePdfs: includePdfs, progress: 0)
+        diagnostics.crash.setKey(.backupInProgress, BackupPhase.export)
         // Called off the main actor, so it hops back before touching the state.
         let onProgress: @Sendable (Double) -> Void = { [weak self] progress in
             Task { @MainActor [weak self] in
@@ -124,7 +125,8 @@ public final class SettingsViewModel {
                 self.backup.export = .building(includePdfs: include, progress: progress)
             }
         }
-        exportTask = Task { [weak self, libraryBackup] in
+        exportTask = Task { [weak self, libraryBackup, diagnostics] in
+            defer { diagnostics.crash.setKey(.backupInProgress, BackupPhase.none) }
             do {
                 let file = try await libraryBackup.export(includePdfs: includePdfs, onProgress: onProgress)
                 guard let self, !Task.isCancelled else {
@@ -134,11 +136,13 @@ public final class SettingsViewModel {
                 self.backup.export = .readyToSave(file)
             } catch let error as BackupError {
                 guard !Task.isCancelled else { return }
+                if error == .writeFailed { diagnostics.crash.record(error, site: .export) }
                 self?.backup.export = .idle
                 self?.backup.message = .exportFailed(error)
             } catch {
                 // Cancelled: `cancelExport` already reset the state. Anything else ends the export with a message.
                 guard !Task.isCancelled else { return }
+                if !(error is CancellationError) { diagnostics.crash.record(error, site: .unexpectedUiError) }
                 self?.backup.export = .idle
                 self?.backup.message = .exportFailed(.writeFailed)
             }

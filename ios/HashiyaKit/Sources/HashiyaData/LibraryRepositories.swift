@@ -20,7 +20,8 @@ public struct LibraryRepositories: Sendable {
             files: pdf.files,
             downloader: pdf.downloader,
             pdfLinks: pdf.pdfLinks,
-            background: pdf.background
+            background: pdf.background,
+            crash: pdf.crash
         )
         backup = ArchiveLibraryBackup(
             store: store,

@@ -98,7 +98,7 @@ let package = Package(
         ),
         .testTarget(
             name: "FeatureSettingsTests",
-            dependencies: ["FeatureSettings", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
+            dependencies: ["FeatureSettings", "HashiyaData", "HashiyaDesignSystem", "HashiyaDiagnostics", "HashiyaModel", "HashiyaTesting"]
         ),
     ]
 )

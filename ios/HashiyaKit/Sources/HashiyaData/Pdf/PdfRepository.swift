@@ -69,7 +69,7 @@ public struct PdfDependencies: Sendable {
     public let background: any BackgroundTimeGranting
     /// OpenAlex's other links for a paper whose stored link fails. The default knows none.
     public let pdfLinks: any OpenAlexPdfLinksService
-    /// Where the PDF store's failures are reported (the repository starts using it with the PDF reports).
+    /// Where the PDF store's write failures are reported.
     public let crash: any CrashReporting
 
     public init(

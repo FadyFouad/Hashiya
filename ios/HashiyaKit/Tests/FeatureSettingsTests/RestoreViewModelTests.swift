@@ -1,5 +1,6 @@
 import Foundation
 import HashiyaData
+import HashiyaDiagnostics
 import HashiyaTesting
 import Testing
 @testable import FeatureSettings
@@ -107,5 +108,55 @@ import Testing
         await vm.load()
         vm.cancel()
         #expect(backup.discardedBackups.count == 1)
+    }
+
+    // MARK: Crash reports
+
+    private func restoreViewModel(applyError: (any Error)?, diagnostics: Diagnostics) -> RestoreViewModel {
+        backup.openResult = .ready(FakeLibraryBackup.preparedBackup(), preview)
+        if let error = applyError as? BackupError { backup.applyFailure = error } else { backup.applyError = applyError }
+        return RestoreViewModel(source: source, backup: backup, diagnostics: diagnostics)
+    }
+
+    private func confirmAndWait(_ viewModel: RestoreViewModel) async {
+        await viewModel.load()
+        viewModel.confirm()
+        #expect(await eventually { if case .applying = viewModel.state { false } else { true } })
+    }
+
+    @Test(arguments: [BackupError.writeFailed, .unreadable])
+    func aWriteOrReadFailureIsReported(error: BackupError) async {
+        let crash = FakeCrashReporting()
+        let viewModel = restoreViewModel(applyError: error, diagnostics: .fake(crash: crash))
+        await confirmAndWait(viewModel)
+        #expect(crash.records.map(\.site) == [.restore])
+        #expect(crash.keys[.backupInProgress] == "none")
+    }
+
+    @Test(arguments: [BackupError.noSpace, .busy])
+    func noSpaceAndBusyAreNotReported(error: BackupError) async {
+        let crash = FakeCrashReporting()
+        let viewModel = restoreViewModel(applyError: error, diagnostics: .fake(crash: crash))
+        await confirmAndWait(viewModel)
+        #expect(crash.records.isEmpty)
+    }
+
+    @Test func anUnexpectedErrorIsReportedAsAnUIError() async {
+        struct Odd: Error {}
+        let crash = FakeCrashReporting()
+        let viewModel = restoreViewModel(applyError: Odd(), diagnostics: .fake(crash: crash))
+        await confirmAndWait(viewModel)
+        #expect(crash.records.map(\.site) == [.unexpectedUiError])
+        #expect(viewModel.state == .failed(.writeFailed))
+    }
+
+    @Test func aRestoreSetsAndClearsTheBackupKey() async {
+        let crash = FakeCrashReporting()
+        let viewModel = restoreViewModel(applyError: nil, diagnostics: .fake(crash: crash))
+        await viewModel.load()
+        viewModel.confirm()
+        #expect(crash.keys[.backupInProgress] == "restore")
+        #expect(await eventually { if case .done = viewModel.state { true } else { false } })
+        #expect(crash.keys[.backupInProgress] == "none")
     }
 }

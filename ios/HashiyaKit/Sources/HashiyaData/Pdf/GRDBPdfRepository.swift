@@ -1,5 +1,6 @@
 import Foundation
 import HashiyaDatabase
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaNetwork
 import os
@@ -30,6 +31,7 @@ public final class GRDBPdfRepository: PdfRepository {
     private let downloader: any PdfDownloading
     private let pdfLinks: any OpenAlexPdfLinksService
     private let background: any BackgroundTimeGranting
+    private let crash: any CrashReporting
     private let now: @Sendable () -> Int64
     private let maxBytes: Int64
     private let state = OSAllocatedUnfairLock<State>(uncheckedState: State())
@@ -42,6 +44,7 @@ public final class GRDBPdfRepository: PdfRepository {
         downloader: any PdfDownloading,
         pdfLinks: any OpenAlexPdfLinksService = NoPdfLinks(),
         background: any BackgroundTimeGranting = NoBackgroundTime(),
+        crash: any CrashReporting = NoCrashReporting(),
         now: @escaping @Sendable () -> Int64 = { Int64((Date().timeIntervalSince1970 * 1000).rounded()) },
         maxBytes: Int64 = PdfFileStore.maxPdfBytes
     ) {
@@ -50,6 +53,7 @@ public final class GRDBPdfRepository: PdfRepository {
         self.downloader = downloader
         self.pdfLinks = pdfLinks
         self.background = background
+        self.crash = crash
         self.now = now
         self.maxBytes = maxBytes
     }
@@ -147,6 +151,7 @@ public final class GRDBPdfRepository: PdfRepository {
                             return .unreadable
                         }
                     } catch {
+                        recordWriteFailure(error)
                         await Self.deleteUnlessRecorded(paperID: paperID, store: store, files: files)
                         return .unreadable
                     }
@@ -158,6 +163,7 @@ public final class GRDBPdfRepository: PdfRepository {
                 }
             }
         } catch {
+            recordWriteFailure(error)
             return .unreadable
         }
         if result == .done { report(openAlexID, nil, token: nil) }
@@ -333,6 +339,7 @@ public final class GRDBPdfRepository: PdfRepository {
                         }
                     } catch {
                         // Also how a removal that cancels the download during the write ends: no state, as for any cancel.
+                        if !Task.isCancelled { recordWriteFailure(error) }
                         await Self.deleteUnlessRecorded(paperID: paperID, store: store, files: files)
                         return Task.isCancelled ? .stopped : .failed(.http, triesOtherLinks: false, wroteNothing: true)
                     }
@@ -351,8 +358,16 @@ public final class GRDBPdfRepository: PdfRepository {
                 ? .failed(.offline, triesOtherLinks: false, wroteNothing: false)
                 : .failed(.http, triesOtherLinks: true, wroteNothing: false)
         } catch {
+            if !Task.isCancelled { recordWriteFailure(error) }
             return Task.isCancelled ? .stopped : .failed(.http, triesOtherLinks: false, wroteNothing: true)
         }
+    }
+
+    /// Reports a failure to write a PDF or its row, as its type and code only. Connection failures and cancels aren't
+    /// write failures.
+    private func recordWriteFailure(_ error: any Error) {
+        guard !(error is NetworkFailure), !(error is CancellationError) else { return }
+        crash.record(error, site: .pdfStore)
     }
 
     /// Sets the paper's download state (nil clears it) and tells its observers. With a `token`, only while that download is

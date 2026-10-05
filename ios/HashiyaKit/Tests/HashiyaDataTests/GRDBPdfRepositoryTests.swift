@@ -2,6 +2,7 @@ import Foundation
 import GRDB
 @testable import HashiyaData
 import HashiyaDatabase
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaNetwork
 import HashiyaTesting
@@ -552,6 +553,118 @@ struct GRDBPdfRepositoryTests {
         #expect(await repository.attach(openAlexID: "W1", from: missing) == .unreadable)
     }
 
+    // MARK: Crash reports
+
+    /// A repository on this suite's database, reporting to `crash`, keeping its PDFs in `files`.
+    private func reportingRepository(_ crash: FakeCrashReporting, files: PdfFileStore? = nil) -> GRDBPdfRepository {
+        GRDBPdfRepository(
+            store: store, files: files ?? self.files, downloader: downloader, background: background, crash: crash,
+            now: { 1_000 }, maxBytes: 10_000
+        )
+    }
+
+    private func awaitFailure(_ repository: GRDBPdfRepository, _ openAlexID: String) async -> DownloadState?? {
+        await firstValue(repository.observeDownload(openAlexID: openAlexID)) { if case .failed = $0 { true } else { false } }
+    }
+
+    @Test func aDownloadWhoseFileCantBeWrittenIsReported() async throws {
+        try await library.save(paper("W1"))
+        // A file where the folder should be: creating the folder fails, which the store reports as `PdfWriteError`.
+        let blocked = FileManager.default.temporaryDirectory.appending(path: "blocked-\(UUID().uuidString)")
+        try Data().write(to: blocked)
+        defer { try? FileManager.default.removeItem(at: blocked) }
+        let crash = FakeCrashReporting()
+        let repository = reportingRepository(crash, files: PdfFileStore(directory: blocked))
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitFailure(repository, "W1") != nil)
+        #expect(crash.records.map(\.site) == [.pdfStore])
+        #expect(crash.records.first?.type.hasSuffix("PdfWriteError") == true)
+    }
+
+    @Test func aDownloadWhoseRowCantBeWrittenIsReported() async throws {
+        let crash = FakeCrashReporting()
+        try await withOnDiskPools {
+            let disk = try onDisk(crash: crash)
+            defer { try? FileManager.default.removeItem(at: disk.folder) }
+            try await disk.library.save(paper("W1"))
+            downloader.holdBodies()
+            disk.repository.download(openAlexID: "W1")
+            #expect(await eventually { names().contains { $0.hasSuffix(".part") } })
+
+            HashiyaDatabase.suspend()
+            downloader.releaseBodies()
+            #expect(await firstValue(disk.repository.observeDownload(openAlexID: "W1")) { if case .running = $0 { false } else { true } } == .some(.failed(.http)))
+            HashiyaDatabase.resume()
+        }
+        #expect(crash.records.map(\.site) == [.pdfStore])
+    }
+
+    @Test func aNotPdfOrTooLargeDownloadIsNotReported() async throws {
+        try await library.save(paper("W1"))
+        try await library.save(paper("W2"))
+        let crash = FakeCrashReporting()
+        let repository = reportingRepository(crash)
+
+        downloader.setBody(Self.html, for: "https://arxiv.org/pdf/W1")
+        repository.download(openAlexID: "W1")
+        #expect(await awaitFailure(repository, "W1") == .some(.failed(.notPDF)))
+
+        downloader.setBody(Self.pdf + Data(repeating: 0x20, count: 20_000), for: "https://arxiv.org/pdf/W2")
+        repository.download(openAlexID: "W2")
+        #expect(await awaitFailure(repository, "W2") == .some(.failed(.tooLarge)))
+
+        #expect(crash.records.isEmpty)
+    }
+
+    @Test func aFailedConnectionIsNotReported() async throws {
+        try await library.save(paper("W1"))
+        downloader.setFailure(.connectivity)
+        let crash = FakeCrashReporting()
+        let repository = reportingRepository(crash)
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await awaitFailure(repository, "W1") == .some(.failed(.offline)))
+        #expect(crash.records.isEmpty)
+    }
+
+    @Test func anAttachWhoseCopyFailsIsReported() async throws {
+        try await library.save(paper("W1"))
+        let crash = FakeCrashReporting()
+        let missing = FileManager.default.temporaryDirectory.appending(path: "missing-\(UUID().uuidString).pdf")
+
+        #expect(await reportingRepository(crash).attach(openAlexID: "W1", from: missing) == .unreadable)
+
+        #expect(crash.records.map(\.site) == [.pdfStore])
+    }
+
+    @Test func anAttachWhoseRowCantBeWrittenIsReported() async throws {
+        let crash = FakeCrashReporting()
+        try await withOnDiskPools {
+            let disk = try onDisk(crash: crash)
+            defer { try? FileManager.default.removeItem(at: disk.folder) }
+            try await disk.library.save(paper("W1"))
+
+            HashiyaDatabase.suspend()
+            #expect(await disk.repository.attach(openAlexID: "W1", from: try temporaryFile(Self.pdf)) == .unreadable)
+            HashiyaDatabase.resume()
+        }
+        #expect(crash.records.map(\.site) == [.pdfStore])
+    }
+
+    @Test func aNotPdfOrTooLargeAttachIsNotReported() async throws {
+        try await library.save(paper("W1"))
+        let crash = FakeCrashReporting()
+        let repository = reportingRepository(crash)
+
+        #expect(await repository.attach(openAlexID: "W1", from: try temporaryFile(Self.html)) == .notPDF)
+        #expect(await repository.attach(openAlexID: "W1", from: try temporaryFile(Self.pdf + Data(repeating: 0x20, count: 20_000))) == .tooLarge)
+
+        #expect(crash.records.isEmpty)
+    }
+
     @Test func attachingToAnUnsavedPaperFails() async throws {
         #expect(await repository.attach(openAlexID: "W9", from: try temporaryFile(Self.pdf)) == .unreadable)
         #expect(names().isEmpty)
@@ -763,13 +876,13 @@ struct GRDBPdfRepositoryTests {
 
     /// The app's setup: an on-disk pool that refuses writes while the database is suspended (`HashiyaDatabase.suspend()`),
     /// sharing this suite's downloader, background time and PDF folder. Call inside `withOnDiskPools`.
-    private func onDisk() throws -> (store: PaperStore, library: GRDBLibraryRepository, repository: GRDBPdfRepository, folder: URL) {
+    private func onDisk(crash: any CrashReporting = NoCrashReporting()) throws -> (store: PaperStore, library: GRDBLibraryRepository, repository: GRDBPdfRepository, folder: URL) {
         let folder = FileManager.default.temporaryDirectory.appending(path: "db-\(UUID().uuidString)", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let store = try PaperStore.open(at: folder.appending(path: "hashiya.sqlite"))
         let ids = OSAllocatedUnfairLock(initialState: 0)
         let library = GRDBLibraryRepository(store: store, newID: { ids.withLock { $0 += 1; return "local-\($0)" } })
-        let repository = GRDBPdfRepository(store: store, files: files, downloader: downloader, background: background, now: { 1_000 }, maxBytes: 10_000)
+        let repository = GRDBPdfRepository(store: store, files: files, downloader: downloader, background: background, crash: crash, now: { 1_000 }, maxBytes: 10_000)
         return (store, library, repository, folder)
     }
 

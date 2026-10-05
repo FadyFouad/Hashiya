@@ -1,5 +1,6 @@
 import Foundation
 import HashiyaData
+import HashiyaDiagnostics
 import HashiyaTesting
 import Testing
 @testable import FeatureSettings
@@ -149,5 +150,63 @@ import Testing
         #expect(await eventually { vm.backup.message != nil })
         vm.dismissMessage()
         #expect(vm.backup.message == nil)
+    }
+
+    // MARK: Crash reports
+
+    private func reportingViewModel(_ crash: FakeCrashReporting) -> SettingsViewModel {
+        SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: FakePdfRepository(), backup: backup, diagnostics: .fake(crash: crash))
+    }
+
+    private func exportAndWait(_ viewModel: SettingsViewModel) async {
+        viewModel.startExport()
+        viewModel.confirmExport()
+        #expect(await eventually { if case .building = viewModel.backup.export { false } else { true } })
+    }
+
+    @Test func aWriteFailureIsReportedAsAnExportFailure() async {
+        backup.exportFailure = .writeFailed
+        let crash = FakeCrashReporting()
+        await exportAndWait(reportingViewModel(crash))
+        #expect(crash.records.map(\.site) == [.export])
+        #expect(crash.keys[.backupInProgress] == "none")
+    }
+
+    @Test func noSpaceIsNotReported() async {
+        backup.exportFailure = .noSpace
+        let crash = FakeCrashReporting()
+        await exportAndWait(reportingViewModel(crash))
+        #expect(crash.records.isEmpty)
+    }
+
+    @Test func anUnexpectedExportErrorIsReportedAsAnUIError() async {
+        backup.exportError = NSError(domain: NSCocoaErrorDomain, code: NSFileWriteUnknownError)
+        let crash = FakeCrashReporting()
+        await exportAndWait(reportingViewModel(crash))
+        #expect(crash.records.map(\.site) == [.unexpectedUiError])
+    }
+
+    @Test func theBackupKeyIsExportWhileBuildingThenNone() async {
+        let crash = FakeCrashReporting()
+        let gate = AsyncStream<Void>.makeStream()
+        backup.exportGate = gate.stream
+        let viewModel = reportingViewModel(crash)
+        viewModel.startExport()
+        viewModel.confirmExport()
+        #expect(crash.keys[.backupInProgress] == "export")
+        gate.continuation.yield(())
+        #expect(await eventually { isReadyToSave(viewModel) })
+        #expect(crash.keys[.backupInProgress] == "none")
+    }
+
+    @Test func cancellingABuildClearsTheBackupKey() async {
+        let crash = FakeCrashReporting()
+        backup.exportGate = AsyncStream<Void>.makeStream().stream
+        let viewModel = reportingViewModel(crash)
+        viewModel.startExport()
+        viewModel.confirmExport()
+        viewModel.cancelExport()
+        #expect(await eventually { crash.keys[.backupInProgress] == "none" })
+        #expect(crash.records.isEmpty)
     }
 }

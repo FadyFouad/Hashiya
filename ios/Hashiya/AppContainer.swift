@@ -126,7 +126,7 @@ final class AppContainer {
     }
 
     func makeRestoreViewModel(source: URL, onSourceRead: @escaping () -> Void = {}) -> RestoreViewModel {
-        RestoreViewModel(source: source, backup: backup, onSourceRead: onSourceRead)
+        RestoreViewModel(source: source, backup: backup, onSourceRead: onSourceRead, diagnostics: diagnostics)
     }
 
     func makeAppUpdateModel() -> AppUpdateModel {

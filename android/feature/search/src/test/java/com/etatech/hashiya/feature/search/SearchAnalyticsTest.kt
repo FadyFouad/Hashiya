@@ -230,21 +230,25 @@ class SearchAnalyticsTest {
         assertEquals(listOf(keyword(), keyword()), analytics.events)
     }
 
+    /** A restore re-runs a search the user didn't start again, but each further page is still one they scrolled to. */
     @Test
-    fun aRestoredSearchSendsNothing() = runTest {
+    fun aRestoredSearchSendsNoSearchButCountsFurtherPages() = runTest {
         searchRepository.firstPage = bertFirstPage
         val handle = SavedStateHandle(mapOf("search_text" to "bert", "search_oa" to true))
 
         viewModel(handle)
+        runCurrent()
+        assertEquals(1, searchRepository.queries.size)
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+
         searchRepository.lastPagesLoaded.value = 2
         runCurrent()
 
-        assertEquals(1, searchRepository.queries.size)
-        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.SearchMore(2)), analytics.events)
     }
 
     @Test
-    fun anApiKeyChangeRerunSendsNothing() = runTest {
+    fun anApiKeyChangeRerunSendsNoSearchButCountsFurtherPages() = runTest {
         searchRepository.firstPage = bertFirstPage
         val viewModel = viewModel()
         search(viewModel, "bert")
@@ -258,6 +262,11 @@ class SearchAnalyticsTest {
 
         assertEquals(2, searchRepository.queries.size)
         assertEquals(listOf(keyword()), analytics.events)
+
+        searchRepository.lastPagesLoaded.value = 2
+        runCurrent()
+
+        assertEquals(listOf(keyword(), AnalyticsEvent.SearchMore(2)), analytics.events)
     }
 
     @Test

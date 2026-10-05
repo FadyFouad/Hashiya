@@ -66,14 +66,26 @@ enum L10n {
         return cut + "…"
     }
 
-    /// Title and message of a first-page error.
-    static func error(_ error: SearchError) -> (title: String, message: String) {
+    /// Title and message of a first-page error. `timeZone` places a daily limit's reset time.
+    static func error(_ error: SearchError, timeZone: TimeZone = .current) -> (title: String, message: String) {
         switch error {
         case .offline: (string("search.errorOfflineTitle"), string("search.errorOfflineMessage"))
         case .invalidUserKey: (string("search.errorKeyTitle"), string("search.errorKeyMessage"))
         case .serviceUnavailable: (string("search.errorUnavailableTitle"), string("search.errorUnavailableMessage"))
         case .rateLimited: (string("search.errorRateTitle"), string("search.errorRateMessage"))
         case .unexpected: (string("search.errorUnexpectedTitle"), string("search.errorUnexpectedMessage"))
+        case let .dailyLimit(resetAt): (string("search.errorDailyLimitTitle"), dailyLimitMessage(resetAt, timeZone: timeZone))
         }
+    }
+
+    /// "Search will be available again at 3:00 AM. …", the time in the app's locale and `timeZone`, isolated
+    /// (U+2068 … U+2069) exactly once so it keeps its order inside Arabic text.
+    static func dailyLimitMessage(_ resetAt: Date, timeZone: TimeZone) -> String {
+        var style = Date.FormatStyle(date: .omitted, time: .shortened).locale(HashiyaLanguage.locale)
+        style.timeZone = timeZone
+        let time = resetAt.formatted(style)
+        let formatted = format("search.errorDailyLimitMessage", time)
+        let isolated = "\u{2068}" + time + "\u{2069}"
+        return formatted.contains(isolated) ? formatted : format("search.errorDailyLimitMessage", isolated)
     }
 }

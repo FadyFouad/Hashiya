@@ -12,6 +12,8 @@ extension NetworkFailure {
             .rateLimited
         case let .http(code, _) where (500...599).contains(code):
             .serviceUnavailable
+        case let .dailyLimit(resetAt):
+            .dailyLimit(resetAt: resetAt)
         case .http, .malformedResponse, .unknown:
             .unexpected
         }

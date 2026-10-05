@@ -43,4 +43,25 @@ class FirebaseAnalyticsTrackerTest {
 
         assertEquals(listOf("consent", "collection:false", "reset"), calls)
     }
+
+    /** The first screen view can come before the launch reads the Settings switch; it's held until then. */
+    @Test
+    fun eventsLoggedBeforeTheLaunchDecisionAreSentAfterTurningOn() {
+        tracker.log(AnalyticsEvent.ScreenView(Screen.Library))
+        tracker.setProperty(AnalyticsProperty.Language, Language.Ar)
+
+        tracker.setEnabled(true)
+
+        assertEquals(listOf("consent", "collection:true", "property:language=ar", "log:screen_view:{screen=library}"), calls)
+    }
+
+    @Test
+    fun eventsLoggedBeforeTheLaunchDecisionAreDroppedWhenItIsOff() {
+        tracker.log(AnalyticsEvent.ScreenView(Screen.Library))
+
+        tracker.setEnabled(false)
+        tracker.setEnabled(true)
+
+        assertEquals(listOf("consent", "collection:false", "reset", "consent", "collection:true"), calls)
+    }
 }

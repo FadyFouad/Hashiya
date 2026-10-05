@@ -38,13 +38,6 @@ public final class OpenAlexSearchClient: OpenAlexSearchService {
         query.append((name: "cursor", value: request.cursor))
         query.append((name: "select", value: Self.selectFields))
 
-        let data = try await http.get(path: "/works", query: query)
-        do {
-            return try JSONDecoder().decode(NetworkWorksResponse.self, from: data)
-        } catch is DecodingError {
-            throw NetworkFailure.malformedResponse
-        } catch {
-            throw NetworkFailure.unknown
-        }
+        return try await http.get(NetworkWorksResponse.self, path: "/works", query: query)
     }
 }

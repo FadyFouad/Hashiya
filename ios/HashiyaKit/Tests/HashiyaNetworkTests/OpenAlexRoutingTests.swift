@@ -17,11 +17,15 @@ struct OpenAlexRoutingTests {
         return OpenAlexQuota(defaults: defaults, hasBuiltInKey: builtInKey, now: { [clock] in clock.date })
     }
 
-    private func search(_ server: URLProtocolStub.Server, _ quota: OpenAlexQuota, userKey: String? = nil, cache: Bool = false) -> OpenAlexSearchClient {
+    /// `sleep` defaults to the manual sleeper; pass `{ _ in }` where a test must not wait.
+    private func search(
+        _ server: URLProtocolStub.Server, _ quota: OpenAlexQuota, userKey: String? = nil, cache: Bool = false,
+        sleep: (@Sendable (Duration) async throws -> Void)? = nil
+    ) -> OpenAlexSearchClient {
         OpenAlexSearchClient(
             session: server.session, builtInKey: "built-in", userKeySource: FixedUserAPIKeySource(userKey),
             quota: quota, cache: cache ? SearchCache(directory: cacheDirectory, now: { [clock] in clock.date }) : nil,
-            sleep: { [sleeper] in try await sleeper.sleep($0) }, log: { _ in }
+            sleep: sleep ?? { [sleeper] in try await sleeper.sleep($0) }, log: { _ in }
         )
     }
 
@@ -68,7 +72,29 @@ struct OpenAlexRoutingTests {
         let server = URLProtocolStub.Server { [page] request in
             Self.query(request)["api_key"] == nil ? .json(page) : .status(429, headers: ["X-RateLimit-Remaining": remaining])
         }
-        _ = try await search(server, quota()).searchWorks(request)
+        // No waiting: read as a per-second limit, the retry would keep the key and fail here rather than hang.
+        _ = try await search(server, quota(), sleep: { _ in }).searchWorks(request)
+        #expect(server.requests.count == 2)
+        #expect(Self.query(server.requests[1])["api_key"] == nil)
+    }
+
+    @Test func aNaNRetryAfterWaitsTheDefaultSecond() async throws {
+        let replies = Counter(0)
+        let server = URLProtocolStub.Server { [page] _ in replies.next() == 0 ? .status(429, headers: ["Retry-After": "nan"]) : .json(page) }
+        let client = search(server, quota())
+        let task = Task { [request] in try await client.searchWorks(request) }
+        await sleeper.waitForSleeper()
+        sleeper.advance(by: .seconds(1))
+        _ = try await task.value
+        #expect(server.requests.count == 2)
+    }
+
+    @Test func aNaNResetMeansTheNextMidnightUTC() async {
+        let server = URLProtocolStub.Server(always: Self.usedUp(reset: "nan"))
+        let quota = quota()
+        await #expect(throws: NetworkFailure.dailyLimit(resetAt: TestClock("2026-10-06T00:00:00Z").date)) {
+            try await search(server, quota).searchWorks(request)
+        }
         #expect(server.requests.count == 2)
     }
 
@@ -180,6 +206,16 @@ struct OpenAlexRoutingTests {
         #expect(quota.meteredRoute() == .shared)
     }
 
+    @Test func aFailingProxyWithKeylessUsedUpIsUnavailableNotTheDailyLimit() async {
+        let server = URLProtocolStub.Server(always: .status(503))
+        let quota = quota(limits: OpenAlexLimits(dailyDeviceCalls: 60, maxPagesPerQuery: 8, baseURL: URL(string: "https://proxy.example")))
+        quota.markUsedUp(.keyless, resetIn: 600)
+        await #expect(throws: NetworkFailure.http(code: 503, usedUserKey: false)) {
+            try await search(server, quota).searchWorks(request)
+        }
+        #expect(server.requests.count == 1)
+    }
+
     @Test func theUserKeyNeverGoesToTheProxy() async throws {
         let server = URLProtocolStub.Server(always: .json(page))
         let proxy = OpenAlexLimits(dailyDeviceCalls: 60, maxPagesPerQuery: 8, baseURL: URL(string: "https://proxy.example"))
@@ -206,6 +242,17 @@ struct OpenAlexRoutingTests {
         let server = URLProtocolStub.Server { [page] _ in replies.next() == 0 ? .status(500) : .json(page) }
         let client = search(server, quota(), cache: true)
         await #expect(throws: NetworkFailure.http(code: 500, usedUserKey: false)) { try await client.searchWorks(request) }
+        _ = try await client.searchWorks(request)
+        #expect(server.requests.count == 2)
+    }
+
+    @Test func anUndecodableReplyIsNotCached() async throws {
+        let replies = Counter(0)
+        let server = URLProtocolStub.Server { [page] _ in replies.next() == 0 ? .json("not json") : .json(page) }
+        let client = search(server, quota(), cache: true)
+        await #expect(throws: NetworkFailure.malformedResponse) { try await client.searchWorks(request) }
+        _ = try await client.searchWorks(request)
+        #expect(server.requests.count == 2)
         _ = try await client.searchWorks(request)
         #expect(server.requests.count == 2)
     }

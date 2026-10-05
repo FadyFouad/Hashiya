@@ -15,14 +15,33 @@ struct OpenAlexHTTP: Sendable {
     let sleep: @Sendable (Duration) async throws -> Void
     let log: @Sendable (String) -> Void
 
-    /// The response body of a 2xx response. Throws `NetworkFailure` or `CancellationError`.
-    func get(path: String, query: [(name: String, value: String)]) async throws -> Data {
+    /// The decoded body of a 2xx response; a body that doesn't decode is `malformedResponse` and isn't cached.
+    /// Throws `NetworkFailure` or `CancellationError`.
+    func get<T: Decodable>(_ type: T.Type, path: String, query: [(name: String, value: String)]) async throws -> T {
         let metered = path == "/works"
         let cacheKey = metered ? SearchCache.key(path: path, query: query) : nil
-        if let cacheKey, let cached = cache?.data(for: cacheKey) { return cached }
+        if let cacheKey, let cached = cache?.data(for: cacheKey), let value = try? Self.decode(type, from: cached) {
+            return value
+        }
         let data = try await send(path: path, query: query, metered: metered)
+        let value = try Self.decode(type, from: data)
         if let cacheKey { cache?.store(data, for: cacheKey) }
-        return data
+        return value
+    }
+
+    /// The response body of a 2xx response, never cached. Throws `NetworkFailure` or `CancellationError`.
+    func get(path: String, query: [(name: String, value: String)]) async throws -> Data {
+        try await send(path: path, query: query, metered: path == "/works")
+    }
+
+    static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
+        do {
+            return try JSONDecoder().decode(type, from: data)
+        } catch is DecodingError {
+            throw NetworkFailure.malformedResponse
+        } catch {
+            throw NetworkFailure.unknown
+        }
     }
 
     private func send(path: String, query: [(name: String, value: String)], metered: Bool) async throws -> Data {
@@ -66,7 +85,11 @@ struct OpenAlexHTTP: Sendable {
                 throw NetworkFailure.http(code: reply.status, usedUserKey: false)
             }
         }
-        if metered { throw NetworkFailure.dailyLimit(resetAt: quota.nextAvailable()) }
+        if metered {
+            // Out of routes but not out for the day: the proxy failed and keyless is used up.
+            guard quota.meteredRoute() == nil else { throw NetworkFailure.http(code: 503, usedUserKey: false) }
+            throw NetworkFailure.dailyLimit(resetAt: quota.nextAvailable())
+        }
         throw NetworkFailure.http(code: 429, usedUserKey: false)
     }
 
@@ -93,7 +116,10 @@ struct OpenAlexHTTP: Sendable {
         }
 
         private func number(_ header: String) -> Double? {
-            response.value(forHTTPHeaderField: header).flatMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+            // "nan" and "inf" parse as Doubles; they mean nothing here.
+            response.value(forHTTPHeaderField: header)
+                .flatMap { Double($0.trimmingCharacters(in: .whitespaces)) }
+                .flatMap { $0.isFinite ? $0 : nil }
         }
     }
 

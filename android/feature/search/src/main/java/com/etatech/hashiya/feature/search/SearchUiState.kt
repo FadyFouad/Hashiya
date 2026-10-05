@@ -13,7 +13,9 @@ data class SearchUiState(
     val years: YearFilter = YearFilter.AnyTime,
     val openAccessOnly: Boolean = false,
     val isIdle: Boolean = true,
-    val totalCount: Long? = null
+    val totalCount: Long? = null,
+    /** Results shown when the page cap stopped paging; null otherwise. */
+    val capReached: Int? = null
 ) {
     val hasActiveFilters: Boolean
         get() = years != YearFilter.AnyTime || openAccessOnly

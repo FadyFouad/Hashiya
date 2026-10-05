@@ -33,6 +33,7 @@
     <string name="search_error_rate_message">Try again in a moment.</string>
     <string name="search_error_unexpected_title">Something went wrong</string>
     <string name="search_error_unexpected_message">Please try again.</string>
+    <string name="search_page_cap">Showing the first %1$s results. Refine your search to see more.</string>
     <string name="search_error_daily_limit_title">Daily search limit reached</string>
     <string name="search_error_daily_limit_message">Search will be available again at %1$s. For more searches, add your own free OpenAlex key in Settings.</string>
     <string name="search_retry">Retry</string>

@@ -319,6 +319,16 @@ class SearchViewModelTest {
     }
 
     @Test
+    fun exposesTheResultCountWhenThePageCapIsReached() = runTest {
+        searchRepository.capReached = 200
+        val viewModel = viewModel()
+        viewModel.onSuggestion("bert")
+        runCurrent()
+
+        assertEquals(200, viewModel.uiState.value.capReached)
+    }
+
+    @Test
     fun restoresQueryAfterProcessDeath() = runTest {
         val handle = SavedStateHandle(
             mapOf(

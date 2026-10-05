@@ -22,9 +22,18 @@ class OpenAlexPagingSourceTest {
     private val dataSource = FakeOpenAlexDataSource()
     private var reportedFirstPage: FirstPage? = null
     private var reportedPages = 0
+    private var maxPages = 8
+    private var reportedCap: Int? = null
     private val pager = TestPager(
         PagingConfig(pageSize = 25, initialLoadSize = 25, enablePlaceholders = false),
-        OpenAlexPagingSource(SearchQuery("bert"), dataSource, onFirstPage = { reportedFirstPage = it }, onPage = { reportedPages = it })
+        OpenAlexPagingSource(
+            SearchQuery("bert"),
+            dataSource,
+            onFirstPage = { reportedFirstPage = it },
+            onPage = { reportedPages = it },
+            maxPages = { maxPages },
+            onCapReached = { reportedCap = it }
+        )
     )
 
     private fun LoadResult<String, Paper>.page() = this as LoadResult.Page<String, Paper>
@@ -102,5 +111,62 @@ class OpenAlexPagingSourceTest {
         pager.append()
         assertEquals(2, reportedPages)
         assertNull(reportedFirstPage)
+    }
+
+    @Test
+    fun stopsAtThePageCapEvenWhenOpenAlexHasAnotherCursor() = runTest {
+        maxPages = 2
+        dataSource.enqueuePage("W1", nextCursor = "c2")
+        dataSource.enqueuePage("W2", nextCursor = "c3")
+
+        assertEquals("c2", pager.refresh().page().nextKey)
+        assertNull(reportedCap)
+        assertNull(pager.append()!!.page().nextKey)
+        assertEquals(50, reportedCap)
+    }
+
+    @Test
+    fun aLastPageBeforeTheCapEndsNormally() = runTest {
+        maxPages = 2
+        dataSource.enqueuePage("W1", nextCursor = "c2")
+        dataSource.enqueuePage("W2", nextCursor = null)
+
+        pager.refresh()
+        assertNull(pager.append()!!.page().nextKey)
+        assertNull(reportedCap)
+    }
+
+    @Test
+    fun aLastPageOnTheCapPageIsNotACap() = runTest {
+        maxPages = 1
+        dataSource.enqueuePage("W1", nextCursor = null)
+
+        assertNull(pager.refresh().page().nextKey)
+        assertNull(reportedCap)
+    }
+
+    @Test
+    fun pagesOfDuplicatesStillCountTowardTheCap() = runTest {
+        maxPages = 2
+        dataSource.enqueuePage("W1", nextCursor = "c2")
+        dataSource.enqueuePage("W1", nextCursor = "c3")
+
+        pager.refresh()
+        val second = pager.append()!!.page()
+
+        assertEquals(emptyList<String>(), second.data.map { it.openAlexId })
+        assertNull(second.nextKey)
+        assertEquals(50, reportedCap)
+    }
+
+    @Test
+    fun theCapIsReadWhenEachPageArrives() = runTest {
+        dataSource.enqueuePage("W1", nextCursor = "c2")
+        dataSource.enqueuePage("W2", nextCursor = "c3")
+
+        assertEquals("c2", pager.refresh().page().nextKey)
+        maxPages = 2
+        assertNull(pager.append()!!.page().nextKey)
+        assertEquals(50, reportedCap)
     }
 }

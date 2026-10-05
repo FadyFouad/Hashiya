@@ -224,6 +224,28 @@ class SearchContentTest {
     }
 
     @Test
+    fun theFooterExplainsAReachedPageCap() {
+        val data = PagingData.from(
+            listOf(SamplePapers.bert),
+            states(refresh = LoadState.NotLoading(endOfPaginationReached = false))
+        )
+        show(searching.copy(capReached = 200), data)
+
+        composeRule.onNodeWithText("Showing the first 200 results. Refine your search to see more.").assertIsDisplayed()
+    }
+
+    @Test
+    fun noCapFooterWhenThePagesJustEnded() {
+        val data = PagingData.from(
+            listOf(SamplePapers.bert),
+            states(refresh = LoadState.NotLoading(endOfPaginationReached = false))
+        )
+        show(searching, data)
+
+        composeRule.onNodeWithText("Refine your search", substring = true).assertDoesNotExist()
+    }
+
+    @Test
     fun appendErrorShowsRetryFooterAndKeepsResults() {
         val data = PagingData.from(
             listOf(SamplePapers.bert),

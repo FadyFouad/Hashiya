@@ -34,6 +34,7 @@
     <string name="search_error_rate_message">حاول مرة أخرى بعد قليل.</string>
     <string name="search_error_unexpected_title">حدث خطأ ما</string>
     <string name="search_error_unexpected_message">يُرجى المحاولة مرة أخرى.</string>
+    <string name="search_page_cap">تُعرض أول ⁨%1$s⁩ نتيجة. حسِّن بحثك لرؤية المزيد.</string>
     <string name="search_error_daily_limit_title">تم بلوغ الحد اليومي للبحث</string>
     <string name="search_error_daily_limit_message">سيتوفر البحث مجددًا الساعة ⁨%1$s⁩. لمزيد من عمليات البحث، أضف مفتاح OpenAlex مجانيًا خاصًا بك في الإعدادات.</string>
     <string name="search_retry">إعادة المحاولة</string>

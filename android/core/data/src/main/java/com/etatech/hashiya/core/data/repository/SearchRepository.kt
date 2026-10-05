@@ -23,7 +23,9 @@ data class SearchResults(
     /** Set when the first page arrives. */
     val firstPage: StateFlow<FirstPage?> = MutableStateFlow(null),
     /** Pages fetched so far for this search: 1 after the first page. */
-    val pagesLoaded: StateFlow<Int> = MutableStateFlow(0)
+    val pagesLoaded: StateFlow<Int> = MutableStateFlow(0),
+    /** The number of results shown when the page cap stopped the search; null while paging can go on or has ended. */
+    val capReached: StateFlow<Int?> = MutableStateFlow(null)
 )
 
 /** Carried inside Paging's `LoadState.Error` so the UI can show the right message. */

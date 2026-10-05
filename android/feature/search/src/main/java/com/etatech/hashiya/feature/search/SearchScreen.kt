@@ -35,6 +35,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -291,13 +292,14 @@ private fun SearchBody(
             onClearFilters = actions.onClearFilters
         )
 
-        else -> ResultsList(uiState.totalCount, papers, savedIds, actions, selectedId, resetZone)
+        else -> ResultsList(uiState.totalCount, uiState.capReached, papers, savedIds, actions, selectedId, resetZone)
     }
 }
 
 @Composable
 private fun ResultsList(
     totalCount: Long?,
+    capReached: Int?,
     papers: LazyPagingItems<Paper>,
     savedIds: Set<String>,
     actions: SearchActions,
@@ -364,7 +366,17 @@ private fun ResultsList(
                 }
             }
 
-            is LoadState.NotLoading -> Unit
+            is LoadState.NotLoading -> if (append.endOfPaginationReached && capReached != null) {
+                item {
+                    Text(
+                        stringResource(R.string.search_page_cap, NumberFormat.getInstance(locale).format(capReached)),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)
+                    )
+                }
+            }
         }
     }
 }

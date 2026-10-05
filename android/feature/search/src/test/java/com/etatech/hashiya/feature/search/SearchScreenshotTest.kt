@@ -128,6 +128,17 @@ class SearchScreenshotTest(private val variant: ScreenshotVariant) {
         arabicText = "فتح الإعدادات"
     )
 
+    @Test
+    fun pageCap() = capture(
+        "search_page_cap",
+        searching.copy(capReached = 200),
+        PagingData.from(
+            listOf(SamplePapers.attention, SamplePapers.bert),
+            loadStates(LoadState.NotLoading(endOfPaginationReached = false))
+        ),
+        arabicText = "حسِّن بحثك لرؤية المزيد"
+    )
+
     companion object {
         private val RESET_AT = Instant.parse("2026-10-06T00:00:00Z").toEpochMilli()
 

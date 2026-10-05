@@ -11,7 +11,8 @@ import org.junit.Test
 
 class OpenAlexSearchRepositoryTest {
     private val dataSource = FakeOpenAlexDataSource()
-    private val repository = OpenAlexSearchRepository(dataSource)
+    private var maxPages = 8
+    private val repository = OpenAlexSearchRepository(dataSource) { maxPages }
 
     @Test
     fun loadsFirstPageAndExposesTotalCount() = runTest {
@@ -25,5 +26,17 @@ class OpenAlexSearchRepositoryTest {
         assertEquals(2L, results.totalCount.value)
         assertEquals(FirstPage(2, ResearchCategory.Unknown), results.firstPage.value)
         assertEquals(1, results.pagesLoaded.value)
+        assertNull(results.capReached.value)
+    }
+
+    @Test
+    fun exposesTheResultCountWhenTheCapStopsPaging() = runTest {
+        maxPages = 1
+        dataSource.enqueuePage("W1", nextCursor = "c2", count = 500)
+        val results = repository.search(SearchQuery("bert"))
+
+        assertEquals(listOf("W1"), results.papers.asSnapshot().map { it.openAlexId })
+        assertEquals(25, results.capReached.value)
+        assertEquals(1, dataSource.requests.size)
     }
 }

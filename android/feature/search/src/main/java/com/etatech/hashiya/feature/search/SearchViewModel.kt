@@ -145,9 +145,10 @@ class SearchViewModel @Inject constructor(
     val uiState: StateFlow<SearchUiState> = combine(
         draft,
         activeQuery,
-        search.flatMapLatest { it?.results?.totalCount ?: flowOf(null) }
-    ) { current, active, count ->
-        current.toUiState(isIdle = active == null, totalCount = count)
+        search.flatMapLatest { it?.results?.totalCount ?: flowOf(null) },
+        search.flatMapLatest { it?.results?.capReached ?: flowOf(null) }
+    ) { current, active, count, cap ->
+        current.toUiState(isIdle = active == null, totalCount = count, capReached = cap)
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -360,13 +361,14 @@ class SearchViewModel @Inject constructor(
 
     private fun String?.asRoute() = if (this != null) SearchRoute.User else SearchRoute.Shared
 
-    private fun SearchQuery.toUiState(isIdle: Boolean, totalCount: Long?) = SearchUiState(
+    private fun SearchQuery.toUiState(isIdle: Boolean, totalCount: Long?, capReached: Int? = null) = SearchUiState(
         text = text,
         sort = sort,
         years = years,
         openAccessOnly = openAccessOnly,
         isIdle = isIdle,
-        totalCount = totalCount
+        totalCount = totalCount,
+        capReached = capReached
     )
 
     private fun LookupResult?.toUiState(identifier: PaperIdentifier, pageTitle: String?): LookupUiState = when (this) {

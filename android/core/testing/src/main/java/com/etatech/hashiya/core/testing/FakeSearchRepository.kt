@@ -20,11 +20,14 @@ class FakeSearchRepository : SearchRepository {
     var error: SearchError? = null
     var firstPage: FirstPage? = null
     var pagesLoaded: Int = 0
+    var capReached: Int? = null
 
     /** The flows handed out by the latest [search], so a test can emit later values. */
     var lastFirstPage = MutableStateFlow<FirstPage?>(null)
         private set
     var lastPagesLoaded = MutableStateFlow(0)
+        private set
+    var lastCapReached = MutableStateFlow<Int?>(null)
         private set
 
     override fun search(query: SearchQuery): SearchResults {
@@ -53,11 +56,13 @@ class FakeSearchRepository : SearchRepository {
         }
         lastFirstPage = MutableStateFlow(firstPage)
         lastPagesLoaded = MutableStateFlow(pagesLoaded)
+        lastCapReached = MutableStateFlow(capReached)
         return SearchResults(
             papers = flowOf(data),
             totalCount = MutableStateFlow(totalCount),
             firstPage = lastFirstPage,
-            pagesLoaded = lastPagesLoaded
+            pagesLoaded = lastPagesLoaded,
+            capReached = lastCapReached
         )
     }
 }

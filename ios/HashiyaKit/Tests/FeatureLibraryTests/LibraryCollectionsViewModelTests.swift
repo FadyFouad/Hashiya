@@ -2,6 +2,7 @@
 import Foundation
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaTesting
 import Testing
@@ -24,7 +25,8 @@ struct LibraryCollectionsViewModelTests {
 
     private func makeViewModel(
         citations: FakeCitationRepository = FakeCitationRepository(export: CitationResult(bibtex: bib, complete: true)),
-        exportFiles: ExportFiles? = nil
+        exportFiles: ExportFiles? = nil,
+        diagnostics: Diagnostics = .none
     ) -> LibraryViewModel {
         LibraryViewModel(
             library: library,
@@ -33,7 +35,8 @@ struct LibraryCollectionsViewModelTests {
             pdfs: FakePdfRepository(),
             exportFiles: exportFiles ?? ExportFiles(directory: exportDirectory),
             share: { [share] url in await share.share(url) },
-            sleep: sleeper.sleep
+            sleep: sleeper.sleep,
+            diagnostics: diagnostics
         )
     }
 
@@ -527,6 +530,57 @@ struct LibraryCollectionsViewModelTests {
 
         #expect(viewModel.message == .exportFailed)
         #expect(share.urls.isEmpty)
+    }
+
+    // MARK: Usage statistics
+
+    @Test func creatingACollectionIsCounted() async {
+        let analytics = FakeAnalytics()
+        let viewModel = makeViewModel(diagnostics: .fake(analytics: analytics))
+        viewModel.showNewCollection()
+        await viewModel.submitName("Chapter 2")
+        #expect(analytics.events == [.collectionCreated])
+    }
+
+    @Test func renamingOrAClashingNameIsNotCounted() async throws {
+        let thesis = try await thesis()
+        let analytics = FakeAnalytics()
+        let viewModel = makeViewModel(diagnostics: .fake(analytics: analytics))
+        viewModel.showNewCollection()
+        await viewModel.submitName("Thesis")
+        viewModel.dismissNameSheet()
+        viewModel.selectCollection(thesis.id)
+        #expect(await eventually { viewModel.selectedCollection != nil })
+        viewModel.showRename()
+        await viewModel.submitName("Dissertation")
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func aSharedBibTeXExportIsCounted() async {
+        let analytics = FakeAnalytics()
+        let viewModel = makeViewModel(diagnostics: .fake(analytics: analytics))
+        #expect(await eventually { viewModel.papers.count == 3 })
+        await viewModel.export()
+        #expect(analytics.events == [.export(format: .bibtex, withPdfs: false)])
+    }
+
+    @Test func aFailedBibTeXExportIsNotCounted() async {
+        let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: true))
+        citations.setFail(true)
+        let analytics = FakeAnalytics()
+        let viewModel = makeViewModel(citations: citations, diagnostics: .fake(analytics: analytics))
+        #expect(await eventually { viewModel.papers.count == 3 })
+        await viewModel.export()
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func anExportWhoseShareSheetDidntShowIsNotCounted() async {
+        share.presents = false
+        let analytics = FakeAnalytics()
+        let viewModel = makeViewModel(diagnostics: .fake(analytics: analytics))
+        #expect(await eventually { viewModel.papers.count == 3 })
+        await viewModel.export()
+        #expect(analytics.events.isEmpty)
     }
 }
 

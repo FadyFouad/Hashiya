@@ -3,7 +3,7 @@ import Foundation
 /// `GET https://api.openalex.org/works` keyword search.
 public final class OpenAlexSearchClient: OpenAlexSearchService {
     public static let selectFields =
-        "id,doi,display_name,publication_year,primary_location,authorships,cited_by_count,open_access,best_oa_location,abstract_inverted_index,type,biblio"
+        "id,doi,display_name,publication_year,primary_location,authorships,cited_by_count,open_access,best_oa_location,abstract_inverted_index,type,biblio,primary_topic"
 
     private let http: OpenAlexHTTP
 
@@ -38,6 +38,8 @@ public final class OpenAlexSearchClient: OpenAlexSearchService {
         query.append((name: "cursor", value: request.cursor))
         query.append((name: "select", value: Self.selectFields))
 
-        return try await http.get(NetworkWorksResponse.self, path: "/works", query: query)
+        var (response, route) = try await http.getRouted(NetworkWorksResponse.self, path: "/works", query: query)
+        response.route = route
+        return response
     }
 }

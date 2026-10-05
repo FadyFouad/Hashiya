@@ -1,5 +1,6 @@
 import Foundation
 import HashiyaData
+import HashiyaDiagnostics
 import Observation
 
 public enum RestoreState: Equatable, Sendable {
@@ -21,13 +22,16 @@ public enum RestoreState: Equatable, Sendable {
     /// Set by `cancel`: a copy that `open` prepares afterwards is discarded at once.
     @ObservationIgnored private var cancelled = false
     @ObservationIgnored private let onSourceRead: () -> Void
+    @ObservationIgnored private let diagnostics: Diagnostics
 
     /// `onSourceRead` runs once `open` has made its own copy of `source` (or given up on it), so the caller can delete
     /// a source it no longer needs.
-    public init(source: URL, backup: any LibraryBackup, onSourceRead: @escaping () -> Void = {}) {
+    public init(source: URL, backup: any LibraryBackup, onSourceRead: @escaping () -> Void = {},
+                diagnostics: Diagnostics = .none) {
         self.source = source
         self.backup = backup
         self.onSourceRead = onSourceRead
+        self.diagnostics = diagnostics
     }
 
     /// Opens the file once, however often the view appears.
@@ -53,8 +57,9 @@ public enum RestoreState: Equatable, Sendable {
     public func confirm() {
         guard case .preview = state, let prepared else { return }
         state = .applying(progress: 0)
+        diagnostics.crash.setKey(.backupInProgress, BackupPhase.restore)
         // Not tied to the view: a restore that has started finishes even if the screen goes away.
-        Task { [backup] in
+        Task { [backup, diagnostics] in
             let outcome: RestoreState
             do {
                 let result = try await backup.apply(prepared) { progress in
@@ -63,14 +68,22 @@ public enum RestoreState: Equatable, Sendable {
                     }
                 }
                 outcome = .done(result)
+                diagnostics.analytics.log(.restore(succeeded: true))
             } catch let error as BackupError {
+                if error == .writeFailed || error == .unreadable { diagnostics.crash.record(error, site: .restore) }
+                diagnostics.analytics.log(.restore(succeeded: false))
                 outcome = .failed(error)
             } catch {
+                if !(error is CancellationError) {
+                    diagnostics.crash.record(error, site: .unexpectedUiError)
+                    diagnostics.analytics.log(.restore(succeeded: false))
+                }
                 // Never leave the screen on the progress bar.
                 outcome = .failed(.writeFailed)
             }
             backup.discard(prepared)
             self.prepared = nil
+            diagnostics.crash.setKey(.backupInProgress, BackupPhase.none)
             self.state = outcome
         }
     }

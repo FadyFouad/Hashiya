@@ -1378,6 +1378,40 @@
         }
       }
     },
+    "settings.analytics" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مشاركة إحصاءات الاستخدام"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share usage statistics"
+          }
+        }
+      }
+    },
+    "settings.analyticsFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تساعد أعداد استخدام الميزات، المرتبطة بمعرّف عشوائي، على تحديد ما يجب تحسينه، دون أوراقك أو ملاحظاتك أو عمليات بحثك أبدًا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counts of how features are used, tied to a random identifier, help decide what to improve. Never your papers, notes or searches."
+          }
+        }
+      }
+    },
     "settings.apiKeyFooter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1595,6 +1629,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "settings.crashReports" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إرسال تقارير الأعطال"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send crash reports"
+          }
+        }
+      }
+    },
+    "settings.crashReportsFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تساعد تفاصيل الأعطال وأخطاء التطبيق على إصلاح المشكلات، ولا تتضمّن أبدًا أوراقك أو ملاحظاتك أو عمليات بحثك."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crash details and app errors help fix bugs. They never include your papers, notes or searches."
           }
         }
       }
@@ -1850,6 +1918,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Language"
+          }
+        }
+      }
+    },
+    "settings.privacyPolicy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سياسة الخصوصية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy policy"
+          }
+        }
+      }
+    },
+    "settings.privacySection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الخصوصية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy"
           }
         }
       }

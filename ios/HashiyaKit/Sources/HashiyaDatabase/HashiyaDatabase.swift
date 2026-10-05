@@ -15,6 +15,14 @@ public enum HashiyaDatabase {
         case coordinationFailed
     }
 
+    /// A migration failed while opening the library: the error it threw is kept, so crash reports can tell this apart
+    /// from the file not opening at all.
+    public struct MigrationError: Error {
+        public let underlying: any Error
+
+        public init(underlying: any Error) { self.underlying = underlying }
+    }
+
     /// `v1`: Android's Room version 1 schema. `v2`: Android's version 2 — the reading status and the search index.
     /// `v3`: Android's version 3 — the notes table, and the search index rebuilt with a notes column.
     /// `v4`: Android's version 4 — the citation columns on papers, and the collections tables.
@@ -150,7 +158,11 @@ public enum HashiyaDatabase {
         NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: url, options: .forMerging, error: &coordinationError) { url in
             result = Result {
                 let pool = try DatabasePool(path: url.path(percentEncoded: false), configuration: configuration)
-                try migrator.migrate(pool)
+                do {
+                    try migrator.migrate(pool)
+                } catch {
+                    throw MigrationError(underlying: error)
+                }
                 return pool
             }
         }

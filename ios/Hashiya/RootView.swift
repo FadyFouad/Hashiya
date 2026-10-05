@@ -5,6 +5,7 @@ import FeatureSearch
 import FeatureSettings
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import SwiftUI
 
 /// Library and Search tabs, each with its own list of pushed screens (a saved paper's Details and its PDF reader);
@@ -64,6 +65,7 @@ struct RootView: View {
         }
         // The window's width class for every screen (iPad windows, Split View, Stage Manager, rotation).
         .measuresLayoutClass()
+        .environment(\.diagnostics, container.diagnostics)
         // The library database follows the whole app (HashiyaApp); each window checks for a required update.
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active { Task { await appUpdate.check() } }
@@ -98,10 +100,21 @@ struct RootView: View {
     /// The restore works on its own copy, so the one the system put in Inbox isn't needed any more. Usually already
     /// deleted once the restore read it; this covers a sheet closed before then.
     private func restoreSheetDismissed() {
+        reportSelectedScreen()
         presentedBackup?.removeInboxCopy()
         presentedBackup = nil
         openedBackup = nil
         showNextBackup()
+    }
+
+    private func settingsDismissed() {
+        reportSelectedScreen()
+        showNextBackup()
+    }
+
+    /// A sheet closing doesn't make the tab's screen appear again, so say which one is back in view.
+    private func reportSelectedScreen() {
+        container.diagnostics.screenShown(selectedTab == .library ? .library : .search)
     }
 
     private func openStore() {
@@ -279,7 +292,7 @@ struct RootView: View {
     private var tabs: some View {
         tabView
         .tint(HashiyaColors.primary)
-        .sheet(isPresented: $showsSettings, onDismiss: showNextBackup) {
+        .sheet(isPresented: $showsSettings, onDismiss: settingsDismissed) {
             SettingsSheet(container: container, onRestoreApplyingChange: restoreApplyingChanged)
         }
         // The system activates one window for the file, so only that window shows Restore.
@@ -364,7 +377,9 @@ struct RootView: View {
     private func restoreScene() {
         guard !restoredScene else { return }
         restoredScene = true
+        #if DEBUG
         guard !UITestingFlags.stubsEnabled else { return }
+        #endif
         selectedTab = savedTab.flatMap(Tab.init(rawValue:)) ?? .library
         libraryRoutes = .init(sceneData: savedLibraryRoutes)
         searchRoutes = .init(sceneData: savedSearchRoutes)

@@ -1,6 +1,8 @@
 @testable import FeaturePaperDetails
+import Foundation
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaTesting
 import Testing
@@ -23,7 +25,8 @@ struct PaperDetailsViewModelTests {
     private func makeViewModel(
         _ library: FakeLibraryRepository,
         id: String? = nil,
-        citations: FakeCitationRepository = FakeCitationRepository()
+        citations: FakeCitationRepository = FakeCitationRepository(),
+        diagnostics: Diagnostics = .none
     ) -> PaperDetailsViewModel {
         let clipboard = clipboard
         return PaperDetailsViewModel(
@@ -34,6 +37,7 @@ struct PaperDetailsViewModelTests {
             citations: citations,
             pdfs: pdfs,
             copy: { clipboard.texts.append($0) },
+            diagnostics: diagnostics,
             sleep: sleeper.sleep
         )
     }
@@ -41,9 +45,10 @@ struct PaperDetailsViewModelTests {
     /// A view model for `library` that has started and loaded; the returned task is its `start()`.
     private func started(
         _ library: FakeLibraryRepository,
-        citations: FakeCitationRepository = FakeCitationRepository()
+        citations: FakeCitationRepository = FakeCitationRepository(),
+        diagnostics: Diagnostics = .none
     ) async -> (PaperDetailsViewModel, Task<Void, Never>) {
-        let viewModel = makeViewModel(library, citations: citations)
+        let viewModel = makeViewModel(library, citations: citations, diagnostics: diagnostics)
         let task = Task { await viewModel.start() }
         _ = await eventually { viewModel.isLoaded }
         return (viewModel, task)
@@ -596,5 +601,90 @@ struct PaperDetailsViewModelTests {
 
         #expect(clipboard.texts.isEmpty)
         #expect(viewModel.message == nil)
+    }
+
+    // MARK: Usage statistics
+
+    @Test func addingToACollectionIsCountedAndRemovingIsNot() async {
+        collections.setCollections([PaperCollection(id: 1, name: "A", paperCount: 0)])
+        let analytics = FakeAnalytics()
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), diagnostics: .fake(analytics: analytics))
+        defer { task.cancel() }
+        _ = await eventually { viewModel.collections.count == 1 }
+
+        await viewModel.toggleCollection(1)
+        #expect(await eventually { viewModel.memberIDs == [1] })
+        #expect(analytics.events == [.paperAddedToCollection])
+        await viewModel.toggleCollection(1)
+        #expect(await eventually { viewModel.memberIDs.isEmpty })
+        #expect(analytics.events == [.paperAddedToCollection])
+    }
+
+    @Test func aFailedToggleIsNotCounted() async {
+        collections.setCollections([PaperCollection(id: 1, name: "A", paperCount: 0)])
+        let analytics = FakeAnalytics()
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), diagnostics: .fake(analytics: analytics))
+        defer { task.cancel() }
+        _ = await eventually { viewModel.collections.count == 1 }
+        collections.setFailWrites(true)
+
+        await viewModel.toggleCollection(1)
+
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func aNewCollectionCountsTheCreationThenTheAddition() async {
+        let analytics = FakeAnalytics()
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), diagnostics: .fake(analytics: analytics))
+        defer { task.cancel() }
+
+        viewModel.showNewCollection()
+        await viewModel.submitNewCollection("Chapter 2")
+
+        #expect(analytics.events == [.collectionCreated, .paperAddedToCollection])
+    }
+
+    @Test func aTakenNameIsNotCounted() async {
+        let analytics = FakeAnalytics()
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), diagnostics: .fake(analytics: analytics))
+        defer { task.cancel() }
+
+        viewModel.showNewCollection()
+        collections.setNextResult(.nameTaken)
+        await viewModel.submitNewCollection("Thesis")
+
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func aFailedNewCollectionIsNotCounted() async {
+        let analytics = FakeAnalytics()
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), diagnostics: .fake(analytics: analytics))
+        defer { task.cancel() }
+        collections.setFailWrites(true)
+
+        viewModel.showNewCollection()
+        await viewModel.submitNewCollection("Thesis")
+
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func aNoteEditedOnDetailsIsCountedOnceWithoutItsText() async {
+        // The once-per-session set is shared by the whole process, so this paper's ID is its own.
+        var paper = SamplePapers.vit
+        paper.openAlexID = "W-details-notes-\(UUID().uuidString)"
+        let analytics = FakeAnalytics()
+        let viewModel = makeViewModel(FakeLibraryRepository(saved: [paper]), id: paper.openAlexID, diagnostics: .fake(analytics: analytics))
+        let task = Task { await viewModel.start() }
+        defer { task.cancel() }
+        _ = await eventually { viewModel.isLoaded }
+
+        viewModel.updateNote(.summary, "Read 10.1038/nature14539")
+        await pauseEnds()
+        #expect(await eventually { viewModel.saveState == .saved })
+        viewModel.updateNote(.summary, "Read 10.1038/nature14539 twice")
+        await pauseEnds()
+        #expect(await eventually { viewModel.notes.summary.hasSuffix("twice") && viewModel.saveState == .saved })
+
+        #expect(analytics.events == [.noteEdited])
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import HashiyaDiagnostics
 import HashiyaModel
 import Observation
 
@@ -23,6 +24,7 @@ public final class NotesEditor {
 
     @ObservationIgnored private let library: any LibraryRepository
     @ObservationIgnored private let pendingWrites: PendingWrites
+    @ObservationIgnored private let diagnostics: Diagnostics
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
     /// What the database holds, as far as this editor knows: the notes read, then each successful write.
     @ObservationIgnored private var savedNotes = PaperNotes()
@@ -35,11 +37,13 @@ public final class NotesEditor {
         openAlexID: String,
         library: any LibraryRepository,
         pendingWrites: PendingWrites,
+        diagnostics: Diagnostics = .none,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {
         self.openAlexID = openAlexID
         self.library = library
         self.pendingWrites = pendingWrites
+        self.diagnostics = diagnostics
         self.sleep = sleep
     }
 
@@ -144,6 +148,7 @@ public final class NotesEditor {
             savedNotes = value
             writesSaved += 1
             saveState = .saved
+            if NotedPapers.shared.firstEdit(openAlexID) { diagnostics.analytics.log(.noteEdited) }
             return true
         } catch {
             saveState = .failed

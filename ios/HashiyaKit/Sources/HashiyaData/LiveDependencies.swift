@@ -1,5 +1,6 @@
 import Foundation
 import HashiyaDatabase
+import HashiyaDiagnostics
 import HashiyaNetwork
 
 /// The long-lived objects of the app (and, in spec 2, of the Share Extension), built one way.
@@ -41,7 +42,7 @@ public struct LiveDependencies: Sendable {
     /// routes and the daily cap) and one search cache. Reads `OpenAlexAPIKey` and `KeychainAccessGroup` from `bundle`'s
     /// Info.plist. `background` is the app's `UIKitBackgroundTime`; the Share Extension keeps the default and never
     /// downloads.
-    public static func live(bundle: Bundle = .main, background: any BackgroundTimeGranting = NoBackgroundTime()) throws -> LiveDependencies {
+    public static func live(bundle: Bundle = .main, background: any BackgroundTimeGranting = NoBackgroundTime(), crash: any CrashReporting = NoCrashReporting(), analytics: any AnalyticsTracking = NoAnalytics()) throws -> LiveDependencies {
         let preferences = KeychainUserPreferencesRepository(
             keychain: SystemKeychainStore(accessGroup: infoValue(bundle.object(forInfoDictionaryKey: "KeychainAccessGroup")))
         )
@@ -57,7 +58,9 @@ public struct LiveDependencies: Sendable {
             files: try PdfFileStore.live(),
             downloader: PdfDownloadClient(),
             background: background,
-            pdfLinks: lookupClient
+            pdfLinks: lookupClient,
+            crash: crash,
+            analytics: analytics
         )
         let repositories = LibraryRepositories(store: try PaperStore.shared(), lookup: lookupClient, pdf: pdf)
         return LiveDependencies(

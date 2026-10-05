@@ -57,7 +57,7 @@ All text is in `docs/store/metadata.md`.
 
 - **App Information:** categories Education and Reference, content rights (the app shows third-party metadata from OpenAlex, which is CC0), age rating (answer "None" or "No" throughout, giving 4+).
 - **Pricing and Availability:** Free, all countries.
-- **App Privacy:** privacy policy URL, then "Data Not Collected".
+- **App Privacy:** privacy policy URL, then the answers in `docs/store/metadata.md` → App Privacy.
 - **Version 0.1.0 → English (U.S.) and Arabic:**
   - Screenshots: iPhone 6.9" from `docs/store/app-store/<lang>/`, in order 1 to 4.
   - Promotional text, description, keywords, support URL and copyright.
@@ -127,7 +127,7 @@ All text is in `docs/store/metadata.md`.
 
 ## Crashlytics (Android)
 
-Release builds send crash reports through Firebase Crashlytics, only while Settings → Send crash reports is on. Firebase also initializes in debug builds (its content provider starts it), but debug builds, unit tests and UI tests never enable collection, so nothing is sent. Crashlytics may keep crash files on the device that are never uploaded. No Firebase Analytics is included.
+Release builds send crash reports through Firebase Crashlytics, only while Settings → Send crash reports is on. Firebase also initializes in debug builds (its content provider starts it), but debug builds, unit tests and UI tests never enable collection, so nothing is sent. Crashlytics may keep crash files on the device that are never uploaded. Android usage statistics (Firebase Analytics) come in a separate change; see the analytics spec.
 
 ### One-time setup (console.firebase.google.com)
 
@@ -146,6 +146,29 @@ Release builds send crash reports through Firebase Crashlytics, only while Setti
 2. `adb shell am broadcast -a com.etatech.hashiya.TEST_CRASH -p com.etatech.hashiya`
 3. Reopen the app: reports are sent on the next launch. In the Crashlytics console the crash appears with readable frames and the keys `screen`, `language`, `librarySizeBucket`, `backupInProgress`.
 4. Turn the switch off, repeat steps 2 and 3, and confirm nothing new arrives.
+
+## Crashlytics and Analytics (iOS)
+
+Release builds configure Firebase (project `hashiya-research`, app `1:10078456816:ios:b46501427f2408bcb12b35`); Debug
+builds, tests and the Share Extension never do. Settings → Privacy has **Send crash reports** and **Share usage
+statistics**, both on by default.
+
+### One-time setup
+1. Google Cloud → Credentials: restrict the iOS API key to iOS apps, bundle id `com.etatech.hashiya`.
+2. Firebase console → Crashlytics → Enable (if not already). dSYMs upload from the Release build's script phase.
+3. Firebase console → Project settings → Integrations → Google Analytics: link a GA4 property. In GA: data retention
+   2 months; Google signals off; no Google Ads links.
+
+### Before a release with this work
+- [ ] The privacy-policy update (Usage statistics) is merged and live — **before** the build reaches TestFlight external
+      testers or the App Store.
+- [ ] App Privacy answers match `docs/store/metadata.md`; Xcode → Archive → Generate Privacy Report shows the same.
+- [ ] Test crash: run the Release configuration from Xcode once with the argument `-hashiya-test-crash`, stop it, open
+      the app from the Home Screen: it crashes after two seconds; reopen it; the crash appears in Crashlytics with
+      readable frames and the keys `screen`, `language`, `librarySizeBucket`, `backupInProgress`.
+- [ ] Analytics: run the Release configuration with `-FIRDebugEnabled`; Firebase DebugView shows the events with only
+      the listed parameters (e.g. `search` with `category`), and no advertising id.
+- [ ] With both switches off, nothing new arrives.
 
 ## Large screens (Android)
 

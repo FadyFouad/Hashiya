@@ -93,4 +93,15 @@ struct NetworkModelsTests {
         let open = try JSONDecoder().decode(NetworkLocation.self, from: Data(#"{"is_oa": true, "pdf_url": null}"#.utf8))
         #expect(open.isOA)
     }
+
+    @Test func decodesThePrimaryTopicIds() throws {
+        let json = #"{"id":"https://openalex.org/W1","primary_topic":{"id":"https://openalex.org/T10036","display_name":"Advanced Neural Network Applications","subfield":{"id":"https://openalex.org/subfields/1707","display_name":"Computer Vision and Pattern Recognition"},"field":{"id":"https://openalex.org/fields/17","display_name":"Computer Science"},"domain":{"id":"https://openalex.org/domains/3","display_name":"Physical Sciences"}}}"#
+        let work = try JSONDecoder().decode(NetworkWork.self, from: Data(json.utf8))
+        #expect(work.primaryTopic == NetworkTopic(subfieldID: "https://openalex.org/subfields/1707", fieldID: "https://openalex.org/fields/17", domainID: "https://openalex.org/domains/3"))
+    }
+
+    @Test func aWorkWithoutAPrimaryTopicStillDecodes() throws {
+        let work = try JSONDecoder().decode(NetworkWork.self, from: Data(#"{"id":"https://openalex.org/W1","primary_topic":null}"#.utf8))
+        #expect(work.primaryTopic == nil)
+    }
 }

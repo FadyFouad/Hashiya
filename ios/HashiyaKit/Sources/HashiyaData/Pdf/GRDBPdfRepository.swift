@@ -1,5 +1,6 @@
 import Foundation
 import HashiyaDatabase
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaNetwork
 import os
@@ -30,6 +31,8 @@ public final class GRDBPdfRepository: PdfRepository {
     private let downloader: any PdfDownloading
     private let pdfLinks: any OpenAlexPdfLinksService
     private let background: any BackgroundTimeGranting
+    private let crash: any CrashReporting
+    private let analytics: any AnalyticsTracking
     private let now: @Sendable () -> Int64
     private let maxBytes: Int64
     private let state = OSAllocatedUnfairLock<State>(uncheckedState: State())
@@ -42,6 +45,8 @@ public final class GRDBPdfRepository: PdfRepository {
         downloader: any PdfDownloading,
         pdfLinks: any OpenAlexPdfLinksService = NoPdfLinks(),
         background: any BackgroundTimeGranting = NoBackgroundTime(),
+        crash: any CrashReporting = NoCrashReporting(),
+        analytics: any AnalyticsTracking = NoAnalytics(),
         now: @escaping @Sendable () -> Int64 = { Int64((Date().timeIntervalSince1970 * 1000).rounded()) },
         maxBytes: Int64 = PdfFileStore.maxPdfBytes
     ) {
@@ -50,6 +55,8 @@ public final class GRDBPdfRepository: PdfRepository {
         self.downloader = downloader
         self.pdfLinks = pdfLinks
         self.background = background
+        self.crash = crash
+        self.analytics = analytics
         self.now = now
         self.maxBytes = maxBytes
     }
@@ -147,6 +154,7 @@ public final class GRDBPdfRepository: PdfRepository {
                             return .unreadable
                         }
                     } catch {
+                        recordWriteFailure(error)
                         await Self.deleteUnlessRecorded(paperID: paperID, store: store, files: files)
                         return .unreadable
                     }
@@ -158,6 +166,8 @@ public final class GRDBPdfRepository: PdfRepository {
                 }
             }
         } catch {
+            // Only writing the copy counts: a picked file that can't be read is the source's problem, not the app's.
+            if error is PdfWriteError { recordWriteFailure(error) }
             return .unreadable
         }
         if result == .done { report(openAlexID, nil, token: nil) }
@@ -240,7 +250,16 @@ public final class GRDBPdfRepository: PdfRepository {
         endWrites(token)
         // Shown before the grant ends: ending it waits for the main actor. Until `finish`, the job is still winding down,
         // and Download after a failure or a cancel replaces it.
-        report(openAlexID, outcome, token: token)
+        switch outcome {
+        case .stored:
+            analytics.log(.pdfDownloaded(succeeded: true))
+            report(openAlexID, nil, token: token)
+        case .stopped:
+            report(openAlexID, nil, token: token)
+        case let .failed(reason):
+            analytics.log(.pdfDownloaded(succeeded: false))
+            report(openAlexID, .failed(reason), token: token)
+        }
         // Nothing is written after this, so the app may suspend the database before the grant ends.
         endStore()
         await grant.end()
@@ -255,9 +274,16 @@ public final class GRDBPdfRepository: PdfRepository {
         }
     }
 
-    /// The state to show once the download stops: nil when it stored the file, was cancelled, or the paper is gone.
-    private func attemptDownload(_ openAlexID: String, token: UUID) async -> DownloadState? {
-        guard let row = (await store.observePaper(openAlexID: openAlexID).firstElement()).flatMap({ $0 }) else { return nil }
+    /// How a download ended: it stored the file, was stopped (cancelled, or the paper is gone), or failed for a reason to show.
+    private enum DownloadOutcome: Sendable {
+        case stored
+        case stopped
+        case failed(DownloadFailure)
+    }
+
+    /// Downloads the paper's PDF from its stored link, then from OpenAlex's other links.
+    private func attemptDownload(_ openAlexID: String, token: UUID) async -> DownloadOutcome {
+        guard let row = (await store.observePaper(openAlexID: openAlexID).firstElement()).flatMap({ $0 }) else { return .stopped }
         guard let stored = row.paper.oaPDFURL?.trimmingCharacters(in: .whitespacesAndNewlines), !stored.isEmpty else {
             return .failed(.noLink)
         }
@@ -268,7 +294,13 @@ public final class GRDBPdfRepository: PdfRepository {
         if let url = URL(string: link) {
             first = await attempt(url, paperID: paperID, openAlexID: openAlexID, token: token)
         }
-        guard case let .failed(reason, triesOtherLinks, _) = first else { return nil }
+        let reason: DownloadFailure
+        let triesOtherLinks: Bool
+        switch first {
+        case .stored: return .stored
+        case .stopped: return .stopped
+        case let .failed(failure, tries, _): (reason, triesOtherLinks) = (failure, tries)
+        }
         guard triesOtherLinks else { return .failed(reason) }
 
         // The stored link may have gone stale while OpenAlex knows other copies (e.g. arXiv): try those in turn, and keep
@@ -278,10 +310,10 @@ public final class GRDBPdfRepository: PdfRepository {
         do {
             others = fallbackPDFLinks(try await pdfLinks.pdfLocations(openAlexID: openAlexID), tried: link)
         } catch {
-            return Task.isCancelled ? nil : .failed(reason)
+            return Task.isCancelled ? .stopped : .failed(reason)
         }
         for other in others {
-            guard !Task.isCancelled else { return nil }
+            guard !Task.isCancelled else { return .stopped }
             guard let otherURL = URL(string: other) else { continue }
             report(openAlexID, .running(bytes: 0, total: nil), token: token)
             switch await attempt(otherURL, paperID: paperID, openAlexID: openAlexID, token: token) {
@@ -290,14 +322,14 @@ public final class GRDBPdfRepository: PdfRepository {
                 // no row to update; a failed write keeps the old link.
                 let store = store
                 _ = await Task { try? await store.setOaPDFURL(paperID: paperID, url: other) }.value
-                return nil
+                return .stored
             case .stopped:
-                return nil
+                return .stopped
             case let .failed(_, _, wroteNothing):
-                if wroteNothing { return Task.isCancelled ? nil : .failed(reason) }
+                if wroteNothing { return Task.isCancelled ? .stopped : .failed(reason) }
             }
         }
-        return Task.isCancelled ? nil : .failed(reason)
+        return Task.isCancelled ? .stopped : .failed(reason)
     }
 
     private enum Attempt: Sendable {
@@ -333,6 +365,7 @@ public final class GRDBPdfRepository: PdfRepository {
                         }
                     } catch {
                         // Also how a removal that cancels the download during the write ends: no state, as for any cancel.
+                        if !Task.isCancelled { recordWriteFailure(error) }
                         await Self.deleteUnlessRecorded(paperID: paperID, store: store, files: files)
                         return Task.isCancelled ? .stopped : .failed(.http, triesOtherLinks: false, wroteNothing: true)
                     }
@@ -351,8 +384,16 @@ public final class GRDBPdfRepository: PdfRepository {
                 ? .failed(.offline, triesOtherLinks: false, wroteNothing: false)
                 : .failed(.http, triesOtherLinks: true, wroteNothing: false)
         } catch {
+            if !Task.isCancelled { recordWriteFailure(error) }
             return Task.isCancelled ? .stopped : .failed(.http, triesOtherLinks: false, wroteNothing: true)
         }
+    }
+
+    /// Reports a failure to write a PDF or its row, as its type and code only. Connection failures and cancels aren't
+    /// write failures.
+    private func recordWriteFailure(_ error: any Error) {
+        guard !(error is NetworkFailure), !(error is CancellationError) else { return }
+        crash.record(error, site: .pdfStore)
     }
 
     /// Sets the paper's download state (nil clears it) and tells its observers. With a `token`, only while that download is

@@ -1,4 +1,5 @@
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import SwiftUI
 
@@ -20,6 +21,7 @@ public struct SearchView: View {
     @State private var showsYearRange = false
     @State private var isSearchActive = false
     @State private var detailsRequest: String?
+    @Environment(\.diagnostics) private var diagnostics
     @Environment(\.openURL) private var openURL
     @Environment(\.timeZone) private var timeZone
 
@@ -68,6 +70,7 @@ public struct SearchView: View {
                 YearRangeSheet(current: viewModel.query.years) { viewModel.setYears($0) }
                     .presentationDetents([.medium])
             }
+            .onAppear { diagnostics.screenShown(.search) }
             .onAppear(perform: restore)
             .onChange(of: viewModel.text) { _, text in storedText = text }
             .onChange(of: viewModel.query) { _, query in store(query) }

@@ -1,3 +1,4 @@
+import HashiyaDatabase
 import HashiyaModel
 import HashiyaNetwork
 
@@ -18,4 +19,9 @@ extension NetworkFailure {
             .unexpected
         }
     }
+}
+
+extension Error {
+    /// True when opening the library failed in a migration (the app can't name `HashiyaDatabase.MigrationError`).
+    public var isMigrationFailure: Bool { self is HashiyaDatabase.MigrationError }
 }

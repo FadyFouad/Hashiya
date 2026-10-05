@@ -33,6 +33,10 @@ struct OpenAlexLookupClientTests {
         #expect(fields.contains("biblio"))
     }
 
+    @Test func selectedFieldsIncludeThePrimaryTopic() {
+        #expect(OpenAlexSearchClient.selectFields.split(separator: ",").contains("primary_topic"))
+    }
+
     @Test(arguments: [404, 400])
     func notFoundAndBadRequestAreNil(code: Int) async throws {
         let server = URLProtocolStub.Server(always: .status(code, body: Data("{}".utf8)))

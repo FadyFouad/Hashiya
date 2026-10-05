@@ -18,20 +18,25 @@ struct OpenAlexHTTP: Sendable {
     /// The decoded body of a 2xx response; a body that doesn't decode is `malformedResponse` and isn't cached.
     /// Throws `NetworkFailure` or `CancellationError`.
     func get<T: Decodable>(_ type: T.Type, path: String, query: [(name: String, value: String)]) async throws -> T {
+        try await getRouted(type, path: path, query: query).0
+    }
+
+    /// Like `get(_:path:query:)`, and says how the response was obtained (`.cached` for a cache hit).
+    func getRouted<T: Decodable>(_ type: T.Type, path: String, query: [(name: String, value: String)]) async throws -> (T, RequestRoute) {
         let metered = path == "/works"
         let cacheKey = metered ? SearchCache.key(path: path, query: query) : nil
         if let cacheKey, let cached = cache?.data(for: cacheKey), let value = try? Self.decode(type, from: cached) {
-            return value
+            return (value, .cached)
         }
-        let data = try await send(path: path, query: query, metered: metered)
+        let (data, route) = try await send(path: path, query: query, metered: metered)
         let value = try Self.decode(type, from: data)
         if let cacheKey { cache?.store(data, for: cacheKey) }
-        return value
+        return (value, route)
     }
 
     /// The response body of a 2xx response, never cached. Throws `NetworkFailure` or `CancellationError`.
     func get(path: String, query: [(name: String, value: String)]) async throws -> Data {
-        try await send(path: path, query: query, metered: path == "/works")
+        try await send(path: path, query: query, metered: path == "/works").0
     }
 
     static func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
@@ -44,12 +49,12 @@ struct OpenAlexHTTP: Sendable {
         }
     }
 
-    private func send(path: String, query: [(name: String, value: String)], metered: Bool) async throws -> Data {
+    private func send(path: String, query: [(name: String, value: String)], metered: Bool) async throws -> (Data, RequestRoute) {
         if let userKey = userKeySource.userKey.flatMap(nonBlank) {
-            return try await perform(base: baseURL, key: userKey, path: path, query: query).body(usedUserKey: true)
+            return (try await perform(base: baseURL, key: userKey, path: path, query: query).body(usedUserKey: true), .user)
         }
         guard let quota else {
-            return try await perform(base: baseURL, key: builtInKey.flatMap(nonBlank), path: path, query: query).body(usedUserKey: false)
+            return (try await perform(base: baseURL, key: builtInKey.flatMap(nonBlank), path: path, query: query).body(usedUserKey: false), .shared)
         }
 
         var route: OpenAlexRoute? = metered ? quota.meteredRoute() : quota.lookupRoute()
@@ -70,7 +75,7 @@ struct OpenAlexHTTP: Sendable {
 
             switch reply.status {
             case 200...299:
-                return reply.data
+                return (reply.data, current == .shared ? .shared : .keyless)
             case 429 where reply.budgetUsedUp:
                 quota.markUsedUp(current, resetIn: reply.resetSeconds)
                 route = quota.route(after: current, metered: metered)

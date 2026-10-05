@@ -1,5 +1,9 @@
 package com.etatech.hashiya.core.network
 
+import com.etatech.hashiya.core.network.quota.OpenAlexQuota
+import com.etatech.hashiya.core.network.quota.QuotaInterceptor
+import com.etatech.hashiya.core.network.quota.SearchCache
+import com.etatech.hashiya.core.testing.InMemoryQuotaPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
@@ -12,9 +16,14 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class OpenAlexDataSourceTest {
+    @get:Rule
+    val folder = TemporaryFolder()
+
     private val server = MockWebServer()
     private val storedUserKey = MutableStateFlow<String?>(null)
     private val keySource = object : UserApiKeySource {
@@ -40,9 +49,11 @@ class OpenAlexDataSourceTest {
         }
     }
 
+    /** A fresh quota and an empty cache each time, so every call goes out; per-second waits return at once. */
     private fun dataSource(builtInKey: String = "built-in-key"): OpenAlexDataSource {
-        val client = buildOpenAlexOkHttpClient(keySource, builtInKey, logger = { logLines += it })
-        return RetrofitOpenAlexDataSource(buildOpenAlexApi(server.url("/"), client))
+        val quota = OpenAlexQuota(InMemoryQuotaPreferences(), hasBuiltInKey = builtInKey.isNotBlank())
+        val client = buildOpenAlexOkHttpClient(QuotaInterceptor(keySource, builtInKey, quota) {}, logger = { logLines += it })
+        return RetrofitOpenAlexDataSource(buildOpenAlexApi(server.url("/"), client), SearchCache(folder.newFolder()))
     }
 
     private fun enqueue(code: Int, body: String = readFixture("works_page.json")) {
@@ -139,6 +150,8 @@ class OpenAlexDataSourceTest {
 
     @Test
     fun rateLimitIsReportedWithItsCode() = runTest {
+        // The first per-second limit is retried once.
+        enqueue(429, "{}")
         enqueue(429, "{}")
 
         val e = failureOf { dataSource().searchWorks(request) }

@@ -2,7 +2,8 @@ package com.etatech.hashiya.core.network
 
 import com.etatech.hashiya.core.network.model.NetworkWork
 import com.etatech.hashiya.core.network.model.NetworkWorkLocations
-import com.etatech.hashiya.core.network.model.NetworkWorksResponse
+import okhttp3.ResponseBody
+import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -19,6 +20,7 @@ internal const val SEARCH_FIELDS = "$WORK_FIELDS,primary_topic"
 /** Only what a PDF download needs when the stored link fails: every place the work is hosted. */
 internal const val PDF_LOCATION_FIELDS = "id,locations"
 
+/** `searchWorks` and `findWorks` return the raw body, so the data sources can cache it once it decodes. */
 internal interface OpenAlexApi {
     @GET("works")
     suspend fun searchWorks(
@@ -28,7 +30,7 @@ internal interface OpenAlexApi {
         @Query("per_page") perPage: Int,
         @Query("cursor") cursor: String,
         @Query("select") select: String = SEARCH_FIELDS
-    ): NetworkWorksResponse
+    ): Response<ResponseBody>
 
     /** [id] is any id OpenAlex resolves, e.g. "doi:10.1038/nature14539". Retrofit's default encoding encodes "/" and "#". */
     @GET("works/{id}")
@@ -42,5 +44,5 @@ internal interface OpenAlexApi {
         @Query("filter") filter: String,
         @Query("per_page") perPage: Int,
         @Query("select") select: String = WORK_FIELDS
-    ): NetworkWorksResponse
+    ): Response<ResponseBody>
 }

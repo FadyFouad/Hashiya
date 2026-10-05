@@ -2,6 +2,10 @@ package com.etatech.hashiya.core.network
 
 import com.etatech.hashiya.core.network.model.NetworkLocation
 import com.etatech.hashiya.core.network.model.NetworkSource
+import com.etatech.hashiya.core.network.quota.OpenAlexQuota
+import com.etatech.hashiya.core.network.quota.QuotaInterceptor
+import com.etatech.hashiya.core.network.quota.SearchCache
+import com.etatech.hashiya.core.testing.InMemoryQuotaPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.test.runTest
@@ -13,9 +17,14 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class OpenAlexLookupDataSourceTest {
+    @get:Rule
+    val folder = TemporaryFolder()
+
     private val server = MockWebServer()
     private val keySource = object : UserApiKeySource {
         override val userKey: StateFlow<String?> = MutableStateFlow(null)
@@ -29,15 +38,16 @@ class OpenAlexLookupDataSourceTest {
         if (server.started) server.close()
     }
 
-    private fun dataSource(): OpenAlexLookupDataSource {
-        val client = buildOpenAlexOkHttpClient(keySource, builtInKey = "built-in-key", logger = null)
-        return RetrofitOpenAlexLookupDataSource(buildOpenAlexApi(server.url("/"), client))
+    /** A fresh quota and an empty cache each time, so every call goes out; per-second waits return at once. */
+    private fun lookupDataSource(): RetrofitOpenAlexLookupDataSource {
+        val quota = OpenAlexQuota(InMemoryQuotaPreferences(), hasBuiltInKey = true)
+        val client = buildOpenAlexOkHttpClient(QuotaInterceptor(keySource, "built-in-key", quota) {}, logger = null)
+        return RetrofitOpenAlexLookupDataSource(buildOpenAlexApi(server.url("/"), client), SearchCache(folder.newFolder()))
     }
 
-    private fun pdfLinks(): OpenAlexPdfLinksDataSource {
-        val client = buildOpenAlexOkHttpClient(keySource, builtInKey = "built-in-key", logger = null)
-        return RetrofitOpenAlexLookupDataSource(buildOpenAlexApi(server.url("/"), client))
-    }
+    private fun dataSource(): OpenAlexLookupDataSource = lookupDataSource()
+
+    private fun pdfLinks(): OpenAlexPdfLinksDataSource = lookupDataSource()
 
     private fun enqueue(code: Int, body: String = "{}") {
         server.enqueue(MockResponse.Builder().code(code).body(body).build())
@@ -78,6 +88,8 @@ class OpenAlexLookupDataSourceTest {
 
     @Test
     fun otherFailuresThrow() = runTest {
+        // The first per-second limit is retried once.
+        enqueue(429)
         enqueue(429)
         try {
             dataSource().getWork("doi:10.1038/nature14539")

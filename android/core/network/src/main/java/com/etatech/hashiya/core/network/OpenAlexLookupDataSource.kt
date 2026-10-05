@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.network
 import com.etatech.hashiya.core.network.model.NetworkLocation
 import com.etatech.hashiya.core.network.model.NetworkWork
 import com.etatech.hashiya.core.network.model.NetworkWorksResponse
+import com.etatech.hashiya.core.network.quota.SearchCache
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -31,7 +32,7 @@ interface OpenAlexPdfLinksDataSource {
 
 private val NOT_FOUND_CODES = setOf(400, 404)
 
-internal class RetrofitOpenAlexLookupDataSource @Inject constructor(private val api: OpenAlexApi) :
+internal class RetrofitOpenAlexLookupDataSource @Inject constructor(private val api: OpenAlexApi, private val cache: SearchCache) :
     OpenAlexLookupDataSource,
     OpenAlexPdfLinksDataSource {
     override suspend fun getWork(id: String): NetworkWork? = try {
@@ -55,7 +56,8 @@ internal class RetrofitOpenAlexLookupDataSource @Inject constructor(private val 
     }
 
     override suspend fun findWorks(filter: String, perPage: Int): NetworkWorksResponse = try {
-        api.findWorks(filter = filter, perPage = perPage)
+        val query = listOf("filter" to filter, "per_page" to perPage.toString(), "select" to WORK_FIELDS)
+        cache.worksPage(query) { api.findWorks(filter = filter, perPage = perPage) }
     } catch (e: CancellationException) {
         throw e
     } catch (e: Throwable) {

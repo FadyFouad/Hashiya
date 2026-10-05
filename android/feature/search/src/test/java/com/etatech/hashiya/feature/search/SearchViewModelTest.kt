@@ -2,6 +2,7 @@ package com.etatech.hashiya.feature.search
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.paging.testing.asSnapshot
+import com.etatech.hashiya.core.analytics.NoOpAnalytics
 import com.etatech.hashiya.core.data.repository.LookupResult
 import com.etatech.hashiya.core.model.PaperIdentifier
 import com.etatech.hashiya.core.model.SearchError
@@ -43,7 +44,14 @@ class SearchViewModelTest {
     private val bertTitle = "BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding"
 
     private fun TestScope.viewModel(handle: SavedStateHandle = savedStateHandle): SearchViewModel {
-        val viewModel = SearchViewModel(handle, searchRepository, libraryRepository, userPreferencesRepository, lookupRepository)
+        val viewModel = SearchViewModel(
+            handle,
+            searchRepository,
+            libraryRepository,
+            userPreferencesRepository,
+            lookupRepository,
+            NoOpAnalytics
+        )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.selectedItem.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.savedIds.collect() }

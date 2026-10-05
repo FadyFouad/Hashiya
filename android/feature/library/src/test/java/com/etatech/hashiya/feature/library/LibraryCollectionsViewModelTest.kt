@@ -1,6 +1,7 @@
 package com.etatech.hashiya.feature.library
 
 import androidx.lifecycle.SavedStateHandle
+import com.etatech.hashiya.core.analytics.NoOpAnalytics
 import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.ReadingStatus
@@ -34,7 +35,7 @@ class LibraryCollectionsViewModelTest {
     private val citations = FakeCitationRepository()
 
     private fun TestScope.viewModel(handle: SavedStateHandle = SavedStateHandle()): LibraryViewModel {
-        val viewModel = LibraryViewModel(handle, library, collections, citations, FakePdfRepository())
+        val viewModel = LibraryViewModel(handle, library, collections, citations, FakePdfRepository(), NoOpAnalytics)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.header.collect() }
         return viewModel

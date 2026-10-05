@@ -323,7 +323,7 @@ Paper data comes from the public OpenAlex API (openalex.org).
   - Device or other IDs (Crashlytics' per-install identifier).
 - **For each type:** collected, not shared; processing is not ephemeral; **optional** (users can turn it off in Settings → Send crash reports); purposes **App functionality** and **Analytics** (stability).
 - **Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS only).
-- **Do you provide a way for users to request that their data is deleted?** No — reports aren't linked to a person, so a user's reports can't be singled out; Crashlytics deletes them after 90 days.
+- **Do you provide a way for users to request that their data is deleted?** No — reports are tied only to a random per-install identifier, not to a name or account, so we can't single out a user's reports; Crashlytics deletes them after 90 days.
 
 ### Play Console: Content rating (IARC)
 

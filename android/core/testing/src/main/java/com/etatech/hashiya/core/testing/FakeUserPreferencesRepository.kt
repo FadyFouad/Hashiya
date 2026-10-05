@@ -20,4 +20,12 @@ class FakeUserPreferencesRepository(initialKey: String? = null) : UserPreference
     override suspend fun setCrashReportsEnabled(enabled: Boolean) {
         crashReports.value = enabled
     }
+
+    private val analytics = MutableStateFlow(true)
+
+    override val analyticsEnabled: StateFlow<Boolean> = analytics
+
+    override suspend fun setAnalyticsEnabled(enabled: Boolean) {
+        analytics.value = enabled
+    }
 }

@@ -5,6 +5,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.etatech.hashiya.core.analytics.NoOpAnalytics
 import com.etatech.hashiya.core.crash.NoOpCrashReporter
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.RequiredUpdate
@@ -28,7 +29,12 @@ class UpdateGateTest {
         var opened: String? = null
         composeRule.setContent {
             HashiyaTheme {
-                HashiyaApp(crashReporter = NoOpCrashReporter, requiredUpdate = RequiredUpdate(STORE), onOpenStore = { opened = it })
+                HashiyaApp(
+                    crashReporter = NoOpCrashReporter,
+                    analytics = NoOpAnalytics,
+                    requiredUpdate = RequiredUpdate(STORE),
+                    onOpenStore = { opened = it }
+                )
             }
         }
 

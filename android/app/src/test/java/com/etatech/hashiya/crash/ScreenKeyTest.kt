@@ -7,7 +7,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.Screen
 import com.etatech.hashiya.core.crash.CrashKey
+import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeCrashReporter
 import com.etatech.hashiya.feature.library.navigation.LibraryRoute
 import com.etatech.hashiya.feature.paperdetails.navigation.PaperDetailsRoute
@@ -29,12 +32,13 @@ class ScreenKeyTest {
     val composeRule = createComposeRule()
 
     private val reporter = FakeCrashReporter()
+    private val analytics = FakeAnalytics()
     private lateinit var navController: NavHostController
 
     private fun setUpApp() {
         composeRule.setContent {
             navController = rememberNavController()
-            ReportScreens(navController, reporter)
+            ReportScreens(navController, reporter, analytics)
             NavHost(navController, startDestination = LibraryRoute) {
                 composable<LibraryRoute> { Text("Library") }
                 composable<SearchRoute> { Text("Search") }
@@ -71,5 +75,18 @@ class ScreenKeyTest {
         go(RestoreRoute("content://docs/backup.hashiya"))
 
         assertEquals(listOf("library", "search", "reader", "restore"), screens())
+    }
+
+    @Test
+    fun eachDestinationChangeLogsTheSameScreenAsTheCrashKey() {
+        setUpApp()
+        go(SearchRoute())
+        go(ReaderRoute("W1"))
+
+        assertEquals(
+            listOf(Screen.Library, Screen.Search, Screen.Reader).map { AnalyticsEvent.ScreenView(it) },
+            analytics.events
+        )
+        assertEquals(analytics.events.map { (it as AnalyticsEvent.ScreenView).screen.id }, screens())
     }
 }

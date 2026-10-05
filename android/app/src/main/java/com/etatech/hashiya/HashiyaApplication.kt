@@ -2,6 +2,8 @@ package com.etatech.hashiya
 
 import android.app.Application
 import androidx.appcompat.app.AppCompatDelegate
+import com.etatech.hashiya.analytics.AnalyticsStartup
+import com.etatech.hashiya.core.analytics.Analytics
 import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.data.backup.LibraryBackup
 import com.etatech.hashiya.core.data.di.ApplicationScope
@@ -22,6 +24,9 @@ class HashiyaApplication : Application() {
 
     @Inject
     lateinit var crashReporter: CrashReporter
+
+    @Inject
+    lateinit var analytics: Analytics
 
     @Inject
     lateinit var preferences: UserPreferencesRepository
@@ -50,6 +55,17 @@ class HashiyaApplication : Application() {
                 languageTag = { AppCompatDelegate.getApplicationLocales().toLanguageTags() },
                 isRelease = isRelease
             ).run()
+        }
+        scope.launch {
+            val startup = AnalyticsStartup(
+                analytics = analytics,
+                preferences = preferences,
+                libraryBackup = libraryBackup,
+                languageTag = { AppCompatDelegate.getApplicationLocales().toLanguageTags() },
+                isRelease = isRelease
+            )
+            startup.run()
+            startup.followOwnKey()
         }
         // Files left by a crash mid-download, or by a removal made final while the app was killed during Undo.
         scope.launch { pdfRepository.sweepOrphans() }

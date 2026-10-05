@@ -32,7 +32,15 @@ class UserPreferencesDataSource @Inject constructor(private val dataStore: DataS
         dataStore.edit { it[CRASH_REPORTS_ENABLED] = enabled }
     }
 
+    /** Whether usage statistics may be sent; on until the user turns it off. */
+    val analyticsEnabled: Flow<Boolean> = dataStore.data.map { it[ANALYTICS_ENABLED] ?: true }
+
+    suspend fun setAnalyticsEnabled(enabled: Boolean) {
+        dataStore.edit { it[ANALYTICS_ENABLED] = enabled }
+    }
+
     private companion object {
+        val ANALYTICS_ENABLED = booleanPreferencesKey("analytics_enabled")
         val CRASH_REPORTS_ENABLED = booleanPreferencesKey("crash_reports_enabled")
         val USER_API_KEY = stringPreferencesKey("user_api_key")
     }

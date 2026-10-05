@@ -15,6 +15,11 @@ interface UserPreferencesRepository {
     val crashReportsEnabled: Flow<Boolean>
 
     suspend fun setCrashReportsEnabled(enabled: Boolean)
+
+    /** Whether usage statistics may be sent; true until the user turns it off. */
+    val analyticsEnabled: Flow<Boolean>
+
+    suspend fun setAnalyticsEnabled(enabled: Boolean)
 }
 
 internal class DataStoreUserPreferencesRepository @Inject constructor(private val dataSource: UserPreferencesDataSource) :
@@ -26,4 +31,8 @@ internal class DataStoreUserPreferencesRepository @Inject constructor(private va
     override val crashReportsEnabled: Flow<Boolean> = dataSource.crashReportsEnabled
 
     override suspend fun setCrashReportsEnabled(enabled: Boolean) = dataSource.setCrashReportsEnabled(enabled)
+
+    override val analyticsEnabled: Flow<Boolean> = dataSource.analyticsEnabled
+
+    override suspend fun setAnalyticsEnabled(enabled: Boolean) = dataSource.setAnalyticsEnabled(enabled)
 }

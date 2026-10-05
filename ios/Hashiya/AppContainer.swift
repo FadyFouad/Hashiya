@@ -77,7 +77,8 @@ final class AppContainer {
             )
         } catch {
             diagnostics.crash.record(error, site: error.isMigrationFailure ? .migration : .databaseOpen)
-            // The error's description can hold file paths: it went to the crash report sanitised, not here.
+            // The error's description can hold file paths: it went to the crash report sanitised, not here. Trap messages
+            // stay constant strings because crash reports include them.
             fatalError("Could not open the library database")
         }
     }

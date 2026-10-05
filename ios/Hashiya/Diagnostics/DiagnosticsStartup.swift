@@ -31,6 +31,7 @@ enum DiagnosticsStartup {
             defaults.set(true, forKey: testCrashFlag)
         } else if defaults.bool(forKey: testCrashFlag) {
             defaults.removeObject(forKey: testCrashFlag)
+            // A constant message: crash reports include trap messages, so they never hold anything a person typed or read.
             DispatchQueue.main.asyncAfter(deadline: .now() + 2) { fatalError("Hashiya test crash") }
         }
     }

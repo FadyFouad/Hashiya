@@ -1,5 +1,6 @@
 import Foundation
 import HashiyaData
+import HashiyaDiagnostics
 import HashiyaModel
 import Observation
 import os
@@ -15,6 +16,14 @@ public final class SettingsViewModel {
     /// The Backup section's numbers, the export in progress and the last result.
     public internal(set) var backup = BackupState()
 
+    /// The Privacy section's two switches; both start on.
+    public internal(set) var crashReportsEnabled: Bool
+    public internal(set) var analyticsEnabled: Bool
+
+    @ObservationIgnored private let privacy: PrivacySettings
+    @ObservationIgnored private let diagnostics: Diagnostics
+    /// Whether the export being saved holds PDFs, as chosen in `confirmExport()`.
+    @ObservationIgnored private var exportIncludesPdfs = false
     @ObservationIgnored private let pdfs: any PdfRepository
     @ObservationIgnored private let libraryBackup: any LibraryBackup
     @ObservationIgnored private var exportTask: Task<Void, Never>?
@@ -23,7 +32,15 @@ public final class SettingsViewModel {
     private var storedKey: String?
     private var editedKey: String?
 
-    public init(preferences: any UserPreferencesRepository, pdfs: any PdfRepository, backup: any LibraryBackup) {
+    public init(preferences: any UserPreferencesRepository, pdfs: any PdfRepository, backup: any LibraryBackup,
+        privacy: PrivacySettings = PrivacySettings(),
+        diagnostics: Diagnostics = .none
+    ) {
+        self.privacy = privacy
+        self.diagnostics = diagnostics
+        // Plain assignments, like the key below: reading observable state here would make the creator observe it.
+        crashReportsEnabled = privacy.crashReportsEnabled
+        analyticsEnabled = privacy.analyticsEnabled
         self.pdfs = pdfs
         libraryBackup = backup
         self.preferences = preferences
@@ -101,7 +118,9 @@ public final class SettingsViewModel {
     /// Builds the archive; the state becomes `.readyToSave` (or `.idle` with a message when it fails).
     public func confirmExport() {
         guard case let .choosing(includePdfs) = backup.export else { return }
+        exportIncludesPdfs = includePdfs
         backup.export = .building(includePdfs: includePdfs, progress: 0)
+        diagnostics.crash.setKey(.backupInProgress, BackupPhase.export)
         // Called off the main actor, so it hops back before touching the state.
         let onProgress: @Sendable (Double) -> Void = { [weak self] progress in
             Task { @MainActor [weak self] in
@@ -109,7 +128,8 @@ public final class SettingsViewModel {
                 self.backup.export = .building(includePdfs: include, progress: progress)
             }
         }
-        exportTask = Task { [weak self, libraryBackup] in
+        exportTask = Task { [weak self, libraryBackup, diagnostics] in
+            defer { diagnostics.crash.setKey(.backupInProgress, BackupPhase.none) }
             do {
                 let file = try await libraryBackup.export(includePdfs: includePdfs, onProgress: onProgress)
                 guard let self, !Task.isCancelled else {
@@ -119,11 +139,13 @@ public final class SettingsViewModel {
                 self.backup.export = .readyToSave(file)
             } catch let error as BackupError {
                 guard !Task.isCancelled else { return }
+                if error == .writeFailed { diagnostics.crash.record(error, site: .export) }
                 self?.backup.export = .idle
                 self?.backup.message = .exportFailed(error)
             } catch {
                 // Cancelled: `cancelExport` already reset the state. Anything else ends the export with a message.
                 guard !Task.isCancelled else { return }
+                if !(error is CancellationError) { diagnostics.crash.record(error, site: .unexpectedUiError) }
                 self?.backup.export = .idle
                 self?.backup.message = .exportFailed(.writeFailed)
             }
@@ -145,7 +167,9 @@ public final class SettingsViewModel {
         libraryBackup.discard(file)
         backup.export = .idle
         switch outcome {
-        case .saved: backup.message = .exported(missingPdfs: file.missingPdfs)
+        case .saved:
+            backup.message = .exported(missingPdfs: file.missingPdfs)
+            diagnostics.analytics.log(.export(format: .backup, withPdfs: exportIncludesPdfs))
         case .cancelled: backup.message = nil
         case .failed: backup.message = .exportFailed(.writeFailed)
         }
@@ -153,6 +177,18 @@ public final class SettingsViewModel {
 
     public func dismissMessage() {
         backup.message = nil
+    }
+
+    public func setCrashReportsEnabled(_ enabled: Bool) {
+        crashReportsEnabled = enabled
+        privacy.setCrashReportsEnabled(enabled)
+        diagnostics.crash.setEnabled(diagnostics.isLive && enabled)
+    }
+
+    public func setAnalyticsEnabled(_ enabled: Bool) {
+        analyticsEnabled = enabled
+        privacy.setAnalyticsEnabled(enabled)
+        diagnostics.analytics.setEnabled(diagnostics.isLive && enabled)
     }
 
     private func store(_ key: String) async {

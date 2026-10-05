@@ -6,7 +6,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -48,5 +50,19 @@ class UserPreferencesDataSourceTest {
         source.setUserApiKey("abc123")
         source.setUserApiKey(null)
         assertNull(source.userApiKey.first())
+    }
+
+    @Test
+    fun crashReportsOnByDefault() = runTest {
+        assertTrue(dataSource().crashReportsEnabled.first())
+    }
+
+    @Test
+    fun storesCrashReportsChoice() = runTest {
+        val source = dataSource()
+        source.setCrashReportsEnabled(false)
+        assertFalse(source.crashReportsEnabled.first())
+        source.setCrashReportsEnabled(true)
+        assertTrue(source.crashReportsEnabled.first())
     }
 }

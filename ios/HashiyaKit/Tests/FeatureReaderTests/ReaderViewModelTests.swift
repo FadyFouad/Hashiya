@@ -1,6 +1,7 @@
 @testable import FeatureReader
 import Foundation
 import HashiyaData
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaTesting
 import Testing
@@ -15,7 +16,7 @@ struct ReaderViewModelTests {
     private let pendingWrites = PendingWrites()
     private let id = SamplePapers.attention.openAlexID
 
-    private func viewModel(library: FakeLibraryRepository? = nil) -> ReaderViewModel {
+    private func viewModel(library: FakeLibraryRepository? = nil, diagnostics: Diagnostics = .none) -> ReaderViewModel {
         let library = library ?? self.library
         return ReaderViewModel(
             openAlexID: id,
@@ -23,6 +24,7 @@ struct ReaderViewModelTests {
             library: library,
             notes: NotesEditor(openAlexID: id, library: library, pendingWrites: pendingWrites, sleep: notesSleeper.sleep),
             pendingWrites: pendingWrites,
+            diagnostics: diagnostics,
             sleep: sleeper.sleep
         )
     }
@@ -387,6 +389,61 @@ struct ReaderViewModelTests {
         let task = await started(viewModel)
 
         #expect(viewModel.title == "Untitled")
+        task.cancel()
+    }
+
+    // MARK: Usage statistics
+
+    @Test(arguments: [(PdfSource.downloaded, PdfOrigin.downloaded), (.attached, .attached)])
+    func openingAPdfIsCountedOnceWithItsSource(source: PdfSource, origin: PdfOrigin) async throws {
+        pdfs.setFile(try TestPDF.make(pages: 3), for: id)
+        pdfs.setPdf(id, PaperPdf(source: source, sizeBytes: 2_048, addedAt: 1))
+        let analytics = FakeAnalytics()
+        let viewModel = viewModel(diagnostics: .fake(analytics: analytics))
+        let task = await started(viewModel)
+        // Following the stored PDF again, as a pushed screen's `.task` does, opens nothing again.
+        let again = Task { await viewModel.start() }
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(analytics.events == [.pdfOpened(source: origin)])
+        task.cancel()
+        again.cancel()
+    }
+
+    @Test func aFileThatCantBeOpenedIsNotCounted() async throws {
+        pdfs.setFile(try TestPDF.damaged(), for: id)
+        pdfs.setPdf(id, PaperPdf(source: .attached, sizeBytes: 40, addedAt: 1))
+        let analytics = FakeAnalytics()
+        let viewModel = viewModel(diagnostics: .fake(analytics: analytics))
+        let task = await started(viewModel)
+
+        #expect(viewModel.state == .cantOpen)
+        #expect(analytics.events.isEmpty)
+        task.cancel()
+    }
+
+    @Test func aReplacementThatOpensIsCountedAsAttached() async throws {
+        pdfs.setFile(try TestPDF.damaged(), for: id)
+        pdfs.setPdf(id, PaperPdf(source: .downloaded, sizeBytes: 40, addedAt: 1))
+        let analytics = FakeAnalytics()
+        let viewModel = viewModel(diagnostics: .fake(analytics: analytics))
+        let task = await started(viewModel)
+
+        let replacement = try TestPDF.make(pages: 3)
+        pdfs.setFile(replacement, for: id)
+        pdfs.setAttachResult(.done)
+        await viewModel.replace(with: replacement)
+
+        #expect(analytics.events == [.pdfOpened(source: .attached)])
+        task.cancel()
+    }
+
+    @Test func aPaperWithoutAPdfCountsNothing() async {
+        let analytics = FakeAnalytics()
+        let viewModel = viewModel(diagnostics: .fake(analytics: analytics))
+        let task = await started(viewModel)
+
+        #expect(analytics.events.isEmpty)
         task.cancel()
     }
 }

@@ -3,6 +3,10 @@ package com.etatech.hashiya.core.data.backup
 import android.content.ContentResolver
 import android.net.Uri
 import android.provider.DocumentsContract
+import com.etatech.hashiya.core.crash.CrashKey
+import com.etatech.hashiya.core.crash.CrashReporter
+import com.etatech.hashiya.core.crash.CrashSite
+import com.etatech.hashiya.core.crash.NoOpCrashReporter
 import com.etatech.hashiya.core.data.pdf.MAX_PDF_BYTES
 import com.etatech.hashiya.core.data.pdf.PdfFileStore
 import com.etatech.hashiya.core.data.pdf.PdfStoreGate
@@ -37,7 +41,8 @@ internal class ArchiveLibraryBackup(
     private val newId: () -> String,
     private val io: CoroutineDispatcher,
     private val merge: suspend (List<IncomingPaper>, List<IncomingCollection>, Long) -> MergeOutcome = backupDao::merge,
-    private val usableSpace: () -> Long = fileStore::usableSpace
+    private val usableSpace: () -> Long = fileStore::usableSpace,
+    private val crashReporter: CrashReporter = NoOpCrashReporter
 ) : LibraryBackup {
     private val workDirCleared = AtomicBoolean(false)
 
@@ -51,12 +56,25 @@ internal class ArchiveLibraryBackup(
         return workDir
     }
 
+    /** Marks [operation] as running for crash reports until [block] ends, however it ends. */
+    private suspend inline fun <T> tracked(operation: String, block: () -> T): T {
+        crashReporter.setKey(CrashKey.BackupInProgress, operation)
+        try {
+            return block()
+        } finally {
+            crashReporter.setKey(CrashKey.BackupInProgress, "none")
+        }
+    }
+
     override suspend fun summary(): BackupSummary {
         val pdfs = backupDao.pdfTotals()
         return BackupSummary(backupDao.paperCount(), backupDao.collectionCount(), pdfs.count, pdfs.bytes)
     }
 
-    override suspend fun export(includePdfs: Boolean, onProgress: (Float) -> Unit): ExportedFile = gate.storing {
+    override suspend fun export(includePdfs: Boolean, onProgress: (Float) -> Unit): ExportedFile =
+        tracked("export") { exportStoring(includePdfs, onProgress) }
+
+    private suspend fun exportStoring(includePdfs: Boolean, onProgress: (Float) -> Unit): ExportedFile = gate.storing {
         // Inside the gate so the startup sweep can't delete a PDF mid-copy.
         val snapshot = backupDao.snapshot()
         withContext(io) {
@@ -80,7 +98,9 @@ internal class ArchiveLibraryBackup(
                 done = true
                 ExportedFile(file, backupFileName(time), written.missingPdfs)
             } catch (e: IOException) {
-                throw BackupException(if (workDir.usableSpace < MIN_FREE_BYTES) BackupFailure.NoSpace else BackupFailure.WriteFailed, e)
+                val failure = if (workDir.usableSpace < MIN_FREE_BYTES) BackupFailure.NoSpace else BackupFailure.WriteFailed
+                if (failure == BackupFailure.WriteFailed) crashReporter.recordNonFatal(e, CrashSite.Export)
+                throw BackupException(failure, e)
             } finally {
                 // Cancel and any other failure end here too; nobody holds an ExportedFile to discard.
                 if (!done) file.delete()
@@ -98,6 +118,7 @@ internal class ArchiveLibraryBackup(
             } catch (e: Exception) {
                 // Any failure, a provider's own bugs included. A half-written file at the destination is worse than none.
                 runCatching { DocumentsContract.deleteDocument(contentResolver, destination) }
+                crashReporter.recordNonFatal(e, CrashSite.Export)
                 throw BackupException(BackupFailure.WriteFailed, e)
             }
         }
@@ -151,7 +172,10 @@ internal class ArchiveLibraryBackup(
         backup.file.delete()
     }
 
-    override suspend fun apply(backup: PreparedBackup, onProgress: (Float) -> Unit): RestoreResult = gate.storing {
+    override suspend fun apply(backup: PreparedBackup, onProgress: (Float) -> Unit): RestoreResult =
+        tracked("restore") { applyStoring(backup, onProgress) }
+
+    private suspend fun applyStoring(backup: PreparedBackup, onProgress: (Float) -> Unit): RestoreResult = gate.storing {
         // Inside the gate: the sweep would delete the staged `.part` files.
         val staged = mutableMapOf<Int, StageResult.Staged>()
         try {
@@ -190,6 +214,7 @@ internal class ArchiveLibraryBackup(
                     throw BackupException(BackupFailure.NoSpace, e)
                 } catch (e: Exception) {
                     // IO errors and anything a malformed archive makes the zip reader throw.
+                    crashReporter.recordNonFatal(e, CrashSite.Restore)
                     throw BackupException(BackupFailure.Unreadable, e)
                 }
             }
@@ -205,6 +230,7 @@ internal class ArchiveLibraryBackup(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    crashReporter.recordNonFatal(e, CrashSite.Restore)
                     throw BackupException(BackupFailure.WriteFailed, e)
                 }
                 var added = 0

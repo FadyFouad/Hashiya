@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.data.repository
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.etatech.hashiya.core.crash.CrashSite
 import com.etatech.hashiya.core.data.pdf.PdfFileStore
 import com.etatech.hashiya.core.database.HashiyaDatabase
 import com.etatech.hashiya.core.model.Author
@@ -16,6 +17,7 @@ import com.etatech.hashiya.core.network.OpenAlexPdfLinksDataSource
 import com.etatech.hashiya.core.network.PdfDownloadDataSource
 import com.etatech.hashiya.core.network.model.NetworkLocation
 import com.etatech.hashiya.core.network.model.NetworkSource
+import com.etatech.hashiya.core.testing.FakeCrashReporter
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.InputStream
@@ -57,6 +59,7 @@ class RoomPdfRepositoryTest {
     private lateinit var repository: RoomPdfRepository
     private val downloader = FakePdfDownloadDataSource()
     private val pdfLinks = FakePdfLinksDataSource()
+    private val crash = FakeCrashReporter()
     private var clock = 0L
 
     @Before
@@ -87,7 +90,8 @@ class RoomPdfRepositoryTest {
         scope = scope,
         now = { 1_000L },
         maxBytes = maxBytes,
-        io = Dispatchers.IO
+        io = Dispatchers.IO,
+        crashReporter = crash
     )
 
     private fun paper(id: String, pdfUrl: String? = "https://arxiv.org/pdf/$id") =
@@ -267,6 +271,59 @@ class RoomPdfRepositoryTest {
 
         assertEquals(PaperPdf(PdfSource.Attached, sizeBytes = PDF.size.toLong(), addedAt = 1_000L), awaitStored("W1"))
         assertArrayEquals(PDF, repository.pdfFile("W1")!!.readBytes())
+    }
+
+    @Test
+    fun aPdfWriteFailureIsReportedAsPdfStore() = runTest {
+        library.save(paper("W1"))
+        // A PDF folder that is a file: the temporary file can't be created in it.
+        val blocked = RoomPdfRepository(
+            paperDao = db.paperDao(),
+            fileStore = PdfFileStore(tmp.newFile("blocked")),
+            downloader = downloader,
+            pdfLinks = pdfLinks,
+            contentResolver = ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver,
+            scope = scope,
+            now = { 1_000L },
+            io = Dispatchers.IO,
+            crashReporter = crash
+        )
+
+        assertEquals(AttachResult.Unreadable, blocked.attach("W1", fileUri("chosen.pdf", PDF)))
+
+        val (reported, site) = crash.nonFatals.single()
+        assertTrue(reported is com.etatech.hashiya.core.data.pdf.PdfWriteException)
+        assertEquals(CrashSite.PdfStore, site)
+    }
+
+    @Test
+    fun aFailedDownloadWriteIsReportedAsPdfStore() = runTest {
+        library.save(paper("W1"))
+        val blocked = RoomPdfRepository(
+            paperDao = db.paperDao(),
+            fileStore = PdfFileStore(tmp.newFile("blocked")),
+            downloader = downloader,
+            pdfLinks = pdfLinks,
+            contentResolver = ApplicationProvider.getApplicationContext<android.content.Context>().contentResolver,
+            scope = scope,
+            now = { 1_000L },
+            io = Dispatchers.IO,
+            crashReporter = crash
+        )
+
+        blocked.download("W1")
+        awaitValue(blocked.observeDownload("W1")) { it is DownloadState.Failed }
+
+        assertEquals(listOf(CrashSite.PdfStore), crash.nonFatals.map { it.second })
+    }
+
+    @Test
+    fun notAPdfAndTooLargeAreNotReported() = runTest {
+        library.save(paper("W1"))
+        assertEquals(AttachResult.NotPdf, repository.attach("W1", fileUri("page.html", HTML)))
+        assertEquals(AttachResult.TooLarge, repository(maxBytes = 4).attach("W1", fileUri("big.pdf", PDF)))
+
+        assertEquals(emptyList<Any>(), crash.nonFatals)
     }
 
     @Test

@@ -57,7 +57,7 @@ All text is in `docs/store/metadata.md`.
 
 - **App Information:** categories Education and Reference, content rights (the app shows third-party metadata from OpenAlex, which is CC0), age rating (answer "None" or "No" throughout, giving 4+).
 - **Pricing and Availability:** Free, all countries.
-- **App Privacy:** privacy policy URL, then "Data Not Collected".
+- **App Privacy:** privacy policy URL, then the answers in `docs/store/metadata.md` → App Privacy.
 - **Version 0.1.0 → English (U.S.) and Arabic:**
   - Screenshots: iPhone 6.9" from `docs/store/app-store/<lang>/`, in order 1 to 4.
   - Promotional text, description, keywords, support URL and copyright.
@@ -108,7 +108,7 @@ All text is in `docs/store/metadata.md`.
   - App access: all functionality available.
   - Content rating: IARC questionnaire, Reference/News/Educational category, "No" throughout.
   - Target audience: 18+.
-  - Data safety: no data collected or shared.
+  - Data safety: crash logs, diagnostics, and device or other IDs collected, not shared, optional (see `docs/store/metadata.md`).
   - Government app: No. Financial features: None. Health: None.
 - **Main store listing, English:**
   - App name, short and full descriptions.
@@ -124,6 +124,51 @@ All text is in `docs/store/metadata.md`.
 1. **Internal testing** → Create release → upload the `.aab` → release notes → roll out. Install from the opt-in link and try the same flows as on iOS, plus sharing a link from Chrome.
 2. **Closed testing:** personal developer accounts created after 13 November 2023 must run a closed test with **at least 12 testers opted in for 14 continuous days** before they can apply for production. Organization accounts skip this step. Create a closed track, add testers by email list or Google Group, upload the same bundle, and keep 12+ testers opted in for the full 14 days.
 3. **Production:** after the closed test (or directly for organization accounts), Production → Create release → promote the tested bundle → roll out, optionally as a staged rollout (e.g. 20%). Reviews usually take a few hours to a few days.
+
+## Crashlytics (Android)
+
+Release builds send crash reports through Firebase Crashlytics, only while Settings → Send crash reports is on. Firebase also initializes in debug builds (its content provider starts it), but debug builds, unit tests and UI tests never enable collection, so nothing is sent. Crashlytics may keep crash files on the device that are never uploaded. Android usage statistics (Firebase Analytics) come in a separate change; see the analytics spec.
+
+### One-time setup (console.firebase.google.com)
+
+1. Create the Firebase project (`hashiya-research`) and turn Google Analytics off for it.
+2. Add an Android app with the package `com.etatech.hashiya`, download `google-services.json` and put it at `android/app/google-services.json`. It is committed on purpose: the repository is public and the API key is restricted to this app in Google Cloud.
+3. Crashlytics → Enable. R8 is off, so no mapping file is needed and frames are readable. If R8 is turned on later, the Crashlytics Gradle plugin uploads the mapping.
+4. Restrict the API key, because the key in the committed `google-services.json` is public. In the Google Cloud console go to APIs & Services → Credentials, open the "Android key (auto created by Firebase)" for project `hashiya-research`, and under Application restrictions choose Android apps. Add package `com.etatech.hashiya` with the SHA-1 of:
+   - the upload key: `keytool -list -v -keystore <UPLOAD_STORE_FILE from local.properties> -alias <UPLOAD_KEY_ALIAS>`
+   - Play's app-signing key: Play Console → Test and release → App integrity → App signing.
+5. Add the same SHA-1s to the Android app in Firebase project settings.
+6. The iOS key is restricted the same way, with the iOS apps restriction and bundle ID `com.etatech.hashiya`. The iOS app relies on it.
+
+### Check before a release that touches crash reporting
+
+1. Install the release build (`./gradlew :app:installRelease`, signed) with Send crash reports on, and launch the app first: the test-crash broadcast only works while the app is running.
+2. `adb shell am broadcast -a com.etatech.hashiya.TEST_CRASH -p com.etatech.hashiya`
+3. Reopen the app: reports are sent on the next launch. In the Crashlytics console the crash appears with readable frames and the keys `screen`, `language`, `librarySizeBucket`, `backupInProgress`.
+4. Turn the switch off, repeat steps 2 and 3, and confirm nothing new arrives.
+
+## Crashlytics and Analytics (iOS)
+
+Release builds configure Firebase (project `hashiya-research`, app `1:10078456816:ios:b46501427f2408bcb12b35`); Debug
+builds, tests and the Share Extension never do. Settings → Privacy has **Send crash reports** and **Share usage
+statistics**, both on by default.
+
+### One-time setup
+1. Google Cloud → Credentials: restrict the iOS API key to iOS apps, bundle id `com.etatech.hashiya`.
+2. Firebase console → Crashlytics → Enable (if not already). dSYMs upload from the Release build's script phase.
+3. Firebase console → Project settings → Integrations → Google Analytics: link a GA4 property. In GA: data retention
+   2 months; Google signals off; no Google Ads links.
+
+### Before a release with this work
+- [ ] The privacy-policy update (Usage statistics) is merged and live — **before** the build reaches TestFlight external
+      testers or the App Store.
+- [ ] App Privacy answers match `docs/store/metadata.md`; Xcode → Archive → Generate Privacy Report shows the same.
+- [ ] Test crash: run the Release configuration from Xcode once with the argument `-hashiya-test-crash`, stop it, open
+      the app from the Home Screen: it crashes after two seconds; reopen it; the crash appears in Crashlytics with
+      readable frames and the keys `screen`, `language`, `librarySizeBucket`, `backupInProgress`.
+- [ ] Analytics: run the Release configuration with `-FIRDebugEnabled`; Firebase DebugView shows the events with only
+      the listed parameters (e.g. `search` with `category`), and no advertising id.
+- [ ] With both switches off, nothing new arrives.
 
 ## Large screens (Android)
 

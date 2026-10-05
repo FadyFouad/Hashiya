@@ -1,4 +1,5 @@
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import SwiftUI
 import UniformTypeIdentifiers
@@ -13,6 +14,7 @@ public struct PaperDetailsScreen: View {
     private let onRemove: (String) -> Void
     private let onReadPdf: (String) -> Void
 
+    @Environment(\.diagnostics) private var diagnostics
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
 
@@ -54,6 +56,7 @@ public struct PaperDetailsScreen: View {
                 viewModel.readerOpened()
                 onReadPdf(viewModel.openAlexID)
             }
+            .onAppear { diagnostics.screenShown(.details) }
             // Back from the reader: its Notes sheet may have written the notes.
             .onAppear { Task { await viewModel.onReaderClosed() } }
             .fileImporter(isPresented: $viewModel.showingFileImporter, allowedContentTypes: [.pdf]) { result in

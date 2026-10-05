@@ -1,9 +1,11 @@
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import SwiftUI
 
 /// The Restore screen: what a backup file holds and what restoring it would do, then the outcome.
 public struct RestoreView: View {
+    @Environment(\.diagnostics) private var diagnostics
     @Bindable private var viewModel: RestoreViewModel
     private let onDone: () -> Void
     private let onApplyingChange: (Bool) -> Void
@@ -32,6 +34,7 @@ public struct RestoreView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(isApplying)
         .interactiveDismissDisabled(isApplying)
+        .onAppear { diagnostics.screenShown(.restore) }
         .task { await viewModel.load() }
         .onChange(of: isApplying) { _, applying in onApplyingChange(applying) }
         // Leaving any way (Cancel, a swipe, the back button) frees the prepared copy; a running restore keeps its own.

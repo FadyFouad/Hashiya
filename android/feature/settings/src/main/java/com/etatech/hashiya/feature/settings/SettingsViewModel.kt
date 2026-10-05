@@ -3,6 +3,8 @@ package com.etatech.hashiya.feature.settings
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.etatech.hashiya.core.crash.CrashKey
+import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.data.backup.BackupException
 import com.etatech.hashiya.core.data.backup.BackupFailure
 import com.etatech.hashiya.core.data.backup.BackupSummary
@@ -14,6 +16,7 @@ import com.etatech.hashiya.core.model.PdfStorage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SettingsUiState(
     val usingUserKey: Boolean = false,
@@ -28,7 +32,8 @@ data class SettingsUiState(
     val language: AppLanguage = AppLanguage.System,
     /** Null until loaded; the Storage section is hidden while null. */
     val storage: PdfStorage? = null,
-    val backup: BackupUiState = BackupUiState()
+    val backup: BackupUiState = BackupUiState(),
+    val crashReportsEnabled: Boolean = true
 )
 
 data class BackupUiState(val summary: BackupSummary? = null, val export: ExportState = ExportState.Idle, val message: BackupMessage? = null)
@@ -57,7 +62,8 @@ class SettingsViewModel @Inject constructor(
     private val preferences: UserPreferencesRepository,
     private val languageController: AppLanguageController,
     private val pdfRepository: PdfRepository,
-    private val libraryBackup: LibraryBackup
+    private val libraryBackup: LibraryBackup,
+    private val crashReporter: CrashReporter
 ) : ViewModel() {
     /** Null until the user edits the field; the stored key is shown until then. */
     private val editedKey = MutableStateFlow<String?>(null)
@@ -70,14 +76,19 @@ class SettingsViewModel @Inject constructor(
     private var exportJob: Job? = null
 
     val uiState: StateFlow<SettingsUiState> =
-        combine(preferences.userApiKey, editedKey, language, storage, backup) { stored, edited, lang, pdfs, backupState ->
-            SettingsUiState(
-                usingUserKey = stored != null,
-                keyInput = edited ?: stored.orEmpty(),
-                language = lang,
-                storage = pdfs,
-                backup = backupState
-            )
+        combine(
+            combine(preferences.userApiKey, editedKey, language, storage, backup) { stored, edited, lang, pdfs, backupState ->
+                SettingsUiState(
+                    usingUserKey = stored != null,
+                    keyInput = edited ?: stored.orEmpty(),
+                    language = lang,
+                    storage = pdfs,
+                    backup = backupState
+                )
+            },
+            preferences.crashReportsEnabled
+        ) { state, crashReports ->
+            state.copy(crashReportsEnabled = crashReports)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), SettingsUiState(language = language.value))
 
     init {
@@ -121,6 +132,23 @@ class SettingsViewModel @Inject constructor(
     fun onLanguageSelected(selected: AppLanguage) {
         languageController.set(selected)
         language.value = selected
+        crashReporter.setKey(
+            CrashKey.Language,
+            when (selected) {
+                AppLanguage.English -> "en"
+                AppLanguage.Arabic -> "ar"
+                AppLanguage.System -> "system"
+            }
+        )
+    }
+
+    /**
+     * The reporter is told first, so an opt-out takes effect before the preference is written. The write finishes even if
+     * Settings closes meanwhile, or the next launch would turn collection back on.
+     */
+    fun onCrashReportsChange(enabled: Boolean) {
+        crashReporter.setEnabled(enabled)
+        viewModelScope.launch { withContext(NonCancellable) { preferences.setCrashReportsEnabled(enabled) } }
     }
 
     /** Deletes downloaded PDFs only; attached ones can't be fetched again, so they stay. */

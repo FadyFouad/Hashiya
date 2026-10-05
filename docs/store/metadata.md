@@ -286,11 +286,16 @@ New: notes for every paper, an in-app PDF reader with your notes beside the page
 
 ### App Store Connect: App Privacy
 
-- **Data collection:** "No, we do not collect data from this app." The library and settings stay on
-  the device. Search queries and identifiers go straight to OpenAlex and arXiv to answer that
-  request only; there is no Hashiya server, analytics or crash reporting.
-- **Privacy manifest:** `PrivacyInfo.xcprivacy` in the app and the share extension declares no
-  tracking and no collected data.
+- **Data collection:** "Yes, we collect data from this app."
+  - **Crash Data** — App Functionality; not linked to the user; not used for tracking.
+  - **Other Diagnostic Data** — App Functionality; not linked; no tracking.
+  - **Product Interaction** — Analytics; not linked; no tracking.
+  - **Device ID** (Firebase's installation and app-instance ids) — App Functionality and Analytics; not linked; no tracking.
+  - **Coarse Location** (approximate location Google derives from the IP address) — Analytics; not linked; no tracking.
+  - Nothing else: search text, papers, notes and the library stay on the device; searches go straight to OpenAlex and arXiv.
+- **Tracking:** none. No advertising id (the app uses `FirebaseAnalyticsCore`, which has no IDFA support), no App Tracking Transparency prompt.
+- **Privacy manifest:** `PrivacyInfo.xcprivacy` in the app declares the five types above and the required-reason APIs (UserDefaults CA92.1, file timestamps C617.1, disk space E174.1); the share extension declares no collected data and the same APIs.
+- Check against Firebase's current Apple data-disclosure page before each release that changes Firebase.
 
 ### App Store Connect: Age rating
 
@@ -312,11 +317,13 @@ Paper data comes from the public OpenAlex API (openalex.org).
 
 ### Play Console: Data safety
 
-- **Does your app collect or share any of the required user data types?** No.
-- **Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS only). Play may
-  ask this even when nothing is collected.
-- **Do you provide a way for users to request that their data is deleted?** Not applicable: nothing
-  is collected, and uninstalling removes the library.
+- **Does your app collect or share any of the required user data types?** Yes, collects; nothing is shared.
+- **Data types collected:**
+  - App info and performance → **Crash logs** and **Diagnostics**.
+  - Device or other IDs (Crashlytics' per-install identifier).
+- **For each type:** collected, not shared; processing is not ephemeral; **optional** (users can turn it off in Settings → Send crash reports); purposes **App functionality** and **Analytics** (stability).
+- **Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS only).
+- **Do you provide a way for users to request that their data is deleted?** No — reports are tied only to a random per-install identifier, not to a name or account, so we can't single out a user's reports; Crashlytics deletes them after 90 days.
 
 ### Play Console: Content rating (IARC)
 

@@ -1,10 +1,12 @@
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import SwiftUI
 
 /// The Export screen: what a backup holds, whether to include the PDFs, and the save panel once the file is built.
 public struct ExportBackupView: View {
     @Bindable private var viewModel: SettingsViewModel
+    @Environment(\.diagnostics) private var diagnostics
     @Environment(\.dismiss) private var dismiss
 
     public init(viewModel: SettingsViewModel) {
@@ -75,6 +77,7 @@ public struct ExportBackupView: View {
                 .accessibilityIdentifier("export.confirm")
             }
         }
+        .onAppear { diagnostics.screenShown(.export) }
         .onAppear { viewModel.startExport() }
         .onDisappear { viewModel.cancelExport() }
         .onChange(of: viewModel.backup.message) { _, message in

@@ -12,6 +12,7 @@ public final class FakeLibraryBackup: LibraryBackup {
         var openResult = OpenResult.failed(.notABackup)
         var applyResult = RestoreResult(papersAdded: 0, notesAdded: 0, collectionsCreated: 0, pdfsAdded: 0, pdfsMissing: 0, papersSkipped: 0)
         var applyFailure: BackupError?
+        var applyError: (any Error)?
         var exportGate: AsyncStream<Void>?
         var openGate: AsyncStream<Void>?
         var exports: [Bool] = []
@@ -64,6 +65,12 @@ public final class FakeLibraryBackup: LibraryBackup {
     public var applyFailure: BackupError? {
         get { state.withLock { $0.applyFailure } }
         set { state.withLock { $0.applyFailure = newValue } }
+    }
+
+    /// When set, `apply` throws it as it is (an error that isn't a `BackupError`).
+    public var applyError: (any Error)? {
+        get { state.withLock { $0.applyError } }
+        set { state.withLock { $0.applyError = newValue } }
     }
 
     /// When set, `export` waits for one value from it (or for its cancellation) before it returns.
@@ -128,8 +135,9 @@ public final class FakeLibraryBackup: LibraryBackup {
     public func apply(_ backup: PreparedBackup, onProgress: @escaping @Sendable (Double) -> Void) async throws -> RestoreResult {
         state.withLock { $0.applied.append(backup) }
         onProgress(1)
-        let (failure, result) = state.withLock { ($0.applyFailure, $0.applyResult) }
+        let (failure, error, result) = state.withLock { ($0.applyFailure, $0.applyError, $0.applyResult) }
         if let failure { throw failure }
+        if let error { throw error }
         return result
     }
 

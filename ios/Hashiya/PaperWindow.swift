@@ -1,6 +1,7 @@
 import FeaturePaperDetails
 import FeatureReader
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import SwiftUI
 
 /// iPad: a saved paper's Details in a window of its own, with its reader above it. The window closes when the paper
@@ -15,7 +16,11 @@ struct PaperWindow: View {
         /// taken for one this test opens.
         var launch = Value.currentLaunch
 
+        #if DEBUG
         static let currentLaunch = UITestingFlags.stubsEnabled ? UUID().uuidString : ""
+        #else
+        static let currentLaunch = ""
+        #endif
     }
 
     private let container: AppContainer
@@ -47,7 +52,11 @@ struct PaperWindow: View {
                 onClose: { dismissWindow() },
                 onRemove: { id in
                     dismissWindow()
-                    Task { _ = try? await container.libraryRepository.remove(openAlexID: id) }
+                    Task {
+                        if (try? await container.libraryRepository.remove(openAlexID: id)) != nil {
+                            container.diagnostics.analytics.log(.paperRemoved)
+                        }
+                    }
                 },
                 onReadPdf: { id in path.append(.reader(ReaderRoute(openAlexID: id))) }
             )
@@ -62,5 +71,6 @@ struct PaperWindow: View {
         }
         .tint(HashiyaColors.primary)
         .measuresLayoutClass()
+        .environment(\.diagnostics, container.diagnostics)
     }
 }

@@ -33,7 +33,7 @@ struct SearchAnalyticsTests {
         page.category = .ai
         let viewModel = viewModel(FakeSearchRepository(page: page))
         await submit("attention is all you need", viewModel)
-        #expect(analytics.events.first == .search(kind: .keyword, hasFilters: false, route: .shared, results: .over200, category: .ai))
+        #expect(analytics.events == [.search(kind: .keyword, hasFilters: false, route: .shared, results: .over200, category: .ai)])
     }
 
     @Test func aSearchWithoutARouteUsesTheOwnKeyState() async {
@@ -46,7 +46,7 @@ struct SearchAnalyticsTests {
         let viewModel = viewModel(FakeSearchRepository(page: .of([], total: 0)))
         viewModel.setOpenAccessOnly(true)
         await submit("bert", viewModel)
-        #expect(analytics.events.contains(.search(kind: .keyword, hasFilters: true, route: .shared, results: .zero, category: .unknown)))
+        #expect(analytics.events == [.search(kind: .keyword, hasFilters: true, route: .shared, results: .zero, category: .unknown)])
     }
 
     @Test func noEventCarriesTheSearchText() async {
@@ -73,8 +73,63 @@ struct SearchAnalyticsTests {
         await submit("bert", viewModel)
         viewModel.loadMore()
         await viewModel.waitForPendingWork()
-        #expect(analytics.events.contains(.searchMore(page: 2)))
-        #expect(analytics.events.contains(.searchLimitReached(.pageCap)))
+        #expect(analytics.events == [
+            .search(kind: .keyword, hasFilters: false, route: .shared, results: .over200, category: .unknown),
+            .searchMore(page: 2),
+            .searchLimitReached(.pageCap),
+        ])
+    }
+
+    @Test func aOnePageCapSendsTheSearchBeforeTheLimit() async {
+        let viewModel = viewModel(FakeSearchRepository(maxPagesPerQuery: 1) { _, _ in .of([SamplePapers.bert], total: 500, next: "c2") })
+        await submit("bert", viewModel)
+        #expect(analytics.events == [
+            .search(kind: .keyword, hasFilters: false, route: .shared, results: .over200, category: .unknown),
+            .searchLimitReached(.pageCap),
+        ])
+    }
+
+    @Test func aRestoredSceneSendsNoSearch() async {
+        let viewModel = viewModel(FakeSearchRepository(page: .of(SamplePapers.all)))
+        viewModel.restore(text: "bert", query: SearchQuery(text: "bert"))
+        await viewModel.waitForPendingWork()
+        #expect(viewModel.phase == .results)
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func aKeyChangeRerunOfALookupSendsNoSearch() async throws {
+        let preferences = FakeUserPreferencesRepository()
+        let lookup = FakePaperLookupRepository(otherwise: .found(SamplePapers.attention))
+        let viewModel = SearchViewModel(
+            repository: FakeSearchRepository(page: .of([])), lookup: lookup, library: FakeLibraryRepository(),
+            preferences: preferences, diagnostics: .fake(analytics: analytics)
+        )
+        await submit("10.1038/nature14539", viewModel)
+        #expect(analytics.events.count == 1)
+        try await preferences.setUserAPIKey("new-key")
+        #expect(await eventually { lookup.lookups.count == 2 })
+        await viewModel.waitForPendingWork()
+        #expect(analytics.events.count == 1)
+    }
+
+    @Test func aKeyChangeRerunOfAKeywordSearchSendsNoSearch() async throws {
+        let preferences = FakeUserPreferencesRepository()
+        let repository = FakeSearchRepository(page: .of(SamplePapers.all))
+        let viewModel = SearchViewModel(
+            repository: repository, lookup: FakePaperLookupRepository(), library: FakeLibraryRepository(),
+            preferences: preferences, diagnostics: .fake(analytics: analytics)
+        )
+        await submit("bert", viewModel)
+        try await preferences.setUserAPIKey("new-key")
+        #expect(await eventually { repository.calls.count == 2 })
+        await viewModel.waitForPendingWork()
+        #expect(analytics.events.count == 1)
+    }
+
+    @Test func removingAPaperThatIsNotSavedSendsNothing() async {
+        let viewModel = viewModel(FakeSearchRepository(page: .of([])))
+        await viewModel.remove(openAlexID: SamplePapers.bert.openAlexID)
+        #expect(analytics.events.isEmpty)
     }
 
     @Test func theDailyLimitIsCounted() async {

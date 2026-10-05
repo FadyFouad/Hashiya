@@ -1,3 +1,5 @@
+import os
+
 /// Counts how features are used. Only the app target knows the service behind it. Events, parameters and their values
 /// are closed lists, so nothing a person typed or read can be attached.
 public protocol AnalyticsTracking: Sendable {
@@ -13,6 +15,40 @@ public struct NoAnalytics: AnalyticsTracking {
     public func log(_ event: AnalyticsEvent) {}
     public func setProperty(_ property: AnalyticsProperty, _ value: some ClosedValue) {}
     public func setEnabled(_ enabled: Bool) {}
+}
+
+/// The usage-statistics switch and the last value of each user property, for a service that forgets its user properties
+/// when collection stops: turning collection on again sends them again. Nothing is sent while it is off.
+public final class AnalyticsSwitch: Sendable {
+    private struct State {
+        var isOn = false
+        var values: [AnalyticsProperty: String] = [:]
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    public init() {}
+
+    public var isOn: Bool { state.withLock { $0.isOn } }
+
+    /// Remembers `value` and, while collection is on, passes it to `send`.
+    public func setProperty(_ property: AnalyticsProperty, _ value: some ClosedValue, send: (AnalyticsProperty, String) -> Void) {
+        // `send` runs under the lock, so a switch turned off meanwhile never sees a value sent after it.
+        state.withLockUnchecked { state in
+            state.values[property] = value.rawValue
+            if state.isOn { send(property, value.rawValue) }
+        }
+    }
+
+    /// Passes `isOn` to `apply`, which switches the service; turning it on then passes every remembered value to `send`.
+    public func setEnabled(_ isOn: Bool, apply: (Bool) -> Void, send: (AnalyticsProperty, String) -> Void) {
+        state.withLockUnchecked { state in
+            state.isOn = isOn
+            apply(isOn)
+            guard isOn else { return }
+            for (property, value) in state.values { send(property, value) }
+        }
+    }
 }
 
 public enum AnalyticsProperty: String, CaseIterable, Sendable {

@@ -29,7 +29,7 @@ dependencies {
     api(libs.kotlinx.coroutines.core)
     implementation(libs.retrofit)
     implementation(libs.retrofit.kotlinx.serialization)
-    implementation(libs.okhttp)
+    api(libs.okhttp)
     implementation(libs.okhttp.logging)
 
     testImplementation(libs.junit)

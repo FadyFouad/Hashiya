@@ -2,6 +2,7 @@ package com.etatech.hashiya.core.data.repository
 
 import com.etatech.hashiya.core.model.RequiredUpdate
 import com.etatech.hashiya.core.network.AppConfigDataSource
+import com.etatech.hashiya.core.network.quota.QuotaPreferences
 import java.net.URI
 import java.net.URISyntaxException
 import javax.inject.Inject
@@ -13,15 +14,20 @@ interface AppUpdateRepository {
 }
 
 /** Never blocks by mistake: offline, an error, or a missing or malformed field all mean "no update required". */
-internal class ConfigAppUpdateRepository @Inject constructor(private val dataSource: AppConfigDataSource) : AppUpdateRepository {
+internal class ConfigAppUpdateRepository @Inject constructor(
+    private val dataSource: AppConfigDataSource,
+    private val quotaPreferences: QuotaPreferences
+) : AppUpdateRepository {
     override suspend fun requiredUpdate(currentVersionCode: Long): RequiredUpdate? {
-        val config = try {
-            dataSource.androidConfig()
+        val remote = try {
+            dataSource.fetch()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             null
         } ?: return null
+        quotaPreferences.limits = remote.openAlex
+        val config = remote.android ?: return null
         val minimum = config.minimumVersionCode ?: return null
         val storeUrl = config.storeUrl?.takeIf(::isHttpsWithHost) ?: return null
         return if (currentVersionCode < minimum) RequiredUpdate(storeUrl) else null

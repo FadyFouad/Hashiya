@@ -5,6 +5,9 @@ import com.etatech.hashiya.core.network.AppConfigDataSource
 import com.etatech.hashiya.core.network.NetworkException
 import com.etatech.hashiya.core.network.NetworkFailure
 import com.etatech.hashiya.core.network.NetworkPlatformConfig
+import com.etatech.hashiya.core.network.RemoteAppConfig
+import com.etatech.hashiya.core.network.quota.OpenAlexLimits
+import com.etatech.hashiya.core.testing.InMemoryQuotaPreferences
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -12,11 +15,31 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ConfigAppUpdateRepositoryTest {
-    private class StubDataSource(private val answer: () -> NetworkPlatformConfig?) : AppConfigDataSource {
-        override suspend fun androidConfig(): NetworkPlatformConfig? = answer()
+    private class StubDataSource(private val answer: () -> RemoteAppConfig) : AppConfigDataSource {
+        override suspend fun fetch(): RemoteAppConfig = answer()
     }
 
-    private fun repository(answer: () -> NetworkPlatformConfig?) = ConfigAppUpdateRepository(StubDataSource(answer))
+    private val quota = InMemoryQuotaPreferences()
+
+    private fun repository(answer: () -> NetworkPlatformConfig?) =
+        ConfigAppUpdateRepository(StubDataSource { RemoteAppConfig(answer(), OpenAlexLimits.Defaults) }, quota)
+
+    @Test
+    fun savesTheOpenAlexLimitsItFetched() = runTest {
+        val limits = OpenAlexLimits(7, 2, null)
+        ConfigAppUpdateRepository(StubDataSource { RemoteAppConfig(null, limits) }, quota).requiredUpdate(1)
+
+        assertEquals(limits, quota.limits)
+    }
+
+    @Test
+    fun aFailedFetchKeepsTheStoredLimits() = runTest {
+        val stored = OpenAlexLimits(9, 3, null)
+        quota.limits = stored
+        ConfigAppUpdateRepository(StubDataSource { throw NetworkException(NetworkFailure.Connectivity) }, quota).requiredUpdate(1)
+
+        assertEquals(stored, quota.limits)
+    }
 
     @Test
     fun aBuildBelowTheMinimumMustUpdate() = runTest {

@@ -1,8 +1,10 @@
 package com.etatech.hashiya.core.network
 
+import com.etatech.hashiya.core.network.quota.OpenAlexLimits
 import kotlinx.coroutines.test.runTest
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -42,13 +44,39 @@ class AppConfigDataSourceTest {
     fun readsTheAndroidEntry() = runTest {
         enqueue(200, SAMPLE)
 
-        assertEquals(NetworkPlatformConfig(minimumVersionCode = 3, storeUrl = PLAY_URL), dataSource().androidConfig())
+        assertEquals(NetworkPlatformConfig(minimumVersionCode = 3, storeUrl = PLAY_URL), dataSource().fetch().android)
+    }
+
+    @Test
+    fun readsTheOpenAlexSection() = runTest {
+        enqueue(200, """{"openAlex":{"dailyDeviceCalls":5,"maxPagesPerQuery":2,"baseUrl":"https://proxy.example/oa"}}""")
+
+        assertEquals(
+            OpenAlexLimits(5, 2, "https://proxy.example/oa".toHttpUrl()),
+            dataSource().fetch().openAlex
+        )
+    }
+
+    @Test
+    fun aMissingOpenAlexSectionMeansDefaults() = runTest {
+        enqueue(200, SAMPLE)
+
+        assertEquals(OpenAlexLimits.Defaults, dataSource().fetch().openAlex)
+    }
+
+    @Test
+    fun aBadOpenAlexFieldDoesNotSpoilTheAndroidEntry() = runTest {
+        enqueue(200, """{"android":{"minimumVersionCode":2},"openAlex":{"dailyDeviceCalls":"lots"}}""")
+
+        val config = dataSource().fetch()
+        assertEquals(NetworkPlatformConfig(minimumVersionCode = 2), config.android)
+        assertEquals(OpenAlexLimits.Defaults, config.openAlex)
     }
 
     @Test
     fun requestsTheFileWithNoQueryOrKey() = runTest {
         enqueue(200, SAMPLE)
-        dataSource().androidConfig()
+        dataSource().fetch().android
 
         val request = server.takeRequest()
         assertEquals("/Hashiya-Privacy-Policy/app-config.json", request.url.encodedPath)
@@ -60,49 +88,49 @@ class AppConfigDataSourceTest {
     fun ignoresUnknownKeys() = runTest {
         enqueue(200, """{"android":{"minimumVersionCode":2,"storeUrl":"$PLAY_URL","message":"x"},"web":{}}""")
 
-        assertEquals(NetworkPlatformConfig(2, PLAY_URL), dataSource().androidConfig())
+        assertEquals(NetworkPlatformConfig(2, PLAY_URL), dataSource().fetch().android)
     }
 
     @Test
     fun aMissingAndroidEntryIsNull() = runTest {
         enqueue(200, """{"ios":{"minimumBuild":5}}""")
 
-        assertNull(dataSource().androidConfig())
+        assertNull(dataSource().fetch().android)
     }
 
     @Test
     fun aMinimumWrittenAsTextIsMalformed() = runTest {
         enqueue(200, """{"android":{"minimumVersionCode":"2","storeUrl":"$PLAY_URL"}}""")
 
-        assertEquals(NetworkFailure.MalformedResponse, failureOf { dataSource().androidConfig() })
+        assertEquals(NetworkFailure.MalformedResponse, failureOf { dataSource().fetch().android })
     }
 
     @Test
     fun aFractionalMinimumIsMalformed() = runTest {
         enqueue(200, """{"android":{"minimumVersionCode":2.5,"storeUrl":"$PLAY_URL"}}""")
 
-        assertEquals(NetworkFailure.MalformedResponse, failureOf { dataSource().androidConfig() })
+        assertEquals(NetworkFailure.MalformedResponse, failureOf { dataSource().fetch().android })
     }
 
     @Test
     fun notJsonIsMalformed() = runTest {
         enqueue(200, "<html>Not found</html>")
 
-        assertEquals(NetworkFailure.MalformedResponse, failureOf { dataSource().androidConfig() })
+        assertEquals(NetworkFailure.MalformedResponse, failureOf { dataSource().fetch().android })
     }
 
     @Test
     fun aMissingFileIsAnHttpFailure() = runTest {
         enqueue(404, "Not found")
 
-        assertEquals(NetworkFailure.Http(code = 404, usedUserKey = false), failureOf { dataSource().androidConfig() })
+        assertEquals(NetworkFailure.Http(code = 404, usedUserKey = false), failureOf { dataSource().fetch().android })
     }
 
     @Test
     fun anUnreachableServerIsConnectivity() = runTest {
         server.close()
 
-        assertEquals(NetworkFailure.Connectivity, failureOf { dataSource().androidConfig() })
+        assertEquals(NetworkFailure.Connectivity, failureOf { dataSource().fetch().android })
     }
 
     private companion object {

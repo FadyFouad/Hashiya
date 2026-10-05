@@ -1,5 +1,6 @@
 package com.etatech.hashiya.core.network.di
 
+import android.content.Context
 import com.etatech.hashiya.core.network.APP_CONFIG_URL
 import com.etatech.hashiya.core.network.ARXIV_BASE_URL
 import com.etatech.hashiya.core.network.AppConfigDataSource
@@ -22,10 +23,13 @@ import com.etatech.hashiya.core.network.buildArxivOkHttpClient
 import com.etatech.hashiya.core.network.buildOpenAlexApi
 import com.etatech.hashiya.core.network.buildOpenAlexOkHttpClient
 import com.etatech.hashiya.core.network.buildPdfOkHttpClient
+import com.etatech.hashiya.core.network.quota.QuotaPreferences
+import com.etatech.hashiya.core.network.quota.SharedPreferencesQuotaPreferences
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -55,6 +59,10 @@ internal object NetworkModule {
     @Singleton
     fun provideAppConfigDataSource(): AppConfigDataSource =
         OkHttpAppConfigDataSource(buildAppConfigOkHttpClient(), APP_CONFIG_URL.toHttpUrl())
+
+    @Provides
+    @Singleton
+    fun provideQuotaPreferences(@ApplicationContext context: Context): QuotaPreferences = SharedPreferencesQuotaPreferences(context)
 
     @Provides
     @Singleton

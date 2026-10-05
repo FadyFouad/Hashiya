@@ -1,10 +1,13 @@
 package com.etatech.hashiya.core.network
 
+import com.etatech.hashiya.core.network.quota.OpenAlexLimits
 import java.util.concurrent.TimeUnit
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.decodeFromJsonElement
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -14,16 +17,15 @@ internal const val APP_CONFIG_URL = "https://fadyfouad.github.io/Hashiya-Privacy
 /** The app's remote config on GitHub Pages: the minimum supported build. Sends no key and nothing about the user. */
 interface AppConfigDataSource {
     /**
-     * The Android entry, or null when the file has none.
+     * The Android entry (null when the file has none) and the OpenAlex limits (defaults when absent or invalid).
      * @throws NetworkException when the file can't be fetched, answers with an error, or can't be read.
      */
-    suspend fun androidConfig(): NetworkPlatformConfig?
+    suspend fun fetch(): RemoteAppConfig
 }
 
-data class NetworkPlatformConfig(val minimumVersionCode: Long? = null, val storeUrl: String? = null)
+data class RemoteAppConfig(val android: NetworkPlatformConfig?, val openAlex: OpenAlexLimits)
 
-@Serializable
-internal data class NetworkAppConfig(val android: RawPlatformConfig? = null)
+data class NetworkPlatformConfig(val minimumVersionCode: Long? = null, val storeUrl: String? = null)
 
 /** The minimum stays raw because the decoder reads `"2"` as 2 for a Long; only an unquoted whole number counts. */
 @Serializable
@@ -37,15 +39,21 @@ internal fun buildAppConfigOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
     .build()
 
 internal class OkHttpAppConfigDataSource(private val client: OkHttpClient, private val url: HttpUrl) : AppConfigDataSource {
-    override suspend fun androidConfig(): NetworkPlatformConfig? {
+    override suspend fun fetch(): RemoteAppConfig {
         val body = client.newCall(Request.Builder().url(url).build()).awaitBody()
-        val raw = try {
-            OpenAlexJson.decodeFromString<NetworkAppConfig>(body).android
+        val raw: RawPlatformConfig?
+        val json: JsonObject
+        try {
+            json = OpenAlexJson.parseToJsonElement(body) as? JsonObject ?: throw NetworkException(NetworkFailure.MalformedResponse)
+            raw = json["android"]?.takeUnless { it is JsonNull }?.let { OpenAlexJson.decodeFromJsonElement<RawPlatformConfig>(it) }
         } catch (e: IllegalArgumentException) {
             // SerializationException is an IllegalArgumentException.
             throw NetworkException(NetworkFailure.MalformedResponse, e)
-        } ?: return null
-        return NetworkPlatformConfig(minimumVersionCode = raw.minimumVersionCode.toVersionCode(), storeUrl = raw.storeUrl)
+        }
+        val android = raw?.let {
+            NetworkPlatformConfig(minimumVersionCode = it.minimumVersionCode.toVersionCode(), storeUrl = it.storeUrl)
+        }
+        return RemoteAppConfig(android, OpenAlexLimits.parse(json["openAlex"]))
     }
 }
 

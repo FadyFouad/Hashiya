@@ -1,5 +1,6 @@
 @testable import FeatureSettings
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaTesting
 import Observation
@@ -8,6 +9,47 @@ import Testing
 
 @MainActor
 struct SettingsViewModelTests {
+    @Test func bothPrivacySwitchesStartOn() {
+        let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: FakePdfRepository(), backup: FakeLibraryBackup(), privacy: PrivacySettings(defaults: TestDefaults.make()))
+        #expect(viewModel.crashReportsEnabled)
+        #expect(viewModel.analyticsEnabled)
+    }
+
+    @Test func turningUsageStatisticsOffStoresItAndStopsCollection() {
+        let defaults = TestDefaults.make()
+        let analytics = FakeAnalytics()
+        let viewModel = SettingsViewModel(
+            preferences: FakeUserPreferencesRepository(), pdfs: FakePdfRepository(), backup: FakeLibraryBackup(),
+            privacy: PrivacySettings(defaults: defaults), diagnostics: Diagnostics(crash: FakeCrashReporting(), analytics: analytics, isLive: true)
+        )
+        viewModel.setAnalyticsEnabled(false)
+        #expect(!viewModel.analyticsEnabled)
+        #expect(!PrivacySettings(defaults: defaults).analyticsEnabled)
+        #expect(analytics.enabledCalls == [false])
+    }
+
+    @Test func turningCrashReportsBackOnInADebugBuildDoesNotEnableCollection() {
+        let crash = FakeCrashReporting()
+        let viewModel = SettingsViewModel(
+            preferences: FakeUserPreferencesRepository(), pdfs: FakePdfRepository(), backup: FakeLibraryBackup(),
+            privacy: PrivacySettings(defaults: TestDefaults.make()), diagnostics: Diagnostics(crash: crash, analytics: FakeAnalytics(), isLive: false)
+        )
+        viewModel.setCrashReportsEnabled(false)
+        viewModel.setCrashReportsEnabled(true)
+        #expect(crash.enabledCalls == [false, false])
+    }
+
+    @Test func thePrivacyStringsExistInBothLanguages() {
+        for language in ["en", "ar"] {
+            let previous = HashiyaLanguage.override
+            HashiyaLanguage.override = language
+            defer { HashiyaLanguage.override = previous }
+            for key in ["settings.privacySection", "settings.crashReports", "settings.crashReportsFooter", "settings.analytics", "settings.analyticsFooter", "settings.privacyPolicy"] {
+                #expect(!L10n.string(key).hasPrefix("settings."))
+            }
+        }
+    }
+
     @Test func startsOnTheBuiltInKey() async {
         let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: FakePdfRepository(), backup: FakeLibraryBackup())
         try? await Task.sleep(for: .milliseconds(20))

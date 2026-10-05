@@ -1,5 +1,6 @@
 import Foundation
 import HashiyaData
+import HashiyaDiagnostics
 import HashiyaModel
 import Observation
 import os
@@ -15,6 +16,12 @@ public final class SettingsViewModel {
     /// The Backup section's numbers, the export in progress and the last result.
     public internal(set) var backup = BackupState()
 
+    /// The Privacy section's two switches; both start on.
+    public internal(set) var crashReportsEnabled: Bool
+    public internal(set) var analyticsEnabled: Bool
+
+    @ObservationIgnored private let privacy: PrivacySettings
+    @ObservationIgnored private let diagnostics: Diagnostics
     @ObservationIgnored private let pdfs: any PdfRepository
     @ObservationIgnored private let libraryBackup: any LibraryBackup
     @ObservationIgnored private var exportTask: Task<Void, Never>?
@@ -23,7 +30,15 @@ public final class SettingsViewModel {
     private var storedKey: String?
     private var editedKey: String?
 
-    public init(preferences: any UserPreferencesRepository, pdfs: any PdfRepository, backup: any LibraryBackup) {
+    public init(preferences: any UserPreferencesRepository, pdfs: any PdfRepository, backup: any LibraryBackup,
+        privacy: PrivacySettings = PrivacySettings(),
+        diagnostics: Diagnostics = .none
+    ) {
+        self.privacy = privacy
+        self.diagnostics = diagnostics
+        // Plain assignments, like the key below: reading observable state here would make the creator observe it.
+        crashReportsEnabled = privacy.crashReportsEnabled
+        analyticsEnabled = privacy.analyticsEnabled
         self.pdfs = pdfs
         libraryBackup = backup
         self.preferences = preferences
@@ -153,6 +168,18 @@ public final class SettingsViewModel {
 
     public func dismissMessage() {
         backup.message = nil
+    }
+
+    public func setCrashReportsEnabled(_ enabled: Bool) {
+        crashReportsEnabled = enabled
+        privacy.setCrashReportsEnabled(enabled)
+        diagnostics.crash.setEnabled(diagnostics.isLive && enabled)
+    }
+
+    public func setAnalyticsEnabled(_ enabled: Bool) {
+        analyticsEnabled = enabled
+        privacy.setAnalyticsEnabled(enabled)
+        diagnostics.analytics.setEnabled(diagnostics.isLive && enabled)
     }
 
     private func store(_ key: String) async {

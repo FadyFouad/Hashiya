@@ -122,7 +122,7 @@ final class AppContainer {
     }
 
     func makeSettingsViewModel() -> SettingsViewModel {
-        SettingsViewModel(preferences: preferences, pdfs: pdfRepository, backup: backup)
+        SettingsViewModel(preferences: preferences, pdfs: pdfRepository, backup: backup, diagnostics: diagnostics)
     }
 
     func makeRestoreViewModel(source: URL, onSourceRead: @escaping () -> Void = {}) -> RestoreViewModel {

@@ -13,10 +13,27 @@ import kotlinx.coroutines.flow.asStateFlow
 internal class OpenAlexSearchRepository @Inject constructor(private val dataSource: OpenAlexDataSource) : SearchRepository {
     override fun search(query: SearchQuery): SearchResults {
         val totalCount = MutableStateFlow<Long?>(null)
+        val firstPage = MutableStateFlow<FirstPage?>(null)
+        val pagesLoaded = MutableStateFlow(0)
         val pager = Pager(
             config = PagingConfig(pageSize = PAGE_SIZE, initialLoadSize = PAGE_SIZE, enablePlaceholders = false),
-            pagingSourceFactory = { OpenAlexPagingSource(query, dataSource) { totalCount.value = it } }
+            pagingSourceFactory = {
+                OpenAlexPagingSource(
+                    query,
+                    dataSource,
+                    onFirstPage = {
+                        totalCount.value = it.total
+                        firstPage.value = it
+                    },
+                    onPage = { pagesLoaded.value = it }
+                )
+            }
         )
-        return SearchResults(papers = pager.flow, totalCount = totalCount.asStateFlow())
+        return SearchResults(
+            papers = pager.flow,
+            totalCount = totalCount.asStateFlow(),
+            firstPage = firstPage.asStateFlow(),
+            pagesLoaded = pagesLoaded.asStateFlow()
+        )
     }
 }

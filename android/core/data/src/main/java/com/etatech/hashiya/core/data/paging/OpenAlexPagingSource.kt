@@ -2,7 +2,10 @@ package com.etatech.hashiya.core.data.paging
 
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
+import com.etatech.hashiya.core.analytics.ResearchCategory
+import com.etatech.hashiya.core.analytics.TopicIds
 import com.etatech.hashiya.core.data.mapping.asPaper
+import com.etatech.hashiya.core.data.repository.FirstPage
 import com.etatech.hashiya.core.data.repository.SearchException
 import com.etatech.hashiya.core.data.search.FIRST_CURSOR
 import com.etatech.hashiya.core.data.search.asSearchError
@@ -16,13 +19,22 @@ import com.etatech.hashiya.core.network.OpenAlexDataSource
 internal class OpenAlexPagingSource(
     private val query: SearchQuery,
     private val dataSource: OpenAlexDataSource,
-    private val onTotalCount: (Long) -> Unit
+    private val onFirstPage: (FirstPage) -> Unit,
+    private val onPage: (Int) -> Unit
 ) : PagingSource<String, Paper>() {
     private val seenIds = mutableSetOf<String>()
+    private var pages = 0
 
     override suspend fun load(params: LoadParams<String>): LoadResult<String, Paper> = try {
         val response = dataSource.searchWorks(query.toWorksSearchRequest(params.key ?: FIRST_CURSOR))
-        if (params.key == null) onTotalCount(response.meta.count)
+        pages += 1
+        onPage(pages)
+        if (params.key == null) {
+            val topics = response.results.map { work ->
+                TopicIds(work.primaryTopic?.subfield?.id, work.primaryTopic?.field?.id, work.primaryTopic?.domain?.id)
+            }
+            onFirstPage(FirstPage(response.meta.count, ResearchCategory.classify(topics)))
+        }
         LoadResult.Page(
             data = response.results.map { it.asPaper() }.filter { seenIds.add(it.openAlexId) },
             prevKey = null,

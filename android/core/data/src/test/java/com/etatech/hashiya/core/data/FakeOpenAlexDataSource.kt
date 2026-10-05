@@ -5,6 +5,7 @@ import com.etatech.hashiya.core.network.NetworkFailure
 import com.etatech.hashiya.core.network.OpenAlexDataSource
 import com.etatech.hashiya.core.network.WorksSearchRequest
 import com.etatech.hashiya.core.network.model.NetworkMeta
+import com.etatech.hashiya.core.network.model.NetworkTopic
 import com.etatech.hashiya.core.network.model.NetworkWork
 import com.etatech.hashiya.core.network.model.NetworkWorksResponse
 
@@ -13,11 +14,13 @@ internal class FakeOpenAlexDataSource : OpenAlexDataSource {
     val requests = mutableListOf<WorksSearchRequest>()
     private val responses = ArrayDeque<Result<NetworkWorksResponse>>()
 
-    fun enqueuePage(vararg ids: String, nextCursor: String?, count: Long = 100) {
+    fun enqueuePage(vararg ids: String, nextCursor: String?, count: Long = 100, topics: List<NetworkTopic?> = emptyList()) {
         responses += Result.success(
             NetworkWorksResponse(
                 meta = NetworkMeta(count = count, nextCursor = nextCursor),
-                results = ids.map { NetworkWork(id = "https://openalex.org/$it", displayName = "Paper $it") }
+                results = ids.mapIndexed { index, id ->
+                    NetworkWork(id = "https://openalex.org/$id", displayName = "Paper $id", primaryTopic = topics.getOrNull(index))
+                }
             )
         )
     }

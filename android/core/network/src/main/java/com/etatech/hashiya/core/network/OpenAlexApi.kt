@@ -13,6 +13,9 @@ internal const val WORK_FIELDS =
     "id,doi,display_name,publication_year,primary_location,authorships," +
         "cited_by_count,open_access,best_oa_location,abstract_inverted_index,type,biblio"
 
+/** What a keyword search asks for: the work fields plus the primary topic, used only to work out the research area. */
+internal const val SEARCH_FIELDS = "$WORK_FIELDS,primary_topic"
+
 /** Only what a PDF download needs when the stored link fails: every place the work is hosted. */
 internal const val PDF_LOCATION_FIELDS = "id,locations"
 
@@ -24,7 +27,7 @@ internal interface OpenAlexApi {
         @Query("sort") sort: String?,
         @Query("per_page") perPage: Int,
         @Query("cursor") cursor: String,
-        @Query("select") select: String = WORK_FIELDS
+        @Query("select") select: String = SEARCH_FIELDS
     ): NetworkWorksResponse
 
     /** [id] is any id OpenAlex resolves, e.g. "doi:10.1038/nature14539". Retrofit's default encoding encodes "/" and "#". */

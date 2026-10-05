@@ -41,7 +41,7 @@ class HashiyaApplication : Application() {
             Thread.setDefaultUncaughtExceptionHandler(sanitizingHandler(Thread.getDefaultUncaughtExceptionHandler()))
         }
         super.onCreate()
-        // First, so collection and the context keys are decided before anything else can fail.
+        // Before the other launches, so collection and the context keys are decided before other work can fail.
         scope.launch {
             CrashStartup(
                 reporter = crashReporter,

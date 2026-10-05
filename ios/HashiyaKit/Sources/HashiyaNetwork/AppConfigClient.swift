@@ -11,9 +11,21 @@ public struct PlatformAppConfig: Decodable, Equatable, Sendable {
     }
 }
 
+/// Everything this app reads from the remote config.
+public struct RemoteAppConfig: Equatable, Sendable {
+    public let ios: PlatformAppConfig?
+    /// Defaults when the file has no `openAlex` section.
+    public let openAlex: OpenAlexLimits
+
+    public init(ios: PlatformAppConfig?, openAlex: OpenAlexLimits) {
+        self.ios = ios
+        self.openAlex = openAlex
+    }
+}
+
 public protocol AppConfigService: Sendable {
-    /// The iOS entry, or nil when the file has none. Throws `NetworkFailure` when the file can't be fetched or read.
-    func iosConfig() async throws -> PlatformAppConfig?
+    /// The iOS entry and the OpenAlex limits. Throws `NetworkFailure` when the file can't be fetched or read.
+    func fetch() async throws -> RemoteAppConfig
 }
 
 /// Reads the app's remote config from GitHub Pages. It has its own URLSession with short timeouts, sends no
@@ -44,7 +56,7 @@ public final class AppConfigClient: AppConfigService {
         return configuration
     }
 
-    public func iosConfig() async throws -> PlatformAppConfig? {
+    public func fetch() async throws -> RemoteAppConfig {
         let data: Data
         let response: URLResponse
         do {
@@ -63,7 +75,9 @@ public final class AppConfigClient: AppConfigService {
             throw NetworkFailure.http(code: http.statusCode, usedUserKey: false)
         }
         do {
-            return try JSONDecoder().decode(File.self, from: data).ios
+            let ios = try JSONDecoder().decode(File.self, from: data).ios
+            let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+            return RemoteAppConfig(ios: ios, openAlex: OpenAlexLimits.parse(object?["openAlex"]))
         } catch {
             throw NetworkFailure.malformedResponse
         }

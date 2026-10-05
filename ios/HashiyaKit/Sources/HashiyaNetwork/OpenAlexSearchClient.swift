@@ -10,15 +10,24 @@ public final class OpenAlexSearchClient: OpenAlexSearchService {
     /// - Parameters:
     ///   - builtInKey: the key built into the app, or nil; used when the user has none.
     ///   - userKeySource: the user's override, read on every request.
+    ///   - quota: picks the route without a user key; nil sends the built-in key with no routing (tests of requests).
+    ///   - cache: answers repeated searches and filter lists.
+    ///   - sleep: waits before retrying after a per-second limit.
     ///   - log: Debug request logging; receives lines with the key redacted.
     public init(
         session: URLSession,
         builtInKey: String?,
         userKeySource: any UserAPIKeySource,
+        quota: OpenAlexQuota? = nil,
+        cache: SearchCache? = nil,
+        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
         baseURL: URL = OpenAlexSession.baseURL,
         log: @escaping @Sendable (String) -> Void = RequestLog.debug
     ) {
-        http = OpenAlexHTTP(session: session, baseURL: baseURL, builtInKey: builtInKey, userKeySource: userKeySource, log: log)
+        http = OpenAlexHTTP(
+            session: session, baseURL: baseURL, builtInKey: builtInKey, userKeySource: userKeySource,
+            quota: quota, cache: cache, sleep: sleep, log: log
+        )
     }
 
     public func searchWorks(_ request: WorksSearchRequest) async throws -> NetworkWorksResponse {

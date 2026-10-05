@@ -46,8 +46,11 @@ public struct LiveDependencies: Sendable {
         )
         let session = OpenAlexSession.make()
         let builtInKey = builtInAPIKey(from: bundle.object(forInfoDictionaryKey: "OpenAlexAPIKey"))
-        let searchClient = OpenAlexSearchClient(session: session, builtInKey: builtInKey, userKeySource: preferences)
-        let lookupClient = OpenAlexLookupClient(session: session, builtInKey: builtInKey, userKeySource: preferences)
+        // One quota and one cache for both clients: filter lists count toward the cap and share the cache with search.
+        let quota = OpenAlexQuota(hasBuiltInKey: builtInKey != nil)
+        let cache = SearchCache.live()
+        let searchClient = OpenAlexSearchClient(session: session, builtInKey: builtInKey, userKeySource: preferences, quota: quota, cache: cache)
+        let lookupClient = OpenAlexLookupClient(session: session, builtInKey: builtInKey, userKeySource: preferences, quota: quota, cache: cache)
         // The one PDF client of the process: its session lives as long as the app and is never invalidated.
         let pdf = PdfDependencies(
             files: try PdfFileStore.live(),

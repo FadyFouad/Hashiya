@@ -5,8 +5,8 @@ import android.content.res.Configuration
 import androidx.test.core.app.ApplicationProvider
 import com.etatech.hashiya.feature.search.components.formatResetTime
 import java.time.Instant
-import java.time.ZoneId
 import java.util.Locale
+import java.util.TimeZone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -16,7 +16,7 @@ import org.robolectric.RobolectricTestRunner
 @RunWith(RobolectricTestRunner::class)
 class ResetTimeTest {
     private val midnightUtc = Instant.parse("2026-10-06T00:00:00Z").toEpochMilli()
-    private val riyadh = ZoneId.of("Asia/Riyadh")
+    private val riyadh = TimeZone.getTimeZone("Asia/Riyadh")
 
     @Test
     fun resetTimeIsShownInTheGivenZone() {

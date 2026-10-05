@@ -64,8 +64,8 @@ import com.etatech.hashiya.feature.search.components.SearchField
 import com.etatech.hashiya.feature.search.components.SearchNoteBanner
 import com.etatech.hashiya.feature.search.components.dailyLimitMessage
 import java.text.NumberFormat
-import java.time.ZoneId
 import java.util.Calendar
+import java.util.TimeZone
 
 @Composable
 internal fun SearchScreen(
@@ -142,7 +142,7 @@ internal fun SearchContent(
     note: SearchNote? = null,
     focusSearch: Boolean = false,
     currentYear: Int = Calendar.getInstance().get(Calendar.YEAR),
-    resetZone: ZoneId = ZoneId.systemDefault()
+    resetZone: TimeZone = TimeZone.getDefault()
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
@@ -270,7 +270,7 @@ private fun SearchBody(
     savedIds: Set<String>,
     actions: SearchActions,
     selectedId: String?,
-    resetZone: ZoneId
+    resetZone: TimeZone
 ) {
     // Branch on the first-page state before the item count: when a new query starts, the previous query's items
     // stay in the list until the new first page arrives, so its loading or error state must replace them.
@@ -304,7 +304,7 @@ private fun ResultsList(
     savedIds: Set<String>,
     actions: SearchActions,
     selectedId: String?,
-    resetZone: ZoneId
+    resetZone: TimeZone
 ) {
     val locale = LocalConfiguration.current.locales[0]
     LazyColumn(Modifier.fillMaxSize()) {

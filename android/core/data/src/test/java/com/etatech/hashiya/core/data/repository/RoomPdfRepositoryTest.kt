@@ -559,13 +559,13 @@ class RoomPdfRepositoryTest {
     }
 
     @Test
-    fun aPaperWithoutALinkSendsNothing() = runTest {
+    fun aPaperWithoutALinkIsCountedAsFailed() = runTest {
         library.save(paper("W1", pdfUrl = null))
 
         repository.download("W1")
 
         assertEquals(DownloadState.Failed(DownloadFailure.NoLink), awaitFailure("W1"))
-        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PdfDownloaded(succeeded = false)), analytics.events)
     }
 
     private suspend fun storedLink(openAlexId: String): String? = db.paperDao().getByOpenAlexId(openAlexId)?.paper?.oaPdfUrl

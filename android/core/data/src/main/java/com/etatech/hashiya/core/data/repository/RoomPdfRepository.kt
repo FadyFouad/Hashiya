@@ -128,7 +128,10 @@ internal class RoomPdfRepository(
         try {
             val row = paperDao.getByOpenAlexId(openAlexId)?.paper ?: return report(null)
             val url = row.oaPdfUrl?.takeIf { it.isNotBlank() }?.let(::upgradeToHttps)
-                ?: return report(DownloadState.Failed(DownloadFailure.NoLink))
+            if (url == null) {
+                analytics.log(AnalyticsEvent.PdfDownloaded(succeeded = false))
+                return report(DownloadState.Failed(DownloadFailure.NoLink))
+            }
             val first = attempt(row.id, url, ::report)
             if (first !is Attempt.Failed) {
                 if (first == Attempt.Stored) analytics.log(AnalyticsEvent.PdfDownloaded(succeeded = true))

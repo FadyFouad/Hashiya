@@ -94,11 +94,10 @@ class NotesEditor(
     private suspend fun save(value: PaperNotes): Boolean = mutex.withLock {
         if (value == storedNotes) return@withLock true
         _saveState.value = NotesSaveState.Saving
-        try {
+        val saved = try {
             libraryRepository.saveNotes(openAlexId, value)
             storedNotes = value
             _saveState.value = NotesSaveState.Saved
-            onSaved()
             true
         } catch (e: CancellationException) {
             throw e
@@ -107,6 +106,9 @@ class NotesEditor(
             onSaveFailed()
             false
         }
+        // Outside the try, so a failure in the callback can never turn a stored write into Failed.
+        if (saved) onSaved()
+        saved
     }
 
     companion object {

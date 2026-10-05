@@ -108,6 +108,8 @@ class ReaderViewModel @Inject constructor(
     /** The page last read from or written to the database. */
     private var savedPage: Int? = null
 
+    private var openCounted = false
+
     init {
         viewModelScope.launch { load() }
         // collectLatest: a new viewport cancels rendering for the old one.
@@ -205,9 +207,7 @@ class ReaderViewModel @Inject constructor(
         }
         savedPage = pdf.lastPage
         open(file, pdf.lastPage)
-        if (_state.value is ReaderState.Ready) {
-            analytics.log(AnalyticsEvent.PdfOpened(if (pdf.source == PdfSource.Attached) PdfOrigin.Attached else PdfOrigin.Downloaded))
-        }
+        countOpened(if (pdf.source == PdfSource.Attached) PdfOrigin.Attached else PdfOrigin.Downloaded)
         // Removed from Details, Settings or the paper's removal: there is nothing left to read.
         viewModelScope.launch {
             pdfRepository.observePdf(openAlexId).first { it == null }
@@ -242,6 +242,14 @@ class ReaderViewModel @Inject constructor(
         currentPage.value = null
         _state.value = ReaderState.Loading
         open(file, startPage = 0)
+        countOpened(PdfOrigin.Attached)
+    }
+
+    /** The first PDF that opens counts, once per view model, whether it opened at the start or after Replace. */
+    private fun countOpened(origin: PdfOrigin) {
+        if (openCounted || _state.value !is ReaderState.Ready) return
+        openCounted = true
+        analytics.log(AnalyticsEvent.PdfOpened(origin))
     }
 
     private suspend fun renderAround(viewport: Viewport) {

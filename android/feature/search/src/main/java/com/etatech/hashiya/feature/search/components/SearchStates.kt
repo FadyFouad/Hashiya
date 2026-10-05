@@ -21,11 +21,11 @@ import com.etatech.hashiya.core.designsystem.component.ErrorState
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.feature.search.R
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.DecimalStyle
+import java.text.NumberFormat
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -70,7 +70,7 @@ internal fun SearchErrorState(
     onRetry: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
-    resetZone: ZoneId = ZoneId.systemDefault()
+    resetZone: TimeZone = TimeZone.getDefault()
 ) {
     val (title, message) = when (error) {
         SearchError.Offline -> stringResource(R.string.search_error_offline_title) to stringResource(R.string.search_error_offline_message)
@@ -103,16 +103,18 @@ internal fun SearchErrorState(
  * in U+2068 … U+2069 itself, so it keeps its order inside the sentence.
  */
 @Composable
-internal fun dailyLimitMessage(error: SearchError.DailyLimit, zone: ZoneId): String {
+internal fun dailyLimitMessage(error: SearchError.DailyLimit, zone: TimeZone): String {
     val is24Hour = DateFormat.is24HourFormat(LocalContext.current)
     val time = formatResetTime(error.resetAtMillis, LocalConfiguration.current.locales[0], zone, is24Hour)
     return stringResource(R.string.search_error_daily_limit_message, time)
 }
 
-internal fun formatResetTime(resetAtMillis: Long, locale: Locale, zone: ZoneId, is24Hour: Boolean): String {
+/** java.text rather than java.time, which needs API 26 (minSdk is 24). */
+internal fun formatResetTime(resetAtMillis: Long, locale: Locale, zone: TimeZone, is24Hour: Boolean): String {
     val pattern = DateFormat.getBestDateTimePattern(locale, if (is24Hour) "Hm" else "hm")
-    return DateTimeFormatter.ofPattern(pattern, locale)
-        .withDecimalStyle(DecimalStyle.of(locale))
-        .withZone(zone)
-        .format(Instant.ofEpochMilli(resetAtMillis))
+    return SimpleDateFormat(pattern, locale).apply {
+        timeZone = zone
+        // The locale's own digits (Arabic-Indic in Arabic), as the result count uses.
+        numberFormat = NumberFormat.getIntegerInstance(locale).apply { isGroupingUsed = false }
+    }.format(Date(resetAtMillis))
 }

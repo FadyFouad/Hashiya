@@ -33,8 +33,8 @@ import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.feature.search.components.SEARCH_FIELD_TAG
 import com.etatech.hashiya.feature.search.components.formatResetTime
 import java.time.Instant
-import java.time.ZoneId
 import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
@@ -67,7 +67,7 @@ class SearchContentTest {
         onOpenSettings = { events += "settings" }
     )
 
-    private val zone = ZoneId.of("Asia/Riyadh")
+    private val zone = TimeZone.getTimeZone("Asia/Riyadh")
 
     private fun dailyLimitMessage(reset: Long) =
         "Search will be available again at ${formatResetTime(reset, Locale.US, zone, is24Hour = false)}."

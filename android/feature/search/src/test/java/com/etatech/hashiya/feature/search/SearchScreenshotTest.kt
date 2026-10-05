@@ -16,7 +16,7 @@ import com.etatech.hashiya.core.testing.ScreenshotVariant
 import com.etatech.hashiya.core.testing.ScreenshotVariantRule
 import com.etatech.hashiya.core.testing.captureScreenshot
 import java.time.Instant
-import java.time.ZoneId
+import java.util.TimeZone
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
 import org.junit.Test
@@ -64,7 +64,7 @@ class SearchScreenshotTest(private val variant: ScreenshotVariant) {
             message = null,
             actions = SearchActions(),
             currentYear = 2026,
-            resetZone = ZoneId.of("Asia/Riyadh")
+            resetZone = TimeZone.getTimeZone("Asia/Riyadh")
         )
     }
 

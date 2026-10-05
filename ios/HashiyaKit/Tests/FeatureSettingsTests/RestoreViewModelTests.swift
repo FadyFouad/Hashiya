@@ -159,4 +159,45 @@ import Testing
         #expect(await eventually { if case .done = viewModel.state { true } else { false } })
         #expect(crash.keys[.backupInProgress] == "none")
     }
+
+    // MARK: Usage statistics
+
+    @Test func aFinishedRestoreIsCounted() async {
+        let analytics = FakeAnalytics()
+        let viewModel = restoreViewModel(applyError: nil, diagnostics: .fake(analytics: analytics))
+        await confirmAndWait(viewModel)
+        #expect(analytics.events == [.restore(succeeded: true)])
+    }
+
+    @Test(arguments: [BackupError.writeFailed, .unreadable, .noSpace, .busy])
+    func aFailedRestoreIsCounted(error: BackupError) async {
+        let analytics = FakeAnalytics()
+        let viewModel = restoreViewModel(applyError: error, diagnostics: .fake(analytics: analytics))
+        await confirmAndWait(viewModel)
+        #expect(analytics.events == [.restore(succeeded: false)])
+    }
+
+    @Test func anUnexpectedFailureIsCountedAsFailed() async {
+        struct Odd: Error {}
+        let analytics = FakeAnalytics()
+        let viewModel = restoreViewModel(applyError: Odd(), diagnostics: .fake(analytics: analytics))
+        await confirmAndWait(viewModel)
+        #expect(analytics.events == [.restore(succeeded: false)])
+    }
+
+    @Test func aCancelledRestoreIsNotCounted() async {
+        let analytics = FakeAnalytics()
+        let viewModel = restoreViewModel(applyError: CancellationError(), diagnostics: .fake(analytics: analytics))
+        await confirmAndWait(viewModel)
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func aFileThatCantBeRestoredIsNotCounted() async {
+        backup.openResult = .failed(.notABackup)
+        let analytics = FakeAnalytics()
+        let viewModel = RestoreViewModel(source: source, backup: backup, diagnostics: .fake(analytics: analytics))
+        await viewModel.load()
+        viewModel.confirm()
+        #expect(analytics.events.isEmpty)
+    }
 }

@@ -68,11 +68,16 @@ public enum RestoreState: Equatable, Sendable {
                     }
                 }
                 outcome = .done(result)
+                diagnostics.analytics.log(.restore(succeeded: true))
             } catch let error as BackupError {
                 if error == .writeFailed || error == .unreadable { diagnostics.crash.record(error, site: .restore) }
+                diagnostics.analytics.log(.restore(succeeded: false))
                 outcome = .failed(error)
             } catch {
-                if !(error is CancellationError) { diagnostics.crash.record(error, site: .unexpectedUiError) }
+                if !(error is CancellationError) {
+                    diagnostics.crash.record(error, site: .unexpectedUiError)
+                    diagnostics.analytics.log(.restore(succeeded: false))
+                }
                 // Never leave the screen on the progress bar.
                 outcome = .failed(.writeFailed)
             }

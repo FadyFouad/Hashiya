@@ -22,6 +22,8 @@ public final class SettingsViewModel {
 
     @ObservationIgnored private let privacy: PrivacySettings
     @ObservationIgnored private let diagnostics: Diagnostics
+    /// Whether the export being saved holds PDFs, as chosen in `confirmExport()`.
+    @ObservationIgnored private var exportIncludesPdfs = false
     @ObservationIgnored private let pdfs: any PdfRepository
     @ObservationIgnored private let libraryBackup: any LibraryBackup
     @ObservationIgnored private var exportTask: Task<Void, Never>?
@@ -116,6 +118,7 @@ public final class SettingsViewModel {
     /// Builds the archive; the state becomes `.readyToSave` (or `.idle` with a message when it fails).
     public func confirmExport() {
         guard case let .choosing(includePdfs) = backup.export else { return }
+        exportIncludesPdfs = includePdfs
         backup.export = .building(includePdfs: includePdfs, progress: 0)
         diagnostics.crash.setKey(.backupInProgress, BackupPhase.export)
         // Called off the main actor, so it hops back before touching the state.
@@ -164,7 +167,9 @@ public final class SettingsViewModel {
         libraryBackup.discard(file)
         backup.export = .idle
         switch outcome {
-        case .saved: backup.message = .exported(missingPdfs: file.missingPdfs)
+        case .saved:
+            backup.message = .exported(missingPdfs: file.missingPdfs)
+            diagnostics.analytics.log(.export(format: .backup, withPdfs: exportIncludesPdfs))
         case .cancelled: backup.message = nil
         case .failed: backup.message = .exportFailed(.writeFailed)
         }

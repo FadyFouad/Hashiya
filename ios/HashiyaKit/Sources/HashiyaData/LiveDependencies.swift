@@ -42,7 +42,7 @@ public struct LiveDependencies: Sendable {
     /// routes and the daily cap) and one search cache. Reads `OpenAlexAPIKey` and `KeychainAccessGroup` from `bundle`'s
     /// Info.plist. `background` is the app's `UIKitBackgroundTime`; the Share Extension keeps the default and never
     /// downloads.
-    public static func live(bundle: Bundle = .main, background: any BackgroundTimeGranting = NoBackgroundTime(), crash: any CrashReporting = NoCrashReporting()) throws -> LiveDependencies {
+    public static func live(bundle: Bundle = .main, background: any BackgroundTimeGranting = NoBackgroundTime(), crash: any CrashReporting = NoCrashReporting(), analytics: any AnalyticsTracking = NoAnalytics()) throws -> LiveDependencies {
         let preferences = KeychainUserPreferencesRepository(
             keychain: SystemKeychainStore(accessGroup: infoValue(bundle.object(forInfoDictionaryKey: "KeychainAccessGroup")))
         )
@@ -59,7 +59,8 @@ public struct LiveDependencies: Sendable {
             downloader: PdfDownloadClient(),
             background: background,
             pdfLinks: lookupClient,
-            crash: crash
+            crash: crash,
+            analytics: analytics
         )
         let repositories = LibraryRepositories(store: try PaperStore.shared(), lookup: lookupClient, pdf: pdf)
         return LiveDependencies(

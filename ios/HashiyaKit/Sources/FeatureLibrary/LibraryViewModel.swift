@@ -375,6 +375,7 @@ public final class LibraryViewModel {
             case let .done(id):
                 nameSheet = nil
                 if sheet.mode == .create {
+                    diagnostics.analytics.log(.collectionCreated)
                     // Not awaited when the list with it was handled before this resumed: nothing would clear it.
                     awaitedCollectionID = collections.contains { $0.id == id } ? nil : id
                     lastCollectionName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -483,6 +484,7 @@ public final class LibraryViewModel {
             message = .exportFailed
             return
         }
+        diagnostics.analytics.log(.export(format: .bibtex, withPdfs: false))
         if !complete {
             message = .exportIncomplete
         }

@@ -71,19 +71,23 @@ public struct PdfDependencies: Sendable {
     public let pdfLinks: any OpenAlexPdfLinksService
     /// Where the PDF store's write failures are reported.
     public let crash: any CrashReporting
+    /// Where download outcomes are counted.
+    public let analytics: any AnalyticsTracking
 
     public init(
         files: PdfFileStore,
         downloader: any PdfDownloading,
         background: any BackgroundTimeGranting,
         pdfLinks: any OpenAlexPdfLinksService = NoPdfLinks(),
-        crash: any CrashReporting = NoCrashReporting()
+        crash: any CrashReporting = NoCrashReporting(),
+        analytics: any AnalyticsTracking = NoAnalytics()
     ) {
         self.files = files
         self.downloader = downloader
         self.background = background
         self.pdfLinks = pdfLinks
         self.crash = crash
+        self.analytics = analytics
     }
 }
 

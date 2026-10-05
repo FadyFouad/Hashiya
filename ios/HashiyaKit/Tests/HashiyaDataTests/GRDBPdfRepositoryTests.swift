@@ -1324,4 +1324,92 @@ struct GRDBPdfRepositoryTests {
         #expect(downloader.urls.map(\.absoluteString) == [Self.badLink, Self.arxivLink, Self.badLink, Self.arxivLink])
         #expect(try await storedLink("W1") == Self.arxivLink)
     }
+
+    // MARK: Usage statistics
+
+    /// A repository on this suite's database, counting to `analytics`.
+    private func countingRepository(_ analytics: FakeAnalytics) -> GRDBPdfRepository {
+        GRDBPdfRepository(
+            store: store, files: files, downloader: downloader, background: background, analytics: analytics,
+            now: { 1_000 }, maxBytes: 10_000
+        )
+    }
+
+    @Test func aStoredDownloadIsCounted() async throws {
+        try await library.save(paper("W1"))
+        let analytics = FakeAnalytics()
+        let repository = countingRepository(analytics)
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await eventually { analytics.events == [.pdfDownloaded(succeeded: true)] })
+        #expect(await eventually { background.endCount == 1 })
+        #expect(analytics.events == [.pdfDownloaded(succeeded: true)])
+    }
+
+    @Test func aDownloadFromAFallbackLinkIsCountedOnce() async throws {
+        try await library.save(paper("W1", pdfURL: Self.badLink))
+        downloader.setBody(Self.html, for: Self.badLink)
+        pdfLinks.setLocations([location(Self.arxivLink, source: Self.arxiv)])
+        let analytics = FakeAnalytics()
+        let repository = GRDBPdfRepository(
+            store: store, files: files, downloader: downloader, pdfLinks: pdfLinks, background: background, analytics: analytics,
+            now: { 1_000 }, maxBytes: 10_000
+        )
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await eventually { background.endCount == 1 })
+        #expect(analytics.events == [.pdfDownloaded(succeeded: true)])
+    }
+
+    @Test(arguments: [NetworkFailure.connectivity, .http(code: 404, usedUserKey: false)])
+    func aFailedDownloadIsCounted(failure: NetworkFailure) async throws {
+        try await library.save(paper("W1"))
+        downloader.setFailure(failure)
+        let analytics = FakeAnalytics()
+        let repository = countingRepository(analytics)
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await eventually { background.endCount == 1 })
+        #expect(analytics.events == [.pdfDownloaded(succeeded: false)])
+    }
+
+    @Test func aNotPdfDownloadIsCountedAsFailed() async throws {
+        try await library.save(paper("W1"))
+        downloader.setBody(Self.html)
+        let analytics = FakeAnalytics()
+        let repository = countingRepository(analytics)
+
+        repository.download(openAlexID: "W1")
+
+        #expect(await eventually { background.endCount == 1 })
+        #expect(analytics.events == [.pdfDownloaded(succeeded: false)])
+    }
+
+    @Test func aCancelledDownloadIsNotCounted() async throws {
+        try await library.save(paper("W1"))
+        downloader.holdBodies()
+        let analytics = FakeAnalytics()
+        let repository = countingRepository(analytics)
+        repository.download(openAlexID: "W1")
+        #expect(await eventually { names().contains { $0.hasSuffix(".part") } })
+
+        repository.cancelDownload(openAlexID: "W1")
+        downloader.releaseBodies()
+
+        #expect(await eventually { background.endCount == 1 })
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func aDownloadForARemovedPaperIsNotCounted() async throws {
+        let analytics = FakeAnalytics()
+        let repository = countingRepository(analytics)
+
+        repository.download(openAlexID: "W-gone")
+
+        #expect(await eventually { background.endCount == 1 })
+        #expect(analytics.events.isEmpty)
+    }
 }

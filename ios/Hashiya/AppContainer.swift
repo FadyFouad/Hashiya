@@ -71,7 +71,7 @@ final class AppContainer {
         #endif
         do {
             return AppContainer(
-                dependencies: try LiveDependencies.live(background: UIKitBackgroundTime(), crash: diagnostics.crash),
+                dependencies: try LiveDependencies.live(background: UIKitBackgroundTime(), crash: diagnostics.crash, analytics: diagnostics.analytics),
                 appUpdateRepository: ConfigAppUpdateRepository.live(),
                 diagnostics: diagnostics
             )
@@ -106,7 +106,8 @@ final class AppContainer {
             collections: collectionsRepository,
             citations: citationRepository,
             pdfs: pdfRepository,
-            copy: { UIPasteboard.general.string = $0 }
+            copy: { UIPasteboard.general.string = $0 },
+            diagnostics: diagnostics
         )
     }
 
@@ -117,8 +118,9 @@ final class AppContainer {
             openAlexID: openAlexID,
             pdfs: pdfRepository,
             library: libraryRepository,
-            notes: NotesEditor(openAlexID: openAlexID, library: libraryRepository, pendingWrites: pendingWrites),
-            pendingWrites: pendingWrites
+            notes: NotesEditor(openAlexID: openAlexID, library: libraryRepository, pendingWrites: pendingWrites, diagnostics: diagnostics),
+            pendingWrites: pendingWrites,
+            diagnostics: diagnostics
         )
     }
 

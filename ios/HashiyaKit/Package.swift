@@ -90,11 +90,11 @@ let package = Package(
         ),
         .testTarget(
             name: "FeaturePaperDetailsTests",
-            dependencies: ["FeaturePaperDetails", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
+            dependencies: ["FeaturePaperDetails", "HashiyaData", "HashiyaDesignSystem", "HashiyaDiagnostics", "HashiyaModel", "HashiyaTesting"]
         ),
         .testTarget(
             name: "FeatureReaderTests",
-            dependencies: ["FeatureReader", "HashiyaData", "HashiyaDesignSystem", "HashiyaModel", "HashiyaTesting"]
+            dependencies: ["FeatureReader", "HashiyaData", "HashiyaDesignSystem", "HashiyaDiagnostics", "HashiyaModel", "HashiyaTesting"]
         ),
         .testTarget(
             name: "FeatureSettingsTests",

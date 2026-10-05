@@ -209,4 +209,47 @@ import Testing
         #expect(await eventually { crash.keys[.backupInProgress] == "none" })
         #expect(crash.records.isEmpty)
     }
+
+    // MARK: Usage statistics
+
+    private func countingViewModel(_ analytics: FakeAnalytics) -> SettingsViewModel {
+        SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: FakePdfRepository(), backup: backup, diagnostics: .fake(analytics: analytics))
+    }
+
+    private func buildExport(_ viewModel: SettingsViewModel, includePdfs: Bool) async {
+        viewModel.startExport()
+        viewModel.setIncludePdfs(includePdfs)
+        viewModel.confirmExport()
+        #expect(await eventually { isReadyToSave(viewModel) })
+    }
+
+    @Test(arguments: [false, true])
+    func aSavedBackupIsCountedWithTheChosenPdfs(includePdfs: Bool) async {
+        let analytics = FakeAnalytics()
+        let viewModel = countingViewModel(analytics)
+        await buildExport(viewModel, includePdfs: includePdfs)
+        #expect(analytics.events.isEmpty)
+        viewModel.exportFinished(.saved)
+        #expect(analytics.events == [.export(format: .backup, withPdfs: includePdfs)])
+    }
+
+    @Test(arguments: [SaveOutcome.cancelled, .failed])
+    func aBackupThatWasNotSavedIsNotCounted(outcome: SaveOutcome) async {
+        let analytics = FakeAnalytics()
+        let viewModel = countingViewModel(analytics)
+        await buildExport(viewModel, includePdfs: true)
+        viewModel.exportFinished(outcome)
+        #expect(analytics.events.isEmpty)
+    }
+
+    @Test func aFailedBuildIsNotCounted() async {
+        backup.exportFailure = .writeFailed
+        let analytics = FakeAnalytics()
+        let viewModel = countingViewModel(analytics)
+        viewModel.startExport()
+        viewModel.confirmExport()
+        #expect(await eventually { if case .building = viewModel.backup.export { false } else { true } })
+        viewModel.exportFinished(.saved)
+        #expect(analytics.events.isEmpty)
+    }
 }

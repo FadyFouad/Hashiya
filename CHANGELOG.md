@@ -10,6 +10,7 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 - **iOS: iPad.** The app runs natively on iPad: full screen, Split View, Stage Manager and resizable windows. The tabs sit at the top. The Library and Search show a paper beside their list, with a button to hide the list. The reader shows your notes beside the PDF and hides the list for a wider page; leaving it brings the list back. An open paper survives resizing, and each window keeps its own tab and paper.
 - **iOS: more than one iPad window.** "Open in New Window" in a paper's menu opens it in a window of its own, to read it beside another paper or the Library.
 - **iOS: keyboard and pointer on iPad.** ⌘N adds a paper, ⌘1 and ⌘2 switch between the Library and Search, and ⌘, opens Settings; in the reader, ⌘F finds in the PDF. Long-press or right-click a Library row or a Search result for its menu.
+- **iOS: searching keeps working when OpenAlex's shared budget runs out.** Searches without a personal OpenAlex key share a daily allowance per device, then fall back to OpenAlex's keyless budget; when both are used up, Search says when it works again. Repeated searches are kept for a day, and Settings links to free personal keys.
 
 ### Changed
 - **Android: Details groups Collections, PDF and DOI in one list.** The PDF row's main action is a button that follows its state: Download PDF, Read PDF or Attach PDF; Replace and Remove stay in its ⋮ menu. The DOI is a row that opens the paper's DOI page, and is hidden when there is none.

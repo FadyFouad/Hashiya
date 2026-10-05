@@ -37,9 +37,10 @@ public struct LiveDependencies: Sendable {
     }
 
     /// The real graph: the App Group database (one store for the library, collections, citations and PDFs), the Keychain,
-    /// OpenAlex over one URLSession, arXiv over its own and PDFs over a third. Reads `OpenAlexAPIKey` and
-    /// `KeychainAccessGroup` from `bundle`'s Info.plist. `background` is the app's `UIKitBackgroundTime`; the Share
-    /// Extension keeps the default and never downloads.
+    /// OpenAlex over one URLSession, arXiv over its own and PDFs over a third. Both OpenAlex clients share one quota (the
+    /// routes and the daily cap) and one search cache. Reads `OpenAlexAPIKey` and `KeychainAccessGroup` from `bundle`'s
+    /// Info.plist. `background` is the app's `UIKitBackgroundTime`; the Share Extension keeps the default and never
+    /// downloads.
     public static func live(bundle: Bundle = .main, background: any BackgroundTimeGranting = NoBackgroundTime()) throws -> LiveDependencies {
         let preferences = KeychainUserPreferencesRepository(
             keychain: SystemKeychainStore(accessGroup: infoValue(bundle.object(forInfoDictionaryKey: "KeychainAccessGroup")))

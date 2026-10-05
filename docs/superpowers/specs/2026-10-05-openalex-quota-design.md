@@ -1,7 +1,7 @@
 # OpenAlex quota protection — Design
 
 - **Date:** 2026-10-05
-- **Status:** Approved in brainstorming; awaiting spec review
+- **Status:** Approved
 - **Scope:** Both platforms. iOS ships first, then Android, each with its own plan and PR. No server is built; the contract for a later one is written down.
 
 ## 1. Context

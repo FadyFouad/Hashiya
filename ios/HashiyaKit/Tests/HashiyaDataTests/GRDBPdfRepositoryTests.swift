@@ -632,12 +632,27 @@ struct GRDBPdfRepositoryTests {
 
     @Test func anAttachWhoseCopyFailsIsReported() async throws {
         try await library.save(paper("W1"))
+        // A file where the folder should be: creating the folder fails, which the store reports as `PdfWriteError`.
+        let blocked = FileManager.default.temporaryDirectory.appending(path: "blocked-\(UUID().uuidString)")
+        try Data().write(to: blocked)
+        defer { try? FileManager.default.removeItem(at: blocked) }
+        let crash = FakeCrashReporting()
+        let repository = reportingRepository(crash, files: PdfFileStore(directory: blocked))
+
+        #expect(await repository.attach(openAlexID: "W1", from: try temporaryFile(Self.pdf)) == .unreadable)
+
+        #expect(crash.records.map(\.site) == [.pdfStore])
+        #expect(crash.records.first?.type.hasSuffix("PdfWriteError") == true)
+    }
+
+    @Test func anUnreadableSourceIsNotReported() async throws {
+        try await library.save(paper("W1"))
         let crash = FakeCrashReporting()
         let missing = FileManager.default.temporaryDirectory.appending(path: "missing-\(UUID().uuidString).pdf")
 
         #expect(await reportingRepository(crash).attach(openAlexID: "W1", from: missing) == .unreadable)
 
-        #expect(crash.records.map(\.site) == [.pdfStore])
+        #expect(crash.records.isEmpty)
     }
 
     @Test func anAttachWhoseRowCantBeWrittenIsReported() async throws {

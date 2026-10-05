@@ -166,7 +166,8 @@ public final class GRDBPdfRepository: PdfRepository {
                 }
             }
         } catch {
-            recordWriteFailure(error)
+            // Only writing the copy counts: a picked file that can't be read is the source's problem, not the app's.
+            if error is PdfWriteError { recordWriteFailure(error) }
             return .unreadable
         }
         if result == .done { report(openAlexID, nil, token: nil) }

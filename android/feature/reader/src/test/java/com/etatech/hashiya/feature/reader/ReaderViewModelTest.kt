@@ -240,6 +240,34 @@ class ReaderViewModelTest {
     }
 
     @Test
+    fun aPdfOpenedByReplaceAfterCantOpenIsCountedAsAttached() = runTest {
+        savedWithPdf()
+        var attempts = 0
+        val viewModel = viewModel(open = { if (attempts++ == 0) throw IOException("damaged") else FakePdfPageSource(3) })
+        advanceUntilIdle()
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+        pdfs.setAttachResult(AttachResult.Done)
+
+        viewModel.onReplace(Uri.parse("content://downloads/paper.pdf"))
+        advanceUntilIdle()
+
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PdfOpened(PdfOrigin.Attached)), analytics.events)
+    }
+
+    @Test
+    fun replacingAPdfThatAlreadyOpenedAddsNoSecondEvent() = runTest {
+        savedWithPdf()
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        pdfs.setAttachResult(AttachResult.Done)
+
+        viewModel.onReplace(Uri.parse("content://downloads/paper.pdf"))
+        advanceUntilIdle()
+
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PdfOpened(PdfOrigin.Downloaded)), analytics.events)
+    }
+
+    @Test
     fun replacingAnUnreadableFileOpensTheNewOne() = runTest {
         savedWithPdf()
         var attempts = 0

@@ -1,3 +1,4 @@
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaNetwork
 
@@ -14,11 +15,20 @@ public struct SearchPage: Equatable, Sendable {
     public var totalCount: Int64
     /// Nil when `meta.next_cursor` is null or the page has no results.
     public var nextCursor: String?
+    /// How the page was obtained; nil when the service doesn't say.
+    public var route: SearchRoute?
+    /// The research area worked out from a first page's topics; `unknown` for later pages.
+    public var category: ResearchCategory
 
-    public init(papers: [Paper], totalCount: Int64, nextCursor: String?) {
+    public init(
+        papers: [Paper], totalCount: Int64, nextCursor: String?,
+        route: SearchRoute? = nil, category: ResearchCategory = .unknown
+    ) {
         self.papers = papers
         self.totalCount = totalCount
         self.nextCursor = nextCursor
+        self.route = route
+        self.category = category
     }
 }
 
@@ -50,7 +60,22 @@ public struct OpenAlexSearchRepository: SearchRepository {
         return SearchPage(
             papers: response.results.map { $0.asPaper() },
             totalCount: response.meta.count,
-            nextCursor: response.results.isEmpty ? nil : response.meta.nextCursor
+            nextCursor: response.results.isEmpty ? nil : response.meta.nextCursor,
+            route: response.route.map(SearchRoute.init),
+            category: cursor == nil
+                ? ResearchCategory.classify(response.results.map { TopicIDs(subfield: $0.primaryTopic?.subfieldID, field: $0.primaryTopic?.fieldID, domain: $0.primaryTopic?.domainID) })
+                : .unknown
         )
+    }
+}
+
+extension SearchRoute {
+    init(_ route: RequestRoute) {
+        switch route {
+        case .user: self = .user
+        case .shared: self = .shared
+        case .keyless: self = .keyless
+        case .cached: self = .cached
+        }
     }
 }

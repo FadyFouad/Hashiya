@@ -1,5 +1,6 @@
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import SwiftUI
 import UIKit
@@ -11,6 +12,7 @@ public struct SettingsView: View {
     @State private var confirmingDelete = false
     @State private var importing = false
     @State private var restoreSource: URL?
+    @Environment(\.diagnostics) private var diagnostics
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     private let makeRestoreViewModel: (URL) -> RestoreViewModel
@@ -32,6 +34,7 @@ public struct SettingsView: View {
                 apiKeySection
                 storageSection
                 BackupSection(summary: viewModel.backup.summary, onRestore: { importing = true })
+                privacySection
                 languageSection
             }
             .scrollContentBackground(.hidden)
@@ -39,6 +42,7 @@ public struct SettingsView: View {
             .navigationTitle(Text(verbatim: L10n.string("settings.title")))
             .navigationBarTitleDisplayMode(.inline)
             .task { await viewModel.loadStorage() }
+            .onAppear { diagnostics.screenShown(.settings) }
             // Also when the Export screen or a restore returns, so the counts are never stale.
             .onAppear { Task { await viewModel.loadBackupSummary() } }
             .navigationDestination(for: SettingsDestination.self) { destination in
@@ -179,6 +183,50 @@ public struct SettingsView: View {
                 .foregroundStyle(HashiyaColors.onSurface)
                 .textCase(nil)
         }
+    }
+
+    private var privacySection: some View {
+        Section {
+            privacyToggle(
+                titleKey: "settings.crashReports", footerKey: "settings.crashReportsFooter", identifier: "settings.crashReports",
+                isOn: Binding(get: { viewModel.crashReportsEnabled }, set: { viewModel.setCrashReportsEnabled($0) })
+            )
+            privacyToggle(
+                titleKey: "settings.analytics", footerKey: "settings.analyticsFooter", identifier: "settings.analytics",
+                isOn: Binding(get: { viewModel.analyticsEnabled }, set: { viewModel.setAnalyticsEnabled($0) })
+            )
+            Button {
+                openURL(Self.privacyPolicyURL)
+            } label: {
+                HStack {
+                    Text(verbatim: L10n.string("settings.privacyPolicy")).font(.hashiya(.body)).foregroundStyle(HashiyaColors.onSurface)
+                    Spacer()
+                    Image(systemName: "arrow.up.forward.app").foregroundStyle(HashiyaColors.primary)
+                }
+            }
+            .accessibilityIdentifier("settings.privacyPolicy")
+        } header: {
+            Text(verbatim: L10n.string("settings.privacySection"))
+                .font(.hashiya(.stateTitle))
+                .foregroundStyle(HashiyaColors.onSurface)
+                .textCase(nil)
+        }
+    }
+
+    private func privacyToggle(titleKey: String, footerKey: String, identifier: String, isOn: Binding<Bool>) -> some View {
+        Toggle(isOn: isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(verbatim: L10n.string(titleKey)).font(.hashiya(.body)).foregroundStyle(HashiyaColors.onSurface)
+                Text(verbatim: L10n.string(footerKey)).font(.hashiya(.meta)).foregroundStyle(HashiyaColors.onSurfaceVariant)
+            }
+        }
+        .tint(HashiyaColors.primary)
+        .accessibilityIdentifier(identifier)
+    }
+
+    /// The published policy; Arabic opens its Arabic half.
+    private static var privacyPolicyURL: URL {
+        URL(string: "https://fadyfouad.github.io/Hashiya-Privacy-Policy/" + (HashiyaLanguage.isArabic ? "#ar" : ""))!
     }
 
     private var languageSection: some View {

@@ -1,4 +1,6 @@
+import Foundation
 import HashiyaData
+import HashiyaDiagnostics
 import HashiyaModel
 import HashiyaTesting
 import Testing
@@ -161,5 +163,78 @@ struct NotesEditorTests {
         #expect(editor.notes == PaperNotes(summary: "Typed during the read"))
         #expect(editor.version == 0)
         #expect(library.notes(of: id) == PaperNotes(summary: "Typed during the read"))
+    }
+
+    // MARK: Usage statistics
+
+    /// The once-per-session set is shared by the whole process, so each test gets papers of its own.
+    private func freshID() -> String { "W-notes-\(UUID().uuidString)" }
+
+    private func countingEditor(_ id: String, _ library: FakeLibraryRepository, _ analytics: FakeAnalytics) async -> NotesEditor {
+        let editor = NotesEditor(
+            openAlexID: id, library: library, pendingWrites: pendingWrites, diagnostics: .fake(analytics: analytics), sleep: sleeper.sleep
+        )
+        await editor.load()
+        return editor
+    }
+
+    @Test func twoSavesOfOnePapersNotesAreCountedOnce() async {
+        let id = freshID()
+        let analytics = FakeAnalytics()
+        let editor = await countingEditor(id, FakeLibraryRepository(saved: [SamplePapers.attention]), analytics)
+
+        editor.onNoteChange(section: .summary, text: "A")
+        await pauseEnds()
+        #expect(await eventually { editor.saveState == .saved })
+        editor.onNoteChange(section: .summary, text: "AB")
+        await pauseEnds()
+        #expect(await eventually { !editor.hasUnsavedChanges && editor.notes.summary == "AB" })
+
+        #expect(analytics.events == [.noteEdited])
+    }
+
+    @Test func aSecondPaperIsCountedToo() async {
+        let analytics = FakeAnalytics()
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention])
+        let first = await countingEditor(freshID(), library, analytics)
+        let second = await countingEditor(freshID(), library, analytics)
+
+        first.onNoteChange(section: .summary, text: "A")
+        await pauseEnds()
+        #expect(await eventually { first.saveState == .saved })
+        second.onNoteChange(section: .method, text: "B")
+        await pauseEnds()
+        #expect(await eventually { second.saveState == .saved })
+
+        #expect(analytics.events == [.noteEdited, .noteEdited])
+    }
+
+    @Test func aFailedSaveIsNotCountedAndTheNextSuccessIs() async {
+        let analytics = FakeAnalytics()
+        let library = FakeLibraryRepository(saved: [SamplePapers.attention])
+        let editor = await countingEditor(freshID(), library, analytics)
+        library.setFailSaveNotes(true)
+
+        editor.onNoteChange(section: .summary, text: "A")
+        await pauseEnds()
+        #expect(await eventually { editor.saveState == .failed })
+        #expect(analytics.events.isEmpty)
+
+        library.setFailSaveNotes(false)
+        editor.retry()
+        #expect(await eventually { editor.saveState == .saved })
+        #expect(analytics.events == [.noteEdited])
+    }
+
+    @Test func theNoteTextNeverReachesTheEvent() async {
+        let analytics = FakeAnalytics()
+        let editor = await countingEditor(freshID(), FakeLibraryRepository(saved: [SamplePapers.attention]), analytics)
+
+        editor.onNoteChange(section: .summary, text: "Follows 10.1038/nature14539")
+        await pauseEnds()
+        #expect(await eventually { editor.saveState == .saved })
+
+        #expect(analytics.events == [.noteEdited])
+        #expect(!String(describing: analytics.events).contains("nature14539"))
     }
 }

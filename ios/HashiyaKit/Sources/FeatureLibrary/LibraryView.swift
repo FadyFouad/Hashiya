@@ -1,9 +1,11 @@
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import SwiftUI
 
 /// The Library tab's screen. Put it in a `NavigationStack`. Works offline.
 public struct LibraryView: View {
+    @Environment(\.diagnostics) private var diagnostics
     @Bindable private var viewModel: LibraryViewModel
     private let onGoToSearch: () -> Void
     private let onAddPaper: () -> Void
@@ -134,6 +136,7 @@ public struct LibraryView: View {
             } message: { _ in
                 Text(verbatim: L10n.string("library.deleteCollectionMessage"))
             }
+            .onAppear { diagnostics.screenShown(.library) }
             .onAppear {
                 viewModel.restore(
                     text: storedQuery,

@@ -2,6 +2,7 @@ import FeaturePaperDetails
 import FeatureSettings
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import SwiftUI
 
 @main
@@ -16,7 +17,8 @@ struct HashiyaApp: App {
     init() {
         HashiyaFonts.register()
         HashiyaFonts.applyNavigationBarFonts()
-        _container = State(initialValue: Self.isSnapshotTestHost ? nil : AppContainer.make())
+        let diagnostics = Self.isSnapshotTestHost ? Diagnostics.none : DiagnosticsStartup.make()
+        _container = State(initialValue: Self.isSnapshotTestHost ? nil : AppContainer.make(diagnostics: diagnostics))
         // Backups another app handed over that an earlier run never got to restore.
         if !Self.isSnapshotTestHost {
             Task.detached(priority: .utility) {

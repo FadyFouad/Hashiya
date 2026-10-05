@@ -1,6 +1,7 @@
 import Foundation
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import Observation
 import PDFKit
@@ -69,6 +70,9 @@ public final class ReaderViewModel {
     @ObservationIgnored private var opening: Task<Void, Never>?
     /// The current `start()`'s follower of the stored PDF.
     @ObservationIgnored private var follower: Task<Void, Never>?
+    @ObservationIgnored private let diagnostics: Diagnostics
+    /// The PDF opened once; reopening it (a replaced file) isn't counted again.
+    @ObservationIgnored private var openCounted = false
 
     public init(
         openAlexID: String,
@@ -76,6 +80,7 @@ public final class ReaderViewModel {
         library: any LibraryRepository,
         notes: NotesEditor,
         pendingWrites: PendingWrites,
+        diagnostics: Diagnostics = .none,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {
         self.openAlexID = openAlexID
@@ -83,6 +88,7 @@ public final class ReaderViewModel {
         self.library = library
         self.notes = notes
         self.pendingWrites = pendingWrites
+        self.diagnostics = diagnostics
         self.sleep = sleep
     }
 
@@ -154,6 +160,7 @@ public final class ReaderViewModel {
             guard let stored = await pdfs.pdfFile(openAlexID: openAlexID) else { return close() }
             savedPage = 0
             open(stored, page: 0)
+            countOpened(source: .attached)
         case .notPDF: message = .notPDF
         case .tooLarge: message = .tooLarge
         case .unreadable: message = .attachFailed
@@ -181,6 +188,7 @@ public final class ReaderViewModel {
         guard let stored, let url = await pdfs.pdfFile(openAlexID: openAlexID) else { return close() }
         savedPage = stored.lastPage
         open(url, page: stored.lastPage)
+        countOpened(source: stored.source == .attached ? .attached : .downloaded)
         await notes.load()
     }
 
@@ -189,6 +197,13 @@ public final class ReaderViewModel {
         for await pdf in pdfs.observePdf(openAlexID: openAlexID) where pdf == nil {
             return close()
         }
+    }
+
+    /// Counts the first PDF that opens, not one PDFKit can't read.
+    private func countOpened(source: PdfOrigin) {
+        guard !openCounted, case .ready = state else { return }
+        openCounted = true
+        diagnostics.analytics.log(.pdfOpened(source: source))
     }
 
     private func open(_ url: URL, page: Int) {

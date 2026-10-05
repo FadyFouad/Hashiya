@@ -17,8 +17,8 @@ The repository is public.
 | Goal | Every crash, fast, with full stack traces and context. |
 | Service | Firebase Crashlytics on both platforms. No Firebase Analytics, no ads identifiers, no user IDs. |
 | Consent | On by default, with a **Send crash reports** switch in Settings to turn it off. |
-| Content | Crashes (and Android ANRs), a few coarse custom keys, and non-fatal reports from the data-safety paths. No breadcrumbs. |
-| Never sent | Titles, DOIs, OpenAlex ids, search text, notes, collection names, file paths, the API key, URLs, error messages. |
+| Content | Crashes (and Android ANRs), a few coarse custom keys, and non-fatal reports from the data-safety paths. No breadcrumbs. With Firebase Analytics present (analytics spec), Crashlytics attaches the app's analytics events to crash reports as breadcrumbs; they are the same closed-list events, so nothing new is sent. |
+| Never sent | Titles, DOIs, OpenAlex ids, search text, notes, collection names, file paths, the API key, URLs, error messages. Trap messages (fatalError, precondition) are constant strings, because crash reports include them. |
 | Config files | `google-services.json` and `GoogleService-Info.plist` are committed; the API keys are restricted in Google Cloud. |
 | Architecture | A small reporting interface per platform; Firebase only in the app target. |
 | Builds | Collection only in release builds; never in debug builds, unit, UI or snapshot tests. |

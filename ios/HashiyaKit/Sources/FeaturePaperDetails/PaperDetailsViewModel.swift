@@ -1,6 +1,7 @@
 import Foundation
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import HashiyaModel
 import Observation
 
@@ -78,6 +79,7 @@ public final class PaperDetailsViewModel {
     @ObservationIgnored private var readerShown = false
     /// Read is saving the notes; another tap is ignored until it ends.
     @ObservationIgnored private var savingForReader = false
+    @ObservationIgnored private let diagnostics: Diagnostics
     @ObservationIgnored private let copy: @MainActor (String) -> Void
     @ObservationIgnored private let notesEditor: NotesEditor
     /// The one read of the notes; a later `start()` waits for it instead of reading again.
@@ -95,6 +97,7 @@ public final class PaperDetailsViewModel {
         citations: any CitationRepository,
         pdfs: any PdfRepository,
         copy: @escaping @MainActor (String) -> Void,
+        diagnostics: Diagnostics = .none,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {
         self.openAlexID = openAlexID
@@ -104,7 +107,8 @@ public final class PaperDetailsViewModel {
         self.citations = citations
         self.pdfs = pdfs
         self.copy = copy
-        notesEditor = NotesEditor(openAlexID: openAlexID, library: library, pendingWrites: pendingWrites, sleep: sleep)
+        self.diagnostics = diagnostics
+        notesEditor = NotesEditor(openAlexID: openAlexID, library: library, pendingWrites: pendingWrites, diagnostics: diagnostics, sleep: sleep)
         notesEditor.onSaveFailed = { [weak self] in self?.message = .notesSaveFailed }
     }
 
@@ -219,7 +223,9 @@ public final class PaperDetailsViewModel {
     /// stored state on screen.
     public func toggleCollection(_ id: Int64) async {
         do {
-            try await collectionsRepository.setMembership(collectionID: id, openAlexID: openAlexID, member: !memberIDs.contains(id))
+            let adding = !memberIDs.contains(id)
+            try await collectionsRepository.setMembership(collectionID: id, openAlexID: openAlexID, member: adding)
+            if adding { diagnostics.analytics.log(.paperAddedToCollection) }
         } catch {
             message = .collectionsUpdateFailed
         }
@@ -247,7 +253,9 @@ public final class PaperDetailsViewModel {
             switch try await collectionsRepository.create(name: name) {
             case .done(let id):
                 dismissNameSheet()
+                diagnostics.analytics.log(.collectionCreated)
                 try await collectionsRepository.setMembership(collectionID: id, openAlexID: openAlexID, member: true)
+                diagnostics.analytics.log(.paperAddedToCollection)
             case .nameTaken:
                 nameSheetError = DesignSystemStrings.collectionNameTaken
             case .invalidName, .notFound:

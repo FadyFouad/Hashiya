@@ -1,5 +1,6 @@
 import Foundation
 import HashiyaData
+import HashiyaDiagnostics
 import HashiyaModel
 import Observation
 import os
@@ -56,6 +57,8 @@ public final class SearchViewModel {
     @ObservationIgnored private let repository: any SearchRepository
     @ObservationIgnored private let lookupRepository: any PaperLookupRepository
     @ObservationIgnored private let library: any LibraryRepository
+    @ObservationIgnored private let preferences: any UserPreferencesRepository
+    @ObservationIgnored private let diagnostics: Diagnostics
     @ObservationIgnored private var activeQuery: SearchQuery?
     @ObservationIgnored private var nextCursor: String?
     @ObservationIgnored private var pagesLoaded = 0
@@ -73,11 +76,14 @@ public final class SearchViewModel {
         repository: any SearchRepository,
         lookup: any PaperLookupRepository,
         library: any LibraryRepository,
-        preferences: any UserPreferencesRepository
+        preferences: any UserPreferencesRepository,
+        diagnostics: Diagnostics = .none
     ) {
         self.repository = repository
         self.lookupRepository = lookup
         self.library = library
+        self.preferences = preferences
+        self.diagnostics = diagnostics
 
         observations.add(Task { [weak self] in
             for await ids in library.observeSavedIDs() {
@@ -174,7 +180,7 @@ public final class SearchViewModel {
         guard !restoredText.isEmpty || restoredQuery != SearchQuery(text: "") else { return }
         text = restoredText
         query = restoredQuery
-        submit(restoredText)
+        submit(restoredText, countsAsSearch: false)
     }
 
     // MARK: Paging
@@ -213,6 +219,7 @@ public final class SearchViewModel {
         } else {
             do {
                 try await library.save(paper)
+                diagnostics.analytics.log(.paperSaved(from: lookup != nil ? .lookup : .search))
             } catch {
                 message = .saveFailed
             }
@@ -222,7 +229,9 @@ public final class SearchViewModel {
     /// The sheet's Remove, and Remove on Details opened from Search.
     public func remove(openAlexID: String) async {
         do {
-            _ = try await library.remove(openAlexID: openAlexID)
+            if try await library.remove(openAlexID: openAlexID) != nil {
+                diagnostics.analytics.log(.paperRemoved)
+            }
         } catch {
             message = .removeFailed
         }
@@ -232,12 +241,13 @@ public final class SearchViewModel {
 
     /// An identifier or a link switches to ID mode; anything else is a keyword query without Arabic marks
     /// (a query of only marks is idle).
-    private func submit(_ submitted: String) {
+    /// `countsAsSearch` is false for a re-run the user didn't ask for (the restored scene).
+    private func submit(_ submitted: String, countsAsSearch: Bool = true) {
         let trimmed = submitted.trimmingCharacters(in: .whitespacesAndNewlines)
         if let identifier = parsePaperIdentifier(submitted) {
             query.text = trimmed
             stopKeywordSearch()
-            startLookup(identifier)
+            startLookup(identifier, countsAsSearch: countsAsSearch)
             return
         }
         if looksLikeLink(submitted) {
@@ -254,7 +264,7 @@ public final class SearchViewModel {
             stopKeywordSearch()
             return
         }
-        activate(query)
+        activate(query, countsAsSearch: countsAsSearch)
     }
 
     /// The keyword query for the text: trimmed, without Arabic marks.
@@ -276,12 +286,13 @@ public final class SearchViewModel {
     }
 
     /// The same identifier again (e.g. with a version or a prefix) keeps its result unless it failed.
-    private func startLookup(_ identifier: PaperIdentifier) {
+    private func startLookup(_ identifier: PaperIdentifier, countsAsSearch: Bool) {
         if identifier == lookupIdentifier, let lookup, !lookup.isFailure { return }
-        runLookup(identifier)
+        runLookup(identifier, countsAsSearch: countsAsSearch)
     }
 
-    private func runLookup(_ identifier: PaperIdentifier) {
+    private func runLookup(_ identifier: PaperIdentifier, countsAsSearch: Bool = true) {
+        let submittedText = text
         lookupTask?.cancel()
         lookupIdentifier = identifier
         lookup = .looking(identifier)
@@ -290,6 +301,7 @@ public final class SearchViewModel {
             guard !Task.isCancelled else { return }
             let result = await lookupRepository.lookup(identifier)
             guard let self, !Task.isCancelled else { return }
+            if countsAsSearch { self.logLookup(result, identifier: identifier, submittedText: submittedText) }
             self.lookup = switch result {
             case let .found(paper): .found(paper)
             case let .notFound(arxivTitle): .notFound(identifier, searchTitle: arxivTitle)
@@ -298,22 +310,43 @@ public final class SearchViewModel {
         }
     }
 
+    /// A lookup is a search of its kind; a failed one sends nothing. Lookups have no research area.
+    private func logLookup(_ result: LookupResult, identifier: PaperIdentifier, submittedText: String) {
+        let kind: SearchKind = if looksLikeLink(submittedText) {
+            .link
+        } else {
+            switch identifier {
+            case .doi: .doi
+            case .arxiv: .arxiv
+            }
+        }
+        let results: ResultsBucket
+        switch result {
+        case .found: results = .upTo25
+        case .notFound: results = .zero
+        case .failed: return
+        }
+        diagnostics.analytics.log(.search(kind: kind, hasFilters: false, route: ownKeyRoute, results: results, category: nil))
+    }
+
+    private var ownKeyRoute: SearchRoute { preferences.currentUserAPIKey != nil ? .user : .shared }
+
     private func chipsChanged() {
         guard activeQuery != nil else { return }
         activate(query)
     }
 
-    private func activate(_ newQuery: SearchQuery) {
+    private func activate(_ newQuery: SearchQuery, countsAsSearch: Bool = true) {
         guard newQuery != activeQuery else { return }
         activeQuery = newQuery
-        loadFirstPage()
+        loadFirstPage(countsAsSearch: countsAsSearch)
     }
 
     private func reloadAfterKeyChange() {
         if let identifier = lookupIdentifier {
-            runLookup(identifier)
+            runLookup(identifier, countsAsSearch: false)
         } else if activeQuery != nil {
-            loadFirstPage()
+            loadFirstPage(countsAsSearch: false)
         }
     }
 
@@ -326,7 +359,7 @@ public final class SearchViewModel {
         append = .idle
     }
 
-    private func loadFirstPage() {
+    private func loadFirstPage(countsAsSearch: Bool = true) {
         guard let active = activeQuery else { return }
         supersede(searchTask)
         resetResults()
@@ -338,6 +371,12 @@ public final class SearchViewModel {
                 let page = try await repository.searchPage(active, cursor: nil)
                 guard let self, !Task.isCancelled else { return }
                 self.totalCount = page.totalCount
+                if countsAsSearch {
+                    self.diagnostics.analytics.log(.search(
+                        kind: .keyword, hasFilters: active.hasActiveFilters, route: page.route ?? self.ownKeyRoute,
+                        results: ResultsBucket(count: page.totalCount), category: page.category
+                    ))
+                }
                 self.add(page)
                 self.phase = self.papers.isEmpty ? .empty : .results
             } catch is CancellationError {
@@ -345,8 +384,13 @@ public final class SearchViewModel {
             } catch {
                 guard let self, !Task.isCancelled else { return }
                 self.phase = .failed(error as? SearchError ?? .unexpected)
+                self.logIfDailyLimit(error)
             }
         }
+    }
+
+    private func logIfDailyLimit(_ error: Error) {
+        if case .dailyLimit = error as? SearchError { diagnostics.analytics.log(.searchLimitReached(.daily)) }
     }
 
     private func supersede(_ task: Task<Void, Never>?) {
@@ -382,6 +426,7 @@ public final class SearchViewModel {
             } catch {
                 guard let self, !Task.isCancelled else { return }
                 self.append = .failed(error as? SearchError ?? .unexpected)
+                self.logIfDailyLimit(error)
             }
         }
     }
@@ -393,11 +438,13 @@ public final class SearchViewModel {
         papers.append(contentsOf: new)
         nextCursor = page.nextCursor
         pagesLoaded += 1
+        if pagesLoaded >= 2 { diagnostics.analytics.log(.searchMore(page: pagesLoaded)) }
         let cap = repository.maxPagesPerQuery
         if page.nextCursor == nil {
             append = .endReached
         } else if pagesLoaded >= cap {
             append = .capReached(results: cap * SearchQuery.pageSize)
+            diagnostics.analytics.log(.searchLimitReached(.pageCap))
         } else {
             append = .idle
         }

@@ -6,6 +6,7 @@ import FeatureSettings
 import Foundation
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import UIKit
 
 /// Owns the long-lived objects and creates the view models. Built once per app launch.
@@ -25,8 +26,11 @@ final class AppContainer {
     let backup: any LibraryBackup
     /// Note writes the app waits for before it suspends the shared database in the background.
     let pendingWrites = PendingWrites()
+    /// What the root views hand to the screens through the environment.
+    let diagnostics: Diagnostics
 
-    init(dependencies: LiveDependencies, appUpdateRepository: any AppUpdateRepository) {
+    init(dependencies: LiveDependencies, appUpdateRepository: any AppUpdateRepository, diagnostics: Diagnostics = .none) {
+        self.diagnostics = diagnostics
         libraryRepository = dependencies.libraryRepository
         searchRepository = dependencies.searchRepository
         lookupRepository = dependencies.lookupRepository
@@ -39,10 +43,23 @@ final class AppContainer {
         // Files whose paper is gone (an Undo window the app didn't outlive) and unfinished downloads.
         Task { [pdfs = dependencies.pdfs] in await pdfs.sweepOrphans() }
         self.appUpdateRepository = appUpdateRepository
+        // Collection, crash keys and user properties; the library's size is only known once the database has answered.
+        Task { [diagnostics, backup = dependencies.backup, preferences = dependencies.preferences] in
+            let papers = try? await backup.summary().papers
+            await MainActor.run {
+                DiagnosticsLaunch.apply(
+                    diagnostics: diagnostics, privacy: PrivacySettings(), languageCode: HashiyaLanguage.code,
+                    librarySize: papers, hasOwnKey: preferences.currentUserAPIKey != nil
+                )
+            }
+            for await key in preferences.userAPIKeyUpdates() {
+                diagnostics.analytics.setProperty(.hasOwnKey, key == nil ? YesNo.no : YesNo.yes)
+            }
+        }
     }
 
     /// The real graph, or — in Debug builds launched with `-ui-testing` — the UI tests' library file, stub search and lookup.
-    static func make(arguments: [String] = ProcessInfo.processInfo.arguments) -> AppContainer {
+    static func make(arguments: [String] = ProcessInfo.processInfo.arguments, diagnostics: Diagnostics = .none) -> AppContainer {
         #if DEBUG
         // Tells a Debug Share Extension whether to use the UI tests' stubs; reset on every other launch.
         UITestingFlags.stubsEnabled = arguments.contains("-ui-testing")
@@ -53,9 +70,15 @@ final class AppContainer {
         }
         #endif
         do {
-            return AppContainer(dependencies: try LiveDependencies.live(background: UIKitBackgroundTime()), appUpdateRepository: ConfigAppUpdateRepository.live())
+            return AppContainer(
+                dependencies: try LiveDependencies.live(background: UIKitBackgroundTime(), crash: diagnostics.crash),
+                appUpdateRepository: ConfigAppUpdateRepository.live(),
+                diagnostics: diagnostics
+            )
         } catch {
-            fatalError("Could not open the library database: \(error)")
+            diagnostics.crash.record(error, site: error.isMigrationFailure ? .migration : .databaseOpen)
+            // The error's description can hold file paths: it went to the crash report sanitised, not here.
+            fatalError("Could not open the library database")
         }
     }
 

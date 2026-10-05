@@ -5,6 +5,7 @@ import FeatureSearch
 import FeatureSettings
 import HashiyaData
 import HashiyaDesignSystem
+import HashiyaDiagnostics
 import SwiftUI
 
 /// Library and Search tabs, each with its own list of pushed screens (a saved paper's Details and its PDF reader);
@@ -64,6 +65,7 @@ struct RootView: View {
         }
         // The window's width class for every screen (iPad windows, Split View, Stage Manager, rotation).
         .measuresLayoutClass()
+        .environment(\.diagnostics, container.diagnostics)
         // The library database follows the whole app (HashiyaApp); each window checks for a required update.
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active { Task { await appUpdate.check() } }
@@ -364,7 +366,9 @@ struct RootView: View {
     private func restoreScene() {
         guard !restoredScene else { return }
         restoredScene = true
+        #if DEBUG
         guard !UITestingFlags.stubsEnabled else { return }
+        #endif
         selectedTab = savedTab.flatMap(Tab.init(rawValue:)) ?? .library
         libraryRoutes = .init(sceneData: savedLibraryRoutes)
         searchRoutes = .init(sceneData: savedSearchRoutes)

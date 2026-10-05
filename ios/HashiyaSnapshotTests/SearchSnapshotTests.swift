@@ -99,6 +99,16 @@ struct SearchSnapshotTests {
         assertHashiyaSnapshots(of: screen(viewModel), named: "appendError", arabicText: "تعذّر تحميل المزيد من النتائج")
     }
 
+    @Test func appendDailyLimitFooter() async {
+        let viewModel = await resultsViewModel()
+        viewModel.append = .failed(.dailyLimit(resetAt: ISO8601DateFormatter().date(from: "2026-10-06T00:00:00Z")!))
+        assertHashiyaSnapshots(
+            of: screen(viewModel).environment(\.timeZone, TimeZone(identifier: "Asia/Riyadh")!),
+            named: "appendDailyLimit",
+            arabicText: "سيتوفر البحث مجددًا"
+        )
+    }
+
     @Test func pageCapFooter() async {
         let viewModel = await resultsViewModel()
         viewModel.append = .capReached(results: 200)

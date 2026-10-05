@@ -15,6 +15,8 @@ import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.core.testing.ScreenshotVariant
 import com.etatech.hashiya.core.testing.ScreenshotVariantRule
 import com.etatech.hashiya.core.testing.captureScreenshot
+import java.time.Instant
+import java.time.ZoneId
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Rule
 import org.junit.Test
@@ -61,7 +63,8 @@ class SearchScreenshotTest(private val variant: ScreenshotVariant) {
             selectedItem = null,
             message = null,
             actions = SearchActions(),
-            currentYear = 2026
+            currentYear = 2026,
+            resetZone = ZoneId.of("Asia/Riyadh")
         )
     }
 
@@ -105,7 +108,29 @@ class SearchScreenshotTest(private val variant: ScreenshotVariant) {
         arabicText = "تعذّر الوصول إلى OpenAlex"
     )
 
+    @Test
+    fun dailyLimit() = capture(
+        "search_daily_limit",
+        searching,
+        PagingData.empty(loadStates(LoadState.Error(SearchException(SearchError.DailyLimit(RESET_AT))))),
+        arabicText = "تم بلوغ الحد اليومي للبحث"
+    )
+
+    @Test
+    fun appendDailyLimit() = capture(
+        "search_append_daily_limit",
+        searching,
+        PagingData.from(
+            listOf(SamplePapers.attention, SamplePapers.bert),
+            loadStates(LoadState.NotLoading(endOfPaginationReached = false))
+                .copy(append = LoadState.Error(SearchException(SearchError.DailyLimit(RESET_AT))))
+        ),
+        arabicText = "فتح الإعدادات"
+    )
+
     companion object {
+        private val RESET_AT = Instant.parse("2026-10-06T00:00:00Z").toEpochMilli()
+
         @JvmStatic
         @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
         fun parameters() = ScreenshotVariant.parameters()

@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.etatech.hashiya.core.designsystem.component.EmptyState
@@ -18,6 +19,11 @@ import com.etatech.hashiya.core.designsystem.component.ErrorState
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.feature.search.R
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.util.Locale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -57,20 +63,48 @@ internal fun NoResultsState(showClearFilters: Boolean, onClearFilters: () -> Uni
 }
 
 @Composable
-internal fun SearchErrorState(error: SearchError, onRetry: () -> Unit, onOpenSettings: () -> Unit, modifier: Modifier = Modifier) {
+internal fun SearchErrorState(
+    error: SearchError,
+    onRetry: () -> Unit,
+    onOpenSettings: () -> Unit,
+    modifier: Modifier = Modifier,
+    resetZone: ZoneId = ZoneId.systemDefault()
+) {
     val (title, message) = when (error) {
-        SearchError.Offline -> R.string.search_error_offline_title to R.string.search_error_offline_message
-        SearchError.InvalidUserKey -> R.string.search_error_key_title to R.string.search_error_key_message
-        SearchError.RateLimited -> R.string.search_error_rate_title to R.string.search_error_rate_message
-        SearchError.ServiceUnavailable -> R.string.search_error_unavailable_title to R.string.search_error_unavailable_message
-        SearchError.Unexpected -> R.string.search_error_unexpected_title to R.string.search_error_unexpected_message
+        SearchError.Offline -> stringResource(R.string.search_error_offline_title) to stringResource(R.string.search_error_offline_message)
+
+        SearchError.InvalidUserKey -> stringResource(R.string.search_error_key_title) to stringResource(R.string.search_error_key_message)
+
+        SearchError.RateLimited -> stringResource(R.string.search_error_rate_title) to stringResource(R.string.search_error_rate_message)
+
+        SearchError.ServiceUnavailable ->
+            stringResource(R.string.search_error_unavailable_title) to stringResource(R.string.search_error_unavailable_message)
+
+        SearchError.Unexpected ->
+            stringResource(R.string.search_error_unexpected_title) to stringResource(R.string.search_error_unexpected_message)
+
+        is SearchError.DailyLimit ->
+            stringResource(R.string.search_error_daily_limit_title) to dailyLimitMessage(error, resetZone)
     }
-    val opensSettings = error == SearchError.InvalidUserKey
+    val opensSettings = error == SearchError.InvalidUserKey || error is SearchError.DailyLimit
     ErrorState(
-        title = stringResource(title),
-        message = stringResource(message),
+        title = title,
+        message = message,
         actionLabel = stringResource(if (opensSettings) R.string.search_open_settings else R.string.search_retry),
         onAction = if (opensSettings) onOpenSettings else onRetry,
         modifier = modifier
     )
 }
+
+/**
+ * "Search will be available again at 3:00 AM. …": the reset time in the app's locale. The Arabic string wraps the time
+ * in U+2068 … U+2069 itself, so it keeps its order inside the sentence.
+ */
+@Composable
+internal fun dailyLimitMessage(error: SearchError.DailyLimit, zone: ZoneId): String {
+    val time = formatResetTime(error.resetAtMillis, LocalConfiguration.current.locales[0], zone)
+    return stringResource(R.string.search_error_daily_limit_message, time)
+}
+
+internal fun formatResetTime(resetAtMillis: Long, locale: Locale, zone: ZoneId): String =
+    DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).withZone(zone).format(Instant.ofEpochMilli(resetAtMillis))

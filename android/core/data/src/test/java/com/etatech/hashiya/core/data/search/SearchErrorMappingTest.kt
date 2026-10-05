@@ -33,6 +33,11 @@ class SearchErrorMappingTest {
     }
 
     @Test
+    fun dailyLimitKeepsItsResetTime() {
+        assertEquals(SearchError.DailyLimit(5), NetworkFailure.DailyLimit(5).asSearchError())
+    }
+
+    @Test
     fun everythingElseIsUnexpected() {
         assertEquals(SearchError.Unexpected, NetworkFailure.Http(400, usedUserKey = false).asSearchError())
         assertEquals(SearchError.Unexpected, NetworkFailure.MalformedResponse.asSearchError())

@@ -166,14 +166,14 @@ Rows are checked top to bottom (subfield, then field, then domain). An id that i
 - **Play → Data safety:** add App activity → App interactions, and Device or other IDs for Analytics (already declared for crash logs); collected, not shared, encrypted in transit, optional; purpose Analytics.
 - **App Store → App Privacy:** add Product Interaction, Device ID and Coarse Location (the approximate location Google derives from the IP address) for Analytics; not linked to identity; not used for tracking.
 - **`PrivacyInfo.xcprivacy` (app):** add `NSPrivacyCollectedDataTypeProductInteraction`, `NSPrivacyCollectedDataTypeDeviceID` and `NSPrivacyCollectedDataTypeCoarseLocation` (purpose `NSPrivacyCollectedDataTypePurposeAnalytics`, not linked, no tracking). `NSPrivacyTracking` stays false; no tracking domains. Share Extension unchanged.
-- **Privacy policy:** a "Usage statistics" section (English and Arabic) in the policy update (FadyFouad/Hashiya-Privacy-Policy PR #1): what is counted, what never is, the switch, Google as processor, 2-month retention. It says searches are counted with a broad research area worked out on the device from the results (e.g. "artificial intelligence"), and that search text is never sent.
+- **Privacy policy:** a "Usage statistics" section (English and Arabic) in the policy update (FadyFouad/Hashiya-Privacy-Policy#2): what is counted, what never is, the switch, Google as processor, 2-month retention. It says searches are counted with a broad research area worked out on the device from the results (e.g. "artificial intelligence"), and that search text is never sent.
 - **`docs/store/metadata.md`:** updated answers.
 
 ### 7.1 The live policy and the release gate
 
 The published policy (https://fadyfouad.github.io/Hashiya-Privacy-Policy/) currently says "Hashiya has no account, no usage analytics, no ads and no tracking" and promises: "If the app ever starts collecting data, we'll say so here before that version is released." So:
 
-- The policy update (a new PR in FadyFouad/Hashiya-Privacy-Policy) removes "no usage analytics", keeps "no ads and no tracking" (true: no advertising id, ads signals denied, nothing linked to Ads), and adds the "Usage statistics" section in English and Arabic, with a new effective date.
+- The policy update (FadyFouad/Hashiya-Privacy-Policy#2, after #1's crash-reports update) removes "no usage analytics", keeps "no ads and no tracking" (true: no advertising id, ads signals denied, nothing linked to Ads), and adds the "Usage statistics" section in English and Arabic, with a new effective date.
 - It must be merged **before** the first build with analytics reaches any user (TestFlight external testers or a store release). Each platform's PR carries this as a release-gate checkbox, and `docs/release.md` lists it.
 - **Accepted risk:** analytics are on by default everywhere. In the EU/UK (ePrivacy/GDPR) and under consent-based laws such as Saudi Arabia's and Egypt's data-protection laws, analytics using an on-device identifier may require consent first. The user chose on-by-default knowing this; the switch, the minimised setup (§5) and the policy disclosure reduce but don't remove the risk. Revisit if the app is promoted in those regions or a regulator or store raises it.
 
@@ -201,4 +201,4 @@ The published policy (https://fadyfouad.github.io/Hashiya-Privacy-Policy/) curre
 1. **Android analytics:** `:core:analytics`, Firebase Analytics in `:app`, the switch, the events, Data safety answers.
 2. **Android OpenAlex quota protection** (its own plan, from the quota spec): also reports the real `route`.
 3. **iOS crash reporting + analytics:** one plan and PR — Firebase in the app target, `HashiyaDiagnostics`, the Privacy section with both switches, crash non-fatals, the events, privacy manifest, App Store answers.
-4. **Policy:** the "Usage statistics" section joins PR #1 before the first release with analytics.
+4. **Policy:** the "Usage statistics" section (FadyFouad/Hashiya-Privacy-Policy#2) is merged before the first release with analytics.

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "10078456816",
+    "project_id": "hashiya-research",
+    "storage_bucket": "hashiya-research.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:10078456816:android:0cbad3ac4db7be5cb12b35",
+        "android_client_info": {
+          "package_name": "com.etatech.hashiya"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhP50QX9Kyguj49A3t674HiQtmGRGECf8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

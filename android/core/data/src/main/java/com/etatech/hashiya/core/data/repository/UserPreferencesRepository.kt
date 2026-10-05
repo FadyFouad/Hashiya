@@ -10,6 +10,11 @@ interface UserPreferencesRepository {
 
     /** Trims [key]; null or blank reverts to the built-in key. */
     suspend fun setUserApiKey(key: String?)
+
+    /** Whether crash reports may be sent; true until the user turns it off. */
+    val crashReportsEnabled: Flow<Boolean>
+
+    suspend fun setCrashReportsEnabled(enabled: Boolean)
 }
 
 internal class DataStoreUserPreferencesRepository @Inject constructor(private val dataSource: UserPreferencesDataSource) :
@@ -17,4 +22,8 @@ internal class DataStoreUserPreferencesRepository @Inject constructor(private va
     override val userApiKey: Flow<String?> = dataSource.userApiKey
 
     override suspend fun setUserApiKey(key: String?) = dataSource.setUserApiKey(key)
+
+    override val crashReportsEnabled: Flow<Boolean> = dataSource.crashReportsEnabled
+
+    override suspend fun setCrashReportsEnabled(enabled: Boolean) = dataSource.setCrashReportsEnabled(enabled)
 }

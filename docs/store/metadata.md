@@ -312,11 +312,13 @@ Paper data comes from the public OpenAlex API (openalex.org).
 
 ### Play Console: Data safety
 
-- **Does your app collect or share any of the required user data types?** No.
-- **Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS only). Play may
-  ask this even when nothing is collected.
-- **Do you provide a way for users to request that their data is deleted?** Not applicable: nothing
-  is collected, and uninstalling removes the library.
+- **Does your app collect or share any of the required user data types?** Yes, collects; nothing is shared.
+- **Data types collected:**
+  - App info and performance → **Crash logs** and **Diagnostics**.
+  - Device or other IDs (Crashlytics' per-install identifier).
+- **For each type:** collected, not shared; processing is not ephemeral; **optional** (users can turn it off in Settings → Send crash reports); purposes **App functionality** and **Analytics** (stability).
+- **Is all of the user data collected by your app encrypted in transit?** Yes (HTTPS only).
+- **Do you provide a way for users to request that their data is deleted?** No — reports aren't linked to a person, so a user's reports can't be singled out; Crashlytics deletes them after 90 days.
 
 ### Play Console: Content rating (IARC)
 

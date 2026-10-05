@@ -14,11 +14,15 @@ dependencies {
     api(libs.androidx.paging.common)
     api(libs.kotlinx.coroutines.core)
     implementation(project(":core:bibtex"))
+    implementation(project(":core:crash"))
     implementation(project(":core:network"))
     implementation(project(":core:database"))
     implementation(project(":core:datastore"))
     implementation(libs.kotlinx.serialization.json)
 
+    // :core:testing exposes Compose test APIs, whose versions come from the BOM.
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(project(":core:testing"))
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.paging.testing)

@@ -1,10 +1,17 @@
 package com.etatech.hashiya.feature.settings
 
+import android.content.res.Configuration
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -14,6 +21,7 @@ import com.etatech.hashiya.core.data.backup.BackupSummary
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
 import com.etatech.hashiya.core.model.PdfStorage
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -40,7 +48,8 @@ class SettingsContentTest {
                 onSaveKey = { events += "save" },
                 onResetKey = { events += "reset" },
                 onLanguageSelected = { events += "language:$it" },
-                onDeleteDownloadedPdfs = { events += "deletePdfs" }
+                onDeleteDownloadedPdfs = { events += "deletePdfs" },
+                onCrashReportsChange = { events += "crashReports:$it" }
             )
         }
     }
@@ -97,6 +106,99 @@ class SettingsContentTest {
 
         composeRule.onNodeWithText("Delete").performClick()
         assertEquals(listOf("deletePdfs"), events)
+    }
+
+    @Test
+    fun crashReportsSwitchIsOnAndTurnsOff() {
+        show(SettingsUiState(crashReportsEnabled = true))
+
+        composeRule.onNodeWithText("Privacy").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Send crash reports").performScrollTo().assertIsOn()
+        composeRule.onNodeWithText("Send crash reports").performClick()
+        assertEquals(listOf("crashReports:false"), events)
+    }
+
+    @Test
+    fun crashReportsSwitchIsOffAndTurnsOn() {
+        show(SettingsUiState(crashReportsEnabled = false))
+
+        composeRule.onNodeWithText("Send crash reports").performScrollTo().assertIsOff()
+        composeRule.onNodeWithText("Send crash reports").performClick()
+        assertEquals(listOf("crashReports:true"), events)
+    }
+
+    @Test
+    fun privacyFooterAndPolicyLinkAreShown() {
+        val opened = mutableListOf<String>()
+        composeRule.setContent {
+            CompositionLocalProvider(
+                LocalUriHandler provides object : UriHandler {
+                    override fun openUri(uri: String) {
+                        opened += uri
+                    }
+                }
+            ) {
+                HashiyaTheme {
+                    SettingsContent(uiState = SettingsUiState(), onBack = {
+                    }, onKeyInputChange = {}, onSaveKey = {}, onResetKey = {}, onLanguageSelected = {})
+                }
+            }
+        }
+
+        composeRule.onNodeWithText(
+            "Crash details and app errors help fix bugs. They never include your papers, notes or searches."
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Privacy policy").performScrollTo().performClick()
+        assertEquals(listOf("https://fadyfouad.github.io/Hashiya-Privacy-Policy/"), opened)
+    }
+
+    private fun showWithUriHandler(handler: UriHandler, locale: Locale? = null) = composeRule.setContent {
+        val configuration = LocalConfiguration.current
+        val effective = if (locale == null) {
+            configuration
+        } else {
+            Configuration(configuration).apply { setLocale(locale) }
+        }
+        CompositionLocalProvider(LocalUriHandler provides handler, LocalConfiguration provides effective) {
+            HashiyaTheme {
+                SettingsContent(uiState = SettingsUiState(), onBack = {
+                }, onKeyInputChange = {}, onSaveKey = {}, onResetKey = {}, onLanguageSelected = {})
+            }
+        }
+    }
+
+    @Test
+    fun arabicOpensTheArabicSectionOfThePolicy() {
+        val opened = mutableListOf<String>()
+        showWithUriHandler(
+            object : UriHandler {
+                override fun openUri(uri: String) {
+                    opened += uri
+                }
+            },
+            locale = Locale("ar")
+        )
+
+        // Only the configuration's locale is swapped, so the label still comes from the English resources.
+        composeRule.onNodeWithText("Privacy policy").performScrollTo().performClick()
+        assertEquals(listOf("https://fadyfouad.github.io/Hashiya-Privacy-Policy/#ar"), opened)
+    }
+
+    @Test
+    fun policyLinkWithNoAppToOpenItDoesNotCrash() {
+        var attempts = 0
+        showWithUriHandler(
+            object : UriHandler {
+                override fun openUri(uri: String) {
+                    attempts++
+                    throw IllegalArgumentException("Can't open $uri")
+                }
+            }
+        )
+
+        composeRule.onNodeWithText("Privacy policy").performScrollTo().performClick()
+        assertEquals(1, attempts)
+        composeRule.onNodeWithText("Privacy policy").assertIsDisplayed()
     }
 
     @Test

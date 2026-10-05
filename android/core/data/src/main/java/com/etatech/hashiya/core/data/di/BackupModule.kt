@@ -2,6 +2,7 @@ package com.etatech.hashiya.core.data.di
 
 import android.content.ContentResolver
 import android.content.Context
+import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.data.backup.ArchiveLibraryBackup
 import com.etatech.hashiya.core.data.backup.LibraryBackup
 import com.etatech.hashiya.core.data.pdf.PdfFileStore
@@ -27,7 +28,8 @@ internal object BackupModule {
         backupDao: BackupDao,
         fileStore: PdfFileStore,
         gate: PdfStoreGate,
-        contentResolver: ContentResolver
+        contentResolver: ContentResolver,
+        crashReporter: CrashReporter
     ): LibraryBackup = ArchiveLibraryBackup(
         backupDao = backupDao,
         fileStore = fileStore,
@@ -37,6 +39,7 @@ internal object BackupModule {
         appVersion = "${context.packageManager.getPackageInfo(context.packageName, 0).versionName} (Android)",
         now = System::currentTimeMillis,
         newId = { UUID.randomUUID().toString() },
-        io = Dispatchers.IO
+        io = Dispatchers.IO,
+        crashReporter = crashReporter
     )
 }

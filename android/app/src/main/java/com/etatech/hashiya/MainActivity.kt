@@ -10,18 +10,23 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
+import com.etatech.hashiya.core.crash.CrashKey
+import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
+import com.etatech.hashiya.crash.languageKey
 import com.etatech.hashiya.feature.search.navigation.SearchRoute
 import com.etatech.hashiya.navigation.AppShortcut
 import com.etatech.hashiya.navigation.HashiyaApp
 import com.etatech.hashiya.share.shareToSearchRoute
 import com.etatech.hashiya.update.AppUpdateViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 /** AppCompatActivity so that AppCompatDelegate.setApplicationLocales can switch the language in-app. */
 @AndroidEntryPoint
@@ -37,8 +42,13 @@ class MainActivity : AppCompatActivity() {
 
     private val appUpdate: AppUpdateViewModel by viewModels()
 
+    @Inject
+    lateinit var crashReporter: CrashReporter
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Android 12 and below only load the stored app language once an activity exists, so Application.onCreate may have seen none.
+        crashReporter.setKey(CrashKey.Language, languageKey(AppCompatDelegate.getApplicationLocales().toLanguageTags()))
         enableEdgeToEdge()
         if (isFreshLaunch(savedInstanceState)) pendingSearch = intent.sharedSearchRoute()
         if (isFreshLaunch(savedInstanceState)) pendingRestore = intent.openedBackup()
@@ -46,6 +56,7 @@ class MainActivity : AppCompatActivity() {
             val requiredUpdate by appUpdate.requiredUpdate.collectAsState()
             HashiyaTheme {
                 HashiyaApp(
+                    crashReporter = crashReporter,
                     pendingSearch = pendingSearch,
                     onPendingSearchHandled = { pendingSearch = null },
                     pendingRestore = pendingRestore,

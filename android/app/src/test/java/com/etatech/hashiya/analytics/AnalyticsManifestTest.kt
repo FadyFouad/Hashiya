@@ -39,5 +39,6 @@ class AnalyticsManifestTest {
         assertFalse(requested.contains("com.google.android.gms.permission.AD_ID"))
         assertFalse(requested.contains("android.permission.ACCESS_ADSERVICES_AD_ID"))
         assertFalse(requested.contains("android.permission.ACCESS_ADSERVICES_ATTRIBUTION"))
+        assertFalse(requested.contains("com.google.android.finsky.permission.BIND_GET_INSTALL_REFERRER_SERVICE"))
     }
 }

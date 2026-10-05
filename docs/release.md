@@ -57,7 +57,7 @@ All text is in `docs/store/metadata.md`.
 
 - **App Information:** categories Education and Reference, content rights (the app shows third-party metadata from OpenAlex, which is CC0), age rating (answer "None" or "No" throughout, giving 4+).
 - **Pricing and Availability:** Free, all countries.
-- **App Privacy:** privacy policy URL, then "the answers in `docs/store/metadata.md` → App Privacy".
+- **App Privacy:** privacy policy URL, then the answers in `docs/store/metadata.md` → App Privacy.
 - **Version 0.1.0 → English (U.S.) and Arabic:**
   - Screenshots: iPhone 6.9" from `docs/store/app-store/<lang>/`, in order 1 to 4.
   - Promotional text, description, keywords, support URL and copyright.
@@ -127,7 +127,7 @@ All text is in `docs/store/metadata.md`.
 
 ## Crashlytics (Android)
 
-Release builds send crash reports through Firebase Crashlytics, only while Settings → Send crash reports is on. Firebase also initializes in debug builds (its content provider starts it), but debug builds, unit tests and UI tests never enable collection, so nothing is sent. Crashlytics may keep crash files on the device that are never uploaded. Firebase Analytics is added by the usage-statistics work (see below).
+Release builds send crash reports through Firebase Crashlytics, only while Settings → Send crash reports is on. Firebase also initializes in debug builds (its content provider starts it), but debug builds, unit tests and UI tests never enable collection, so nothing is sent. Crashlytics may keep crash files on the device that are never uploaded. Android usage statistics (Firebase Analytics) come in a separate change; see the analytics spec.
 
 ### One-time setup (console.firebase.google.com)
 

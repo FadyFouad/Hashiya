@@ -1,6 +1,6 @@
 # Store listing and questionnaires
 
-Everything to paste into App Store Connect and the Play Console for version 0.2.0. Character limits
+Everything to paste into App Store Connect and the Play Console. The App Store fields are for iOS 0.3.0 (build 3); the Google Play fields are still for 0.2.0. Character limits
 are in brackets; `scripts/check-store-metadata.py` checks every field against them.
 
 ## Shared
@@ -32,13 +32,13 @@ Find, save and track papers
 **Promotional text** [170]
 
 ```
-Find papers, save them offline, read their PDFs beside your notes, group them into collections and export BibTeX for Overleaf. In English and Arabic.
+Now on iPad, with Split View and more than one window. Find papers, read PDFs beside your notes, group them into collections and export BibTeX. In English and Arabic.
 ```
 
 **Keywords** [100]
 
 ```
-research,papers,thesis,phd,masters,scholar,citations,doi,arxiv,literature,review,academic,journal
+research,papers,thesis,phd,masters,scholar,citations,doi,arxiv,bibtex,pdf,notes,literature,academic
 ```
 
 **Description** [4000]
@@ -56,21 +56,35 @@ PREVIEW, THEN SAVE
 • See the abstract, authors, venue, year and citation count before you save.
 • Open the paper's DOI page or its open-access PDF when one is available.
 
+READ AND TAKE NOTES
+• Download a paper's open-access PDF or attach one from Files, then read it offline with search, zoom and your notes beside the page.
+• Notes for every paper: summary, research question, method, key findings, limitations and your own thoughts. They save as you type.
+
+COLLECTIONS AND BIBTEX
+• Group papers for a chapter, a course or a project.
+• Export a collection or your whole library as a .bib file for Overleaf or LaTeX, or copy one paper's entry.
+
 YOUR LIBRARY, OFFLINE
 • Saved papers stay on your device and work without a connection.
-• Search your library by words from a title, author, abstract or venue. Arabic search ignores diacritics and letter variants.
+• Search your library by words from a title, author, abstract, venue or your notes. Arabic search ignores diacritics and letter variants.
 • Swipe to remove a paper, with Undo.
+• Back up your library to a file and restore it later.
 
 TRACK YOUR READING
 • Mark each paper To read, Reading or Read.
 • Filter your library by status, with a count for each.
+
+MADE FOR IPAD TOO
+• Split View, Stage Manager and more than one window: read a paper beside another, or beside your library.
+• Keyboard shortcuts and a pointer menu for papers.
 
 MADE FOR ARABIC AND ENGLISH
 • Full Arabic and English interfaces with right-to-left layouts.
 • Light and dark themes.
 
 PRIVATE BY DESIGN
-• No account, no tracking and no ads. Your library never leaves your device.
+• No account, no ads and no tracking. Your library, notes and searches stay on your device.
+• Crash reports and usage statistics help fix problems and decide what to improve. They are tied to a random identifier, not your name or account, and you can turn them off in Settings → Privacy.
 
 Paper data comes from OpenAlex (openalex.org), a free and open catalog of scholarly works.
 ```
@@ -78,6 +92,17 @@ Paper data comes from OpenAlex (openalex.org), a free and open catalog of schola
 **What's New** [4000]
 
 ```
+New in 0.3.0:
+
+• iPad: full screen, Split View, Stage Manager and resizable windows. The Library and Search show a paper beside the list, and the reader shows your notes beside the PDF.
+• More than one window: "Open in New Window" in a paper's menu opens it in a window of its own, to read it beside another paper or your library.
+• Keyboard and pointer: ⌘N adds a paper, ⌘1 and ⌘2 switch between the Library and Search, ⌘, opens Settings and ⌘F finds in a PDF. Right-click a paper for its menu.
+• Back up and restore: Settings → Backup saves your library (papers, notes, collections and, if you choose, PDFs) to a file. Restoring adds its papers and keeps the ones already on the device.
+• Search keeps working on busy days. When the app's shared OpenAlex budget runs out, searches use OpenAlex's public budget, and if that runs out too, Search tells you when it works again. Repeated searches are kept for a day. For more searches, add a free personal OpenAlex key in Settings.
+• Details puts Collections, PDF and DOI in one list. One button downloads, reads or attaches the PDF.
+• Crash reports and usage statistics help fix problems and decide what to improve. They are tied to a random identifier, not your name or account, and never include your searches, papers or notes. Turn them off in Settings → Privacy.
+• Fixes: you can search for titles that contain "?" or "*", and a failed PDF download now tries the paper's other open-access copies.
+
 New in 0.2.0:
 
 • Notes for every paper: summary, research question, method, key findings, limitations and your own thoughts. They save as you type, and your library search finds them.
@@ -105,13 +130,13 @@ New in 0.2.0:
 **النص الترويجي** [170]
 
 ```
-ابحث عن الأوراق واحفظها دون اتصال، واقرأ ملفات PDF بجانب ملاحظاتك، ونظّمها في مجموعات، وصدّرها بصيغة BibTeX إلى Overleaf، بالعربية والإنجليزية.
+الآن على iPad مع Split View وأكثر من نافذة. ابحث عن الأوراق، واقرأ ملفات PDF بجانب ملاحظاتك، ونظّمها في مجموعات، وصدّرها بصيغة BibTeX، بالعربية والإنجليزية.
 ```
 
 **الكلمات المفتاحية** [100]
 
 ```
-بحث,أبحاث,رسالة,ماجستير,دكتوراه,أوراق,علمية,مراجع,استشهادات,دراسات,مكتبة,أكاديمي
+بحث,أبحاث,رسالة,ماجستير,دكتوراه,أوراق,علمية,مراجع,استشهادات,دراسات,مكتبة,أكاديمي,ملاحظات,pdf,bibtex
 ```
 
 **الوصف** [4000]
@@ -129,21 +154,35 @@ New in 0.2.0:
 • اطّلع على الملخص والمؤلفين وجهة النشر والسنة وعدد الاستشهادات قبل الحفظ.
 • افتح صفحة DOI للورقة أو ملف PDF المفتوح عند توفّره.
 
+اقرأ ودوّن ملاحظاتك
+• نزّل ملف PDF المفتوح للورقة أو أرفق ملفًا من «الملفات»، ثم اقرأه دون اتصال مع البحث والتكبير وملاحظاتك بجانب الصفحة.
+• ملاحظات لكل ورقة: الخلاصة، وسؤال البحث، والمنهجية، وأهم النتائج، والقيود، وأفكارك. تُحفظ أثناء الكتابة.
+
+المجموعات وBibTeX
+• اجمع الأوراق لفصل أو مقرر أو مشروع.
+• صدّر مجموعة أو مكتبتك كاملة في ملف ‎.bib لاستخدامه في Overleaf أو LaTeX، أو انسخ مدخل ورقة واحدة.
+
 مكتبتك معك دائمًا
 • تبقى الأوراق المحفوظة على جهازك وتعمل دون اتصال.
-• ابحث في مكتبتك بكلمات من العنوان أو المؤلفين أو الملخص أو جهة النشر، ويتجاهل البحث العربي التشكيل واختلاف أشكال الحروف.
+• ابحث في مكتبتك بكلمات من العنوان أو المؤلفين أو الملخص أو جهة النشر أو ملاحظاتك، ويتجاهل البحث العربي التشكيل واختلاف أشكال الحروف.
 • اسحب لإزالة ورقة، مع إمكانية التراجع.
+• انسخ مكتبتك احتياطيًا في ملف واستعِدها لاحقًا.
 
 تابع قراءاتك
 • صنّف كل ورقة: للقراءة، قيد القراءة، مقروءة.
 • صفِّ مكتبتك حسب الحالة، مع عدد الأوراق في كل منها.
+
+على iPad أيضًا
+• Split View وStage Manager وأكثر من نافذة: اقرأ ورقة بجانب أخرى أو بجانب مكتبتك.
+• اختصارات لوحة المفاتيح وقائمة للأوراق بالمؤشر.
 
 بالعربية والإنجليزية
 • واجهة كاملة بالعربية والإنجليزية مع تخطيط من اليمين إلى اليسار.
 • مظهر فاتح وداكن.
 
 خصوصيتك أولًا
-• بلا حساب ولا تتبّع ولا إعلانات، ولا تغادر مكتبتك جهازك.
+• بلا حساب ولا إعلانات ولا تتبّع، وتبقى مكتبتك وملاحظاتك وعمليات بحثك على جهازك.
+• تساعد تقارير الأعطال وإحصاءات الاستخدام على إصلاح المشكلات وتحديد ما يجب تحسينه. وهي مرتبطة بمعرّف عشوائي، لا باسمك أو حسابك، ويمكنك إيقافها من الإعدادات ← الخصوصية.
 
 بيانات الأوراق من OpenAlex ‏(openalex.org)، وهو فهرس مجاني ومفتوح للأعمال العلمية.
 ```
@@ -151,6 +190,17 @@ New in 0.2.0:
 **ما الجديد** [4000]
 
 ```
+الجديد في 0.3.0:
+
+• iPad: ملء الشاشة وSplit View وStage Manager ونوافذ يتغيّر حجمها. تعرض المكتبة والبحث الورقة بجانب القائمة، ويعرض القارئ ملاحظاتك بجانب ملف PDF.
+• أكثر من نافذة: يفتح «فتح في نافذة جديدة» من قائمة الورقة الورقةَ في نافذة مستقلة، لتقرأها بجانب ورقة أخرى أو بجانب مكتبتك.
+• لوحة المفاتيح والمؤشر: ‏⌘N يضيف ورقة، و⌘1 و⌘2 للتنقل بين المكتبة والبحث، و⌘, يفتح الإعدادات، و⌘F للبحث في ملف PDF. انقر بزر الفأرة الأيمن على ورقة لفتح قائمتها.
+• النسخ الاحتياطي والاستعادة: يحفظ «النسخ الاحتياطي» في الإعدادات مكتبتك (الأوراق والملاحظات والمجموعات، وملفات PDF إن أردت) في ملف. وتضيف الاستعادة أوراقه مع الإبقاء على الأوراق الموجودة على الجهاز.
+• يستمر البحث في الأيام المزدحمة. عندما ينفد رصيد OpenAlex المشترك للتطبيق، يستخدم البحث الرصيد العام لـOpenAlex، وإن نفد هو أيضًا يخبرك البحث متى يعود للعمل. وتُحفظ عمليات البحث المتكررة ليوم واحد. ولمزيد من عمليات البحث، أضف مفتاح OpenAlex شخصيًا مجانيًا في الإعدادات.
+• تجمع صفحة التفاصيل المجموعات وملف PDF وDOI في قائمة واحدة، وزر واحد ينزّل ملف PDF أو يقرؤه أو يرفقه.
+• تساعد تقارير الأعطال وإحصاءات الاستخدام على إصلاح المشكلات وتحديد ما يجب تحسينه. وهي مرتبطة بمعرّف عشوائي، لا باسمك أو حسابك، ولا تتضمّن أبدًا عمليات بحثك أو أوراقك أو ملاحظاتك. يمكنك إيقافها من الإعدادات ← الخصوصية.
+• إصلاحات: يمكنك البحث عن عناوين تحتوي على «?» أو «*»، وإذا فشل تنزيل ملف PDF يجرّب التطبيق النسخ المفتوحة الأخرى للورقة.
+
 الجديد في 0.2.0:
 
 • ملاحظات لكل ورقة: الخلاصة، وسؤال البحث، والمنهجية، وأهم النتائج، والقيود، وأفكارك. تُحفظ أثناء الكتابة، ويجدها البحث في مكتبتك.
@@ -313,6 +363,25 @@ encryption), which is exempt, so uploads don't ask this question.
 Hashiya needs no account. To try it: open Search and search for "large language models", tap Save on a result, then open Library and change the paper's status.
 Share extension: in Safari, open https://arxiv.org/abs/1706.03762, tap Share and choose Hashiya.
 Paper data comes from the public OpenAlex API (openalex.org).
+iPad: the app supports Split View, Stage Manager and more than one window; long-press a paper and choose "Open in New Window".
+Crash reports (Firebase Crashlytics) and usage statistics (Firebase Analytics) are on by default and can be turned off in Settings → Privacy. They are tied to a random identifier, not to a name or account, and contain no search text, papers or notes. The app has no advertising identifier and does no tracking.
+```
+
+### App Store Connect: before submitting 0.3.0
+
+- **Privacy policy:** the URL stays the same, but the page must describe crash reports and usage statistics first. Merge the policy repository's "Usage statistics" PR, with its effective date set to the merge day, before inviting external TestFlight testers or submitting for review.
+- **App Privacy:** 0.3.0 is the first iOS build that collects data. If App Store Connect still says "Data Not Collected", replace that with the five types under *App Store Connect: App Privacy* above, then publish the answers. They apply to the whole app, not to a single version.
+- **What's New** and **Promotional text:** paste the 0.3.0 text in both languages. Promotional text can change at any time without a review.
+- **Screenshots:** 0.3.0 runs natively on iPad, so App Store Connect asks for 13-inch iPad screenshots in both languages.
+- **TestFlight → What to Test** [4000]
+
+```
+New in 0.3.0: iPad (Split View, Stage Manager, more than one window), keyboard shortcuts, backup and restore, and a grouped Details screen.
+Please try:
+• On iPad, open a paper in a new window from its menu, and resize the windows.
+• Settings → Backup: back up with PDFs, delete a paper, then restore.
+• Settings → Privacy: both switches are on by default. Turning them off stops crash reports and usage statistics.
+Searches with no personal OpenAlex key share a daily budget; when it runs out, Search should keep working or say when it works again.
 ```
 
 ### Play Console: Data safety

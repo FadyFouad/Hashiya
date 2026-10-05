@@ -2,6 +2,7 @@ package com.etatech.hashiya.feature.paperdetails
 
 import android.net.Uri
 import com.etatech.hashiya.core.data.repository.AttachResult
+import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
@@ -39,7 +40,8 @@ class PaperDetailsAttachPdfTest {
             FakeCollectionsRepository(library),
             FakeCitationRepository(),
             pdfs,
-            backgroundScope
+            backgroundScope,
+            FakeAnalytics()
         )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel

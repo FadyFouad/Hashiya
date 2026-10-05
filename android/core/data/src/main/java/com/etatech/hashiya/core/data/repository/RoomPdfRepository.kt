@@ -2,6 +2,9 @@ package com.etatech.hashiya.core.data.repository
 
 import android.content.ContentResolver
 import android.net.Uri
+import com.etatech.hashiya.core.analytics.Analytics
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
+import com.etatech.hashiya.core.analytics.NoOpAnalytics
 import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.crash.CrashSite
 import com.etatech.hashiya.core.crash.NoOpCrashReporter
@@ -57,7 +60,8 @@ internal class RoomPdfRepository(
     private val maxBytes: Long = MAX_PDF_BYTES,
     private val io: CoroutineDispatcher = Dispatchers.IO,
     private val gate: PdfStoreGate = PdfStoreGate(),
-    private val crashReporter: CrashReporter = NoOpCrashReporter
+    private val crashReporter: CrashReporter = NoOpCrashReporter,
+    private val analytics: Analytics = NoOpAnalytics
 ) : PdfRepository {
     @Inject
     constructor(
@@ -68,10 +72,11 @@ internal class RoomPdfRepository(
         contentResolver: ContentResolver,
         @ApplicationScope scope: CoroutineScope,
         gate: PdfStoreGate,
-        crashReporter: CrashReporter
+        crashReporter: CrashReporter,
+        analytics: Analytics
     ) : this(
         paperDao, fileStore, downloader, pdfLinks, contentResolver, scope, System::currentTimeMillis,
-        gate = gate, crashReporter = crashReporter
+        gate = gate, crashReporter = crashReporter, analytics = analytics
     )
 
     /** Running and failed downloads by OpenAlex id. A finished or cancelled download has no entry. */
@@ -125,7 +130,10 @@ internal class RoomPdfRepository(
             val url = row.oaPdfUrl?.takeIf { it.isNotBlank() }?.let(::upgradeToHttps)
                 ?: return report(DownloadState.Failed(DownloadFailure.NoLink))
             val first = attempt(row.id, url, ::report)
-            if (first !is Attempt.Failed) return report(null)
+            if (first !is Attempt.Failed) {
+                if (first == Attempt.Stored) analytics.log(AnalyticsEvent.PdfDownloaded(succeeded = true))
+                return report(null)
+            }
             if (first.triesOtherLinks) {
                 // The stored link may have gone stale while OpenAlex knows other copies (e.g. arXiv): try those in turn,
                 // and keep the first that gives the PDF as the paper's link.
@@ -135,6 +143,7 @@ internal class RoomPdfRepository(
                     when (val next = attempt(row.id, link, ::report)) {
                         Attempt.Stored -> {
                             paperDao.setOaPdfUrl(row.id, link)
+                            analytics.log(AnalyticsEvent.PdfDownloaded(succeeded = true))
                             return report(null)
                         }
 
@@ -144,6 +153,7 @@ internal class RoomPdfRepository(
                     }
                 }
             }
+            analytics.log(AnalyticsEvent.PdfDownloaded(succeeded = false))
             report(DownloadState.Failed(first.reason))
         } catch (e: CancellationException) {
             report(null)

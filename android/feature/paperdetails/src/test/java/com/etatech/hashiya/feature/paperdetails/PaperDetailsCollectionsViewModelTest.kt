@@ -2,6 +2,7 @@ package com.etatech.hashiya.feature.paperdetails
 
 import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.model.PaperCollection
+import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
@@ -27,11 +28,12 @@ class PaperDetailsCollectionsViewModelTest {
     private val library = FakeLibraryRepository()
     private val collections = FakeCollectionsRepository(library)
     private val citations = FakeCitationRepository()
+    private val analytics = FakeAnalytics()
     private val paper = SamplePapers.bert
     private val id = paper.openAlexId
 
     private fun TestScope.viewModel(): PaperDetailsViewModel {
-        val viewModel = PaperDetailsViewModel(id, library, collections, citations, FakePdfRepository(), backgroundScope)
+        val viewModel = PaperDetailsViewModel(id, library, collections, citations, FakePdfRepository(), backgroundScope, analytics)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }

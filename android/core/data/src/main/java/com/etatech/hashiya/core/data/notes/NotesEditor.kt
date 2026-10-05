@@ -23,7 +23,7 @@ import kotlinx.coroutines.sync.withLock
  * emissions never replace typing; typing is saved [SAVE_DEBOUNCE_MS] after it stops; writes run one at a time, so they land in
  * order and a flush can't be overtaken.
  *
- * [scope] is the screen's (viewModelScope); [applicationScope] outlives it, for [flush]. [onSaveFailed] runs after a failed write.
+ * [scope] is the screen's (viewModelScope); [applicationScope] outlives it, for [flush]. [onSaveFailed] runs after a failed write, [onSaved] after a successful one that changed the notes.
  */
 @OptIn(FlowPreview::class)
 class NotesEditor(
@@ -31,7 +31,8 @@ class NotesEditor(
     private val libraryRepository: LibraryRepository,
     private val scope: CoroutineScope,
     private val applicationScope: CoroutineScope,
-    private val onSaveFailed: () -> Unit
+    private val onSaveFailed: () -> Unit,
+    private val onSaved: () -> Unit = {}
 ) {
     private val _notes = MutableStateFlow<PaperNotes?>(null)
 
@@ -97,6 +98,7 @@ class NotesEditor(
             libraryRepository.saveNotes(openAlexId, value)
             storedNotes = value
             _saveState.value = NotesSaveState.Saved
+            onSaved()
             true
         } catch (e: CancellationException) {
             throw e

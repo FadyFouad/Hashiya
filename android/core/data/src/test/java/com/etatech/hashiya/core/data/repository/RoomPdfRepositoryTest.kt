@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.data.repository
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.etatech.hashiya.core.analytics.AnalyticsEvent
 import com.etatech.hashiya.core.crash.CrashSite
 import com.etatech.hashiya.core.data.pdf.PdfFileStore
 import com.etatech.hashiya.core.database.HashiyaDatabase
@@ -17,6 +18,7 @@ import com.etatech.hashiya.core.network.OpenAlexPdfLinksDataSource
 import com.etatech.hashiya.core.network.PdfDownloadDataSource
 import com.etatech.hashiya.core.network.model.NetworkLocation
 import com.etatech.hashiya.core.network.model.NetworkSource
+import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeCrashReporter
 import java.io.ByteArrayInputStream
 import java.io.File
@@ -60,6 +62,7 @@ class RoomPdfRepositoryTest {
     private val downloader = FakePdfDownloadDataSource()
     private val pdfLinks = FakePdfLinksDataSource()
     private val crash = FakeCrashReporter()
+    private val analytics = FakeAnalytics()
     private var clock = 0L
 
     @Before
@@ -91,7 +94,8 @@ class RoomPdfRepositoryTest {
         now = { 1_000L },
         maxBytes = maxBytes,
         io = Dispatchers.IO,
-        crashReporter = crash
+        crashReporter = crash,
+        analytics = analytics
     )
 
     private fun paper(id: String, pdfUrl: String? = "https://arxiv.org/pdf/$id") =
@@ -499,6 +503,70 @@ class RoomPdfRepositoryTest {
     }
 
     // Fallback to OpenAlex's other open-access locations when the stored link doesn't give the PDF.
+
+    @Test
+    fun aStoredDownloadIsCountedAsOk() = runTest {
+        library.save(paper("W1"))
+
+        repository.download("W1")
+
+        awaitTrue { analytics.events.isNotEmpty() }
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PdfDownloaded(succeeded = true)), analytics.events)
+    }
+
+    @Test
+    fun aDownloadStoredFromAFallbackLinkIsCountedOnceAsOk() = runTest {
+        library.save(paper("W1", pdfUrl = BAD_LINK))
+        downloader.bodies = mapOf(BAD_LINK to HTML)
+        pdfLinks.locations = listOf(location("http://arxiv.org/pdf/1706.03762", source = ARXIV))
+
+        repository.download("W1")
+
+        awaitTrue { analytics.events.isNotEmpty() }
+        assertNull(awaitValue(repository.observeDownload("W1")) { it == null })
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PdfDownloaded(succeeded = true)), analytics.events)
+    }
+
+    @Test
+    fun aDownloadThatEndsFailedIsCountedAsFailedWithoutItsLink() = runTest {
+        library.save(paper("W1"))
+        downloader.body = HTML
+
+        repository.download("W1")
+
+        awaitFailure("W1")
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.PdfDownloaded(succeeded = false)), analytics.events)
+        assertFalse(analytics.events.joinToString { it.parameters.toString() }.contains("arxiv"))
+    }
+
+    @Test
+    fun aCancelledOrRemovedDownloadSendsNothing() = runTest {
+        library.save(paper("W1"))
+        library.save(paper("W2"))
+        downloader.gate = CompletableDeferred()
+        repository.download("W1")
+        downloader.started.await()
+        repository.cancelDownload("W1")
+        awaitTrue { downloader.cancelled }
+        assertNull(awaitValue(repository.observeDownload("W1")) { it == null })
+
+        repository.download("W2")
+        awaitTrue { downloader.urls.size == 2 }
+        library.remove("W2")
+        assertNull(awaitValue(repository.observeDownload("W2")) { it == null })
+
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+    }
+
+    @Test
+    fun aPaperWithoutALinkSendsNothing() = runTest {
+        library.save(paper("W1", pdfUrl = null))
+
+        repository.download("W1")
+
+        assertEquals(DownloadState.Failed(DownloadFailure.NoLink), awaitFailure("W1"))
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+    }
 
     private suspend fun storedLink(openAlexId: String): String? = db.paperDao().getByOpenAlexId(openAlexId)?.paper?.oaPdfUrl
 

@@ -11,6 +11,7 @@ import com.etatech.hashiya.core.model.PaperNotes
 import com.etatech.hashiya.core.model.PaperPdf
 import com.etatech.hashiya.core.model.PdfSource
 import com.etatech.hashiya.core.model.ReadingStatus
+import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
@@ -43,6 +44,7 @@ class PaperDetailsViewModelTest {
 
     private val repository = FakeLibraryRepository()
     private val pdfs = FakePdfRepository()
+    private val analytics = FakeAnalytics()
     private val paper = SamplePapers.bert
     private val id = paper.openAlexId
 
@@ -54,7 +56,8 @@ class PaperDetailsViewModelTest {
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
             pdfs,
-            backgroundScope
+            backgroundScope,
+            analytics
         )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.pdf.collect() }
@@ -415,7 +418,8 @@ class PaperDetailsViewModelTest {
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
             pdfs,
-            backgroundScope
+            backgroundScope,
+            analytics
         )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.pdf.collect() }

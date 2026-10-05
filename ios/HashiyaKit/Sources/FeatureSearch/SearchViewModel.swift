@@ -11,6 +11,8 @@ public enum SearchPhase: Equatable, Sendable {
 
 public enum AppendState: Equatable, Sendable {
     case idle, loading, endReached
+    /// The search loaded its last allowed page; `results` is how many that is.
+    case capReached(results: Int)
     case failed(SearchError)
 }
 
@@ -56,6 +58,7 @@ public final class SearchViewModel {
     @ObservationIgnored private let library: any LibraryRepository
     @ObservationIgnored private var activeQuery: SearchQuery?
     @ObservationIgnored private var nextCursor: String?
+    @ObservationIgnored private var pagesLoaded = 0
     @ObservationIgnored private var seenIDs: Set<String> = []
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     /// Cancelled searches still finishing, by ID; each is dropped when it finishes. Only tests wait for them.
@@ -319,6 +322,7 @@ public final class SearchViewModel {
         totalCount = nil
         seenIDs = []
         nextCursor = nil
+        pagesLoaded = 0
         append = .idle
     }
 
@@ -370,7 +374,7 @@ public final class SearchViewModel {
                 guard let self, !Task.isCancelled else { return }
                 let addedAny = self.add(page)
                 // The last row stays the same when a page adds nothing, so keep going here.
-                if !addedAny, self.nextCursor != nil, duplicatePages + 1 < Self.maxDuplicatePages {
+                if !addedAny, self.append == .idle, duplicatePages + 1 < Self.maxDuplicatePages {
                     self.loadNextPage(duplicatePages: duplicatePages + 1)
                 }
             } catch is CancellationError {
@@ -382,13 +386,21 @@ public final class SearchViewModel {
         }
     }
 
-    /// Appends the page's papers that were not shown yet for this query.
+    /// Appends the page's papers that were not shown yet for this query, and stops at the page cap.
     @discardableResult
     private func add(_ page: SearchPage) -> Bool {
         let new = page.papers.filter { seenIDs.insert($0.openAlexID).inserted }
         papers.append(contentsOf: new)
         nextCursor = page.nextCursor
-        append = page.nextCursor == nil ? .endReached : .idle
+        pagesLoaded += 1
+        let cap = repository.maxPagesPerQuery
+        if page.nextCursor == nil {
+            append = .endReached
+        } else if pagesLoaded >= cap {
+            append = .capReached(results: cap * SearchQuery.pageSize)
+        } else {
+            append = .idle
+        }
         return !new.isEmpty
     }
 

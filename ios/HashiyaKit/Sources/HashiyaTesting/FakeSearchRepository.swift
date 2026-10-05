@@ -22,14 +22,16 @@ public final class FakeSearchRepository: SearchRepository {
     }
 
     private let state: OSAllocatedUnfairLock<State>
+    public let maxPagesPerQuery: Int
 
-    public init(handler: @escaping Handler) {
+    public init(maxPagesPerQuery: Int = 1000, handler: @escaping Handler) {
+        self.maxPagesPerQuery = maxPagesPerQuery
         state = OSAllocatedUnfairLock(initialState: State(handler: handler))
     }
 
     /// Every search returns `page`.
-    public convenience init(page: SearchPage) {
-        self.init { _, _ in page }
+    public convenience init(page: SearchPage, maxPagesPerQuery: Int = 1000) {
+        self.init(maxPagesPerQuery: maxPagesPerQuery) { _, _ in page }
     }
 
     public var calls: [Call] { state.withLock { $0.calls } }

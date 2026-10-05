@@ -528,6 +528,23 @@
         }
       }
     },
+    "search.pageCap" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تُعرض أول %@ نتيجة. حسِّن بحثك لرؤية المزيد."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Showing the first %@ results. Refine your search to see more."
+          }
+        }
+      }
+    },
     "search.placeholder" : {
       "extractionState" : "manual",
       "localizations" : {

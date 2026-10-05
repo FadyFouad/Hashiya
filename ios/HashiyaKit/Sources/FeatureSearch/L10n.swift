@@ -42,6 +42,12 @@ enum L10n {
         }
     }
 
+    /// "Showing the first 200 results. …", the number formatted for the locale. (Caps are multiples of 25, which all
+    /// take Arabic's singular-noun form, so the string has no plural variants.)
+    static func pageCap(_ results: Int) -> String {
+        format("search.pageCap", PaperFormat.number(results))
+    }
+
     static func lookupNotFoundTitle(_ identifier: PaperIdentifier) -> String {
         switch identifier {
         case .doi: string("search.lookupNotFoundDOI")

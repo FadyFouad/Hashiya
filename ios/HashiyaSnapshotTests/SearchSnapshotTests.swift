@@ -99,6 +99,12 @@ struct SearchSnapshotTests {
         assertHashiyaSnapshots(of: screen(viewModel), named: "appendError", arabicText: "تعذّر تحميل المزيد من النتائج")
     }
 
+    @Test func pageCapFooter() async {
+        let viewModel = await resultsViewModel()
+        viewModel.append = .capReached(results: 200)
+        assertHashiyaSnapshots(of: screen(viewModel), named: "pageCap", arabicText: "حسِّن بحثك لرؤية المزيد")
+    }
+
     @Test func filtersAndBanner() async {
         let viewModel = await resultsViewModel()
         viewModel.setSort(.mostCited)

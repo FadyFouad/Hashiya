@@ -91,4 +91,9 @@ struct SearchStringsTests {
         #expect(message.contains("\u{2069}"))
         #expect(message.contains("OpenAlex"))
     }
+
+    @Test func thePageCapFooterShowsTheNumberOfResults() {
+        #expect(inLanguage("en") { L10n.pageCap(200) } == "Showing the first 200 results. Refine your search to see more.")
+        #expect(inLanguage("ar") { L10n.pageCap(200) }.contains("\u{2068}200\u{2069}"))
+    }
 }

@@ -61,7 +61,7 @@ public struct LiveDependencies: Sendable {
         let repositories = LibraryRepositories(store: try PaperStore.shared(), lookup: lookupClient, pdf: pdf)
         return LiveDependencies(
             libraryRepository: repositories.library,
-            searchRepository: OpenAlexSearchRepository(service: searchClient),
+            searchRepository: OpenAlexSearchRepository(service: searchClient, maxPagesPerQuery: { quota.limits.maxPagesPerQuery }),
             lookupRepository: OpenAlexPaperLookupRepository(openAlex: lookupClient, arxiv: ArxivTitleClient()),
             preferences: preferences,
             collections: repositories.collections,

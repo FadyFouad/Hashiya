@@ -310,6 +310,14 @@ public struct SearchView: View {
                 .frame(height: 0)
                 .accessibilityHidden(true)
                 .onAppear { viewModel.loadMore() }
+        case let .capReached(results):
+            Text(verbatim: L10n.pageCap(results))
+                .font(.hashiya(.body))
+                .foregroundStyle(HashiyaColors.onSurfaceVariant)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
         case .endReached:
             EmptyView()
         }

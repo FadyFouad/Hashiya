@@ -62,7 +62,7 @@ class SearchViewModel @Inject constructor(
 
     /**
      * Set by the user's own actions, and by arriving from Share or "Add paper", so only searches and lookups the user started are
-     * counted: a restore after process death or an API key change re-runs them without counting.
+     * counted: a restore after process death or an API key change re-runs them without counting (their further pages still count).
      */
     private var countNextSearch = routeArgs != null
     private var countNextLookup = routeArgs != null
@@ -129,7 +129,7 @@ class SearchViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            search.collectLatest { current -> if (current?.userStarted == true) count(current) }
+            search.collectLatest { current -> current?.let { count(it) } }
         }
     }
 
@@ -315,18 +315,23 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    /** Sends `search` when the first page arrives, then `search_more` for each page beyond the highest already counted. */
+    /**
+     * Sends `search` when the first page of a search the user started arrives, then `search_more` for each page beyond the highest
+     * already counted. A restored or re-run search sends no `search`, but each further page is still one the user scrolled to.
+     */
     private suspend fun count(search: ActiveSearch) {
-        val first = search.results.firstPage.filterNotNull().first()
-        analytics.log(
-            AnalyticsEvent.Search(
-                SearchKind.Keyword,
-                hasFilters = search.query.hasActiveFilters,
-                route = search.route,
-                results = ResultsBucket.of(first.total),
-                category = first.category
+        if (search.userStarted) {
+            val first = search.results.firstPage.filterNotNull().first()
+            analytics.log(
+                AnalyticsEvent.Search(
+                    SearchKind.Keyword,
+                    hasFilters = search.query.hasActiveFilters,
+                    route = search.route,
+                    results = ResultsBucket.of(first.total),
+                    category = first.category
+                )
             )
-        )
+        }
         // A refresh starts a new PagingSource whose count restarts at 1; only pages past the highest counted are new.
         var counted = 1
         search.results.pagesLoaded.collect { pages ->

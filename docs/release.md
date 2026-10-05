@@ -127,11 +127,11 @@ All text is in `docs/store/metadata.md`.
 
 ## Crashlytics (Android)
 
-Release builds send crash reports through Firebase Crashlytics, only while Settings → Send crash reports is on. Firebase also initializes in debug builds (its content provider starts it), but debug builds, unit tests and UI tests never enable collection, so nothing is sent. Crashlytics may keep crash files on the device that are never uploaded. Android usage statistics (Firebase Analytics) come in a separate change; see the analytics spec.
+Release builds send crash reports through Firebase Crashlytics, only while Settings → Send crash reports is on. Firebase also initializes in debug builds (its content provider starts it), but debug builds, unit tests and UI tests never enable collection, so nothing is sent. Crashlytics may keep crash files on the device that are never uploaded. Release builds also send usage statistics (Firebase Analytics) while Settings → Share usage statistics is on; debug builds never do.
 
 ### One-time setup (console.firebase.google.com)
 
-1. Create the Firebase project (`hashiya-research`) and turn Google Analytics off for it.
+1. Create the Firebase project (`hashiya-research`) and link Google Analytics (GA4) when usage statistics ship: data retention 2 months, Google signals off, no Ads links.
 2. Add an Android app with the package `com.etatech.hashiya`, download `google-services.json` and put it at `android/app/google-services.json`. It is committed on purpose: the repository is public and the API key is restricted to this app in Google Cloud.
 3. Crashlytics → Enable. R8 is off, so no mapping file is needed and frames are readable. If R8 is turned on later, the Crashlytics Gradle plugin uploads the mapping.
 4. Restrict the API key, because the key in the committed `google-services.json` is public. In the Google Cloud console go to APIs & Services → Credentials, open the "Android key (auto created by Firebase)" for project `hashiya-research`, and under Application restrictions choose Android apps. Add package `com.etatech.hashiya` with the SHA-1 of:
@@ -146,6 +146,9 @@ Release builds send crash reports through Firebase Crashlytics, only while Setti
 2. `adb shell am broadcast -a com.etatech.hashiya.TEST_CRASH -p com.etatech.hashiya`
 3. Reopen the app: reports are sent on the next launch. In the Crashlytics console the crash appears with readable frames and the keys `screen`, `language`, `librarySizeBucket`, `backupInProgress`.
 4. Turn the switch off, repeat steps 2 and 3, and confirm nothing new arrives.
+5. Analytics: run a release build with `adb shell setprop debug.firebase.analytics.app com.etatech.hashiya`; Firebase DebugView shows the events with only the listed parameters and no advertising id.
+6. With **Share usage statistics** off, nothing new arrives.
+7. The privacy-policy update (FadyFouad/Hashiya-Privacy-Policy#2) is merged before the build reaches any tester.
 
 ## Crashlytics and Analytics (iOS)
 

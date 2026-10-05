@@ -9,6 +9,7 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 - **Android: keyboard and mouse.** Ctrl+F finds, Ctrl+N adds a paper, Ctrl+, opens Settings, and Esc goes back. Right-click a Library row or a Search result for its menu, and Ctrl+scroll zooms the reader. (#28)
 - **Android: back up and restore your library.** Settings → Backup saves the library to a `.hashiya` file and Restore adds the papers from one, keeping what's already on the device; downloaded PDFs stay out of Google's cloud backup. (#33)
 - **Android: crash reports.** Release builds send crash reports (Firebase Crashlytics), tied to a random identifier rather than your name or account; never your papers, notes or searches. On by default; turn it off in Settings → Privacy. (#35)
+- **Android: usage statistics.** Release builds send usage statistics (Firebase Analytics), tied to a random identifier rather than your name or account: which features are used and a broad research area worked out on the device from search results — never search text, papers or notes. On by default; turn it off in Settings → Privacy → Share usage statistics.
 
 ### Changed
 - **Android: Details groups Collections, PDF and DOI in one list.** The PDF row's main action is a button that follows its state: Download PDF, Read PDF or Attach PDF; Replace and Remove stay in its ⋮ menu. The DOI is a row that opens the paper's DOI page, and is hidden when there is none.

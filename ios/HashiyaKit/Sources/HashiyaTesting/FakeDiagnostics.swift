@@ -48,7 +48,35 @@ public final class FakeAnalytics: AnalyticsTracking {
 
 extension Diagnostics {
     /// Fakes for both, not live.
-    public static func fake(crash: FakeCrashReporting = FakeCrashReporting(), analytics: FakeAnalytics = FakeAnalytics()) -> Diagnostics {
-        Diagnostics(crash: crash, analytics: analytics, isLive: false)
+    public static func fake(
+        crash: FakeCrashReporting = FakeCrashReporting(),
+        analytics: FakeAnalytics = FakeAnalytics(),
+        review: any ReviewPrompting = NoReviewPrompting()
+    ) -> Diagnostics {
+        Diagnostics(crash: crash, analytics: analytics, isLive: false, review: review)
     }
+}
+
+/// Counts every call, for tests.
+public final class FakeReviewPrompting: ReviewPrompting {
+    private struct State {
+        var opened = 0
+        var saves = 0
+        var exports = 0
+        var asks = 0
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    public init() {}
+
+    public var opened: Int { state.withLock { $0.opened } }
+    public var saves: Int { state.withLock { $0.saves } }
+    public var exports: Int { state.withLock { $0.exports } }
+    public var asks: Int { state.withLock { $0.asks } }
+
+    public func markOpened() { state.withLock { $0.opened += 1 } }
+    public func recordSave() { state.withLock { $0.saves += 1 } }
+    public func recordExport() { state.withLock { $0.exports += 1 } }
+    public func askIfDue() { state.withLock { $0.asks += 1 } }
 }

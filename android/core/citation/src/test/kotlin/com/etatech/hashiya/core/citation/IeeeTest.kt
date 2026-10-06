@@ -152,4 +152,10 @@ class IeeeTest {
         assertEquals("A. Vaswani and N. Shazeer, \"Attention is all you need,\" in Proc. Int. Conf. Springer, 2017, p. 12.", c.plain)
         assertEquals(Run("Proc. Int. Conf.", italic = true), c.runs[1])
     }
+
+    @Test
+    fun chapterWithoutAVenueKeepsThePublisher() = assertEquals(
+        "A. Vaswani and N. Shazeer, \"Attention is all you need,\" MIT Press, 2017, p. 12.",
+        ieee(paper(work = "book-chapter", venue = null, publisher = "MIT Press", first = "12", doi = null)).plain
+    )
 }

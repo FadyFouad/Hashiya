@@ -18,6 +18,7 @@ struct HashiyaApp: App {
         HashiyaFonts.register()
         HashiyaFonts.applyNavigationBarFonts()
         let diagnostics = Self.isSnapshotTestHost ? Diagnostics.none : DiagnosticsStartup.make()
+        diagnostics.review.markOpened()
         _container = State(initialValue: Self.isSnapshotTestHost ? nil : AppContainer.make(diagnostics: diagnostics))
         // Backups another app handed over that an earlier run never got to restore.
         if !Self.isSnapshotTestHost {

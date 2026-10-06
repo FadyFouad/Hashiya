@@ -6,6 +6,7 @@ import FeatureSettings
 import HashiyaData
 import HashiyaDesignSystem
 import HashiyaDiagnostics
+import StoreKit
 import SwiftUI
 
 /// Library and Search tabs, each with its own list of pushed screens (a saved paper's Details and its PDF reader);
@@ -47,6 +48,7 @@ struct RootView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.openWindow) private var openWindow
     @Environment(\.supportsMultipleWindows) private var supportsMultipleWindows
+    @Environment(\.requestReview) private var requestReview
 
     init(container: AppContainer) {
         self.container = container
@@ -66,6 +68,10 @@ struct RootView: View {
         // The window's width class for every screen (iPad windows, Split View, Stage Manager, rotation).
         .measuresLayoutClass()
         .environment(\.diagnostics, container.diagnostics)
+        // The system's rating prompt, when the rule asked for one; one window takes it.
+        .onChange(of: ReviewRequests.shared.count) {
+            if ReviewRequests.shared.take() { requestReview() }
+        }
         // The library database follows the whole app (HashiyaApp); each window checks for a required update.
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active { Task { await appUpdate.check() } }

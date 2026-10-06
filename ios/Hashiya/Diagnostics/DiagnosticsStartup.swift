@@ -13,7 +13,10 @@ enum DiagnosticsStartup {
         return .none
         #else
         FirebaseApp.configure()
-        let diagnostics = Diagnostics(crash: FirebaseCrashReporting(), analytics: FirebaseAnalyticsTracking(), isLive: true)
+        let review = DefaultReviewPrompt(store: UserDefaultsReviewCounterStore()) {
+            Task { @MainActor in ReviewRequests.shared.post() }
+        }
+        let diagnostics = Diagnostics(crash: FirebaseCrashReporting(), analytics: FirebaseAnalyticsTracking(), isLive: true, review: review)
         // Collection follows the switches at once, so a failure while opening the library is still reported.
         let privacy = PrivacySettings()
         diagnostics.crash.setEnabled(privacy.crashReportsEnabled)

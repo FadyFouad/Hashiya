@@ -421,18 +421,17 @@ private fun PrivacySection(
 
 @Composable
 private fun AboutSection(appVersion: AppVersion, onSendFeedback: () -> Unit, onRate: () -> Unit) {
-    Text(
-        stringResource(R.string.settings_about),
-        style = MaterialTheme.typography.titleMedium,
-        modifier = Modifier.testTag(ABOUT_SECTION_TAG)
-    )
-    Spacer(Modifier.height(4.dp))
-    TextButton(onClick = onSendFeedback) { Text(stringResource(R.string.settings_send_feedback)) }
-    TextButton(onClick = onRate) { Text(stringResource(R.string.settings_rate)) }
-    Spacer(Modifier.height(4.dp))
-    Text(
-        stringResource(R.string.settings_version, appVersion.label),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
+    // Tagged as a whole, so scrolling to it brings every row into view.
+    Column(Modifier.testTag(ABOUT_SECTION_TAG)) {
+        Text(stringResource(R.string.settings_about), style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(4.dp))
+        TextButton(onClick = onSendFeedback) { Text(stringResource(R.string.settings_send_feedback)) }
+        TextButton(onClick = onRate) { Text(stringResource(R.string.settings_rate)) }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.settings_version, appVersion.label),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
 }

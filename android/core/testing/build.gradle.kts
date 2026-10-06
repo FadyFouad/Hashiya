@@ -9,6 +9,7 @@ android {
 
 dependencies {
     api(project(":core:analytics"))
+    api(project(":core:review"))
     api(project(":core:crash"))
     api(project(":core:data"))
     api(project(":core:model"))

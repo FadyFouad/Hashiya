@@ -9,11 +9,11 @@ object Rendering {
         if (run.italic) "<i>$escaped</i>" else escaped
     }
 
-    /** One paragraph per entry; APA entries get a 0.5-inch hanging indent. Readable by Word and Pages. */
+    /** One paragraph per entry; APA entries get a 0.5-inch hanging indent and double spacing. Readable by Word and Pages. */
     fun rtf(entries: List<StyledCitation>, hangingIndent: Boolean): String = buildString {
         append("{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24\n")
         for (entry in entries) {
-            append(if (hangingIndent) "{\\pard\\fi-720\\li720 " else "{\\pard ")
+            append(if (hangingIndent) "{\\pard\\fi-720\\li720\\sl480\\slmult1 " else "{\\pard ")
             for (run in entry.runs) {
                 if (run.italic) append("{\\i ").append(escapeRtf(run.text)).append('}') else append(escapeRtf(run.text))
             }
@@ -39,6 +39,7 @@ object Rendering {
         for (c in text) {
             when {
                 c == '\\' || c == '{' || c == '}' -> append('\\').append(c)
+                c == '\n' || c == '\r' || c == '\t' -> append(' ')
                 c.code > 0x7F -> append("\\u").append(c.code.toShort().toInt()).append('?')
                 else -> append(c)
             }

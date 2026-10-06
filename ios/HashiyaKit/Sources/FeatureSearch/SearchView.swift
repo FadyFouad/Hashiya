@@ -63,6 +63,7 @@ public struct SearchView: View {
                     .accessibilityLabel(Text(verbatim: L10n.string("search.settings")))
                 }
             }
+            .onChange(of: previewsInPane, initial: true) { viewModel.previewIsSheet = !previewsInPane }
             .sheet(item: previewsInPane ? .constant(nil) : $viewModel.selectedPaper, onDismiss: {
                 viewModel.askForReviewAfterPreview()
                 openRequestedDetails()

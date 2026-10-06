@@ -12,12 +12,16 @@ import com.etatech.hashiya.core.data.repository.CollectionsRepository
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.PdfRepository
 import com.etatech.hashiya.core.data.repository.RemovedPaper
+import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.review.ReviewPrompt
-import com.etatech.hashiya.feature.library.export.bibFileName
+import com.etatech.hashiya.feature.library.export.BIB_MIME_TYPE
+import com.etatech.hashiya.feature.library.export.RTF_MIME_TYPE
+import com.etatech.hashiya.feature.library.export.exportFileName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -51,6 +55,7 @@ class LibraryViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     private val collectionsRepository: CollectionsRepository,
     private val citationRepository: CitationRepository,
+    private val preferencesRepository: UserPreferencesRepository,
     private val pdfRepository: PdfRepository,
     private val analytics: Analytics,
     private val reviewPrompt: ReviewPrompt
@@ -77,7 +82,7 @@ class LibraryViewModel @Inject constructor(
     /** Set when an incomplete export was shared; shown when the Library resumes after the share sheet. */
     private var incompleteExportPending = false
 
-    /** A BibTeX export reached the share sheet; the rating prompt waits until the person is back from it. */
+    /** An export reached the share sheet; the rating prompt waits until the person is back from it. */
     private var reviewPending = false
 
     init {
@@ -169,10 +174,14 @@ class LibraryViewModel @Inject constructor(
     private val _dialog = MutableStateFlow<CollectionDialog?>(null)
     val dialog: StateFlow<CollectionDialog?> = _dialog.asStateFlow()
 
-    private val _exportReady = MutableStateFlow<BibExport?>(null)
+    /** The style the export menu lists first. */
+    val citationStyle: StateFlow<CitationStyle> = preferencesRepository.citationStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CitationStyle.Apa)
+
+    private val _exportReady = MutableStateFlow<ReferenceExport?>(null)
 
     /** A file for the screen to write and share; the screen then calls [onExportShared] or [onExportFailed]. */
-    val exportReady: StateFlow<BibExport?> = _exportReady.asStateFlow()
+    val exportReady: StateFlow<ReferenceExport?> = _exportReady.asStateFlow()
 
     fun onQueryChange(text: String) {
         query.value = text
@@ -350,18 +359,33 @@ class LibraryViewModel @Inject constructor(
     }
 
     /**
-     * Builds the .bib for the whole current collection (or library), ignoring the search and chip. A second tap while running does nothing.
+     * Builds the reference list for the whole current collection (or library) in [style], ignoring the search and chip, and remembers
+     * the style. A second tap while running does nothing.
      */
-    fun onExport() {
+    fun onExport(style: CitationStyle) {
         if (exporting.value) return
         exporting.value = true
         val collectionId = selectedId.value
-        // Null for All papers; a collection whose name isn't known yet gets bibFileName's fallback.
+        // Null for All papers; a collection whose name isn't known yet gets exportFileName's fallback.
         val name = collectionId?.let { id -> collections.value.firstOrNull { it.id == id }?.name.orEmpty() }
         viewModelScope.launch {
+            // Remembering the style is a convenience: failing to store it never stops the export.
             try {
-                val result = citationRepository.export(collectionId)
-                _exportReady.value = BibExport(bibFileName(name), result.text, result.complete)
+                preferencesRepository.setCitationStyle(style)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // Ignored: the menu just keeps its old order.
+            }
+            try {
+                val result = citationRepository.export(collectionId, style)
+                _exportReady.value = ReferenceExport(
+                    fileName = exportFileName(name, style),
+                    content = result.rtf ?: result.text,
+                    mimeType = if (style == CitationStyle.Bibtex) BIB_MIME_TYPE else RTF_MIME_TYPE,
+                    complete = result.complete,
+                    style = style
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -377,7 +401,7 @@ class LibraryViewModel @Inject constructor(
         // Still exporting until the file is shared, so a tap while it is written does nothing.
         exporting.value = false
         if (!shared.complete) incompleteExportPending = true
-        analytics.log(AnalyticsEvent.Export(ExportFormat.Bibtex, withPdfs = false))
+        analytics.log(AnalyticsEvent.Export(shared.style.exportFormat(), withPdfs = false))
         reviewPrompt.recordExport()
         reviewPending = true
     }
@@ -411,6 +435,12 @@ class LibraryViewModel @Inject constructor(
             }
         }
     }
+}
+
+private fun CitationStyle.exportFormat(): ExportFormat = when (this) {
+    CitationStyle.Bibtex -> ExportFormat.Bibtex
+    CitationStyle.Apa -> ExportFormat.Apa
+    CitationStyle.Ieee -> ExportFormat.Ieee
 }
 
 private fun CollectionDialog.withNameTaken(taken: Boolean): CollectionDialog = when (this) {

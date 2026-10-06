@@ -35,7 +35,10 @@
     <string name="library_delete_collection_message">ستبقى أوراقها في مكتبتك.</string>
     <string name="library_collection_empty">لا توجد أوراق في هذه المجموعة بعد. أضف الأوراق من شاشة تفاصيلها.</string>
     <string name="library_removed_from_collection">أُزيلت من %1$s</string>
-    <string name="library_export_bib">تصدير ملف &#x200E;.bib</string>
+    <string name="library_export">تصدير المراجع</string>
+    <string name="library_export_bibtex">BibTeX (&#x200E;.bib)</string>
+    <string name="library_export_apa">APA 7 (&#x200E;.rtf)</string>
+    <string name="library_export_ieee">IEEE (&#x200E;.rtf)</string>
     <string name="library_export_failed">تعذّر التصدير</string>
     <string name="library_export_incomplete">قد تكون بعض المداخل ناقصة. أعد التصدير عند الاتصال بالإنترنت.</string>
     <string name="library_collections_update_failed">تعذّر تحديث المجموعات</string>

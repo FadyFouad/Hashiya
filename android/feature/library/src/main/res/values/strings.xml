@@ -32,7 +32,10 @@
     <string name="library_delete_collection_message">Its papers stay in your library.</string>
     <string name="library_collection_empty">No papers in this collection yet. Add papers from their details screen.</string>
     <string name="library_removed_from_collection">Removed from %1$s</string>
-    <string name="library_export_bib">Export .bib</string>
+    <string name="library_export">Export references</string>
+    <string name="library_export_bibtex">BibTeX (.bib)</string>
+    <string name="library_export_apa">APA 7 (.rtf)</string>
+    <string name="library_export_ieee">IEEE (.rtf)</string>
     <string name="library_export_failed">Couldn\'t export</string>
     <string name="library_export_incomplete">Some entries may be incomplete. Export again when you\'re online.</string>
     <string name="library_collections_update_failed">Couldn\'t update collections</string>

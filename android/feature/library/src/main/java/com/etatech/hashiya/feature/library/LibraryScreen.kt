@@ -2,6 +2,7 @@ package com.etatech.hashiya.feature.library
 
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -79,14 +81,15 @@ import com.etatech.hashiya.core.designsystem.component.readingStatusLabel
 import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.designsystem.layout.ListDetailPanes
 import com.etatech.hashiya.core.designsystem.layout.showsTwoPanes
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.feature.library.components.CollectionSelectorSheet
 import com.etatech.hashiya.feature.library.components.LibrarySearchField
 import com.etatech.hashiya.feature.library.components.ReadingStatusBadge
 import com.etatech.hashiya.feature.library.components.StatusFilterChips
-import com.etatech.hashiya.feature.library.export.bibShareIntent
-import com.etatech.hashiya.feature.library.export.writeBibFile
+import com.etatech.hashiya.feature.library.export.exportShareIntent
+import com.etatech.hashiya.feature.library.export.writeExportFile
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -119,14 +122,15 @@ internal fun LibraryScreen(
     val dialog by viewModel.dialog.collectAsStateWithLifecycle()
     val pendingCollectionUndo by viewModel.pendingCollectionUndo.collectAsStateWithLifecycle()
     val exportReady by viewModel.exportReady.collectAsStateWithLifecycle()
+    val citationStyle by viewModel.citationStyle.collectAsStateWithLifecycle()
     val context = LocalContext.current
     // Coming back from the share sheet is when "may be incomplete" can be read.
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.onScreenResumed() }
     LaunchedEffect(exportReady) {
         val export = exportReady ?: return@LaunchedEffect
         try {
-            val uri = withContext(Dispatchers.IO) { writeBibFile(context, export) }
-            context.startActivity(Intent.createChooser(bibShareIntent(uri, export.fileName), null))
+            val uri = withContext(Dispatchers.IO) { writeExportFile(context, export) }
+            context.startActivity(Intent.createChooser(exportShareIntent(uri, export), null))
             viewModel.onExportShared()
         } catch (e: CancellationException) {
             throw e
@@ -166,6 +170,7 @@ internal fun LibraryScreen(
             header = header,
             dialog = dialog,
             pendingCollectionUndo = pendingCollectionUndo,
+            citationStyle = citationStyle,
             actions = LibraryActions(
                 onQueryChange = viewModel::onQueryChange,
                 onSearch = viewModel::onSearch,
@@ -233,6 +238,7 @@ internal fun LibraryContent(
     header: LibraryHeader = LibraryHeader(),
     dialog: CollectionDialog? = null,
     pendingCollectionUndo: CollectionRemoval? = null,
+    citationStyle: CitationStyle = CitationStyle.Apa,
     selectedId: String? = null,
     findRequested: Boolean = false,
     onFindHandled: () -> Unit = {}
@@ -320,9 +326,7 @@ internal fun LibraryContent(
                                     .testTag(EXPORT_PROGRESS_TAG)
                             )
                         } else {
-                            IconButton(onClick = actions.onExport) {
-                                Icon(HashiyaIcons.Export, contentDescription = stringResource(R.string.library_export_bib))
-                            }
+                            ExportMenu(citationStyle, actions.onExport)
                         }
                     }
                     IconButton(onClick = actions.onOpenSettings) {
@@ -586,3 +590,34 @@ private fun CollectionDialogs(dialog: CollectionDialog?, actions: LibraryActions
         )
     }
 }
+
+/** The export button and the menu of formats, the remembered one first. */
+@Composable
+private fun ExportMenu(citationStyle: CitationStyle, onExport: (CitationStyle) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    IconButton(onClick = { expanded = true }) {
+        Icon(HashiyaIcons.Export, contentDescription = stringResource(R.string.library_export))
+    }
+    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        for (style in exportStyles(citationStyle)) {
+            DropdownMenuItem(
+                text = { Text(stringResource(exportLabel(style))) },
+                onClick = {
+                    expanded = false
+                    onExport(style)
+                }
+            )
+        }
+    }
+}
+
+@StringRes
+private fun exportLabel(style: CitationStyle): Int = when (style) {
+    CitationStyle.Apa -> R.string.library_export_apa
+    CitationStyle.Ieee -> R.string.library_export_ieee
+    CitationStyle.Bibtex -> R.string.library_export_bibtex
+}
+
+/** The remembered style first, then the others in the menu's usual order. */
+internal fun exportStyles(remembered: CitationStyle): List<CitationStyle> =
+    listOf(remembered) + listOf(CitationStyle.Apa, CitationStyle.Ieee, CitationStyle.Bibtex).filter { it != remembered }

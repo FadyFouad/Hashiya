@@ -72,7 +72,7 @@ enum class LimitKind(val id: String) { Daily("daily"), PageCap("page_cap") }
 
 enum class SaveSource(val id: String) { Search("search"), Lookup("lookup"), Share("share") }
 
-enum class ExportFormat(val id: String) { Bibtex("bibtex"), Backup("backup") }
+enum class ExportFormat(val id: String) { Bibtex("bibtex"), Apa("apa"), Ieee("ieee"), Backup("backup") }
 
 enum class PdfOrigin(val id: String) { Downloaded("downloaded"), Attached("attached") }
 

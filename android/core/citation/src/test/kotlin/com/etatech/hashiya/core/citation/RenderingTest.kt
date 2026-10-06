@@ -26,8 +26,10 @@ class RenderingTest {
     @Test
     fun rtfHangingIndentIsOnlyForApa() {
         val one = listOf(StyledCitation(listOf(Run("x"))))
-        assertEquals(true, Rendering.rtf(one, hangingIndent = true).contains("{\\pard\\fi-720\\li720 x\\par}"))
-        assertEquals(true, Rendering.rtf(one, hangingIndent = false).contains("{\\pard x\\par}"))
+        assertEquals(true, Rendering.rtf(one, hangingIndent = true).contains("{\\pard\\fi-720\\li720\\sl480\\slmult1 x\\par}"))
+        val ieee = Rendering.rtf(one, hangingIndent = false)
+        assertEquals(true, ieee.contains("{\\pard x\\par}"))
+        assertEquals(false, ieee.contains("\\sl"))
     }
 
     @Test
@@ -35,4 +37,10 @@ class RenderingTest {
         "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24\n}",
         Rendering.rtf(emptyList(), hangingIndent = true)
     )
+
+    @Test
+    fun lineBreaksAndTabsBecomeASingleSpace() {
+        val rtf = Rendering.rtf(listOf(StyledCitation(listOf(Run("Deep\nLearning\tnow")))), hangingIndent = false)
+        assertEquals(true, rtf.contains("{\\pard Deep Learning now\\par}"))
+    }
 }

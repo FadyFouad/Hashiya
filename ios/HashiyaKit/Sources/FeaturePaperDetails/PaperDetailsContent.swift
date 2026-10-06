@@ -12,7 +12,9 @@ public struct PaperDetailsActions {
     public var retrySave: () -> Void = {}
     public var retryLoadNotes: () -> Void = {}
     public var showCollections: () -> Void = {}
-    public var copyBibTeX: () -> Void = {}
+    public var copyCitation: (CitationStyle) -> Void = { _ in }
+    /// The style listed first in Copy.
+    public var citationStyle: CitationStyle = .apa
     public var pdfAction: (PdfAction) -> Void = { _ in }
 
     public init() {}
@@ -163,13 +165,23 @@ public struct PaperDetailsContent: View {
 
     // MARK: Chrome
 
+    private static func copyKey(_ style: CitationStyle) -> String {
+        switch style {
+        case .apa: "details.copyApa"
+        case .ieee: "details.copyIeee"
+        case .bibtex: "details.copyBibtex"
+        }
+    }
+
     private var moreOptions: some View {
         Menu {
-            Button(action: actions.copyBibTeX) {
-                Label {
-                    Text(verbatim: L10n.string("details.copyBibtex"))
-                } icon: {
-                    Image(systemName: "doc.on.doc")
+            ForEach(orderedStyles(actions.citationStyle), id: \.self) { style in
+                Button { actions.copyCitation(style) } label: {
+                    Label {
+                        Text(verbatim: L10n.string(Self.copyKey(style)))
+                    } icon: {
+                        Image(systemName: "doc.on.doc")
+                    }
                 }
             }
             Button(role: .destructive, action: actions.remove) {

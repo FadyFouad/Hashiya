@@ -8,6 +8,7 @@ import HashiyaData
 import HashiyaDesignSystem
 import HashiyaDiagnostics
 import UIKit
+import UniformTypeIdentifiers
 
 /// Owns the long-lived objects and creates the view models. Built once per app launch.
 @MainActor
@@ -107,7 +108,15 @@ final class AppContainer {
             collections: collectionsRepository,
             citations: citationRepository,
             pdfs: pdfRepository,
-            copy: { UIPasteboard.general.string = $0 },
+            copy: { copied in
+                if let html = copied.html {
+                    // Rich text for Word, Pages and Google Docs, with plain text for everything else.
+                    UIPasteboard.general.setItems([[UTType.html.identifier: html, UTType.utf8PlainText.identifier: copied.text]])
+                } else {
+                    UIPasteboard.general.string = copied.text
+                }
+            },
+            styles: CitationStyleStore(),
             diagnostics: diagnostics
         )
     }

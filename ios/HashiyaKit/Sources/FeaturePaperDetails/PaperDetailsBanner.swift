@@ -18,10 +18,14 @@ struct PaperDetailsBanner: View {
             HashiyaBanner(text: L10n.string("details.statusUpdateFailed"))
         case .collectionsUpdateFailed:
             HashiyaBanner(text: L10n.string("details.collectionsUpdateFailed"))
+        case .apaCopied:
+            HashiyaBanner(text: L10n.string("details.apaCopied"))
+        case .ieeeCopied:
+            HashiyaBanner(text: L10n.string("details.ieeeCopied"))
         case .bibtexCopied:
             HashiyaBanner(text: L10n.string("details.bibtexCopied"))
-        case .bibtexIncomplete:
-            HashiyaBanner(text: L10n.string("details.bibtexIncomplete"))
+        case .citationIncomplete:
+            HashiyaBanner(text: L10n.string("details.citationIncomplete"))
         case .copyFailed:
             HashiyaBanner(text: L10n.string("details.copyFailed"))
         case .pdfAttachNotPdf:

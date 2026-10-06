@@ -1,6 +1,23 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "details.apaCopied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم نسخ استشهاد APA"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "APA citation copied"
+          }
+        }
+      }
+    },
     "details.bibtexCopied" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -18,7 +35,7 @@
         }
       }
     },
-    "details.bibtexIncomplete" : {
+    "details.citationIncomplete" : {
       "extractionState" : "manual",
       "localizations" : {
         "ar" : {
@@ -86,6 +103,23 @@
         }
       }
     },
+    "details.copyApa" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نسخ استشهاد APA 7"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy APA 7 citation"
+          }
+        }
+      }
+    },
     "details.copyBibtex" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -109,13 +143,30 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تعذّر نسخ BibTeX"
+            "value" : "تعذّر نسخ الاستشهاد"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Couldn't copy BibTeX"
+            "value" : "Couldn't copy the citation"
+          }
+        }
+      }
+    },
+    "details.copyIeee" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نسخ استشهاد IEEE"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy IEEE citation"
           }
         }
       }
@@ -133,6 +184,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "DOI"
+          }
+        }
+      }
+    },
+    "details.ieeeCopied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم نسخ استشهاد IEEE"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IEEE citation copied"
           }
         }
       }

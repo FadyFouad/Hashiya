@@ -159,9 +159,11 @@ struct PaperDetailsContentTests {
 
     @Test func eachNewMessageShowsItsBanner() {
         #expect(renderedStrings(of: content(SamplePapers.vit, message: .bibtexCopied)).contains("BibTeX copied"))
-        #expect(renderedStrings(of: content(SamplePapers.vit, message: .bibtexIncomplete))
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .apaCopied)).contains("APA citation copied"))
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .ieeeCopied)).contains("IEEE citation copied"))
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .citationIncomplete))
             .contains("Some details may be missing. Copy again when you're online."))
-        #expect(renderedStrings(of: content(SamplePapers.vit, message: .copyFailed)).contains("Couldn't copy BibTeX"))
+        #expect(renderedStrings(of: content(SamplePapers.vit, message: .copyFailed)).contains("Couldn't copy the citation"))
         #expect(renderedStrings(of: content(SamplePapers.vit, message: .collectionsUpdateFailed))
             .contains("Couldn't update collections"))
     }

@@ -19,8 +19,10 @@ struct PaperDetailsViewModelTests {
     /// What the view model copied, in order.
     @MainActor
     private final class Clipboard {
-        var texts: [String] = []
+        var copies: [CopiedText] = []
     }
+
+    private let defaults = TestDefaults.make()
 
     private func makeViewModel(
         _ library: FakeLibraryRepository,
@@ -36,7 +38,8 @@ struct PaperDetailsViewModelTests {
             collections: collections,
             citations: citations,
             pdfs: pdfs,
-            copy: { clipboard.texts.append($0) },
+            copy: { clipboard.copies.append($0) },
+            styles: CitationStyleStore(defaults: defaults),
             diagnostics: diagnostics,
             sleep: sleeper.sleep
         )
@@ -170,14 +173,14 @@ struct PaperDetailsViewModelTests {
         let library = FakeLibraryRepository(saved: [SamplePapers.attention])
         let (viewModel, first) = await started(library)
         let firstEnded = Clipboard()
-        Task { await first.value; firstEnded.texts.append("ended") }
+        Task { await first.value; firstEnded.copies.append(CopiedText(text: "ended", html: nil)) }
         let second = Task { await viewModel.start() }
         defer {
             first.cancel()
             second.cancel()
         }
 
-        #expect(await eventually { firstEnded.texts == ["ended"] })
+        #expect(await eventually { firstEnded.copies.count == 1 })
         _ = try? await library.remove(openAlexID: id)
         #expect(await eventually { viewModel.exit == .closed })
     }
@@ -553,20 +556,45 @@ struct PaperDetailsViewModelTests {
         #expect(viewModel.nameSheetError == nil)
     }
 
-    // MARK: Copy BibTeX
+    // MARK: Copy
 
-    @Test func copyBibTeXCopiesTheEntryAndSaysSo() async {
+    @Test func copyingAPACopiesRichTextRemembersItAndSaysSo() async {
+        let citations = FakeCitationRepository()
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
+        defer { task.cancel() }
+        let text = FakeCitationRepository.sampleEntry.text
+
+        await viewModel.copyCitation(.apa)
+
+        #expect(citations.entryCalls == [id])
+        #expect(clipboard.copies == [CopiedText(text: text, html: "<i>\(text)</i>")])
+        #expect(viewModel.message == .apaCopied)
+        #expect(viewModel.citationStyle == .apa)
+        #expect(citations.styles == [.apa])
+        #expect(!viewModel.copying)
+    }
+
+    @Test func copyingIEEERemembersIEEE() async {
+        let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]))
+        defer { task.cancel() }
+
+        await viewModel.copyCitation(.ieee)
+
+        #expect(CitationStyleStore(defaults: defaults).style == .ieee)
+        #expect(viewModel.citationStyle == .ieee)
+        #expect(viewModel.message == .ieeeCopied)
+    }
+
+    @Test func copyingBibTeXHasNoRichText() async {
         let entry = "@inproceedings{vaswani2017attention,\n  title = {Attention Is All You Need}\n}\n"
         let citations = FakeCitationRepository(entry: CitationResult(text: entry, complete: true))
         let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
         defer { task.cancel() }
 
-        await viewModel.copyBibTeX()
+        await viewModel.copyCitation(.bibtex)
 
-        #expect(citations.entryCalls == [id])
-        #expect(clipboard.texts == [entry])
+        #expect(clipboard.copies == [CopiedText(text: entry, html: nil)])
         #expect(viewModel.message == .bibtexCopied)
-        #expect(!viewModel.copying)
     }
 
     @Test func anIncompleteEntryIsStillCopied() async {
@@ -574,10 +602,10 @@ struct PaperDetailsViewModelTests {
         let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
         defer { task.cancel() }
 
-        await viewModel.copyBibTeX()
+        await viewModel.copyCitation(.bibtex)
 
-        #expect(clipboard.texts == ["@misc{k,\n}\n"])
-        #expect(viewModel.message == .bibtexIncomplete)
+        #expect(clipboard.copies == [CopiedText(text: "@misc{k,\n}\n", html: nil)])
+        #expect(viewModel.message == .citationIncomplete)
     }
 
     @Test func aFailedCopyCopiesNothingAndSaysSo() async {
@@ -586,9 +614,9 @@ struct PaperDetailsViewModelTests {
         let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
         defer { task.cancel() }
 
-        await viewModel.copyBibTeX()
+        await viewModel.copyCitation(.bibtex)
 
-        #expect(clipboard.texts.isEmpty)
+        #expect(clipboard.copies.isEmpty)
         #expect(viewModel.message == .copyFailed)
     }
 
@@ -597,10 +625,16 @@ struct PaperDetailsViewModelTests {
         let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
         defer { task.cancel() }
 
-        await viewModel.copyBibTeX()
+        await viewModel.copyCitation(.bibtex)
 
-        #expect(clipboard.texts.isEmpty)
+        #expect(clipboard.copies.isEmpty)
         #expect(viewModel.message == nil)
+    }
+
+    @Test func orderedStylesPutTheRememberedOneFirst() {
+        #expect(orderedStyles(.ieee) == [.ieee, .apa, .bibtex])
+        #expect(orderedStyles(.apa) == [.apa, .ieee, .bibtex])
+        #expect(orderedStyles(.bibtex) == [.bibtex, .apa, .ieee])
     }
 
     // MARK: Usage statistics

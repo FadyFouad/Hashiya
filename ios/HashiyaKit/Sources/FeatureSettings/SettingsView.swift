@@ -12,6 +12,7 @@ public struct SettingsView: View {
     @State private var confirmingDelete = false
     @State private var importing = false
     @State private var restoreSource: URL?
+    @State private var addressCopied = false
     @Environment(\.diagnostics) private var diagnostics
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -35,6 +36,7 @@ public struct SettingsView: View {
                 storageSection
                 BackupSection(summary: viewModel.backup.summary, onRestore: { importing = true })
                 privacySection
+                AboutSection(onAddressCopied: { addressCopied = true })
                 languageSection
             }
             .scrollContentBackground(.hidden)
@@ -67,6 +69,16 @@ public struct SettingsView: View {
                 }
             }
             .animation(.default, value: viewModel.backup.message)
+            .overlay(alignment: .bottom) {
+                if addressCopied {
+                    HashiyaBanner(text: L10n.format("settings.feedbackCopied", Feedback.address))
+                }
+            }
+            .animation(.default, value: addressCopied)
+            .task(id: addressCopied) {
+                guard addressCopied, (try? await Task.sleep(for: HashiyaBanner.duration)) != nil else { return }
+                addressCopied = false
+            }
             .task(id: viewModel.backup.message) {
                 // A newer message cancels this task: then it must not clear the new one.
                 guard viewModel.backup.message != nil, (try? await Task.sleep(for: HashiyaBanner.duration)) != nil else { return }

@@ -1,5 +1,6 @@
 @testable import FeatureSettings
 import HashiyaData
+import HashiyaDesignSystem
 import HashiyaModel
 import HashiyaTesting
 import SwiftUI
@@ -31,5 +32,16 @@ struct SettingsSnapshotTests {
         let viewModel = SettingsViewModel(preferences: FakeUserPreferencesRepository(), pdfs: pdfs, backup: FakeLibraryBackup())
         await viewModel.loadStorage()
         assertHashiyaSnapshots(of: SettingsView(viewModel: viewModel, makeRestoreViewModel: Self.restoreViewModel), named: "storage", arabicText: "التخزين")
+    }
+
+    /// Settings → About on its own, in a Form as in Settings.
+    @Test func about() {
+        assertHashiyaSnapshots(
+            of: Form { AboutSection(version: AppVersion(name: "0.3.0", build: "3")) }
+                .scrollContentBackground(.hidden)
+                .background(HashiyaColors.surface),
+            named: "about",
+            arabicText: "حول التطبيق"
+        )
     }
 }

@@ -60,6 +60,7 @@ dependencies {
     implementation(project(":core:data"))
     implementation(project(":core:crash"))
     implementation(project(":core:analytics"))
+    implementation(project(":core:review"))
 
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -71,6 +72,7 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.crashlytics)
     implementation(libs.firebase.analytics)
+    implementation(libs.play.review.ktx)
 
     testImplementation(project(":core:testing"))
     testImplementation(libs.junit)

@@ -1,4 +1,5 @@
 [versions]
+playReview = "2.0.2"
 agp = "9.2.1"
 kotlin = "2.4.20"
 ksp = "2.3.12"
@@ -32,6 +33,7 @@ googleServices = "4.5.0"
 firebaseCrashlyticsGradle = "3.0.8"
 
 [libraries]
+play-review-ktx = { group = "com.google.android.play", name = "review-ktx", version.ref = "playReview" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }

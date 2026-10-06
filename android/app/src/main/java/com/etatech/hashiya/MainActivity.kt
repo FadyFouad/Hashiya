@@ -16,20 +16,27 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.etatech.hashiya.core.analytics.Analytics
 import com.etatech.hashiya.core.analytics.AnalyticsProperty
 import com.etatech.hashiya.core.analytics.Language
 import com.etatech.hashiya.core.crash.CrashKey
 import com.etatech.hashiya.core.crash.CrashReporter
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
+import com.etatech.hashiya.core.review.ReviewPrompt
 import com.etatech.hashiya.crash.languageKey
 import com.etatech.hashiya.feature.search.navigation.SearchRoute
 import com.etatech.hashiya.navigation.AppShortcut
 import com.etatech.hashiya.navigation.HashiyaApp
+import com.etatech.hashiya.review.ReviewRequests
+import com.etatech.hashiya.review.launchPlayReview
 import com.etatech.hashiya.share.shareToSearchRoute
 import com.etatech.hashiya.update.AppUpdateViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
+import kotlinx.coroutines.launch
 
 /** AppCompatActivity so that AppCompatDelegate.setApplicationLocales can switch the language in-app. */
 @AndroidEntryPoint
@@ -51,11 +58,23 @@ class MainActivity : AppCompatActivity() {
     @Inject
     lateinit var analytics: Analytics
 
+    @Inject
+    lateinit var reviewPrompt: ReviewPrompt
+
+    @Inject
+    lateinit var reviewRequests: ReviewRequests
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Android 12 and below only load the stored app language once an activity exists, so Application.onCreate may have seen none.
         crashReporter.setKey(CrashKey.Language, languageKey(AppCompatDelegate.getApplicationLocales().toLanguageTags()))
         analytics.setProperty(AnalyticsProperty.Language, Language.of(AppCompatDelegate.getApplicationLocales().toLanguageTags()))
+        reviewPrompt.markOpened()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                reviewRequests.requests.collect { launchPlayReview() }
+            }
+        }
         enableEdgeToEdge()
         if (isFreshLaunch(savedInstanceState)) pendingSearch = intent.sharedSearchRoute()
         if (isFreshLaunch(savedInstanceState)) pendingRestore = intent.openedBackup()

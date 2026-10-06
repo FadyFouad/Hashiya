@@ -30,11 +30,15 @@ class FakeUserPreferencesRepository(initialKey: String? = null) : UserPreference
         analytics.value = enabled
     }
 
+    /** When set, [setCitationStyle] throws it. */
+    var failOnSetCitationStyle: Exception? = null
+
     private val style = MutableStateFlow(CitationStyle.Apa)
 
     override val citationStyle: StateFlow<CitationStyle> = style
 
     override suspend fun setCitationStyle(style: CitationStyle) {
+        failOnSetCitationStyle?.let { throw it }
         this.style.value = style
     }
 }

@@ -161,7 +161,7 @@ class PaperDetailsViewModel @AssistedInject constructor(
     fun onCopyBibTeX() {
         viewModelScope.launch {
             try {
-                citationRepository.entry(openAlexId)?.let { _copied.value = CopiedBibTeX(it.bibtex, it.complete) }
+                citationRepository.entry(openAlexId)?.let { _copied.value = CopiedBibTeX(it.text, it.complete) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

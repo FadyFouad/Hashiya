@@ -1,6 +1,7 @@
 package com.etatech.hashiya.core.testing
 
 import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
+import com.etatech.hashiya.core.model.CitationStyle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -27,5 +28,13 @@ class FakeUserPreferencesRepository(initialKey: String? = null) : UserPreference
 
     override suspend fun setAnalyticsEnabled(enabled: Boolean) {
         analytics.value = enabled
+    }
+
+    private val style = MutableStateFlow(CitationStyle.Apa)
+
+    override val citationStyle: StateFlow<CitationStyle> = style
+
+    override suspend fun setCitationStyle(style: CitationStyle) {
+        this.style.value = style
     }
 }

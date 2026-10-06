@@ -15,6 +15,7 @@ dependencies {
     api(libs.kotlinx.coroutines.core)
     implementation(project(":core:analytics"))
     implementation(project(":core:bibtex"))
+    implementation(project(":core:citation"))
     implementation(project(":core:crash"))
     implementation(project(":core:network"))
     implementation(project(":core:database"))

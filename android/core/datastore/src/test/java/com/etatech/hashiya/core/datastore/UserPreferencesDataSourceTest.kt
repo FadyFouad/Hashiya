@@ -79,4 +79,14 @@ class UserPreferencesDataSourceTest {
         source.setAnalyticsEnabled(true)
         assertTrue(source.analyticsEnabled.first())
     }
+
+    @Test
+    fun noCitationStyleByDefault() = runTest { assertEquals(null, dataSource().citationStyleId.first()) }
+
+    @Test
+    fun storesTheCitationStyle() = runTest {
+        val source = dataSource()
+        source.setCitationStyleId("ieee")
+        assertEquals("ieee", source.citationStyleId.first())
+    }
 }

@@ -5,6 +5,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.etatech.hashiya.core.data.FakeOpenAlexLookupDataSource
 import com.etatech.hashiya.core.database.HashiyaDatabase
 import com.etatech.hashiya.core.model.Author
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.network.NetworkException
@@ -86,8 +87,8 @@ class RoomCitationRepositoryTest {
 
         assertTrue(first.complete)
         assertEquals(listOf("W1"), openAlex.workRequests)
-        assertTrue(first.bibtex.startsWith("@article{smith2020deep,\n"))
-        assertTrue(first.bibtex.contains("  volume = {521},"))
+        assertTrue(first.text.startsWith("@article{smith2020deep,\n"))
+        assertTrue(first.text.contains("  volume = {521},"))
         assertEquals(first, second)
     }
 
@@ -123,16 +124,16 @@ class RoomCitationRepositoryTest {
 
         val offline = repository().export(null)
         assertFalse(offline.complete)
-        assertTrue(offline.bibtex.startsWith("@misc{smith2020deep,"))
+        assertTrue(offline.text.startsWith("@misc{smith2020deep,"))
         assertFalse(detailsFetched("W1"))
 
         openAlex.getFailure = null
         openAlex.works = mapOf("W1" to journalWork("W1"))
         val online = repository().export(null)
         assertTrue(online.complete)
-        assertTrue(online.bibtex.startsWith("@article{smith2020deep,"))
+        assertTrue(online.text.startsWith("@article{smith2020deep,"))
         // pages is the last field here (no DOI or URL), so it has no trailing comma.
-        assertTrue(online.bibtex.contains("  pages = {436--444}\n}"))
+        assertTrue(online.text.contains("  pages = {436--444}\n}"))
         assertEquals(listOf("W1", "W1"), openAlex.workRequests)
         assertTrue(detailsFetched("W1"))
     }
@@ -146,8 +147,8 @@ class RoomCitationRepositoryTest {
         val result = repository(flaky).export(null)
 
         assertFalse(result.complete)
-        assertTrue(result.bibtex.contains("@misc{adams2020deep,"))
-        assertTrue(result.bibtex.contains("@article{brown2020deep,"))
+        assertTrue(result.text.contains("@misc{adams2020deep,"))
+        assertTrue(result.text.contains("@article{brown2020deep,"))
         assertFalse(detailsFetched("W1"))
         assertTrue(detailsFetched("W2"))
     }
@@ -167,8 +168,8 @@ class RoomCitationRepositoryTest {
         library.save(paper("W1", "Smith"))
         library.save(paper("W2", "Smith"))
         val first = repository().export(null)
-        assertTrue(first.bibtex.contains("@misc{smith2020deep,"))
-        assertTrue(first.bibtex.contains("@misc{smith2020deepa,"))
+        assertTrue(first.text.contains("@misc{smith2020deep,"))
+        assertTrue(first.text.contains("@misc{smith2020deepa,"))
 
         // A paper saved later with the same base key gets the next suffix; the first two keep theirs.
         library.save(paper("W3", "Smith"))
@@ -177,7 +178,7 @@ class RoomCitationRepositoryTest {
         val again = repository().export(null)
         assertEquals(
             listOf("smith2020deep", "smith2020deepa", "smith2020deepb"),
-            Regex("""@misc\{(\w+),""").findAll(again.bibtex).map { it.groupValues[1] }.toList()
+            Regex("""@misc\{(\w+),""").findAll(again.text).map { it.groupValues[1] }.toList()
         )
         assertEquals("smith2020deep", db.citationDao().getPaper("W1")?.paper?.citeKey)
     }
@@ -189,7 +190,7 @@ class RoomCitationRepositoryTest {
         val id = checkNotNull(db.collectionDao().insertCollection("A", "a", createdAt = 1))
         db.collectionDao().addToCollection(id, "W2", addedAt = 1)
 
-        assertTrue(repository().export(id).bibtex.startsWith("@misc{smith2020deepa,"))
+        assertTrue(repository().export(id).text.startsWith("@misc{smith2020deepa,"))
         assertEquals("smith2020deep", db.citationDao().getPaper("W1")?.paper?.citeKey)
     }
 
@@ -204,7 +205,7 @@ class RoomCitationRepositoryTest {
         collections.addToCollection(id, "W1", addedAt = 1)
         collections.addToCollection(id, "W2", addedAt = 1)
 
-        val bibtex = repository().export(id).bibtex
+        val bibtex = repository().export(id).text
         assertTrue(bibtex.contains("{adams2020deep,"))
         assertTrue(bibtex.contains("{brown2020deep,"))
         assertFalse(bibtex.contains("clark"))
@@ -225,8 +226,8 @@ class RoomCitationRepositoryTest {
         val result = repository(removing).export(null)
 
         assertTrue(result.complete)
-        assertTrue(result.bibtex.contains("{adams2020deep,"))
-        assertFalse(result.bibtex.contains("brown"))
+        assertTrue(result.text.contains("{adams2020deep,"))
+        assertFalse(result.text.contains("brown"))
     }
 
     @Test
@@ -259,5 +260,58 @@ class RoomCitationRepositoryTest {
         assertTrue(repository(slow).export(null).complete)
         assertEquals(4, peak)
         assertEquals(9, requests)
+    }
+
+    @Test
+    fun anApaEntryHasPlainAndHtmlText() = runTest {
+        saveUnfetched(paper("W1", "Smith"))
+        openAlex.works = mapOf("W1" to journalWork("W1"))
+
+        val result = checkNotNull(repository().entry("W1", CitationStyle.Apa))
+
+        assertTrue(result.text.contains("(2020)."))
+        assertTrue(result.text.contains("Deep nets"))
+        assertTrue(checkNotNull(result.html).contains("<i>"))
+        assertNull(result.rtf)
+        assertTrue(result.complete)
+    }
+
+    @Test
+    fun anIeeeExportNumbersInSavedOrderAndHasRtf() = runTest {
+        library.save(paper("W1", "Smith", title = "Zebra studies"))
+        library.save(paper("W2", "Smith", title = "Aardvark studies"))
+
+        val result = repository().export(null, CitationStyle.Ieee)
+
+        assertTrue(result.text.startsWith("[1] "))
+        assertTrue(result.text.contains("\n\n[2] "))
+        val entries = result.text.split("\n\n")
+        assertEquals(2, entries.size)
+        assertTrue(entries[0].startsWith("[1] ") && entries[0].contains("Zebra studies"))
+        assertTrue(entries[1].startsWith("[2] ") && entries[1].contains("Aardvark studies"))
+        assertTrue(checkNotNull(result.rtf).startsWith("{\\rtf1"))
+    }
+
+    @Test
+    fun anEmptyCollectionExportsAnEmptyRtfDocument() = runTest {
+        val id = checkNotNull(db.collectionDao().insertCollection("A", "a", createdAt = 1))
+
+        val result = repository().export(id, CitationStyle.Apa)
+
+        assertEquals("", result.text)
+        assertEquals("{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24\n}", result.rtf)
+        assertTrue(result.complete)
+    }
+
+    @Test
+    fun bibtexIsUnchangedAndHasNoRichForms() = runTest {
+        saveUnfetched(paper("W1", "Smith"))
+        openAlex.works = mapOf("W1" to journalWork("W1"))
+
+        val result = checkNotNull(repository().entry("W1"))
+
+        assertTrue(result.text.startsWith("@article{smith2020deep,\n"))
+        assertNull(result.html)
+        assertNull(result.rtf)
     }
 }

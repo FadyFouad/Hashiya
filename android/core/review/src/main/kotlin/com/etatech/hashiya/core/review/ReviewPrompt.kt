@@ -8,7 +8,7 @@ interface ReviewPrompt {
     /** A paper was saved from Search, Add by ID or Share. */
     fun recordSave()
 
-    /** A BibTeX export finished writing its file. */
+    /** A reference export (BibTeX, APA or IEEE) finished writing its file. */
     fun recordExport()
 
     /** Nothing covers the screen now: asks for the system's rating prompt if [ReviewRule] says so. */

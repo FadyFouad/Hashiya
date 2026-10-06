@@ -55,7 +55,7 @@ sealed interface CollectionDialog {
 /** A paper swiped out of [collection], for Undo. */
 data class CollectionRemoval(val collection: PaperCollection, val openAlexId: String)
 
-/** A .bib file ready to share. */
+/** A reference file (BibTeX or RTF) ready to share. */
 data class ReferenceExport(val fileName: String, val content: String, val mimeType: String, val complete: Boolean, val style: CitationStyle)
 
 enum class LibraryMessage { StatusUpdateFailed, CollectionsUpdateFailed, ExportFailed, ExportIncomplete }

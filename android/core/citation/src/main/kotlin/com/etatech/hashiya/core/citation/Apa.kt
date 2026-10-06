@@ -18,6 +18,7 @@ object Apa {
             b.text(" $year")
         } else {
             b.text(authors(paper.authors.map { it.name }))
+            b.endSentence()
             b.text(" $year ")
             title(b, paper, kind, venue)
         }
@@ -66,13 +67,14 @@ object Apa {
             WorkKind.Article -> if (venue != null) {
                 b.text(" ")
                 b.italic(venue)
-                d.volume.orNullIfBlank()?.let {
+                val volume = d.volume.orNullIfBlank()
+                volume?.let {
                     b.text(", ")
                     b.italic(it)
                 }
-                d.issue.orNullIfBlank()?.let { b.text("($it)") }
+                d.issue.orNullIfBlank()?.let { b.text(if (volume == null) ", ($it)" else "($it)") }
                 pages?.let { b.text(", $it") }
-                b.text(".")
+                b.endSentence()
             }
 
             WorkKind.Conference, WorkKind.Chapter -> {
@@ -80,20 +82,30 @@ object Apa {
                     b.text(" In ")
                     b.italic(venue)
                     pages?.let { b.text(if (isSinglePage(d.firstPage, d.lastPage)) " (p. $it)" else " (pp. $it)") }
-                    b.text(".")
+                    b.endSentence()
                 }
                 publisher?.let {
-                    b.text(" $it.")
+                    b.text(" $it")
+                    b.endSentence()
                 }
             }
 
-            WorkKind.Book -> publisher?.let { b.text(" $it.") }
+            WorkKind.Book -> publisher?.let {
+                b.text(" $it")
+                b.endSentence()
+            }
 
             WorkKind.Thesis -> Unit
 
-            WorkKind.Report -> (publisher ?: venue)?.let { b.text(" $it.") }
+            WorkKind.Report -> (publisher ?: venue)?.let {
+                b.text(" $it")
+                b.endSentence()
+            }
 
-            WorkKind.Preprint, WorkKind.Other -> venue?.let { b.text(" $it.") }
+            WorkKind.Preprint, WorkKind.Other -> venue?.let {
+                b.text(" $it")
+                b.endSentence()
+            }
         }
     }
 

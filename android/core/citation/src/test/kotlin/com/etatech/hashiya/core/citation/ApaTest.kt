@@ -114,4 +114,32 @@ class ApaTest {
         ).map { it.plain.substringBefore(" (") }
         assertEquals(listOf("D.", "emile, A.", "Émile, A.", "Zed, Z."), list)
     }
+
+    @Test
+    fun aWholeNameGetsAFullStopBeforeTheYear() {
+        assertEquals(true, apa(paper(authors = listOf("OpenAI"))).plain.startsWith("OpenAI. (2017). "))
+        assertEquals(
+            true,
+            apa(paper(authors = listOf("Ashish Vaswani", "محمد علي"))).plain.startsWith("Vaswani, A., & محمد علي. (2017). ")
+        )
+    }
+
+    @Test
+    fun anIssueWithoutAVolumeIsSeparatedFromTheJournal() {
+        val c = apa(paper(venue = "Nature", doi = null, volume = null, issue = "7553", first = "436", last = "444"))
+        assertEquals(true, c.plain.contains("Nature, (7553), 436–444."))
+        assertEquals(listOf(Run("Nature", italic = true), Run(", (7553), 436–444.")), c.runs.drop(1).take(2))
+    }
+
+    @Test
+    fun aPublisherEndingInAFullStopGetsNoSecondOne() = assertEquals(
+        "Vaswani, A., & Shazeer, N. (2017). Attention is all you need. Springer-Verlag Inc. https://doi.org/10.5555/3295222.3295349",
+        apa(paper(work = "book", source = null, publisher = "Springer-Verlag Inc.")).plain
+    )
+
+    @Test
+    fun aVenueEndingInAFullStopGetsNoSecondOne() = assertEquals(
+        "Vaswani, A., & Shazeer, N. (2017). Attention is all you need. In Proc. IEEE Conf. Curran. https://doi.org/10.5555/3295222.3295349",
+        apa(paper(source = "conference", venue = "Proc. IEEE Conf.", publisher = "Curran")).plain
+    )
 }

@@ -50,7 +50,8 @@ object Ieee {
 
                 WorkKind.Chapter -> listOfNotNull(
                     venue?.let {
-                        listOf(Run("in "), Run(it, italic = true)) + (publisher?.let { p -> listOf(Run(". $p")) } ?: emptyList())
+                        listOf(Run("in "), Run(it, italic = true)) +
+                            (publisher?.let { p -> listOf(Run((if (it.last() in ".?!") " " else ". ") + p)) } ?: emptyList())
                     },
                     year?.let { listOf(Run(it)) },
                     pages?.let { listOf(Run(it)) },
@@ -77,7 +78,15 @@ object Ieee {
 
                 else -> listOfNotNull(venue?.let { listOf(Run(it)) }, year?.let { listOf(Run(it)) }, doi?.let { listOf(Run(it)) })
             }
-            b.text("\"" + (title ?: "Untitled") + (if (tail.isEmpty()) "." else ",") + "\"")
+            val shown = title ?: "Untitled"
+            val closing = if (shown.last() in ".?!") {
+                ""
+            } else if (tail.isEmpty()) {
+                "."
+            } else {
+                ","
+            }
+            b.text("\"" + shown + closing + "\"")
             if (tail.isNotEmpty()) {
                 b.text(" ")
                 tail.forEachIndexed { i, part ->

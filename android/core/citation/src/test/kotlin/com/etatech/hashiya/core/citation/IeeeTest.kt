@@ -128,4 +128,28 @@ class IeeeTest {
         true,
         ieee(paper(authors = listOf("OpenAI"))).plain.startsWith("OpenAI, \"Attention")
     )
+
+    @Test
+    fun quotedTitleEndingInAMarkTakesNoExtraPunctuation() {
+        val q = "Is attention all you need?"
+        assertEquals(
+            "A. Vaswani and N. Shazeer, \"$q\" Zenodo, 2017.",
+            ieee(paper(title = q, work = "dataset", source = null, venue = "Zenodo", doi = null)).plain
+        )
+        assertEquals(
+            "A. Vaswani and N. Shazeer, \"$q\"",
+            ieee(paper(title = q, work = "dataset", source = null, venue = null, year = null, doi = null)).plain
+        )
+        assertEquals(
+            "A. Vaswani and N. Shazeer, \"Deep learning.\" Zenodo, 2017.",
+            ieee(paper(title = "Deep learning.", work = "dataset", source = null, venue = "Zenodo", doi = null)).plain
+        )
+    }
+
+    @Test
+    fun chapterVenueEndingInAFullStopIsFollowedByThePublisherDirectly() {
+        val c = ieee(paper(work = "book-chapter", venue = "Proc. Int. Conf.", publisher = "Springer", first = "12", doi = null))
+        assertEquals("A. Vaswani and N. Shazeer, \"Attention is all you need,\" in Proc. Int. Conf. Springer, 2017, p. 12.", c.plain)
+        assertEquals(Run("Proc. Int. Conf.", italic = true), c.runs[1])
+    }
 }

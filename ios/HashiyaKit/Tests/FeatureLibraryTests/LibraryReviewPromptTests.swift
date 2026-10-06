@@ -26,14 +26,14 @@ struct LibraryReviewPromptTests {
 
     @Test func anExportCountsAndAsksAfterTheShareSheetCloses() async {
         let viewModel = makeViewModel(shareResult: true)
-        await viewModel.export()
+        await viewModel.export(style: .bibtex)
         #expect(review.exports == 1)
         #expect(review.asks == 1)
     }
 
     @Test func aCancelledOrFailedShareNeitherCountsNorAsks() async {
         let viewModel = makeViewModel(shareResult: false)
-        await viewModel.export()
+        await viewModel.export(style: .bibtex)
         #expect(review.exports == 0)
         #expect(review.asks == 0)
     }

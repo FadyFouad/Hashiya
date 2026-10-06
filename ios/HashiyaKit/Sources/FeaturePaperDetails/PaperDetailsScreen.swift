@@ -150,7 +150,8 @@ public struct PaperDetailsScreen: View {
         actions.retrySave = { viewModel.flush() }
         actions.retryLoadNotes = { Task { await viewModel.retryLoadNotes() } }
         actions.showCollections = { viewModel.showingChecklist = true }
-        actions.copyBibTeX = { Task { await viewModel.copyBibTeX() } }
+        actions.copyCitation = { style in Task { await viewModel.copyCitation(style) } }
+        actions.citationStyle = viewModel.citationStyle
         actions.pdfAction = { action in
             if let link = viewModel.handle(action) { openURL(link) }
         }

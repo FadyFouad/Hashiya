@@ -35,18 +35,15 @@ enum EntryType: CaseIterable, Equatable, Hashable {
     }
 }
 
-private let journalWorkTypes: Set<String> = ["article", "review", "letter", "editorial"]
-
-/// The spec's table, first match wins: a conference article is @inproceedings, a repository article @misc.
+/// The BibTeX type for a kind of work: preprints and anything else are @misc.
 func entryType(_ details: PublicationDetails) -> EntryType {
-    let work = details.workType?.lowercased()
-    let source = details.sourceType?.lowercased()
-    if source == "conference" { return .inProceedings }
-    if work == "book-chapter" { return .inCollection }
-    if work == "book" { return .book }
-    if work == "dissertation" { return .phdThesis }
-    if work == "report" { return .techReport }
-    if work == "preprint" || source == "repository" { return .misc }
-    if let work, journalWorkTypes.contains(work), source == "journal" { return .article }
-    return .misc
+    switch details.workKind {
+    case .conference: .inProceedings
+    case .chapter: .inCollection
+    case .book: .book
+    case .thesis: .phdThesis
+    case .report: .techReport
+    case .article: .article
+    case .preprint, .other: .misc
+    }
 }

@@ -1,5 +1,5 @@
 /// Bibliographic details used for citations, as OpenAlex reports them. Every field is nil when the source has none.
-/// The strings are kept as-is; HashiyaBibTeX interprets them, so a new OpenAlex type needs no migration.
+/// The strings are kept as-is; HashiyaBibTeX and HashiyaCitation interpret them, so a new OpenAlex type needs no migration.
 public struct PublicationDetails: Equatable, Hashable, Sendable {
     /// OpenAlex's work type, such as "article", "preprint", "book-chapter".
     public var workType: String?

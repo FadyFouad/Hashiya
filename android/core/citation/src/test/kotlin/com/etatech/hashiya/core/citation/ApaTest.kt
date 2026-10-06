@@ -142,4 +142,32 @@ class ApaTest {
         "Vaswani, A., & Shazeer, N. (2017). Attention is all you need. In Proc. IEEE Conf. Curran. https://doi.org/10.5555/3295222.3295349",
         apa(paper(source = "conference", venue = "Proc. IEEE Conf.", publisher = "Curran")).plain
     )
+
+    /** NFD strips the hamza and madda from أ, إ and آ, so they sort as a bare ا: ابراهيم (ب), احمد (ح), ادم (د), اسامة (س,ا), اسماعيل (س,م). */
+    @Test
+    fun arabicAlefVariantsSortAsTheirBareAlef() = assertEquals(
+        listOf("ابراهيم", "أحمد", "آدم", "اسامة", "إسماعيل"),
+        Apa.list(listOf("أحمد", "ابراهيم", "إسماعيل", "آدم", "اسامة").map { paper(authors = listOf(it)) })
+            .map { it.plain.substringBefore(". (") }
+    )
+
+    /** NFD splits 김 into jamo U+1100 U+1175 U+11B7, which come before 王 (U+738B). */
+    @Test
+    fun hangulSortsAsItsDecomposedJamo() = assertEquals(
+        listOf("김", "王"),
+        Apa.list(listOf(paper(authors = listOf("王")), paper(authors = listOf("김")))).map { it.plain.substringBefore(". (") }
+    )
+
+    /** 😀 is D83D DE00 in UTF-16, so it precedes the fullwidth Ａ (key U+FF41), though not by code point. */
+    @Test
+    fun sortsByUtf16UnitsNotCodePoints() = assertEquals(
+        listOf("😀", "Ａ"),
+        Apa.list(listOf(paper(authors = listOf("Ａ")), paper(authors = listOf("😀")))).map { it.plain.substringBefore(". (") }
+    )
+
+    @Test
+    fun sortKeyStripsMarks() {
+        assertEquals("emile", sortKey("Émile"))
+        assertEquals('ا', sortKey("آدم").first())
+    }
 }

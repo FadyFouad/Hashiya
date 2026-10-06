@@ -1,12 +1,13 @@
 import Foundation
 import HashiyaData
+import HashiyaModel
 import os
 
 /// Scripted citations, recording every call. Exports can be held, so a test can see one in progress.
 public final class FakeCitationRepository: CitationRepository {
     public struct Failure: Error {}
 
-    public static let sampleEntry = CitationResult(bibtex: "@article{k,\n}\n", complete: true)
+    public static let sampleEntry = CitationResult(text: "@article{k,\n}\n", complete: true)
 
     private struct State {
         var entry: CitationResult?
@@ -16,6 +17,7 @@ public final class FakeCitationRepository: CitationRepository {
         var heldExports: [CheckedContinuation<Void, Never>]?
         var exportCalls: [Int64?] = []
         var entryCalls: [String] = []
+        var styles: [CitationStyle] = []
     }
 
     private let state: OSAllocatedUnfairLock<State>
@@ -31,6 +33,8 @@ public final class FakeCitationRepository: CitationRepository {
     public var exportCalls: [Int64?] { state.withLock { $0.exportCalls } }
     /// Every `entry` call's OpenAlex ID, in order.
     public var entryCalls: [String] { state.withLock { $0.entryCalls } }
+    /// Every call's style, `entry` and `export` alike, in order.
+    public var styles: [CitationStyle] { state.withLock { $0.styles } }
     /// The exports waiting while exports are held.
     public var heldExports: Int { state.withLock { $0.heldExports?.count ?? 0 } }
 
@@ -53,16 +57,22 @@ public final class FakeCitationRepository: CitationRepository {
         waiting.forEach { $0.resume() }
     }
 
-    public func entry(openAlexID: String) async throws -> CitationResult? {
+    public func entry(openAlexID: String, style: CitationStyle) async throws -> CitationResult? {
         try state.withLock { state in
             state.entryCalls.append(openAlexID)
+            state.styles.append(style)
             if state.fail { throw Failure() }
-            return state.entry
+            guard var result = state.entry else { return nil }
+            if style != .bibtex { result.html = "<i>\(result.text)</i>" }
+            return result
         }
     }
 
-    public func export(collectionID: Int64?) async throws -> CitationResult {
-        state.withLock { $0.exportCalls.append(collectionID) }
+    public func export(collectionID: Int64?, style: CitationStyle) async throws -> CitationResult {
+        state.withLock {
+            $0.exportCalls.append(collectionID)
+            $0.styles.append(style)
+        }
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             let held = state.withLock { state -> Bool in
                 guard state.heldExports != nil else { return false }
@@ -73,7 +83,9 @@ public final class FakeCitationRepository: CitationRepository {
         }
         return try state.withLock { state in
             if state.fail { throw Failure() }
-            return state.export
+            var result = state.export
+            if style != .bibtex { result.rtf = "{\\rtf1 \(result.text)}" }
+            return result
         }
     }
 }

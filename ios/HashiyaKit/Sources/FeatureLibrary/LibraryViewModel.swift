@@ -114,6 +114,8 @@ public final class LibraryViewModel {
     public private(set) var viewTotal = 0
     /// True from an export's start until its share sheet closes.
     public private(set) var exporting = false
+    /// The style the last export used; the Export menu lists it first.
+    public var citationStyle: CitationStyle { styles.style }
     public internal(set) var nameSheet: NameSheet?
     /// The collection the delete confirmation asks about.
     public var pendingDelete: PaperCollection?
@@ -127,6 +129,7 @@ public final class LibraryViewModel {
     @ObservationIgnored private let citations: any CitationRepository
     @ObservationIgnored private let pdfs: any PdfRepository
     @ObservationIgnored private let exportFiles: ExportFiles
+    @ObservationIgnored private let styles: CitationStyleStore
     @ObservationIgnored private let share: @MainActor (URL) async -> Bool
     @ObservationIgnored private let diagnostics: Diagnostics
     @ObservationIgnored private let sleep: @Sendable (Duration) async throws -> Void
@@ -151,7 +154,8 @@ public final class LibraryViewModel {
         exportFiles: ExportFiles,
         share: @escaping @MainActor (URL) async -> Bool,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
-        diagnostics: Diagnostics = .none
+        diagnostics: Diagnostics = .none,
+        styles: CitationStyleStore = CitationStyleStore()
     ) {
         self.library = library
         self.collectionsRepository = collections
@@ -161,6 +165,7 @@ public final class LibraryViewModel {
         self.share = share
         self.sleep = sleep
         self.diagnostics = diagnostics
+        self.styles = styles
         observeFilter()
         observeCollections()
     }
@@ -204,7 +209,7 @@ public final class LibraryViewModel {
         return selectedCollection?.name ?? lastCollectionName
     }
 
-    /// Export .bib shows when the current view has papers, whatever the search and chip.
+    /// Export references shows when the current view has papers, whatever the search and chip.
     public var canExport: Bool { viewTotal > 0 }
 
     // MARK: Search and chips
@@ -460,11 +465,12 @@ public final class LibraryViewModel {
 
     // MARK: Export
 
-    /// Export .bib: builds every paper in the current view (ignoring the search and chip), writes the file and opens
-    /// the share sheet. Busy until the share sheet closes, so another tap does nothing. "May be incomplete" shows once
-    /// the sheet has closed.
-    public func export() async {
+    /// Export references: builds every paper in the current view (ignoring the search and chip) in `style`, writes the
+    /// file (`.bib` or `.rtf`), remembers the style and opens the share sheet. Busy until the share sheet closes, so
+    /// another tap does nothing. "May be incomplete" shows once the sheet has closed.
+    public func export(style: CitationStyle) async {
         guard !exporting else { return }
+        styles.set(style)
         exporting = true
         defer { exporting = false }
         let id = collectionID
@@ -473,8 +479,8 @@ public final class LibraryViewModel {
         let file: URL
         let complete: Bool
         do {
-            let result = try await citations.export(collectionID: id)
-            file = try exportFiles.write(result.bibtex, name: ExportFiles.fileName(collectionName: name))
+            let result = try await citations.export(collectionID: id, style: style)
+            file = try exportFiles.write(result.rtf ?? result.text, fileName: ExportFiles.fileName(collectionName: name, style: style))
             complete = result.complete
         } catch {
             message = .exportFailed
@@ -484,7 +490,7 @@ public final class LibraryViewModel {
             message = .exportFailed
             return
         }
-        diagnostics.analytics.log(.export(format: .bibtex, withPdfs: false))
+        diagnostics.analytics.log(.export(format: style.exportFormat, withPdfs: false))
         // `share` returns once the share sheet has closed, so nothing covers the screen now.
         diagnostics.review.recordExport()
         diagnostics.review.askIfDue()
@@ -574,5 +580,20 @@ private final class TaskSlot: Sendable {
 
     deinit {
         task.withLock { $0?.cancel() }
+    }
+}
+
+/// The styles in the order the Export menu lists them: the remembered one first, then the rest as `apa, ieee, bibtex`.
+public func exportStyles(_ remembered: CitationStyle) -> [CitationStyle] {
+    [remembered] + [CitationStyle.apa, .ieee, .bibtex].filter { $0 != remembered }
+}
+
+private extension CitationStyle {
+    var exportFormat: ExportFormat {
+        switch self {
+        case .bibtex: .bibtex
+        case .apa: .apa
+        case .ieee: .ieee
+        }
     }
 }

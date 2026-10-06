@@ -15,7 +15,8 @@ struct PaperDetailsStringsTests {
     @Test func theCollectionAndBibTeXStringsResolveInBothLanguages() {
         let keys = [
             "details.collections", "details.noCollections", "details.collectionsHint", "details.newCollection",
-            "details.copyBibtex", "details.bibtexCopied", "details.bibtexIncomplete",
+            "details.copyBibtex", "details.bibtexCopied", "details.citationIncomplete",
+            "details.copyApa", "details.copyIeee", "details.apaCopied", "details.ieeeCopied",
             "details.collectionsUpdateFailed", "details.copyFailed",
         ]
         for key in keys {
@@ -24,6 +25,8 @@ struct PaperDetailsStringsTests {
         }
         #expect(inLanguage("en") { L10n.string("details.copyBibtex") } == "Copy BibTeX")
         #expect(inLanguage("ar") { L10n.string("details.copyBibtex") } == "نسخ BibTeX")
+        #expect(inLanguage("en") { L10n.string("details.copyApa") } == "Copy APA 7 citation")
+        #expect(inLanguage("ar") { L10n.string("details.copyIeee") } == "نسخ استشهاد IEEE")
         #expect(inLanguage("ar") { L10n.string("details.noCollections") } == "ليست في أي مجموعة")
     }
 

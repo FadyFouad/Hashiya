@@ -137,5 +137,5 @@ HTML and RTF, plus `complete`. No new network calls: the refetch already exists,
 
 1. Android PR (delivered): `:core:citation`, `WorkKind` move, repository style parameter, Details and Library UI, preference,
    analytics values, tests, screenshots.
-2. iOS PR: the same.
+2. iOS PR (delivered): the same.
 3. Policy PR (one line, English and Arabic) before the release that ships either.

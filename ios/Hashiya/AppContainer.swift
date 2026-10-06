@@ -8,6 +8,7 @@ import HashiyaData
 import HashiyaDesignSystem
 import HashiyaDiagnostics
 import UIKit
+import UniformTypeIdentifiers
 
 /// Owns the long-lived objects and creates the view models. Built once per app launch.
 @MainActor
@@ -19,13 +20,15 @@ final class AppContainer {
     let appUpdateRepository: any AppUpdateRepository
     let collectionsRepository: any CollectionsRepository
     let citationRepository: any CitationRepository
-    /// Where Export .bib writes its file before sharing it.
+    /// Where Export references writes its file before sharing it.
     let exportFiles: ExportFiles
     let pdfRepository: any PdfRepository
     /// The app's one backup service: its lock is what allows one restore at a time across windows.
     let backup: any LibraryBackup
     /// Note writes the app waits for before it suspends the shared database in the background.
     let pendingWrites = PendingWrites()
+    /// The remembered citation style, shared so Copy citation and Export reorder together.
+    let citationStyles = CitationStyleStore()
     /// What the root views hand to the screens through the environment.
     let diagnostics: Diagnostics
 
@@ -95,7 +98,8 @@ final class AppContainer {
             pdfs: pdfRepository,
             exportFiles: exportFiles,
             share: { await ShareSheet.present(fileURL: $0) },
-            diagnostics: diagnostics
+            diagnostics: diagnostics,
+            styles: citationStyles
         )
     }
 
@@ -107,7 +111,18 @@ final class AppContainer {
             collections: collectionsRepository,
             citations: citationRepository,
             pdfs: pdfRepository,
-            copy: { UIPasteboard.general.string = $0 },
+            copy: { copied in
+                if let html = copied.html {
+                    // Rich text for Word, Pages and Google Docs, with plain text for everything else.
+                    // The charset is declared because some importers assume Windows-1252 for a bare fragment,
+                    // which garbles the en dash and Arabic.
+                    let utf8Html = "<meta charset=\"utf-8\">" + html
+                    UIPasteboard.general.setItems([[UTType.html.identifier: utf8Html, UTType.utf8PlainText.identifier: copied.text]])
+                } else {
+                    UIPasteboard.general.string = copied.text
+                }
+            },
+            styles: citationStyles,
             diagnostics: diagnostics
         )
     }

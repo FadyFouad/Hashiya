@@ -17,8 +17,24 @@ public struct PaperDetailsRoute: Hashable, Codable, Sendable {
 public enum PaperDetailsMessage: Equatable, Sendable {
     case notesSaveFailed, statusUpdateFailed
     case collectionsUpdateFailed
-    case bibtexCopied, bibtexIncomplete, copyFailed
+    case apaCopied, ieeeCopied, bibtexCopied, citationIncomplete, copyFailed
     case pdfAttachNotPdf, pdfAttachTooLarge, pdfAttachFailed
+}
+
+/// What goes on the clipboard: plain text, plus HTML for the styles that have it.
+public struct CopiedText: Equatable, Sendable {
+    public let text: String
+    public let html: String?
+
+    public init(text: String, html: String?) {
+        self.text = text
+        self.html = html
+    }
+}
+
+/// The styles in the order Copy lists them: the remembered one first, then the rest as `apa, ieee, bibtex`.
+public func orderedStyles(_ remembered: CitationStyle) -> [CitationStyle] {
+    [remembered] + [CitationStyle.apa, .ieee, .bibtex].filter { $0 != remembered }
 }
 
 /// Why the screen should go away: the paper stopped being saved, or the user removed it (after its notes saved).
@@ -57,8 +73,10 @@ public final class PaperDetailsViewModel {
     public private(set) var nameSheetError: String?
     /// A Create is running; another is ignored until it ends.
     public private(set) var creatingCollection = false
-    /// Copy BibTeX is running; another tap is ignored until it ends.
+    /// A copy is running; another tap is ignored until it ends.
     public private(set) var copying = false
+    /// The style Copy lists first: the last one copied.
+    public var citationStyle: CitationStyle { styles.style }
     /// The stored PDF, as the store has it.
     public private(set) var storedPdf: PaperPdf?
     /// A running or failed download, or nil.
@@ -80,7 +98,8 @@ public final class PaperDetailsViewModel {
     /// Read is saving the notes; another tap is ignored until it ends.
     @ObservationIgnored private var savingForReader = false
     @ObservationIgnored private let diagnostics: Diagnostics
-    @ObservationIgnored private let copy: @MainActor (String) -> Void
+    @ObservationIgnored private let copy: @MainActor (CopiedText) -> Void
+    @ObservationIgnored private let styles: CitationStyleStore
     @ObservationIgnored private let notesEditor: NotesEditor
     /// The one read of the notes; a later `start()` waits for it instead of reading again.
     @ObservationIgnored private var notesRead: Task<Void, Never>?
@@ -88,7 +107,7 @@ public final class PaperDetailsViewModel {
     @ObservationIgnored private var followers: Task<Void, Never>?
 
     /// Stores its dependencies only; `start()` does the work. SwiftUI may build and discard several instances.
-    /// - Parameter copy: puts text on the clipboard (the app passes `UIPasteboard.general`).
+    /// - Parameter copy: puts text on the clipboard (the app passes `UIPasteboard.general`); `styles` remembers the last style copied.
     public init(
         openAlexID: String,
         library: any LibraryRepository,
@@ -96,7 +115,8 @@ public final class PaperDetailsViewModel {
         collections: any CollectionsRepository,
         citations: any CitationRepository,
         pdfs: any PdfRepository,
-        copy: @escaping @MainActor (String) -> Void,
+        copy: @escaping @MainActor (CopiedText) -> Void,
+        styles: CitationStyleStore = CitationStyleStore(),
         diagnostics: Diagnostics = .none,
         sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
     ) {
@@ -107,6 +127,7 @@ public final class PaperDetailsViewModel {
         self.citations = citations
         self.pdfs = pdfs
         self.copy = copy
+        self.styles = styles
         self.diagnostics = diagnostics
         notesEditor = NotesEditor(openAlexID: openAlexID, library: library, pendingWrites: pendingWrites, diagnostics: diagnostics, sleep: sleep)
         notesEditor.onSaveFailed = { [weak self] in self?.message = .notesSaveFailed }
@@ -344,17 +365,27 @@ public final class PaperDetailsViewModel {
         await notesEditor.reload()
     }
 
-    // MARK: Copy BibTeX
+    // MARK: Copy
 
-    /// Puts the paper's entry on the clipboard. iOS shows no confirmation of its own, so the banner always does.
-    public func copyBibTeX() async {
+    /// Puts the paper's citation in `style` on the clipboard and remembers the style. iOS shows no confirmation of
+    /// its own, so the banner always does.
+    public func copyCitation(_ style: CitationStyle) async {
         guard !copying else { return }
         copying = true
         defer { copying = false }
+        styles.set(style)
         do {
-            guard let result = try await citations.entry(openAlexID: openAlexID) else { return }
-            copy(result.bibtex)
-            message = result.complete ? .bibtexCopied : .bibtexIncomplete
+            guard let result = try await citations.entry(openAlexID: openAlexID, style: style) else { return }
+            copy(CopiedText(text: result.text, html: result.html))
+            if !result.complete {
+                message = .citationIncomplete
+            } else {
+                switch style {
+                case .apa: message = .apaCopied
+                case .ieee: message = .ieeeCopied
+                case .bibtex: message = .bibtexCopied
+                }
+            }
         } catch is CancellationError {
             return
         } catch {

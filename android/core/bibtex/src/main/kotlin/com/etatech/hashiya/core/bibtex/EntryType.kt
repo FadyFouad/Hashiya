@@ -1,7 +1,8 @@
 package com.etatech.hashiya.core.bibtex
 
 import com.etatech.hashiya.core.model.PublicationDetails
-import java.util.Locale
+import com.etatech.hashiya.core.model.WorkKind
+import com.etatech.hashiya.core.model.workKind
 
 /** A BibTeX entry type, the field that holds the paper's venue, and whether a publisher field belongs in it. */
 internal enum class EntryType(val bibName: String, val venueField: String?, val hasPublisher: Boolean) {
@@ -14,20 +15,13 @@ internal enum class EntryType(val bibName: String, val venueField: String?, val 
     Misc("misc", "howpublished", hasPublisher = true)
 }
 
-private val JOURNAL_WORK_TYPES = setOf("article", "review", "letter", "editorial")
-
-/** The spec's table, first match wins: a conference article is @inproceedings, a repository article @misc. */
-internal fun entryType(details: PublicationDetails): EntryType {
-    val work = details.workType?.lowercase(Locale.ROOT)
-    val source = details.sourceType?.lowercase(Locale.ROOT)
-    return when {
-        source == "conference" -> EntryType.InProceedings
-        work == "book-chapter" -> EntryType.InCollection
-        work == "book" -> EntryType.Book
-        work == "dissertation" -> EntryType.PhdThesis
-        work == "report" -> EntryType.TechReport
-        work == "preprint" || source == "repository" -> EntryType.Misc
-        work in JOURNAL_WORK_TYPES && source == "journal" -> EntryType.Article
-        else -> EntryType.Misc
-    }
+/** The BibTeX type for a kind of work: preprints and anything else are @misc. */
+internal fun entryType(details: PublicationDetails): EntryType = when (details.workKind()) {
+    WorkKind.Conference -> EntryType.InProceedings
+    WorkKind.Chapter -> EntryType.InCollection
+    WorkKind.Book -> EntryType.Book
+    WorkKind.Thesis -> EntryType.PhdThesis
+    WorkKind.Report -> EntryType.TechReport
+    WorkKind.Article -> EntryType.Article
+    WorkKind.Preprint, WorkKind.Other -> EntryType.Misc
 }

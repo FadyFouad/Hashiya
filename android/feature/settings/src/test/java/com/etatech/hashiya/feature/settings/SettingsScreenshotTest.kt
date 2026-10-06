@@ -1,6 +1,8 @@
 package com.etatech.hashiya.feature.settings
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollTo
 import com.etatech.hashiya.core.data.backup.BackupSummary
 import com.etatech.hashiya.core.model.PdfStorage
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
@@ -27,6 +29,7 @@ class SettingsScreenshotTest(private val variant: ScreenshotVariant) {
     @Test
     fun settings() = composeRule.captureScreenshot("settings", variant, arabicText = "الإعدادات") {
         SettingsContent(
+            appVersion = AppVersion("0.3.0", 3),
             uiState = SettingsUiState(usingUserKey = true, keyInput = "my-openalex-key", language = AppLanguage.System),
             onBack = {},
             onKeyInputChange = {},
@@ -39,6 +42,7 @@ class SettingsScreenshotTest(private val variant: ScreenshotVariant) {
     @Test
     fun storage() = composeRule.captureScreenshot("settings_storage", variant, arabicText = "التخزين", wholeScreen = true) {
         SettingsContent(
+            appVersion = AppVersion("0.3.0", 3),
             uiState = SettingsUiState(
                 usingUserKey = false,
                 language = AppLanguage.System,
@@ -55,6 +59,25 @@ class SettingsScreenshotTest(private val variant: ScreenshotVariant) {
     @Test
     fun privacy() = composeRule.captureScreenshot("settings_privacy", variant, arabicText = "إرسال تقارير الأعطال", wholeScreen = true) {
         SettingsContent(
+            appVersion = AppVersion("0.3.0", 3),
+            uiState = SettingsUiState(language = AppLanguage.System, crashReportsEnabled = true, analyticsEnabled = true),
+            onBack = {},
+            onKeyInputChange = {},
+            onSaveKey = {},
+            onResetKey = {},
+            onLanguageSelected = {}
+        )
+    }
+
+    @Test
+    fun about() = composeRule.captureScreenshot(
+        "settings_about",
+        variant,
+        arabicText = "حول التطبيق",
+        beforeCapture = { onNodeWithTag(ABOUT_SECTION_TAG).performScrollTo() }
+    ) {
+        SettingsContent(
+            appVersion = AppVersion("0.3.0", 3),
             uiState = SettingsUiState(language = AppLanguage.System, crashReportsEnabled = true, analyticsEnabled = true),
             onBack = {},
             onKeyInputChange = {},
@@ -73,6 +96,7 @@ class SettingsScreenshotTest(private val variant: ScreenshotVariant) {
     @Test
     fun exportDialog() = composeRule.captureScreenshot("settings_export", variant, arabicText = "تضمين ملفات PDF", wholeScreen = true) {
         SettingsContent(
+            appVersion = AppVersion("0.3.0", 3),
             uiState = SettingsUiState(
                 language = AppLanguage.System,
                 backup = BackupUiState(

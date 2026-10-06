@@ -160,4 +160,10 @@
     <string name="settings_usage_statistics">مشاركة إحصاءات الاستخدام</string>
     <string name="settings_usage_statistics_footer">تساعد أعداد استخدام الميزات، المرتبطة بمعرّف عشوائي، على تحديد ما يجب تحسينه، دون أوراقك أو ملاحظاتك أو عمليات بحثك أبدًا.</string>
     <string name="settings_privacy_policy">سياسة الخصوصية</string>
+    <string name="settings_about">حول التطبيق</string>
+    <string name="settings_send_feedback">إرسال ملاحظات</string>
+    <string name="settings_rate">قيّم حاشية</string>
+    <string name="settings_version">الإصدار \u2066%1$s\u2069</string>
+    <string name="settings_feedback_subject">ملاحظات حول حاشية</string>
+    <string name="settings_feedback_copied">تم نسخ عنوان البريد: \u2068%1$s\u2069</string>
 </resources>

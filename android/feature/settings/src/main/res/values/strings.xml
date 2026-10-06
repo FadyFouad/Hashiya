@@ -109,4 +109,10 @@
     <string name="settings_usage_statistics">Share usage statistics</string>
     <string name="settings_usage_statistics_footer">Counts of how features are used, tied to a random identifier, help decide what to improve. Never your papers, notes or searches.</string>
     <string name="settings_privacy_policy">Privacy policy</string>
+    <string name="settings_about">About</string>
+    <string name="settings_send_feedback">Send feedback</string>
+    <string name="settings_rate">Rate Hashiya</string>
+    <string name="settings_version">Version %1$s</string>
+    <string name="settings_feedback_subject">Hashiya feedback</string>
+    <string name="settings_feedback_copied">Email address copied: %1$s</string>
 </resources>

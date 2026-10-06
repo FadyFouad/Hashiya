@@ -14,6 +14,7 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 - **Android: send feedback and rate Hashiya.** Settings → About opens an email to the developer with the app version and device filled in (nothing from your library), opens the Play listing to rate the app, and shows the version. After five saved papers or a BibTeX export, and no sooner than three days after installing, the app may ask for a rating through Google Play's own prompt, at most once every four months.
 - **iOS: send feedback and rate Hashiya.** Settings → About opens an email to the developer with the app version and device filled in (nothing from your library), opens the App Store to rate the app, and shows the version. After five saved papers or a BibTeX export, and no sooner than three days after installing, the app may ask for a rating through Apple's own prompt, at most once every four months.
 
+- **Android: APA 7 and IEEE citations.** A paper's ⋮ menu copies its citation in APA 7, IEEE or BibTeX — APA and IEEE paste with their italics into Word, Pages or Google Docs — and the Library's export saves a whole collection as an APA 7 or IEEE reference list (.rtf) as well as BibTeX. The style you used last comes first.
 ### Changed
 - **Android: Details groups Collections, PDF and DOI in one list.** The PDF row's main action is a button that follows its state: Download PDF, Read PDF or Attach PDF; Replace and Remove stay in its ⋮ menu. The DOI is a row that opens the paper's DOI page, and is hidden when there is none.
 

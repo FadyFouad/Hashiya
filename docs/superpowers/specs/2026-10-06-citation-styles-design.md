@@ -39,7 +39,8 @@ A pure module with no UI and no network: Android `:core:citation` (Kotlin JVM li
 - **Reference list:**
   - **APA:** sorted by first author's family name (case- and diacritic-insensitive), then year (no year last), then
     title.
-  - **IEEE:** numbered `[1]`, `[2]`, … in the order the papers were added to the library or collection (oldest first).
+  - **IEEE:** numbered `[1]`, `[2]`, … in the order the papers were saved to the library, oldest first (inside a
+    collection too: the app doesn't record when a paper joined a collection).
 
 ### 3.1 Text rules
 
@@ -86,8 +87,9 @@ rather than guess "Doctoral dissertation" / "Ph.D. dissertation".
 
 ### 4.1 Details
 
-- "Copy BibTeX" becomes **Copy citation** («نسخ الاستشهاد»). A tap copies in the remembered style (APA 7 the first
-  time); a menu beside it offers APA 7 / IEEE / BibTeX — choosing one copies in that style and remembers it.
+- Details' ⋮ menu lists **Copy APA 7 citation**, **Copy IEEE citation** and **Copy BibTeX**, the remembered style first
+  (APA 7 the first time); choosing one copies in that style and remembers it. (On iOS, wherever Copy BibTeX lives
+  today gets the same three choices.)
 - The confirmation names the style: "APA citation copied" / "IEEE citation copied" / "BibTeX copied" (with Arabic
   translations).
 - APA and IEEE go on the clipboard as rich text with a plain fallback; BibTeX stays plain.
@@ -133,7 +135,7 @@ HTML and RTF, plus `complete`. No new network calls: the refetch already exists,
 
 ## 8. Delivery
 
-1. Android PR: `:core:citation`, `WorkKind` move, repository style parameter, Details and Library UI, preference,
+1. Android PR (delivered): `:core:citation`, `WorkKind` move, repository style parameter, Details and Library UI, preference,
    analytics values, tests, screenshots.
 2. iOS PR: the same.
 3. Policy PR (one line, English and Arabic) before the release that ships either.

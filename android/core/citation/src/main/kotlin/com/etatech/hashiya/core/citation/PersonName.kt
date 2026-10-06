@@ -1,5 +1,3 @@
-@file:Suppress("ktlint")
-
 package com.etatech.hashiya.core.citation
 
 /** A person's family name and initials; [initials] is null when the name is kept whole. */

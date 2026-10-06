@@ -27,6 +27,8 @@ final class AppContainer {
     let backup: any LibraryBackup
     /// Note writes the app waits for before it suspends the shared database in the background.
     let pendingWrites = PendingWrites()
+    /// The remembered citation style, shared so Copy citation and Export reorder together.
+    let citationStyles = CitationStyleStore()
     /// What the root views hand to the screens through the environment.
     let diagnostics: Diagnostics
 
@@ -97,7 +99,7 @@ final class AppContainer {
             exportFiles: exportFiles,
             share: { await ShareSheet.present(fileURL: $0) },
             diagnostics: diagnostics,
-            styles: CitationStyleStore()
+            styles: citationStyles
         )
     }
 
@@ -117,7 +119,7 @@ final class AppContainer {
                     UIPasteboard.general.string = copied.text
                 }
             },
-            styles: CitationStyleStore(),
+            styles: citationStyles,
             diagnostics: diagnostics
         )
     }

@@ -27,7 +27,8 @@ struct LibraryCollectionsViewModelTests {
     private func makeViewModel(
         citations: FakeCitationRepository = FakeCitationRepository(export: CitationResult(text: bib, complete: true)),
         exportFiles: ExportFiles? = nil,
-        diagnostics: Diagnostics = .none
+        diagnostics: Diagnostics = .none,
+        styles: CitationStyleStore? = nil
     ) -> LibraryViewModel {
         LibraryViewModel(
             library: library,
@@ -38,7 +39,7 @@ struct LibraryCollectionsViewModelTests {
             share: { [share] url in await share.share(url) },
             sleep: sleeper.sleep,
             diagnostics: diagnostics,
-            styles: CitationStyleStore(defaults: defaults)
+            styles: styles ?? CitationStyleStore(defaults: defaults)
         )
     }
 
@@ -447,6 +448,17 @@ struct LibraryCollectionsViewModelTests {
         #expect(analytics.events == [.export(format: .apa, withPdfs: false)])
         #expect(viewModel.citationStyle == .apa)
         #expect(CitationStyleStore(defaults: defaults).style == .apa)
+    }
+
+    @Test func theExportMenuFollowsAStyleChosenElsewhere() {
+        let store = CitationStyleStore(defaults: defaults)
+        let viewModel = makeViewModel(styles: store)
+        #expect(viewModel.citationStyle == .apa)
+
+        store.set(.ieee)
+
+        #expect(viewModel.citationStyle == .ieee)
+        #expect(exportStyles(viewModel.citationStyle).first == .ieee)
     }
 
     @Test func exportStylesPutTheRememberedOneFirst() {

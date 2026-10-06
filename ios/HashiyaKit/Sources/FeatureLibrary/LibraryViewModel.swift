@@ -115,7 +115,7 @@ public final class LibraryViewModel {
     /// True from an export's start until its share sheet closes.
     public private(set) var exporting = false
     /// The style the last export used; the Export menu lists it first.
-    public private(set) var citationStyle: CitationStyle
+    public var citationStyle: CitationStyle { styles.style }
     public internal(set) var nameSheet: NameSheet?
     /// The collection the delete confirmation asks about.
     public var pendingDelete: PaperCollection?
@@ -166,7 +166,6 @@ public final class LibraryViewModel {
         self.sleep = sleep
         self.diagnostics = diagnostics
         self.styles = styles
-        citationStyle = styles.style
         observeFilter()
         observeCollections()
     }
@@ -467,12 +466,11 @@ public final class LibraryViewModel {
     // MARK: Export
 
     /// Export references: builds every paper in the current view (ignoring the search and chip) in `style`, writes the
-    /// file (`.bib` or `.rtf`), remembers the style and opens the share sheet. Busy until the share sheet closes, so another tap does nothing. "May be incomplete" shows once
-    /// the sheet has closed.
+    /// file (`.bib` or `.rtf`), remembers the style and opens the share sheet. Busy until the share sheet closes, so
+    /// another tap does nothing. "May be incomplete" shows once the sheet has closed.
     public func export(style: CitationStyle) async {
         guard !exporting else { return }
         styles.set(style)
-        citationStyle = style
         exporting = true
         defer { exporting = false }
         let id = collectionID

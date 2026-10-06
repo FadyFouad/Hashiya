@@ -28,7 +28,8 @@ struct PaperDetailsViewModelTests {
         _ library: FakeLibraryRepository,
         id: String? = nil,
         citations: FakeCitationRepository = FakeCitationRepository(),
-        diagnostics: Diagnostics = .none
+        diagnostics: Diagnostics = .none,
+        styles: CitationStyleStore? = nil
     ) -> PaperDetailsViewModel {
         let clipboard = clipboard
         return PaperDetailsViewModel(
@@ -39,7 +40,7 @@ struct PaperDetailsViewModelTests {
             citations: citations,
             pdfs: pdfs,
             copy: { clipboard.copies.append($0) },
-            styles: CitationStyleStore(defaults: defaults),
+            styles: styles ?? CitationStyleStore(defaults: defaults),
             diagnostics: diagnostics,
             sleep: sleeper.sleep
         )
@@ -629,6 +630,17 @@ struct PaperDetailsViewModelTests {
 
         #expect(clipboard.copies.isEmpty)
         #expect(viewModel.message == nil)
+    }
+
+    @Test func theCopyMenuFollowsAStyleChosenElsewhere() {
+        let store = CitationStyleStore(defaults: defaults)
+        let viewModel = makeViewModel(FakeLibraryRepository(saved: [SamplePapers.attention]), styles: store)
+        #expect(viewModel.citationStyle == .apa)
+
+        store.set(.bibtex)
+
+        #expect(viewModel.citationStyle == .bibtex)
+        #expect(orderedStyles(viewModel.citationStyle).first == .bibtex)
     }
 
     @Test func orderedStylesPutTheRememberedOneFirst() {

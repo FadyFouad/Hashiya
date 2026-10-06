@@ -76,7 +76,7 @@ public final class PaperDetailsViewModel {
     /// A copy is running; another tap is ignored until it ends.
     public private(set) var copying = false
     /// The style Copy lists first: the last one copied.
-    public private(set) var citationStyle: CitationStyle
+    public var citationStyle: CitationStyle { styles.style }
     /// The stored PDF, as the store has it.
     public private(set) var storedPdf: PaperPdf?
     /// A running or failed download, or nil.
@@ -128,7 +128,6 @@ public final class PaperDetailsViewModel {
         self.pdfs = pdfs
         self.copy = copy
         self.styles = styles
-        citationStyle = styles.style
         self.diagnostics = diagnostics
         notesEditor = NotesEditor(openAlexID: openAlexID, library: library, pendingWrites: pendingWrites, diagnostics: diagnostics, sleep: sleep)
         notesEditor.onSaveFailed = { [weak self] in self?.message = .notesSaveFailed }
@@ -375,7 +374,6 @@ public final class PaperDetailsViewModel {
         copying = true
         defer { copying = false }
         styles.set(style)
-        citationStyle = style
         do {
             guard let result = try await citations.entry(openAlexID: openAlexID, style: style) else { return }
             copy(CopiedText(text: result.text, html: result.html))

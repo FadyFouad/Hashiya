@@ -17,6 +17,7 @@ import com.etatech.hashiya.core.model.YearFilter
 import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePaperLookupRepository
+import com.etatech.hashiya.core.testing.FakeReviewPrompt
 import com.etatech.hashiya.core.testing.FakeSearchRepository
 import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
@@ -54,7 +55,8 @@ class SearchAnalyticsTest {
             libraryRepository,
             userPreferencesRepository,
             lookupRepository,
-            analytics
+            analytics,
+            FakeReviewPrompt()
         )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.selectedItem.collect() }

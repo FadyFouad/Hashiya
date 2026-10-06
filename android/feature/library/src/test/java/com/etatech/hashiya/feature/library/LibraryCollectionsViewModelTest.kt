@@ -11,6 +11,7 @@ import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePdfRepository
+import com.etatech.hashiya.core.testing.FakeReviewPrompt
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
 import java.io.IOException
@@ -39,7 +40,7 @@ class LibraryCollectionsViewModelTest {
     private val analytics = FakeAnalytics()
 
     private fun TestScope.viewModel(handle: SavedStateHandle = SavedStateHandle()): LibraryViewModel {
-        val viewModel = LibraryViewModel(handle, library, collections, citations, FakePdfRepository(), analytics)
+        val viewModel = LibraryViewModel(handle, library, collections, citations, FakePdfRepository(), analytics, FakeReviewPrompt())
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.header.collect() }
         return viewModel

@@ -9,6 +9,7 @@ import com.etatech.hashiya.core.model.SearchError
 import com.etatech.hashiya.core.model.SearchQuery
 import com.etatech.hashiya.core.model.SearchSort
 import com.etatech.hashiya.core.model.YearFilter
+import com.etatech.hashiya.core.review.NoOpReviewPrompt
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePaperLookupRepository
 import com.etatech.hashiya.core.testing.FakeSearchRepository
@@ -50,7 +51,8 @@ class SearchViewModelTest {
             libraryRepository,
             userPreferencesRepository,
             lookupRepository,
-            NoOpAnalytics
+            NoOpAnalytics,
+            NoOpReviewPrompt
         )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.selectedItem.collect() }

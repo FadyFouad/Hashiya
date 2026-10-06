@@ -11,6 +11,7 @@ import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePdfRepository
+import com.etatech.hashiya.core.testing.FakeReviewPrompt
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
 import kotlinx.coroutines.delay
@@ -43,7 +44,7 @@ class LibraryViewModelTest {
     private val analytics = FakeAnalytics()
 
     private fun TestScope.viewModel(handle: SavedStateHandle = savedStateHandle): LibraryViewModel {
-        val viewModel = LibraryViewModel(handle, repository, collections, citations, pdfs, analytics)
+        val viewModel = LibraryViewModel(handle, repository, collections, citations, pdfs, analytics, FakeReviewPrompt())
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         return viewModel
     }
@@ -265,7 +266,7 @@ class LibraryViewModelTest {
     private suspend fun TestScope.statesWhileRemovingAndRestoringTheOnlyPaper(listLags: Boolean, countsLag: Boolean): List<LibraryUiState> {
         repository.save(SamplePapers.bert)
         val lagging = LaggingLibraryRepository(repository, listLags, countsLag)
-        val viewModel = LibraryViewModel(SavedStateHandle(), lagging, collections, citations, pdfs, analytics)
+        val viewModel = LibraryViewModel(SavedStateHandle(), lagging, collections, citations, pdfs, analytics, FakeReviewPrompt())
         val states = mutableListOf<LibraryUiState>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.toList(states) }
         advanceUntilIdle()

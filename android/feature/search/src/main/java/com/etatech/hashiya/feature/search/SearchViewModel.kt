@@ -26,6 +26,7 @@ import com.etatech.hashiya.core.model.YearFilter
 import com.etatech.hashiya.core.model.looksLikeLink
 import com.etatech.hashiya.core.model.parsePaperIdentifier
 import com.etatech.hashiya.core.model.withoutArabicMarks
+import com.etatech.hashiya.core.review.ReviewPrompt
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -58,7 +59,8 @@ class SearchViewModel @Inject constructor(
     private val libraryRepository: LibraryRepository,
     userPreferencesRepository: UserPreferencesRepository,
     private val paperLookupRepository: PaperLookupRepository,
-    private val analytics: Analytics
+    private val analytics: Analytics,
+    private val reviewPrompt: ReviewPrompt
 ) : ViewModel() {
     /** Arguments from Share or "Add paper": applied once, never over text restored after process death. */
     private val routeArgs = savedStateHandle.consumeRouteArgs()
@@ -276,6 +278,7 @@ class SearchViewModel @Inject constructor(
 
     fun onDismissPreview() {
         selectedPaper.value = null
+        reviewPrompt.askIfDue()
     }
 
     fun onToggleSave(item: PaperItem) {
@@ -287,6 +290,9 @@ class SearchViewModel @Inject constructor(
                 } else {
                     libraryRepository.save(item.paper)
                     analytics.log(AnalyticsEvent.PaperSaved(source))
+                    reviewPrompt.recordSave()
+                    // Never over the preview sheet: that waits until the sheet closes.
+                    if (selectedPaper.value == null) reviewPrompt.askIfDue()
                 }
             } catch (e: CancellationException) {
                 throw e

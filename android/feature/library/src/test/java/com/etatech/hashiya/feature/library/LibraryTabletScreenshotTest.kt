@@ -9,6 +9,7 @@ import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePdfRepository
+import com.etatech.hashiya.core.testing.FakeReviewPrompt
 import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.core.testing.ScreenshotVariant
 import com.etatech.hashiya.core.testing.ScreenshotVariantRule
@@ -48,7 +49,8 @@ class LibraryTabletScreenshotTest(private val variant: ScreenshotVariant) {
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
             FakePdfRepository(),
-            NoOpAnalytics
+            NoOpAnalytics,
+            FakeReviewPrompt()
         )
         composeRule.captureScreenshot(
             "library_two_pane",

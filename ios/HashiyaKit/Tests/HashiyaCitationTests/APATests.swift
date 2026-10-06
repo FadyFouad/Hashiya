@@ -122,7 +122,7 @@ struct APATests {
 
     /// Kotlin's NFD splits 김 into jamo U+1100 U+1175 U+11B7, which come before 王 (U+738B) by UTF-16.
     @Test func hangulSortsAsItsDecomposedJamo() {
-        let list = APA.list([paper(authors: ["김"]), paper(authors: ["王"])]).map { $0.plain.components(separatedBy: ". (")[0] }
+        let list = APA.list([paper(authors: ["王"]), paper(authors: ["김"])]).map { $0.plain.components(separatedBy: ". (")[0] }
         #expect(list == ["김", "王"])
     }
 

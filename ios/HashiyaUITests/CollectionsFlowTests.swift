@@ -149,6 +149,19 @@ final class CollectionsFlowTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["BibTeX copied"].waitForExistence(timeout: UITestTimeout.long))
     }
 
+    func testCopyAPACitationFromDetailsSaysItCopied() {
+        let app = launchApp()
+        saveAttentionAndBERT(in: app)
+        openFromTheLibrary("Attention Is All You Need", in: app)
+
+        app.navigationBars.buttons["More options"].tap()
+        let copy = app.buttons["Copy APA 7 citation"]
+        XCTAssertTrue(copy.waitForExistence(timeout: UITestTimeout.long))
+        copy.tap()
+
+        XCTAssertTrue(app.staticTexts["APA citation copied"].waitForExistence(timeout: UITestTimeout.long))
+    }
+
     func testExportStaysBusyUntilTheShareSheetCloses() {
         let app = launchApp()
         saveAttentionAndBERT(in: app)
@@ -157,7 +170,9 @@ final class CollectionsFlowTests: XCTestCase {
         XCTAssertTrue(export.waitForExistence(timeout: UITestTimeout.long))
 
         export.tap()
-        app.buttons["BibTeX (.bib)"].tap()
+        let bibtex = app.buttons["BibTeX (.bib)"]
+        XCTAssertTrue(bibtex.waitForExistence(timeout: UITestTimeout.long))
+        bibtex.tap()
         let saveToFiles = app.cells["Save to Files"]
         XCTAssertTrue(saveToFiles.waitForExistence(timeout: UITestTimeout.long))
         XCTAssertFalse(app.buttons["Export references"].exists, "Export stays busy while the share sheet is open")

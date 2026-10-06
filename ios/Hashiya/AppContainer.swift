@@ -114,7 +114,10 @@ final class AppContainer {
             copy: { copied in
                 if let html = copied.html {
                     // Rich text for Word, Pages and Google Docs, with plain text for everything else.
-                    UIPasteboard.general.setItems([[UTType.html.identifier: html, UTType.utf8PlainText.identifier: copied.text]])
+                    // The charset is declared because some importers assume Windows-1252 for a bare fragment,
+                    // which garbles the en dash and Arabic.
+                    let utf8Html = "<meta charset=\"utf-8\">" + html
+                    UIPasteboard.general.setItems([[UTType.html.identifier: utf8Html, UTType.utf8PlainText.identifier: copied.text]])
                 } else {
                     UIPasteboard.general.string = copied.text
                 }

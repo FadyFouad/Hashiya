@@ -30,7 +30,8 @@ class AboutTest {
     fun feedbackIntentIsADraftToTheDeveloper() {
         val intent = feedbackIntent("Hashiya feedback", version, "14", "Pixel 7", "en")
         assertEquals(Intent.ACTION_SENDTO, intent.action)
-        assertEquals(Uri.parse("mailto:"), intent.data)
+        // In the URI too: some mail apps ignore EXTRA_EMAIL.
+        assertEquals(Uri.parse("mailto:$FEEDBACK_EMAIL"), intent.data)
         assertEquals(listOf(FEEDBACK_EMAIL), intent.getStringArrayExtra(Intent.EXTRA_EMAIL)!!.toList())
         assertEquals("Hashiya feedback", intent.getStringExtra(Intent.EXTRA_SUBJECT))
         assertEquals("\n\nHashiya 0.3.0 (3) · Android 14 · Pixel 7 · en", intent.getStringExtra(Intent.EXTRA_TEXT))

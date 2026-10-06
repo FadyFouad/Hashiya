@@ -272,13 +272,20 @@ class SearchViewModel @Inject constructor(
         _focusSearch.value = false
     }
 
+    /** A paper was saved from the preview; the rating prompt waits until the preview closes. */
+    private var reviewPending = false
+
     fun onPaperClick(paper: Paper) {
         selectedPaper.value = paper
     }
 
     fun onDismissPreview() {
         selectedPaper.value = null
-        reviewPrompt.askIfDue()
+        // Only after a save made in the preview; a plain close, or one that opens Details, never asks.
+        if (reviewPending) {
+            reviewPending = false
+            reviewPrompt.askIfDue()
+        }
     }
 
     fun onToggleSave(item: PaperItem) {
@@ -292,7 +299,7 @@ class SearchViewModel @Inject constructor(
                     analytics.log(AnalyticsEvent.PaperSaved(source))
                     reviewPrompt.recordSave()
                     // Never over the preview sheet: that waits until the sheet closes.
-                    if (selectedPaper.value == null) reviewPrompt.askIfDue()
+                    if (selectedPaper.value == null) reviewPrompt.askIfDue() else reviewPending = true
                 }
             } catch (e: CancellationException) {
                 throw e

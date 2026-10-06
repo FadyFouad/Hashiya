@@ -66,6 +66,14 @@ class SearchReviewPromptTest {
     }
 
     @Test
+    fun closingThePreviewWithoutASaveDoesNotAsk() = runTest {
+        val viewModel = viewModel()
+        viewModel.onPaperClick(paper)
+        viewModel.onDismissPreview()
+        assertEquals(0, review.asks)
+    }
+
+    @Test
     fun aRemovalOrAFailedSaveDoesNotCount() = runTest {
         val viewModel = viewModel()
         viewModel.onToggleSave(PaperItem(paper, inLibrary = true))

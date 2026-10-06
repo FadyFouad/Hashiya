@@ -18,6 +18,7 @@ import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePdfRepository
+import com.etatech.hashiya.core.testing.FakeReviewPrompt
 import com.etatech.hashiya.core.testing.ROOMY_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import com.etatech.hashiya.core.testing.TestWindow
@@ -56,7 +57,8 @@ class LibraryInputTest {
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
             FakePdfRepository(),
-            NoOpAnalytics
+            NoOpAnalytics,
+            FakeReviewPrompt()
         )
         composeRule.setContentInWindow(window) {
             LibraryScreen(

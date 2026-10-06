@@ -16,6 +16,7 @@ import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.ReadingStatus
+import com.etatech.hashiya.core.review.ReviewPrompt
 import com.etatech.hashiya.feature.library.export.bibFileName
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -51,7 +52,8 @@ class LibraryViewModel @Inject constructor(
     private val collectionsRepository: CollectionsRepository,
     private val citationRepository: CitationRepository,
     private val pdfRepository: PdfRepository,
-    private val analytics: Analytics
+    private val analytics: Analytics,
+    private val reviewPrompt: ReviewPrompt
 ) : ViewModel() {
     /** The search text as typed. */
     private val query = MutableStateFlow(savedStateHandle.get<String>(KEY_QUERY).orEmpty())
@@ -74,6 +76,9 @@ class LibraryViewModel @Inject constructor(
 
     /** Set when an incomplete export was shared; shown when the Library resumes after the share sheet. */
     private var incompleteExportPending = false
+
+    /** A BibTeX export reached the share sheet; the rating prompt waits until the person is back from it. */
+    private var reviewPending = false
 
     init {
         viewModelScope.launch {
@@ -373,6 +378,8 @@ class LibraryViewModel @Inject constructor(
         exporting.value = false
         if (!shared.complete) incompleteExportPending = true
         analytics.log(AnalyticsEvent.Export(ExportFormat.Bibtex, withPdfs = false))
+        reviewPrompt.recordExport()
+        reviewPending = true
     }
 
     fun onExportFailed() {
@@ -383,6 +390,10 @@ class LibraryViewModel @Inject constructor(
 
     /** The user is back from the share sheet: now is when "may be incomplete" can be read. */
     fun onScreenResumed() {
+        if (reviewPending) {
+            reviewPending = false
+            reviewPrompt.askIfDue()
+        }
         if (!incompleteExportPending) return
         incompleteExportPending = false
         _message.value = LibraryMessage.ExportIncomplete

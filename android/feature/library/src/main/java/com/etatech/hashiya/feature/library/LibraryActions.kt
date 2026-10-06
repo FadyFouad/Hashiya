@@ -1,5 +1,6 @@
 package com.etatech.hashiya.feature.library
 
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.Paper
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.ReadingStatus
@@ -30,5 +31,5 @@ internal data class LibraryActions(
     val onDialogDismiss: () -> Unit = {},
     val onUndoCollection: () -> Unit = {},
     val onCollectionUndoDismissed: () -> Unit = {},
-    val onExport: () -> Unit = {}
+    val onExport: (CitationStyle) -> Unit = {}
 )

@@ -1,5 +1,6 @@
 package com.etatech.hashiya.feature.library
 
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.ReadingStatus
@@ -55,6 +56,6 @@ sealed interface CollectionDialog {
 data class CollectionRemoval(val collection: PaperCollection, val openAlexId: String)
 
 /** A .bib file ready to share. */
-data class BibExport(val fileName: String, val bibtex: String, val complete: Boolean)
+data class ReferenceExport(val fileName: String, val content: String, val mimeType: String, val complete: Boolean, val style: CitationStyle)
 
 enum class LibraryMessage { StatusUpdateFailed, CollectionsUpdateFailed, ExportFailed, ExportIncomplete }

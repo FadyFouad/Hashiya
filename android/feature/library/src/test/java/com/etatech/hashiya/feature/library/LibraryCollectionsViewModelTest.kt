@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.etatech.hashiya.core.analytics.AnalyticsEvent
 import com.etatech.hashiya.core.analytics.ExportFormat
 import com.etatech.hashiya.core.data.repository.CollectionResult
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.ReadingStatus
 import com.etatech.hashiya.core.testing.FakeAnalytics
@@ -12,8 +13,11 @@ import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.FakeReviewPrompt
+import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
+import com.etatech.hashiya.feature.library.export.BIB_MIME_TYPE
+import com.etatech.hashiya.feature.library.export.RTF_MIME_TYPE
 import java.io.IOException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.collect
@@ -38,9 +42,11 @@ class LibraryCollectionsViewModelTest {
     private val collections = FakeCollectionsRepository(library)
     private val citations = FakeCitationRepository()
     private val analytics = FakeAnalytics()
+    private val preferences = FakeUserPreferencesRepository()
 
     private fun TestScope.viewModel(handle: SavedStateHandle = SavedStateHandle()): LibraryViewModel {
-        val viewModel = LibraryViewModel(handle, library, collections, citations, FakePdfRepository(), analytics, FakeReviewPrompt())
+        val viewModel =
+            LibraryViewModel(handle, library, collections, citations, preferences, FakePdfRepository(), analytics, FakeReviewPrompt())
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect() }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.header.collect() }
         return viewModel
@@ -305,18 +311,21 @@ class LibraryCollectionsViewModelTest {
         val gate = CompletableDeferred<Unit>()
         citations.gate = gate
 
-        viewModel.onExport()
-        viewModel.onExport()
+        viewModel.onExport(CitationStyle.Bibtex)
+        viewModel.onExport(CitationStyle.Bibtex)
         advanceUntilIdle()
         assertTrue(viewModel.header.value.exporting)
         gate.complete(Unit)
         advanceUntilIdle()
 
         assertEquals(listOf<Long?>(thesis.id), citations.exports)
-        assertEquals(BibExport("Thesis.bib", citations.exportText, complete = true), viewModel.exportReady.value)
+        assertEquals(
+            ReferenceExport("Thesis.bib", citations.exportText, BIB_MIME_TYPE, complete = true, style = CitationStyle.Bibtex),
+            viewModel.exportReady.value
+        )
         // The screen is still writing and sharing the file: another tap does nothing.
         assertTrue(viewModel.header.value.exporting)
-        viewModel.onExport()
+        viewModel.onExport(CitationStyle.Bibtex)
         advanceUntilIdle()
         assertEquals(listOf<Long?>(thesis.id), citations.exports)
         viewModel.onExportShared()
@@ -327,12 +336,62 @@ class LibraryCollectionsViewModelTest {
     }
 
     @Test
+    fun anApaExportWritesTheRtfAndRemembersTheStyle() = runTest {
+        val thesis = thesis()
+        val viewModel = viewModel()
+        viewModel.onSelectCollection(thesis.id)
+        advanceUntilIdle()
+
+        viewModel.onExport(CitationStyle.Apa)
+        advanceUntilIdle()
+
+        assertEquals(
+            ReferenceExport("Thesis – APA.rtf", "{\\rtf1 ${citations.exportText}}", RTF_MIME_TYPE, true, CitationStyle.Apa),
+            viewModel.exportReady.value
+        )
+        assertEquals(listOf(CitationStyle.Apa), citations.styles)
+        assertEquals(CitationStyle.Apa, preferences.citationStyle.first())
+        assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
+        viewModel.onExportShared()
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.Export(ExportFormat.Apa, withPdfs = false)), analytics.events)
+    }
+
+    @Test
+    fun anIeeeExportIsLoggedAsIeee() = runTest {
+        thesis()
+        val viewModel = viewModel()
+        viewModel.onExport(CitationStyle.Ieee)
+        advanceUntilIdle()
+
+        viewModel.onExportShared()
+
+        assertEquals(CitationStyle.Ieee, preferences.citationStyle.first())
+        assertEquals(listOf<AnalyticsEvent>(AnalyticsEvent.Export(ExportFormat.Ieee, withPdfs = false)), analytics.events)
+    }
+
+    @Test
+    fun anExportStillRunsWhenTheStyleCannotBeRemembered() = runTest {
+        thesis()
+        preferences.failOnSetCitationStyle = IOException("datastore")
+        val viewModel = viewModel()
+
+        viewModel.onExport(CitationStyle.Ieee)
+        advanceUntilIdle()
+
+        assertEquals(
+            ReferenceExport("hashiya-library – IEEE.rtf", "{\\rtf1 ${citations.exportText}}", RTF_MIME_TYPE, true, CitationStyle.Ieee),
+            viewModel.exportReady.value
+        )
+        assertNull(viewModel.message.value)
+    }
+
+    @Test
     fun incompleteExportShowsItsMessageWhenTheScreenResumes() = runTest {
         thesis()
         citations.complete = false
         val viewModel = viewModel()
 
-        viewModel.onExport()
+        viewModel.onExport(CitationStyle.Bibtex)
         advanceUntilIdle()
         assertEquals("hashiya-library.bib", viewModel.exportReady.value?.fileName)
         viewModel.onExportShared()
@@ -351,14 +410,14 @@ class LibraryCollectionsViewModelTest {
         citations.failure = IOException("disk full")
         val viewModel = viewModel()
 
-        viewModel.onExport()
+        viewModel.onExport(CitationStyle.Bibtex)
         advanceUntilIdle()
         assertEquals(LibraryMessage.ExportFailed, viewModel.message.value)
         assertEquals(false, viewModel.header.value.exporting)
 
         citations.failure = null
         viewModel.onMessageShown()
-        viewModel.onExport()
+        viewModel.onExport(CitationStyle.Bibtex)
         advanceUntilIdle()
         viewModel.onExportFailed()
         assertNull(viewModel.exportReady.value)
@@ -404,7 +463,7 @@ class LibraryCollectionsViewModelTest {
     fun aSharedBibTeXFileIsOneExportWithoutPdfs() = runTest {
         thesis()
         val viewModel = viewModel()
-        viewModel.onExport()
+        viewModel.onExport(CitationStyle.Bibtex)
         advanceUntilIdle()
         assertEquals(emptyList<AnalyticsEvent>(), analytics.events)
 
@@ -417,7 +476,7 @@ class LibraryCollectionsViewModelTest {
     fun aFailedBibTeXExportSendsNothing() = runTest {
         thesis()
         val viewModel = viewModel()
-        viewModel.onExport()
+        viewModel.onExport(CitationStyle.Bibtex)
         advanceUntilIdle()
 
         viewModel.onExportFailed()

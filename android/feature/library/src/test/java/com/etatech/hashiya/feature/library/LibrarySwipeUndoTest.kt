@@ -16,6 +16,7 @@ import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePdfRepository
 import com.etatech.hashiya.core.testing.FakeReviewPrompt
+import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.PHONE_QUALIFIERS
 import com.etatech.hashiya.core.testing.SamplePapers
 import kotlinx.coroutines.runBlocking
@@ -40,6 +41,7 @@ class LibrarySwipeUndoTest {
         repository,
         FakeCollectionsRepository(FakeLibraryRepository()),
         FakeCitationRepository(),
+        FakeUserPreferencesRepository(),
         FakePdfRepository(),
         NoOpAnalytics,
         FakeReviewPrompt()

@@ -28,6 +28,8 @@ class AnalyticsEventTest {
             AnalyticsEvent.CollectionCreated to ("collection_created" to emptyMap()),
             AnalyticsEvent.PaperAddedToCollection to ("paper_added_to_collection" to emptyMap()),
             AnalyticsEvent.Export(ExportFormat.Backup, true) to ("export" to mapOf("format" to "backup", "with_pdfs" to "yes")),
+            AnalyticsEvent.Export(ExportFormat.Apa, false) to ("export" to mapOf("format" to "apa", "with_pdfs" to "no")),
+            AnalyticsEvent.Export(ExportFormat.Ieee, false) to ("export" to mapOf("format" to "ieee", "with_pdfs" to "no")),
             AnalyticsEvent.Restore(false) to ("restore" to mapOf("result" to "failed")),
             AnalyticsEvent.PdfOpened(PdfOrigin.Attached) to ("pdf_opened" to mapOf("source" to "attached")),
             AnalyticsEvent.PdfDownloaded(true) to ("pdf_downloaded" to mapOf("result" to "ok")),

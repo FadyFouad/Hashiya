@@ -3,6 +3,7 @@ package com.etatech.hashiya.feature.library
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -10,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.ReadingStatus
@@ -37,7 +39,7 @@ class LibraryCollectionsContentTest {
         onDialogConfirm = { events += "confirm:$it" },
         onConfirmDelete = { events += "confirmDelete" },
         onUndoCollection = { events += "undoCollection" },
-        onExport = { events += "export" }
+        onExport = { events += "export:${it.name}" }
     )
     private val thesis = PaperCollection(1, "Thesis", 2)
     private val papers = LibraryUiState.Papers(
@@ -100,6 +102,27 @@ class LibraryCollectionsContentTest {
     }
 
     @Test
+    fun theRememberedStyleIsListedFirst() {
+        composeRule.setContent {
+            HashiyaTheme {
+                LibraryContent(
+                    uiState = papers,
+                    pendingUndo = null,
+                    actions = actions,
+                    header = LibraryHeader(viewSize = 3, libraryCount = 3),
+                    citationStyle = CitationStyle.Ieee
+                )
+            }
+        }
+        composeRule.onNodeWithContentDescription("Export references").performClick()
+
+        val tops = listOf("IEEE (.rtf)", "APA 7 (.rtf)", "BibTeX (.bib)").map {
+            composeRule.onNodeWithText(it).fetchSemanticsNode().boundsInRoot.top
+        }
+        assertEquals(tops.sorted(), tops)
+    }
+
+    @Test
     fun selectedCollectionIsTheTitle() {
         show(header = LibraryHeader(collections = listOf(thesis), selected = thesis, viewSize = 2, libraryCount = 3))
         composeRule.onNodeWithText("Thesis").assertIsDisplayed()
@@ -111,16 +134,19 @@ class LibraryCollectionsContentTest {
         composeRule.setContent {
             HashiyaTheme { LibraryContent(uiState = papers, pendingUndo = null, actions = actions, header = header) }
         }
-        composeRule.onNodeWithContentDescription("Export .bib").performClick()
-        assertEquals(listOf("export"), events)
+        composeRule.onNodeWithContentDescription("Export references").performClick()
+        composeRule.onNodeWithText("BibTeX (.bib)").assertIsDisplayed()
+        composeRule.onNodeWithText("APA 7 (.rtf)").assertIsDisplayed()
+        composeRule.onNodeWithText("IEEE (.rtf)").performClick()
+        assertEquals(listOf("export:Ieee"), events)
 
         header = header.copy(exporting = true)
         composeRule.onNodeWithTag(EXPORT_PROGRESS_TAG).assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Export .bib").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Export references").assertDoesNotExist()
 
         header = LibraryHeader(viewSize = 0, libraryCount = 3)
         composeRule.onNodeWithTag(EXPORT_PROGRESS_TAG).assertDoesNotExist()
-        composeRule.onNodeWithContentDescription("Export .bib").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Export references").assertDoesNotExist()
     }
 
     @Test

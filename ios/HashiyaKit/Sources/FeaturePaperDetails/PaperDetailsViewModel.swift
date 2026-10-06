@@ -353,7 +353,7 @@ public final class PaperDetailsViewModel {
         defer { copying = false }
         do {
             guard let result = try await citations.entry(openAlexID: openAlexID) else { return }
-            copy(result.bibtex)
+            copy(result.text)
             message = result.complete ? .bibtexCopied : .bibtexIncomplete
         } catch is CancellationError {
             return

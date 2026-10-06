@@ -37,7 +37,7 @@ let package = Package(
         .target(name: "HashiyaNetwork"),
         .target(name: "HashiyaDiagnostics"),
         .target(name: "HashiyaDatabase", dependencies: ["HashiyaModel", grdb]),
-        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX", "HashiyaDiagnostics", zip]),
+        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX", "HashiyaCitation", "HashiyaDiagnostics", zip]),
         .target(name: "HashiyaDesignSystem", dependencies: ["HashiyaModel"], resources: [.process("Resources")]),
         .target(
             name: "FeatureSearch",

@@ -557,7 +557,7 @@ struct PaperDetailsViewModelTests {
 
     @Test func copyBibTeXCopiesTheEntryAndSaysSo() async {
         let entry = "@inproceedings{vaswani2017attention,\n  title = {Attention Is All You Need}\n}\n"
-        let citations = FakeCitationRepository(entry: CitationResult(bibtex: entry, complete: true))
+        let citations = FakeCitationRepository(entry: CitationResult(text: entry, complete: true))
         let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
         defer { task.cancel() }
 
@@ -570,7 +570,7 @@ struct PaperDetailsViewModelTests {
     }
 
     @Test func anIncompleteEntryIsStillCopied() async {
-        let citations = FakeCitationRepository(entry: CitationResult(bibtex: "@misc{k,\n}\n", complete: false))
+        let citations = FakeCitationRepository(entry: CitationResult(text: "@misc{k,\n}\n", complete: false))
         let (viewModel, task) = await started(FakeLibraryRepository(saved: [SamplePapers.attention]), citations: citations)
         defer { task.cancel() }
 

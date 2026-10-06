@@ -4,9 +4,9 @@ import Testing
 
 struct FakeCitationRepositoryTests {
     @Test @MainActor func recordsCallsAndAnswersAsScripted() async throws {
-        let fake = FakeCitationRepository(export: CitationResult(bibtex: "x", complete: false))
+        let fake = FakeCitationRepository(export: CitationResult(text: "x", complete: false))
 
-        #expect(try await fake.export(collectionID: 3) == CitationResult(bibtex: "x", complete: false))
+        #expect(try await fake.export(collectionID: 3) == CitationResult(text: "x", complete: false))
         #expect(try await fake.entry(openAlexID: "W1")?.complete == true)
         #expect(fake.exportCalls == [3])
         #expect(fake.entryCalls == ["W1"])

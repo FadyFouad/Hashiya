@@ -474,7 +474,7 @@ public final class LibraryViewModel {
         let complete: Bool
         do {
             let result = try await citations.export(collectionID: id)
-            file = try exportFiles.write(result.bibtex, name: ExportFiles.fileName(collectionName: name))
+            file = try exportFiles.write(result.text, name: ExportFiles.fileName(collectionName: name))
             complete = result.complete
         } catch {
             message = .exportFailed

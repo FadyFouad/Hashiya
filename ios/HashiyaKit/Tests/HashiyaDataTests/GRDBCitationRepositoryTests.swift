@@ -112,8 +112,8 @@ struct GRDBCitationRepositoryTests {
 
         #expect(first.complete)
         #expect(openAlex.workRequests == ["W1"])
-        #expect(first.bibtex.hasPrefix("@article{smith2020deep,\n"))
-        #expect(first.bibtex.contains("  volume = {521},"))
+        #expect(first.text.hasPrefix("@article{smith2020deep,\n"))
+        #expect(first.text.contains("  volume = {521},"))
         #expect(first == second)
     }
 
@@ -146,16 +146,16 @@ struct GRDBCitationRepositoryTests {
 
         let offline = try await repository().export(collectionID: nil)
         #expect(!offline.complete)
-        #expect(offline.bibtex.hasPrefix("@misc{smith2020deep,"))
+        #expect(offline.text.hasPrefix("@misc{smith2020deep,"))
         #expect(try await !detailsFetched("W1"))
 
         openAlex.setWorkFailure(nil)
         openAlex.setWorks(["W1": journalWork("W1")])
         let online = try await repository().export(collectionID: nil)
         #expect(online.complete)
-        #expect(online.bibtex.hasPrefix("@article{smith2020deep,"))
+        #expect(online.text.hasPrefix("@article{smith2020deep,"))
         // pages is the last field here (no DOI or URL), so it has no trailing comma.
-        #expect(online.bibtex.contains("  pages = {436--444}\n}"))
+        #expect(online.text.contains("  pages = {436--444}\n}"))
         #expect(openAlex.workRequests == ["W1", "W1"])
         #expect(try await detailsFetched("W1"))
     }
@@ -168,8 +168,8 @@ struct GRDBCitationRepositoryTests {
         let result = try await repository(flaky).export(collectionID: nil)
 
         #expect(!result.complete)
-        #expect(result.bibtex.contains("@misc{adams2020deep,"))
-        #expect(result.bibtex.contains("@article{brown2020deep,"))
+        #expect(result.text.contains("@misc{adams2020deep,"))
+        #expect(result.text.contains("@article{brown2020deep,"))
         #expect(try await !detailsFetched("W1"))
         #expect(try await detailsFetched("W2"))
     }
@@ -187,13 +187,13 @@ struct GRDBCitationRepositoryTests {
         try await library.save(paper("W1", "Smith"))
         try await library.save(paper("W2", "Smith"))
         let first = try await repository().export(collectionID: nil)
-        #expect(first.bibtex.contains("@misc{smith2020deep,"))
-        #expect(first.bibtex.contains("@misc{smith2020deepa,"))
+        #expect(first.text.contains("@misc{smith2020deep,"))
+        #expect(first.text.contains("@misc{smith2020deepa,"))
 
         // A paper saved later with the same base key gets the next suffix; the first two keep theirs.
         try await library.save(paper("W3", "Smith"))
         let again = try await repository().export(collectionID: nil)
-        #expect(keys(again.bibtex) == ["smith2020deep", "smith2020deepa", "smith2020deepb"])
+        #expect(keys(again.text) == ["smith2020deep", "smith2020deepa", "smith2020deepb"])
         #expect(try await citeKey("W1") == "smith2020deep")
         #expect(try await citeKey("W3") == "smith2020deepb")
     }
@@ -211,7 +211,7 @@ struct GRDBCitationRepositoryTests {
 
         #expect(try await citeKey("W1") == "smith2020deep")
         #expect(try await citeKey("W2") == "smith2020deepa")
-        #expect(keys(again.bibtex) == ["smith2020deep", "smith2020deepa"])
+        #expect(keys(again.text) == ["smith2020deep", "smith2020deepa"])
     }
 
     @Test func keysDoNotDependOnWhichCollectionIsExportedFirst() async throws {
@@ -220,7 +220,7 @@ struct GRDBCitationRepositoryTests {
         let id = try #require(try await store.insertCollection(name: "A", nameKey: "a", createdAt: 1))
         try await store.addToCollection(collectionID: id, openAlexID: "W2", addedAt: 1)
 
-        #expect(try await repository().export(collectionID: id).bibtex.hasPrefix("@misc{smith2020deepa,"))
+        #expect(try await repository().export(collectionID: id).text.hasPrefix("@misc{smith2020deepa,"))
         #expect(try await citeKey("W1") == "smith2020deep")
     }
 
@@ -233,7 +233,7 @@ struct GRDBCitationRepositoryTests {
         try await store.addToCollection(collectionID: id, openAlexID: "W1", addedAt: 1)
         try await store.addToCollection(collectionID: id, openAlexID: "W2", addedAt: 1)
 
-        let bibtex = try await repository().export(collectionID: id).bibtex
+        let bibtex = try await repository().export(collectionID: id).text
         #expect(bibtex.contains("{adams2020deep,"))
         #expect(bibtex.contains("{brown2020deep,"))
         #expect(!bibtex.contains("clark"))
@@ -241,7 +241,41 @@ struct GRDBCitationRepositoryTests {
 
     @Test func emptyCollectionExportsAnEmptyCompleteFile() async throws {
         let id = try #require(try await store.insertCollection(name: "A", nameKey: "a", createdAt: 1))
-        #expect(try await repository().export(collectionID: id) == CitationResult(bibtex: "", complete: true))
+        #expect(try await repository().export(collectionID: id) == CitationResult(text: "", complete: true))
+    }
+
+    @Test func anAPAEntryHasPlainAndHTMLText() async throws {
+        try await library.save(paper("W1", "Smith"))
+        let result = try #require(try await repository().entry(openAlexID: "W1", style: .apa))
+        #expect(result.text.contains("(20"))
+        #expect(result.html?.contains("<i>") == true)
+        #expect(result.rtf == nil)
+    }
+
+    @Test func anIEEEExportNumbersInSavedOrderAndHasRTF() async throws {
+        try await library.save(paper("W1", "Smith", title: "Zebra studies"))
+        try await library.save(paper("W2", "Jones", title: "Aardvark studies"))
+        let result = try await repository().export(collectionID: nil, style: .ieee)
+        #expect(result.text.hasPrefix("[1] "))
+        let lines = result.text.split(separator: "\n").map(String.init)
+        #expect(try #require(lines.first { $0.hasPrefix("[1]") }).contains("Zebra"))
+        #expect(try #require(lines.first { $0.hasPrefix("[2]") }).contains("Aardvark"))
+        #expect(result.rtf?.hasPrefix("{\\rtf1") == true)
+    }
+
+    @Test func anEmptyCollectionExportsAnEmptyRTFDocument() async throws {
+        let id = try #require(try await store.insertCollection(name: "A", nameKey: "a", createdAt: 1))
+        let result = try await repository().export(collectionID: id, style: .apa)
+        #expect(result.rtf == "{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Times New Roman;}}\\f0\\fs24\n}")
+        #expect(result.text == "")
+        #expect(result.complete)
+    }
+
+    @Test func bibtexIsUnchangedAndHasNoRichForms() async throws {
+        try await library.save(paper("W1", "Smith"))
+        let result = try #require(try await repository().entry(openAlexID: "W1"))
+        #expect(result.html == nil)
+        #expect(result.rtf == nil)
     }
 
     @Test func aPaperRemovedDuringTheExportIsLeftOut() async throws {
@@ -253,8 +287,8 @@ struct GRDBCitationRepositoryTests {
         let result = try await repository(removing).export(collectionID: nil)
 
         #expect(result.complete)
-        #expect(result.bibtex.contains("{adams2020deep,"))
-        #expect(!result.bibtex.contains("brown"))
+        #expect(result.text.contains("{adams2020deep,"))
+        #expect(!result.text.contains("brown"))
     }
 
     @Test func aPaperRemovedDuringACopyHasNoEntry() async throws {

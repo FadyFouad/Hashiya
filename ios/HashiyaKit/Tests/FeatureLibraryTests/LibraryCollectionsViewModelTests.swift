@@ -24,7 +24,7 @@ struct LibraryCollectionsViewModelTests {
     }
 
     private func makeViewModel(
-        citations: FakeCitationRepository = FakeCitationRepository(export: CitationResult(bibtex: bib, complete: true)),
+        citations: FakeCitationRepository = FakeCitationRepository(export: CitationResult(text: bib, complete: true)),
         exportFiles: ExportFiles? = nil,
         diagnostics: Diagnostics = .none
     ) -> LibraryViewModel {
@@ -413,7 +413,7 @@ struct LibraryCollectionsViewModelTests {
 
     @Test func exportRunsForTheSelectedCollectionAndSharesItsFile() async throws {
         let thesis = try await thesis()
-        let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: true))
+        let citations = FakeCitationRepository(export: CitationResult(text: Self.bib, complete: true))
         let viewModel = makeViewModel(citations: citations)
         viewModel.selectCollection(thesis.id)
         #expect(await eventually { viewModel.selectedCollection != nil && viewModel.canExport })
@@ -429,7 +429,7 @@ struct LibraryCollectionsViewModelTests {
     }
 
     @Test func allPapersExportsTheWholeLibraryAsHashiyaLibraryBib() async throws {
-        let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: true))
+        let citations = FakeCitationRepository(export: CitationResult(text: Self.bib, complete: true))
         let viewModel = makeViewModel(citations: citations)
         #expect(await eventually { viewModel.papers.count == 3 })
         viewModel.updateText("nothing like this")
@@ -445,7 +445,7 @@ struct LibraryCollectionsViewModelTests {
     }
 
     @Test func anExportThatCouldNotPresentTheShareSheetFails() async {
-        let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: false))
+        let citations = FakeCitationRepository(export: CitationResult(text: Self.bib, complete: false))
         let viewModel = makeViewModel(citations: citations)
         #expect(await eventually { viewModel.papers.count == 3 })
         share.presents = false
@@ -458,7 +458,7 @@ struct LibraryCollectionsViewModelTests {
     }
 
     @Test func aSecondExportTapWhileRunningDoesNothing() async {
-        let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: true))
+        let citations = FakeCitationRepository(export: CitationResult(text: Self.bib, complete: true))
         citations.holdExports()
         let viewModel = makeViewModel(citations: citations)
         #expect(await eventually { viewModel.papers.count == 3 })
@@ -475,7 +475,7 @@ struct LibraryCollectionsViewModelTests {
     }
 
     @Test func exportStaysBusyUntilTheShareSheetCloses() async {
-        let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: true))
+        let citations = FakeCitationRepository(export: CitationResult(text: Self.bib, complete: true))
         let viewModel = makeViewModel(citations: citations)
         #expect(await eventually { viewModel.papers.count == 3 })
         share.hold()
@@ -492,7 +492,7 @@ struct LibraryCollectionsViewModelTests {
     }
 
     @Test func exportIncompleteShowsTheBannerAfterSharing() async {
-        let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: false))
+        let citations = FakeCitationRepository(export: CitationResult(text: Self.bib, complete: false))
         let viewModel = makeViewModel(citations: citations)
         #expect(await eventually { viewModel.papers.count == 3 })
         share.hold()
@@ -507,7 +507,7 @@ struct LibraryCollectionsViewModelTests {
     }
 
     @Test func aFailedExportShowsCouldntExportAndSharesNothing() async {
-        let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: true))
+        let citations = FakeCitationRepository(export: CitationResult(text: Self.bib, complete: true))
         citations.setFail(true)
         let viewModel = makeViewModel(citations: citations)
         #expect(await eventually { viewModel.papers.count == 3 })
@@ -565,7 +565,7 @@ struct LibraryCollectionsViewModelTests {
     }
 
     @Test func aFailedBibTeXExportIsNotCounted() async {
-        let citations = FakeCitationRepository(export: CitationResult(bibtex: Self.bib, complete: true))
+        let citations = FakeCitationRepository(export: CitationResult(text: Self.bib, complete: true))
         citations.setFail(true)
         let analytics = FakeAnalytics()
         let viewModel = makeViewModel(citations: citations, diagnostics: .fake(analytics: analytics))

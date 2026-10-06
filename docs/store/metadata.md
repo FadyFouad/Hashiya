@@ -1,6 +1,6 @@
 # Store listing and questionnaires
 
-Everything to paste into App Store Connect and the Play Console. The App Store fields are for iOS 0.3.0 (build 3); the Google Play fields are still for 0.2.0. Character limits
+Everything to paste into App Store Connect and the Play Console. The App Store fields are for iOS 0.3.0 (build 3); the Google Play fields are for Android 0.3.0 (versionCode 3). Character limits
 are in brackets; `scripts/check-store-metadata.py` checks every field against them.
 
 ## Shared
@@ -242,10 +242,19 @@ PREVIEW, THEN SAVE
 • See the abstract, authors, venue, year and citation count before you save.
 • Open the paper's DOI page or its open-access PDF when one is available.
 
+READ AND TAKE NOTES
+• Download a paper's open-access PDF or attach one from your files, then read it offline with search, zoom and your notes beside the page.
+• Notes for every paper: summary, research question, method, key findings, limitations and your own thoughts. They save as you type.
+
+COLLECTIONS AND BIBTEX
+• Group papers for a chapter, a course or a project.
+• Export a collection or your whole library as a .bib file for Overleaf or LaTeX, or copy one paper's entry.
+
 YOUR LIBRARY, OFFLINE
 • Saved papers stay on your device and work without a connection.
-• Search your library by words from a title, author, abstract or venue. Arabic search ignores diacritics and letter variants.
+• Search your library by words from a title, author, abstract, venue or your notes. Arabic search ignores diacritics and letter variants.
 • Swipe to remove a paper, with Undo.
+• Back up your library to a file and restore it later.
 
 TRACK YOUR READING
 • Mark each paper To read, Reading or Read.
@@ -260,7 +269,8 @@ MADE FOR BIG SCREENS
 • Keyboard shortcuts and right-click menus when you use a keyboard and mouse.
 
 PRIVATE BY DESIGN
-• No account, no tracking and no ads. Your library never leaves your device.
+• No account, no ads and no tracking. Your library, notes and searches stay on your device.
+• Crash reports and usage statistics help fix problems and decide what to improve. They are tied to a random identifier, not your name or account, and you can turn them off in Settings → Privacy.
 
 Paper data comes from OpenAlex (openalex.org), a free and open catalog of scholarly works.
 ```
@@ -268,7 +278,7 @@ Paper data comes from OpenAlex (openalex.org), a free and open catalog of schola
 **Release notes** [500]
 
 ```
-New: notes for every paper, an in-app PDF reader with your notes beside the page, collections, and BibTeX export for Overleaf. Settings now shows how much space PDFs use.
+New in 0.3.0: tablet, foldable and Chromebook layouts; keyboard shortcuts; back up and restore your library to a file; search keeps working when the shared OpenAlex budget runs out; and a simpler Details screen. Crash reports and usage statistics, tied to a random identifier and never your searches, papers or notes, can be turned off in Settings → Privacy.
 ```
 
 <!-- /lang -->
@@ -301,10 +311,19 @@ New: notes for every paper, an in-app PDF reader with your notes beside the page
 • اطّلع على الملخص والمؤلفين وجهة النشر والسنة وعدد الاستشهادات قبل الحفظ.
 • افتح صفحة DOI للورقة أو ملف PDF المفتوح عند توفّره.
 
+اقرأ ودوّن ملاحظاتك
+• نزّل ملف PDF المفتوح للورقة أو أرفق ملفًا من ملفاتك، ثم اقرأه دون اتصال مع البحث والتكبير وملاحظاتك بجانب الصفحة.
+• ملاحظات لكل ورقة: الخلاصة، وسؤال البحث، والمنهجية، وأهم النتائج، والقيود، وأفكارك. تُحفظ أثناء الكتابة.
+
+المجموعات وBibTeX
+• اجمع الأوراق لفصل أو مقرر أو مشروع.
+• صدّر مجموعة أو مكتبتك كاملة في ملف ‎.bib لاستخدامه في Overleaf أو LaTeX، أو انسخ مدخل ورقة واحدة.
+
 مكتبتك معك دائمًا
 • تبقى الأوراق المحفوظة على جهازك وتعمل دون اتصال.
-• ابحث في مكتبتك بكلمات من العنوان أو المؤلفين أو الملخص أو جهة النشر، ويتجاهل البحث العربي التشكيل واختلاف أشكال الحروف.
+• ابحث في مكتبتك بكلمات من العنوان أو المؤلفين أو الملخص أو جهة النشر أو ملاحظاتك، ويتجاهل البحث العربي التشكيل واختلاف أشكال الحروف.
 • اسحب لإزالة ورقة، مع إمكانية التراجع.
+• انسخ مكتبتك احتياطيًا في ملف واستعِدها لاحقًا.
 
 تابع قراءاتك
 • صنّف كل ورقة: للقراءة، قيد القراءة، مقروءة.
@@ -319,7 +338,8 @@ New: notes for every paper, an in-app PDF reader with your notes beside the page
 • اختصارات لوحة المفاتيح وقوائم النقر بالزر الأيمن عند استخدام لوحة مفاتيح وفأرة.
 
 خصوصيتك أولًا
-• بلا حساب ولا تتبّع ولا إعلانات، ولا تغادر مكتبتك جهازك.
+• بلا حساب ولا إعلانات ولا تتبّع، وتبقى مكتبتك وملاحظاتك وعمليات بحثك على جهازك.
+• تساعد تقارير الأعطال وإحصاءات الاستخدام على إصلاح المشكلات وتحديد ما يجب تحسينه. وهي مرتبطة بمعرّف عشوائي، لا باسمك أو حسابك، ويمكنك إيقافها من الإعدادات ← الخصوصية.
 
 بيانات الأوراق من OpenAlex ‏(openalex.org)، وهو فهرس مجاني ومفتوح للأعمال العلمية.
 ```
@@ -327,7 +347,7 @@ New: notes for every paper, an in-app PDF reader with your notes beside the page
 **ملاحظات الإصدار** [500]
 
 ```
-الجديد: ملاحظات لكل ورقة، وقارئ PDF داخل التطبيق مع ملاحظاتك بجانب الصفحة، والمجموعات، وتصدير BibTeX إلى Overleaf. ويعرض قسم «التخزين» في الإعدادات مساحة ملفات PDF.
+الجديد في 0.3.0: تخطيط للأجهزة اللوحية والقابلة للطي وChromebook، واختصارات لوحة المفاتيح، ونسخ مكتبتك احتياطيًا في ملف واستعادتها، واستمرار البحث عند نفاد رصيد OpenAlex المشترك، وصفحة تفاصيل أبسط. ويمكن إيقاف تقارير الأعطال وإحصاءات الاستخدام، المرتبطة بمعرّف عشوائي ودون عمليات بحثك أو أوراقك أو ملاحظاتك، من الإعدادات ← الخصوصية.
 ```
 
 <!-- /lang -->

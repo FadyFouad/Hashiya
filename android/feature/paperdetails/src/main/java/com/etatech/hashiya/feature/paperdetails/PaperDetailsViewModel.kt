@@ -14,6 +14,8 @@ import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.data.repository.CollectionsRepository
 import com.etatech.hashiya.core.data.repository.LibraryRepository
 import com.etatech.hashiya.core.data.repository.PdfRepository
+import com.etatech.hashiya.core.data.repository.UserPreferencesRepository
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NoteSection
 import com.etatech.hashiya.core.model.ReadingStatus
@@ -43,6 +45,7 @@ class PaperDetailsViewModel @AssistedInject constructor(
     private val libraryRepository: LibraryRepository,
     private val collectionsRepository: CollectionsRepository,
     private val citationRepository: CitationRepository,
+    private val preferencesRepository: UserPreferencesRepository,
     private val pdfRepository: PdfRepository,
     @ApplicationScope private val applicationScope: CoroutineScope,
     private val analytics: Analytics
@@ -73,8 +76,8 @@ class PaperDetailsViewModel @AssistedInject constructor(
     private val _newCollectionDialog = MutableStateFlow<NewCollectionDialog?>(null)
     val newCollectionDialog: StateFlow<NewCollectionDialog?> = _newCollectionDialog.asStateFlow()
 
-    private val _copied = MutableStateFlow<CopiedBibTeX?>(null)
-    val copied: StateFlow<CopiedBibTeX?> = _copied.asStateFlow()
+    private val _copied = MutableStateFlow<CopiedCitation?>(null)
+    val copied: StateFlow<CopiedCitation?> = _copied.asStateFlow()
 
     /** Eager, so a paper that is gone closes the screen even before anything collects the UI state. */
     private val paper: StateFlow<LibraryPaper?> = libraryRepository.observePaper(openAlexId)
@@ -158,10 +161,15 @@ class PaperDetailsViewModel @AssistedInject constructor(
         _newCollectionDialog.value = null
     }
 
-    fun onCopyBibTeX() {
+    /** The style the menu lists first. */
+    val citationStyle: StateFlow<CitationStyle> = preferencesRepository.citationStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CitationStyle.Apa)
+
+    fun onCopyCitation(style: CitationStyle) {
         viewModelScope.launch {
+            preferencesRepository.setCitationStyle(style)
             try {
-                citationRepository.entry(openAlexId)?.let { _copied.value = CopiedBibTeX(it.text, it.complete) }
+                citationRepository.entry(openAlexId, style)?.let { _copied.value = CopiedCitation(style, it.text, it.html, it.complete) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

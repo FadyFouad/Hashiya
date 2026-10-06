@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import com.etatech.hashiya.core.designsystem.component.COLLECTION_NAME_FIELD_TAG
 import com.etatech.hashiya.core.designsystem.theme.HashiyaTheme
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperCollection
@@ -36,7 +37,7 @@ class PaperDetailsCollectionsContentTest {
 
     private val events = mutableListOf<String>()
     private val actions = PaperDetailsActions(
-        onCopyBibTeX = { events += "copy" },
+        onCopyCitation = { events += "copy:$it" },
         onRemove = { events += "remove" },
         onToggleCollection = { id, member -> events += "toggle:$id:$member" },
         onNewCollection = { events += "new" },
@@ -49,7 +50,8 @@ class PaperDetailsCollectionsContentTest {
         collections: List<PaperCollection>,
         memberOf: Set<Long>,
         dialog: NewCollectionDialog? = null,
-        message: PaperDetailsMessage? = null
+        message: PaperDetailsMessage? = null,
+        citationStyle: CitationStyle = CitationStyle.Apa
     ) = composeRule.setContent {
         HashiyaTheme {
             PaperDetailsContent(
@@ -62,6 +64,7 @@ class PaperDetailsCollectionsContentTest {
                 ),
                 actions = actions,
                 message = message,
+                citationStyle = citationStyle,
                 newCollectionDialog = dialog
             )
         }
@@ -118,15 +121,19 @@ class PaperDetailsCollectionsContentTest {
     }
 
     @Test
-    fun overflowOffersCopyBibTeXAboveRemove() {
-        show(emptyList(), emptySet())
+    fun overflowOffersTheThreeCopiesRememberedFirstAboveRemove() {
+        show(emptyList(), emptySet(), citationStyle = CitationStyle.Ieee)
         composeRule.onNodeWithContentDescription("More options").performClick()
-        val copyTop = composeRule.onNodeWithText("Copy BibTeX").getUnclippedBoundsInRoot().top
+        val ieeeTop = composeRule.onNodeWithText("Copy IEEE citation").getUnclippedBoundsInRoot().top
+        val apaTop = composeRule.onNodeWithText("Copy APA 7 citation").getUnclippedBoundsInRoot().top
+        val bibtexTop = composeRule.onNodeWithText("Copy BibTeX").getUnclippedBoundsInRoot().top
         val removeTop = composeRule.onNodeWithText("Remove from library").getUnclippedBoundsInRoot().top
-        assertTrue(copyTop < removeTop)
+        assertTrue(ieeeTop < apaTop)
+        assertTrue(apaTop < bibtexTop)
+        assertTrue(bibtexTop < removeTop)
 
-        composeRule.onNodeWithText("Copy BibTeX").performClick()
-        assertEquals(listOf("copy"), events)
+        composeRule.onNodeWithText("Copy APA 7 citation").performClick()
+        assertEquals(listOf("copy:Apa"), events)
     }
 
     @Test
@@ -137,13 +144,13 @@ class PaperDetailsCollectionsContentTest {
 
     @Test
     fun incompleteCopyShowsASnackbar() {
-        show(emptyList(), emptySet(), message = PaperDetailsMessage.BibTeXIncomplete)
+        show(emptyList(), emptySet(), message = PaperDetailsMessage.CitationIncomplete)
         composeRule.onNodeWithText("Some details may be missing. Copy again when you're online.").assertIsDisplayed()
     }
 
     @Test
     fun failedCopyShowsASnackbar() {
         show(emptyList(), emptySet(), message = PaperDetailsMessage.CopyFailed)
-        composeRule.onNodeWithText("Couldn't copy BibTeX").assertIsDisplayed()
+        composeRule.onNodeWithText("Couldn't copy the citation").assertIsDisplayed()
     }
 }

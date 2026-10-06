@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +64,7 @@ import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.designsystem.layout.ControlMaxWidth
 import com.etatech.hashiya.core.designsystem.layout.centeredMaxWidth
 import com.etatech.hashiya.core.designsystem.layout.horizontalMargin
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.Paper
 
 /** [inPane]: shown beside the Library's list, so there is no back button; [onBack] then closes the pane. */
@@ -82,6 +84,7 @@ internal fun PaperDetailsScreen(
     val exit by viewModel.exit.collectAsStateWithLifecycle()
     val newCollectionDialog by viewModel.newCollectionDialog.collectAsStateWithLifecycle()
     val copied by viewModel.copied.collectAsStateWithLifecycle()
+    val citationStyle by viewModel.citationStyle.collectAsStateWithLifecycle()
     val pdf by viewModel.pdf.collectAsStateWithLifecycle()
     val openReader by viewModel.openReader.collectAsStateWithLifecycle()
     val notesVersion by viewModel.notesVersion.collectAsStateWithLifecycle()
@@ -111,8 +114,14 @@ internal fun PaperDetailsScreen(
         val entry = copied ?: return@LaunchedEffect
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         val confirmation = try {
-            checkNotNull(clipboard).setPrimaryClip(ClipData.newPlainText("BibTeX", entry.text))
-            copyConfirmation(entry.complete, Build.VERSION.SDK_INT)
+            checkNotNull(clipboard).setPrimaryClip(
+                if (entry.html != null) {
+                    ClipData.newHtmlText("Citation", entry.text, entry.html)
+                } else {
+                    ClipData.newPlainText("Citation", entry.text)
+                }
+            )
+            copyConfirmation(entry.style, entry.complete, Build.VERSION.SDK_INT)
         } catch (e: Exception) {
             PaperDetailsMessage.CopyFailed
         }
@@ -124,6 +133,7 @@ internal fun PaperDetailsScreen(
         newCollectionDialog = newCollectionDialog,
         pdf = pdf,
         notesVersion = notesVersion,
+        citationStyle = citationStyle,
         showBack = !inPane,
         actions = PaperDetailsActions(
             onBack = onBack,
@@ -133,7 +143,7 @@ internal fun PaperDetailsScreen(
             onRetrySave = viewModel::onRetrySave,
             onMessageShown = viewModel::onMessageShown,
             onOpenLink = { url -> runCatching { uriHandler.openUri(url) } },
-            onCopyBibTeX = viewModel::onCopyBibTeX,
+            onCopyCitation = viewModel::onCopyCitation,
             onToggleCollection = viewModel::onToggleCollection,
             onNewCollection = viewModel::onNewCollection,
             onNewCollectionNameEdited = viewModel::onNewCollectionNameEdited,
@@ -158,6 +168,7 @@ internal fun PaperDetailsContent(
     newCollectionDialog: NewCollectionDialog? = null,
     pdf: PdfRow = PdfRow(PdfRowState.None, null),
     notesVersion: Int = 0,
+    citationStyle: CitationStyle = CitationStyle.Apa,
     showBack: Boolean = true
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -165,8 +176,10 @@ internal fun PaperDetailsContent(
     val retry = stringResource(R.string.details_retry)
     val statusUpdateFailed = stringResource(R.string.details_status_update_failed)
     val collectionsUpdateFailed = stringResource(R.string.details_collections_update_failed)
+    val apaCopied = stringResource(R.string.details_apa_copied)
+    val ieeeCopied = stringResource(R.string.details_ieee_copied)
     val bibtexCopied = stringResource(R.string.details_bibtex_copied)
-    val bibtexIncomplete = stringResource(R.string.details_bibtex_incomplete)
+    val citationIncomplete = stringResource(R.string.details_citation_incomplete)
     val copyFailed = stringResource(R.string.details_copy_failed)
     val attachNotPdf = stringResource(R.string.details_pdf_attach_not_pdf)
     val attachTooLarge = stringResource(R.string.details_pdf_too_large)
@@ -189,13 +202,23 @@ internal fun PaperDetailsContent(
                 actions.onMessageShown()
             }
 
+            PaperDetailsMessage.ApaCopied -> {
+                snackbarHostState.showSnackbar(apaCopied)
+                actions.onMessageShown()
+            }
+
+            PaperDetailsMessage.IeeeCopied -> {
+                snackbarHostState.showSnackbar(ieeeCopied)
+                actions.onMessageShown()
+            }
+
             PaperDetailsMessage.BibTeXCopied -> {
                 snackbarHostState.showSnackbar(bibtexCopied)
                 actions.onMessageShown()
             }
 
-            PaperDetailsMessage.BibTeXIncomplete -> {
-                snackbarHostState.showSnackbar(bibtexIncomplete, duration = SnackbarDuration.Long)
+            PaperDetailsMessage.CitationIncomplete -> {
+                snackbarHostState.showSnackbar(citationIncomplete, duration = SnackbarDuration.Long)
                 actions.onMessageShown()
             }
 
@@ -287,7 +310,9 @@ internal fun PaperDetailsContent(
                         }
                     }
                 },
-                actions = { if (uiState is PaperDetailsUiState.Loaded) OverflowMenu(actions.onCopyBibTeX, actions.onRemove) }
+                actions = {
+                    if (uiState is PaperDetailsUiState.Loaded) OverflowMenu(citationStyle, actions.onCopyCitation, actions.onRemove)
+                }
             )
         },
         // While the checklist is open it shows the snackbar itself, above its scrim.
@@ -310,21 +335,23 @@ internal fun PaperDetailsContent(
 }
 
 @Composable
-private fun OverflowMenu(onCopyBibTeX: () -> Unit, onRemove: () -> Unit) {
+private fun OverflowMenu(citationStyle: CitationStyle, onCopyCitation: (CitationStyle) -> Unit, onRemove: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) {
             Icon(HashiyaIcons.MoreOptions, contentDescription = stringResource(R.string.details_more_options))
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            DropdownMenuItem(
-                text = { Text(stringResource(R.string.details_copy_bibtex)) },
-                leadingIcon = { Icon(HashiyaIcons.Copy, contentDescription = null) },
-                onClick = {
-                    expanded = false
-                    onCopyBibTeX()
-                }
-            )
+            for (style in orderedStyles(citationStyle)) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(copyLabel(style))) },
+                    leadingIcon = { Icon(HashiyaIcons.Copy, contentDescription = null) },
+                    onClick = {
+                        expanded = false
+                        onCopyCitation(style)
+                    }
+                )
+            }
             DropdownMenuItem(
                 text = { Text(stringResource(DesignR.string.designsystem_remove_from_library)) },
                 leadingIcon = { Icon(HashiyaIcons.Delete, contentDescription = null) },
@@ -335,6 +362,13 @@ private fun OverflowMenu(onCopyBibTeX: () -> Unit, onRemove: () -> Unit) {
             )
         }
     }
+}
+
+@StringRes
+private fun copyLabel(style: CitationStyle): Int = when (style) {
+    CitationStyle.Apa -> R.string.details_copy_apa
+    CitationStyle.Ieee -> R.string.details_copy_ieee
+    CitationStyle.Bibtex -> R.string.details_copy_bibtex
 }
 
 // A scrolling Column, not a LazyColumn: text fields in a lazy list lose focus when they scroll out of composition.

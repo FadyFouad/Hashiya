@@ -8,11 +8,15 @@
     <string name="details_no_collections">ليست في أي مجموعة</string>
     <string name="details_collections_hint">اجمع الأوراق لفصل أو مقرر أو مشروع.</string>
     <string name="details_new_collection">مجموعة جديدة</string>
+    <string name="details_copy_apa">نسخ استشهاد APA 7</string>
+    <string name="details_copy_ieee">نسخ استشهاد IEEE</string>
     <string name="details_copy_bibtex">نسخ BibTeX</string>
+    <string name="details_apa_copied">تم نسخ استشهاد APA</string>
+    <string name="details_ieee_copied">تم نسخ استشهاد IEEE</string>
     <string name="details_bibtex_copied">تم نسخ BibTeX</string>
-    <string name="details_bibtex_incomplete">قد تنقص بعض البيانات. انسخ مرة أخرى عند الاتصال بالإنترنت.</string>
+    <string name="details_citation_incomplete">قد تنقص بعض البيانات. انسخ مرة أخرى عند الاتصال بالإنترنت.</string>
+    <string name="details_copy_failed">تعذّر نسخ الاستشهاد</string>
     <string name="details_collections_update_failed">تعذّر تحديث المجموعات</string>
-    <string name="details_copy_failed">تعذّر نسخ BibTeX</string>
     <string name="details_pdf">ملف PDF</string>
     <string name="details_pdf_available">متاح للتنزيل</string>
     <string name="details_pdf_none">لا يوجد ملف PDF</string>

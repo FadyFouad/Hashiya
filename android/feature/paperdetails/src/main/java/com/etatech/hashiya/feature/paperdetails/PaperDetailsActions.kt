@@ -1,5 +1,6 @@
 package com.etatech.hashiya.feature.paperdetails
 
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.NoteSection
 import com.etatech.hashiya.core.model.ReadingStatus
 
@@ -12,7 +13,7 @@ internal data class PaperDetailsActions(
     val onRetrySave: () -> Unit = {},
     val onMessageShown: () -> Unit = {},
     val onOpenLink: (String) -> Unit = {},
-    val onCopyBibTeX: () -> Unit = {},
+    val onCopyCitation: (CitationStyle) -> Unit = {},
     val onToggleCollection: (Long, Boolean) -> Unit = { _, _ -> },
     val onNewCollection: () -> Unit = {},
     val onNewCollectionNameEdited: () -> Unit = {},

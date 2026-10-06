@@ -1,5 +1,6 @@
 package com.etatech.hashiya.feature.paperdetails
 
+import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.LibraryPaper
 import com.etatech.hashiya.core.model.NotesSaveState
 import com.etatech.hashiya.core.model.PaperCollection
@@ -23,8 +24,10 @@ enum class PaperDetailsMessage {
     NotesSaveFailed,
     StatusUpdateFailed,
     CollectionsUpdateFailed,
+    ApaCopied,
+    IeeeCopied,
     BibTeXCopied,
-    BibTeXIncomplete,
+    CitationIncomplete,
     CopyFailed,
     PdfAttachNotPdf,
     PdfAttachTooLarge,
@@ -38,4 +41,4 @@ enum class PaperDetailsExit { Closed, Removed }
 data class NewCollectionDialog(val nameTaken: Boolean = false)
 
 /** An entry for the screen to put on the clipboard; the screen then calls onCopyHandled. */
-data class CopiedBibTeX(val text: String, val complete: Boolean)
+data class CopiedCitation(val style: CitationStyle, val text: String, val html: String?, val complete: Boolean)

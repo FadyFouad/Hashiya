@@ -16,6 +16,7 @@ import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePdfRepository
+import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -55,6 +56,7 @@ class PaperDetailsViewModelTest {
             libraryRepository,
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
+            FakeUserPreferencesRepository(),
             pdfs,
             backgroundScope,
             analytics
@@ -417,6 +419,7 @@ class PaperDetailsViewModelTest {
             repository,
             FakeCollectionsRepository(repository),
             FakeCitationRepository(),
+            FakeUserPreferencesRepository(),
             pdfs,
             backgroundScope,
             analytics

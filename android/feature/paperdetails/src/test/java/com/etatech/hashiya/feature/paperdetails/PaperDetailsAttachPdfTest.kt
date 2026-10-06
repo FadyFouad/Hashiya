@@ -7,6 +7,7 @@ import com.etatech.hashiya.core.testing.FakeCitationRepository
 import com.etatech.hashiya.core.testing.FakeCollectionsRepository
 import com.etatech.hashiya.core.testing.FakeLibraryRepository
 import com.etatech.hashiya.core.testing.FakePdfRepository
+import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
 import kotlinx.coroutines.flow.collect
@@ -39,6 +40,7 @@ class PaperDetailsAttachPdfTest {
             library,
             FakeCollectionsRepository(library),
             FakeCitationRepository(),
+            FakeUserPreferencesRepository(),
             pdfs,
             backgroundScope,
             FakeAnalytics()

@@ -8,11 +8,15 @@
     <string name="details_no_collections">Not in any collection</string>
     <string name="details_collections_hint">Group papers for a chapter, a course or a project.</string>
     <string name="details_new_collection">New collection</string>
+    <string name="details_copy_apa">Copy APA 7 citation</string>
+    <string name="details_copy_ieee">Copy IEEE citation</string>
     <string name="details_copy_bibtex">Copy BibTeX</string>
+    <string name="details_apa_copied">APA citation copied</string>
+    <string name="details_ieee_copied">IEEE citation copied</string>
     <string name="details_bibtex_copied">BibTeX copied</string>
-    <string name="details_bibtex_incomplete">Some details may be missing. Copy again when you\'re online.</string>
+    <string name="details_citation_incomplete">Some details may be missing. Copy again when you\'re online.</string>
+    <string name="details_copy_failed">Couldn\'t copy the citation</string>
     <string name="details_collections_update_failed">Couldn\'t update collections</string>
-    <string name="details_copy_failed">Couldn\'t copy BibTeX</string>
     <string name="details_pdf">PDF</string>
     <string name="details_pdf_available">Available to download</string>
     <string name="details_pdf_none">No PDF</string>

@@ -485,6 +485,9 @@ public final class LibraryViewModel {
             return
         }
         diagnostics.analytics.log(.export(format: .bibtex, withPdfs: false))
+        // `share` returns once the share sheet has closed, so nothing covers the screen now.
+        diagnostics.review.recordExport()
+        diagnostics.review.askIfDue()
         if !complete {
             message = .exportIncomplete
         }

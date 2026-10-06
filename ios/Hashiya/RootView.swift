@@ -275,7 +275,13 @@ struct RootView: View {
             PaperPreviewContent(
                 paper: paper,
                 inLibrary: saved,
-                onToggleSave: { Task { await searchViewModel.toggleSave(paper) } },
+                onToggleSave: {
+                    Task {
+                        await searchViewModel.toggleSave(paper)
+                        // A pane, not a sheet: nothing covers the results, so a waiting rating request can go now.
+                        searchViewModel.askForReviewAfterPreview()
+                    }
+                },
                 onOpenDOI: { doi in if let url = DOILink.url(for: doi) { openURL(url) } },
                 onOpenDetails: saved ? { searchRoutes.append(.details(PaperDetailsRoute(openAlexID: paper.openAlexID))) } : nil
             )

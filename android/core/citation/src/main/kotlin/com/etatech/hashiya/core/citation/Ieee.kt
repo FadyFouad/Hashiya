@@ -49,9 +49,11 @@ object Ieee {
                 )
 
                 WorkKind.Chapter -> listOfNotNull(
-                    venue?.let {
-                        listOf(Run("in "), Run(it, italic = true)) +
-                            (publisher?.let { p -> listOf(Run((if (it.last() in ".?!") " " else ". ") + p)) } ?: emptyList())
+                    if (venue != null) {
+                        listOf(Run("in "), Run(venue, italic = true)) +
+                            (publisher?.let { p -> listOf(Run((if (venue.last() in ".?!") " " else ". ") + p)) } ?: emptyList())
+                    } else {
+                        publisher?.let { listOf(Run(it)) }
                     },
                     year?.let { listOf(Run(it)) },
                     pages?.let { listOf(Run(it)) },

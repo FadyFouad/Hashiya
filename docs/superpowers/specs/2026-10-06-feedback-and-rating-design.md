@@ -82,6 +82,6 @@ the policy already lists the address. The store prompts are the platforms' own.
 
 ## 7. Delivery
 
-1. Android PR: About section, `ReviewPrompt`, Play In-App Review (`com.google.android.play:review-ktx`), hooks, tests.
+1. Android PR (delivered): About section, `ReviewPrompt`, Play In-App Review (`com.google.android.play:review-ktx`), hooks, tests.
 2. iOS PR: the same with `requestReview`.
 3. CHANGELOG `[Unreleased]` lines for each.

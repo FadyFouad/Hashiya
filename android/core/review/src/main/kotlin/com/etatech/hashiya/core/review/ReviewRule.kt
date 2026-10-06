@@ -13,7 +13,7 @@ data class ReviewCounters(
 )
 
 /**
- * When to ask for a rating: once the app has shown its value (5 saves or a BibTeX export), the person has had it for 3 days,
+ * When to ask for a rating: once the app has shown its value (5 saves or a reference export), the person has had it for 3 days,
  * and it hasn't asked in 120 days. A stored time later than now (the clock went back) reads as "not yet".
  */
 object ReviewRule {

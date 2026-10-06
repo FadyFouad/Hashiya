@@ -34,7 +34,8 @@ internal fun feedbackInfoLine(version: AppVersion, osRelease: String, model: Str
 
 /** An email draft to the developer, the message first and the info line under it. */
 internal fun feedbackIntent(subject: String, version: AppVersion, osRelease: String, model: String, language: String): Intent =
-    Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:")).apply {
+    // The address goes in the URI as well: some mail apps ignore EXTRA_EMAIL.
+    Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$FEEDBACK_EMAIL")).apply {
         putExtra(Intent.EXTRA_EMAIL, arrayOf(FEEDBACK_EMAIL))
         putExtra(Intent.EXTRA_SUBJECT, subject)
         putExtra(Intent.EXTRA_TEXT, "\n\n" + feedbackInfoLine(version, osRelease, model, language))

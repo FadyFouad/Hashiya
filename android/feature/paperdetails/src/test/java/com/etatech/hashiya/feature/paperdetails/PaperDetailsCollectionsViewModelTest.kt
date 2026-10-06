@@ -160,6 +160,24 @@ class PaperDetailsCollectionsViewModelTest {
     }
 
     @Test
+    fun theCitationIsCopiedEvenWhenTheStyleCannotBeRemembered() = runTest {
+        library.save(paper)
+        citations.entries = mapOf(id to "<the entries text>")
+        preferences.failOnSetCitationStyle = IOException("datastore")
+        val viewModel = viewModel()
+
+        viewModel.onCopyCitation(CitationStyle.Ieee)
+        advanceUntilIdle()
+
+        assertEquals(
+            CopiedCitation(CitationStyle.Ieee, "<the entries text>", "<i><the entries text></i>", complete = true),
+            viewModel.copied.value
+        )
+        assertNull(viewModel.message.value)
+        assertEquals(CitationStyle.Apa, preferences.citationStyle.first())
+    }
+
+    @Test
     fun anIncompleteEntryIsStillCopied() = runTest {
         library.save(paper)
         citations.entries = mapOf(id to "@misc{k,\n}\n")

@@ -79,6 +79,10 @@ class PaperDetailsViewModel @AssistedInject constructor(
     private val _copied = MutableStateFlow<CopiedCitation?>(null)
     val copied: StateFlow<CopiedCitation?> = _copied.asStateFlow()
 
+    /** The style the menu lists first. */
+    val citationStyle: StateFlow<CitationStyle> = preferencesRepository.citationStyle
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CitationStyle.Apa)
+
     /** Eager, so a paper that is gone closes the screen even before anything collects the UI state. */
     private val paper: StateFlow<LibraryPaper?> = libraryRepository.observePaper(openAlexId)
         .onEach { if (it == null) _exit.compareAndSet(null, PaperDetailsExit.Closed) }
@@ -161,13 +165,15 @@ class PaperDetailsViewModel @AssistedInject constructor(
         _newCollectionDialog.value = null
     }
 
-    /** The style the menu lists first. */
-    val citationStyle: StateFlow<CitationStyle> = preferencesRepository.citationStyle
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), CitationStyle.Apa)
-
     fun onCopyCitation(style: CitationStyle) {
         viewModelScope.launch {
-            preferencesRepository.setCitationStyle(style)
+            try {
+                preferencesRepository.setCitationStyle(style)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // The style just isn't remembered; the copy still goes ahead.
+            }
             try {
                 citationRepository.entry(openAlexId, style)?.let { _copied.value = CopiedCitation(style, it.text, it.html, it.complete) }
             } catch (e: CancellationException) {

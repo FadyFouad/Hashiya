@@ -36,6 +36,17 @@ struct SearchReviewPromptTests {
         #expect(review.asks == 1)
     }
 
+    @Test func inTheWideLayoutASaveAsksAtOnceAndLeavesNothingWaiting() async {
+        let viewModel = makeViewModel()
+        // Wide windows show the preview in a pane beside the results, not in a sheet.
+        viewModel.previewIsSheet = false
+        viewModel.selectedPaper = paper
+        await viewModel.toggleSave(paper)
+        #expect(review.asks == 1)
+        viewModel.askForReviewAfterPreview()
+        #expect(review.asks == 1)
+    }
+
     @Test func closingThePreviewWithoutASaveDoesNotAsk() {
         let viewModel = makeViewModel()
         viewModel.selectedPaper = paper

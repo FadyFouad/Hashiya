@@ -53,8 +53,12 @@ public final class SearchViewModel {
     /// The paper in the preview sheet.
     public var selectedPaper: Paper?
 
-    /// A paper was saved from the preview; the rating prompt waits until the preview closes.
+    /// A paper was saved from the preview sheet; the rating prompt waits until the sheet closes.
     @ObservationIgnored private var reviewPending = false
+
+    /// False in wide windows, where `selectedPaper` shows in a pane beside the results rather than in a sheet. Set by
+    /// `SearchView`.
+    @ObservationIgnored public var previewIsSheet = true
     public var message: SearchMessage?
 
     @ObservationIgnored private let repository: any SearchRepository
@@ -224,15 +228,15 @@ public final class SearchViewModel {
                 try await library.save(paper)
                 diagnostics.analytics.log(.paperSaved(from: lookup != nil ? .lookup : .search))
                 diagnostics.review.recordSave()
-                // Never over the preview sheet: that waits until the sheet closes.
-                if selectedPaper == nil { diagnostics.review.askIfDue() } else { reviewPending = true }
+                // Never over the preview sheet: that waits until the sheet closes. A pane covers nothing.
+                if selectedPaper != nil && previewIsSheet { reviewPending = true } else { diagnostics.review.askIfDue() }
             } catch {
                 message = .saveFailed
             }
         }
     }
 
-    /// The preview sheet closed, or a save happened in the side pane: asks for a rating if a save is waiting.
+    /// The preview sheet closed: asks for a rating if a save made in it is waiting.
     public func askForReviewAfterPreview() {
         guard reviewPending else { return }
         reviewPending = false

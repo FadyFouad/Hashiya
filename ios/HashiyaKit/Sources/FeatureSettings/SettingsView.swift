@@ -36,8 +36,8 @@ public struct SettingsView: View {
                 storageSection
                 BackupSection(summary: viewModel.backup.summary, onRestore: { importing = true })
                 privacySection
-                AboutSection(onAddressCopied: { addressCopied = true })
                 languageSection
+                AboutSection(onAddressCopied: { addressCopied = true })
             }
             .scrollContentBackground(.hidden)
             .background(HashiyaColors.surface)

@@ -52,6 +52,9 @@ public final class SearchViewModel {
     public private(set) var focusRequested = false
     /// The paper in the preview sheet.
     public var selectedPaper: Paper?
+
+    /// A paper was saved from the preview; the rating prompt waits until the preview closes.
+    @ObservationIgnored private var reviewPending = false
     public var message: SearchMessage?
 
     @ObservationIgnored private let repository: any SearchRepository
@@ -220,10 +223,20 @@ public final class SearchViewModel {
             do {
                 try await library.save(paper)
                 diagnostics.analytics.log(.paperSaved(from: lookup != nil ? .lookup : .search))
+                diagnostics.review.recordSave()
+                // Never over the preview sheet: that waits until the sheet closes.
+                if selectedPaper == nil { diagnostics.review.askIfDue() } else { reviewPending = true }
             } catch {
                 message = .saveFailed
             }
         }
+    }
+
+    /// The preview sheet closed, or a save happened in the side pane: asks for a rating if a save is waiting.
+    public func askForReviewAfterPreview() {
+        guard reviewPending else { return }
+        reviewPending = false
+        diagnostics.review.askIfDue()
     }
 
     /// The sheet's Remove, and Remove on Details opened from Search.

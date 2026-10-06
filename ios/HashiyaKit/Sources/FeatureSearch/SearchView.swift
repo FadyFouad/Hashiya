@@ -63,7 +63,10 @@ public struct SearchView: View {
                     .accessibilityLabel(Text(verbatim: L10n.string("search.settings")))
                 }
             }
-            .sheet(item: previewsInPane ? .constant(nil) : $viewModel.selectedPaper, onDismiss: openRequestedDetails) { paper in
+            .sheet(item: previewsInPane ? .constant(nil) : $viewModel.selectedPaper, onDismiss: {
+                viewModel.askForReviewAfterPreview()
+                openRequestedDetails()
+            }) { paper in
                 preview(paper)
             }
             .sheet(isPresented: $showsYearRange) {

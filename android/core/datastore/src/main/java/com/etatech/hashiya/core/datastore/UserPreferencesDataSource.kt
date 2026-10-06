@@ -39,7 +39,15 @@ class UserPreferencesDataSource @Inject constructor(private val dataStore: DataS
         dataStore.edit { it[ANALYTICS_ENABLED] = enabled }
     }
 
+    /** The id of the remembered citation style, or null until one is chosen. */
+    val citationStyleId: Flow<String?> = dataStore.data.map { it[CITATION_STYLE] }
+
+    suspend fun setCitationStyleId(id: String) {
+        dataStore.edit { it[CITATION_STYLE] = id }
+    }
+
     private companion object {
+        val CITATION_STYLE = stringPreferencesKey("citation_style")
         val ANALYTICS_ENABLED = booleanPreferencesKey("analytics_enabled")
         val CRASH_REPORTS_ENABLED = booleanPreferencesKey("crash_reports_enabled")
         val USER_API_KEY = stringPreferencesKey("user_api_key")

@@ -361,7 +361,7 @@ class LibraryViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val result = citationRepository.export(collectionId)
-                _exportReady.value = BibExport(bibFileName(name), result.bibtex, result.complete)
+                _exportReady.value = BibExport(bibFileName(name), result.text, result.complete)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

@@ -1378,6 +1378,23 @@
         }
       }
     },
+    "settings.about" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حول التطبيق"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
+          }
+        }
+      }
+    },
     "settings.analytics" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1888,6 +1905,40 @@
         }
       }
     },
+    "settings.feedbackCopied" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم نسخ عنوان البريد: %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Email address copied: %@"
+          }
+        }
+      }
+    },
+    "settings.feedbackSubject" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ملاحظات حول حاشية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hashiya feedback"
+          }
+        }
+      }
+    },
     "settings.languageFooter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1956,6 +2007,23 @@
         }
       }
     },
+    "settings.rate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "قيّم حاشية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rate Hashiya"
+          }
+        }
+      }
+    },
     "settings.reset" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1990,6 +2058,23 @@
         }
       }
     },
+    "settings.sendFeedback" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إرسال ملاحظات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send feedback"
+          }
+        }
+      }
+    },
     "settings.storage" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2020,6 +2105,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Settings"
+          }
+        }
+      }
+    },
+    "settings.version" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الإصدار \u2066%@\u2069"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@"
           }
         }
       }

@@ -111,4 +111,30 @@ struct APATests {
         #expect(APA.format(paper(venue: "Proc. IEEE Conf.", source: "conference", publisher: "Curran")).plain ==
             "Vaswani, A., & Shazeer, N. (2017). Attention is all you need. In Proc. IEEE Conf. Curran. https://doi.org/10.5555/3295222.3295349")
     }
+
+    /// Kotlin keys: أحمد→احمد, ابراهيم, إسماعيل→اسماعيل, آدم→ادم, اسامة. By UTF-16:
+    /// ابراهيم (ب), احمد (ح), ادم (د), اسامة (س,ا), اسماعيل (س,م).
+    @Test func arabicAlefVariantsSortAsTheirBareAlef() {
+        let names = ["أحمد", "ابراهيم", "إسماعيل", "آدم", "اسامة"]
+        let list = APA.list(names.map { paper(authors: [$0]) }).map { $0.plain.components(separatedBy: ". (")[0] }
+        #expect(list == ["ابراهيم", "أحمد", "آدم", "اسامة", "إسماعيل"])
+    }
+
+    /// Kotlin's NFD splits 김 into jamo U+1100 U+1175 U+11B7, which come before 王 (U+738B) by UTF-16.
+    @Test func hangulSortsAsItsDecomposedJamo() {
+        let list = APA.list([paper(authors: ["김"]), paper(authors: ["王"])]).map { $0.plain.components(separatedBy: ". (")[0] }
+        #expect(list == ["김", "王"])
+    }
+
+    /// 😀 is U+1F600, UTF-16 D83D DE00, so it precedes the fullwidth Ａ (key U+FF41) by UTF-16 units, though not by scalars.
+    @Test func sortsByUTF16UnitsNotScalars() {
+        let list = APA.list([paper(authors: ["Ａ"]), paper(authors: ["😀"])]).map { $0.plain.components(separatedBy: ". (")[0] }
+        #expect(list == ["😀", "Ａ"])
+    }
+
+    @Test func sortKeyStripsMarksLikeAndroid() {
+        #expect(sortKey("Émile") == "emile")
+        #expect(sortKey("آدم").hasPrefix("ا"))
+        #expect(sortKey("آدم").unicodeScalars.first?.value == 0x0627)
+    }
 }

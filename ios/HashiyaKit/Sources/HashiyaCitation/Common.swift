@@ -20,7 +20,8 @@ func isSinglePage(_ first: String?, _ last: String?) -> Bool {
 
 /// Lower case without diacritics, for sorting.
 func sortKey(_ text: String) -> String {
-    text.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: Locale(identifier: "en_US_POSIX")).lowercased()
+    let stripped = text.decomposedStringWithCanonicalMapping.unicodeScalars.filter { $0.properties.generalCategory != .nonspacingMark }
+    return String(String.UnicodeScalarView(stripped)).lowercased()
 }
 
 extension Optional where Wrapped == String {

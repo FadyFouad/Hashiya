@@ -29,11 +29,11 @@ public enum APA {
             let a = l.element, c = r.element
             let ka = sortKey(a.authors.first.map { personName($0.name).family } ?? a.title)
             let kc = sortKey(c.authors.first.map { personName($0.name).family } ?? c.title)
-            if ka != kc { return ka < kc }
+            if !ka.utf16.elementsEqual(kc.utf16) { return ka.utf16.lexicographicallyPrecedes(kc.utf16) }
             if (a.year == nil) != (c.year == nil) { return a.year != nil }
             if let ya = a.year, let yc = c.year, ya != yc { return ya < yc }
             let ta = sortKey(a.title), tc = sortKey(c.title)
-            if ta != tc { return ta < tc }
+            if !ta.utf16.elementsEqual(tc.utf16) { return ta.utf16.lexicographicallyPrecedes(tc.utf16) }
             return l.offset < r.offset
         }.map { format($0.element) }
     }

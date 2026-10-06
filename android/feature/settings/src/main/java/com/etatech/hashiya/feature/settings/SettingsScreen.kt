@@ -49,6 +49,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -79,6 +80,11 @@ internal fun SettingsScreen(onBack: () -> Unit, onOpenRestore: (String) -> Unit,
     val openDialog = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let { onOpenRestore(it.toString()) }
     }
+    val context = LocalContext.current
+    val appVersion = remember { AppVersion.of(context) }
+    val language = LocalConfiguration.current.locales[0].language
+    val feedbackSubject = stringResource(R.string.settings_feedback_subject)
+    var feedbackCopied by rememberSaveable { mutableStateOf(false) }
     // Survives activity recreation, so a save dialog that is already open isn't launched a second time.
     var launchedFileName by rememberSaveable { mutableStateOf<String?>(null) }
     val export = uiState.backup.export
@@ -96,6 +102,7 @@ internal fun SettingsScreen(onBack: () -> Unit, onOpenRestore: (String) -> Unit,
     }
     SettingsContent(
         uiState = uiState,
+        appVersion = appVersion,
         onBack = onBack,
         onKeyInputChange = viewModel::onKeyInputChange,
         onSaveKey = viewModel::onSaveKey,
@@ -110,7 +117,16 @@ internal fun SettingsScreen(onBack: () -> Unit, onOpenRestore: (String) -> Unit,
         onRestoreClick = { openDialog.launch(arrayOf(BACKUP_MIME_TYPE, "application/octet-stream")) },
         onCrashReportsChange = viewModel::onCrashReportsChange,
         onAnalyticsChange = viewModel::onAnalyticsChange,
-        onMessageShown = viewModel::onMessageShown
+        onMessageShown = viewModel::onMessageShown,
+        onSendFeedback = {
+            if (!context.sendFeedback(feedbackSubject, appVersion, language)) {
+                context.copyFeedbackAddress()
+                feedbackCopied = true
+            }
+        },
+        onRate = { context.openRatePage() },
+        feedbackCopied = feedbackCopied,
+        onFeedbackCopiedShown = { feedbackCopied = false }
     )
 }
 
@@ -123,6 +139,7 @@ internal const val PRIVACY_POLICY_URL = "https://fadyfouad.github.io/Hashiya-Pri
 @Composable
 internal fun SettingsContent(
     uiState: SettingsUiState,
+    appVersion: AppVersion,
     onBack: () -> Unit,
     onKeyInputChange: (String) -> Unit,
     onSaveKey: () -> Unit,
@@ -138,6 +155,10 @@ internal fun SettingsContent(
     onCrashReportsChange: (Boolean) -> Unit = {},
     onAnalyticsChange: (Boolean) -> Unit = {},
     onMessageShown: () -> Unit = {},
+    onSendFeedback: () -> Unit = {},
+    onRate: () -> Unit = {},
+    feedbackCopied: Boolean = false,
+    onFeedbackCopiedShown: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var keyVisible by rememberSaveable { mutableStateOf(false) }
@@ -148,6 +169,13 @@ internal fun SettingsContent(
         if (messageText != null) {
             snackbarHostState.showSnackbar(messageText)
             onMessageShown()
+        }
+    }
+    val copiedText = stringResource(R.string.settings_feedback_copied, FEEDBACK_EMAIL)
+    LaunchedEffect(feedbackCopied) {
+        if (feedbackCopied) {
+            snackbarHostState.showSnackbar(copiedText)
+            onFeedbackCopiedShown()
         }
     }
     Scaffold(
@@ -247,6 +275,8 @@ internal fun SettingsContent(
             }
             Spacer(Modifier.height(32.dp))
             PrivacySection(uiState.crashReportsEnabled, onCrashReportsChange, uiState.analyticsEnabled, onAnalyticsChange)
+            Spacer(Modifier.height(32.dp))
+            AboutSection(appVersion, onSendFeedback, onRate)
         }
         val summary = uiState.backup.summary
         val export = uiState.backup.export
@@ -387,4 +417,22 @@ private fun PrivacySection(
     TextButton(onClick = { openLink(uriHandler, if (arabic) "$PRIVACY_POLICY_URL#ar" else PRIVACY_POLICY_URL) }) {
         Text(stringResource(R.string.settings_privacy_policy))
     }
+}
+
+@Composable
+private fun AboutSection(appVersion: AppVersion, onSendFeedback: () -> Unit, onRate: () -> Unit) {
+    Text(
+        stringResource(R.string.settings_about),
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.testTag(ABOUT_SECTION_TAG)
+    )
+    Spacer(Modifier.height(4.dp))
+    TextButton(onClick = onSendFeedback) { Text(stringResource(R.string.settings_send_feedback)) }
+    TextButton(onClick = onRate) { Text(stringResource(R.string.settings_rate)) }
+    Spacer(Modifier.height(4.dp))
+    Text(
+        stringResource(R.string.settings_version, appVersion.label),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }

@@ -42,6 +42,7 @@ class SettingsContentTest {
     private fun show(state: SettingsUiState) = composeRule.setContent {
         HashiyaTheme {
             SettingsContent(
+                appVersion = AppVersion("0.3.0", 3),
                 uiState = state,
                 onBack = { events += "back" },
                 onKeyInputChange = { events += "input:$it" },
@@ -50,7 +51,9 @@ class SettingsContentTest {
                 onLanguageSelected = { events += "language:$it" },
                 onDeleteDownloadedPdfs = { events += "deletePdfs" },
                 onCrashReportsChange = { events += "crashReports:$it" },
-                onAnalyticsChange = { events += "analytics:$it" }
+                onAnalyticsChange = { events += "analytics:$it" },
+                onSendFeedback = { events += "feedback" },
+                onRate = { events += "rate" }
             )
         }
     }
@@ -79,6 +82,25 @@ class SettingsContentTest {
 
         composeRule.onNodeWithText("العربية").performClick()
         assertEquals(listOf("language:Arabic"), events)
+    }
+
+    @Test
+    fun aboutShowsFeedbackRateAndVersion() {
+        show(SettingsUiState())
+
+        composeRule.onNodeWithText("Send feedback").performScrollTo().performClick()
+        composeRule.onNodeWithText("Rate Hashiya").performScrollTo().performClick()
+        composeRule.onNodeWithText("Version 0.3.0 (3)").performScrollTo().assertIsDisplayed()
+        assertEquals(listOf("feedback", "rate"), events)
+    }
+
+    @Test
+    @Config(qualifiers = "+ar")
+    fun arabicVersionKeepsItsNumbersInOrder() {
+        show(SettingsUiState())
+
+        composeRule.onNodeWithText("حول التطبيق").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("الإصدار \u20660.3.0 (3)\u2069").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -174,7 +196,7 @@ class SettingsContentTest {
                 }
             ) {
                 HashiyaTheme {
-                    SettingsContent(uiState = SettingsUiState(), onBack = {
+                    SettingsContent(appVersion = AppVersion("0.3.0", 3), uiState = SettingsUiState(), onBack = {
                     }, onKeyInputChange = {}, onSaveKey = {}, onResetKey = {}, onLanguageSelected = {})
                 }
             }
@@ -199,7 +221,7 @@ class SettingsContentTest {
         }
         CompositionLocalProvider(LocalUriHandler provides handler, LocalConfiguration provides effective) {
             HashiyaTheme {
-                SettingsContent(uiState = SettingsUiState(), onBack = {
+                SettingsContent(appVersion = AppVersion("0.3.0", 3), uiState = SettingsUiState(), onBack = {
                 }, onKeyInputChange = {}, onSaveKey = {}, onResetKey = {}, onLanguageSelected = {})
             }
         }
@@ -264,6 +286,7 @@ class SettingsContentTest {
         composeRule.setContent {
             HashiyaTheme {
                 SettingsContent(
+                    appVersion = AppVersion("0.3.0", 3),
                     uiState = state,
                     onBack = {},
                     onKeyInputChange = {},

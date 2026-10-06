@@ -20,7 +20,7 @@ final class AppContainer {
     let appUpdateRepository: any AppUpdateRepository
     let collectionsRepository: any CollectionsRepository
     let citationRepository: any CitationRepository
-    /// Where Export .bib writes its file before sharing it.
+    /// Where Export references writes its file before sharing it.
     let exportFiles: ExportFiles
     let pdfRepository: any PdfRepository
     /// The app's one backup service: its lock is what allows one restore at a time across windows.
@@ -96,7 +96,8 @@ final class AppContainer {
             pdfs: pdfRepository,
             exportFiles: exportFiles,
             share: { await ShareSheet.present(fileURL: $0) },
-            diagnostics: diagnostics
+            diagnostics: diagnostics,
+            styles: CitationStyleStore()
         )
     }
 

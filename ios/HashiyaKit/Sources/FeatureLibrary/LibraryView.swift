@@ -393,21 +393,35 @@ private struct LibraryTitleMenu: View {
     }
 }
 
-/// Export .bib, or a spinner from the tap until the share sheet closes.
+/// The Export references menu, or a spinner from the tap until the share sheet closes.
 private struct ExportButton: View {
     let viewModel: LibraryViewModel
 
     var body: some View {
         if viewModel.exporting {
             ProgressView()
-                .accessibilityLabel(Text(verbatim: L10n.string("library.exportBib")))
+                .accessibilityLabel(Text(verbatim: L10n.string("library.exportReferences")))
         } else {
-            Button {
-                Task { await viewModel.export() }
+            Menu {
+                ForEach(exportStyles(viewModel.citationStyle), id: \.self) { style in
+                    Button {
+                        Task { await viewModel.export(style: style) }
+                    } label: {
+                        Text(verbatim: L10n.string(Self.key(style)))
+                    }
+                }
             } label: {
                 Image(systemName: "square.and.arrow.up")
             }
-            .accessibilityLabel(Text(verbatim: L10n.string("library.exportBib")))
+            .accessibilityLabel(Text(verbatim: L10n.string("library.exportReferences")))
+        }
+    }
+
+    private static func key(_ style: CitationStyle) -> String {
+        switch style {
+        case .bibtex: "library.exportBibtex"
+        case .apa: "library.exportApa"
+        case .ieee: "library.exportIeee"
         }
     }
 }

@@ -188,19 +188,36 @@
         }
       }
     },
-    "library.exportBib" : {
+    "library.exportApa" : {
       "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تصدير ملف ‎.bib"
+            "value" : "APA 7 (‎.rtf)"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Export .bib"
+            "value" : "APA 7 (.rtf)"
+          }
+        }
+      }
+    },
+    "library.exportBibtex" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BibTeX (‎.bib)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BibTeX (.bib)"
           }
         }
       }
@@ -222,6 +239,23 @@
         }
       }
     },
+    "library.exportIeee" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IEEE (‎.rtf)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "IEEE (.rtf)"
+          }
+        }
+      }
+    },
     "library.exportIncomplete" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -235,6 +269,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Some entries may be incomplete. Export again when you're online."
+          }
+        }
+      }
+    },
+    "library.exportReferences" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تصدير المراجع"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export references"
           }
         }
       }

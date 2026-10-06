@@ -65,7 +65,7 @@ public enum SearchKind: String, Sendable { case keyword, doi, arxiv, link }
 public enum SearchRoute: String, Sendable { case user, shared, keyless, cached }
 public enum LimitKind: String, Sendable { case daily, pageCap = "page_cap" }
 public enum SaveSource: String, Sendable { case search, lookup, share }
-public enum ExportFormat: String, Sendable { case bibtex, backup }
+public enum ExportFormat: String, Sendable { case bibtex, apa, ieee, backup }
 public enum PdfOrigin: String, Sendable { case downloaded, attached }
 
 public enum ResultsBucket: String, Sendable {

@@ -57,6 +57,8 @@ struct DiagnosticsTests {
             (.collectionCreated, "collection_created", [:]),
             (.paperAddedToCollection, "paper_added_to_collection", [:]),
             (.export(format: .backup, withPdfs: true), "export", ["format": "backup", "with_pdfs": "yes"]),
+            (.export(format: .apa, withPdfs: false), "export", ["format": "apa", "with_pdfs": "no"]),
+            (.export(format: .ieee, withPdfs: false), "export", ["format": "ieee", "with_pdfs": "no"]),
             (.restore(succeeded: false), "restore", ["result": "failed"]),
             (.pdfOpened(source: .attached), "pdf_opened", ["source": "attached"]),
             (.pdfDownloaded(succeeded: true), "pdf_downloaded", ["result": "ok"]),

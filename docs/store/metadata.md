@@ -1,6 +1,6 @@
 # Store listing and questionnaires
 
-Everything to paste into App Store Connect and the Play Console. The App Store fields are for iOS 0.3.0 (build 3); the Google Play fields are for Android 0.3.0 (versionCode 3). Character limits
+Everything to paste into App Store Connect and the Play Console. The App Store fields are for iOS 0.4.0 (build 4); the Google Play fields are for Android 0.4.0 (versionCode 4). Character limits
 are in brackets; `scripts/check-store-metadata.py` checks every field against them.
 
 ## Shared
@@ -32,13 +32,13 @@ Find, save and track papers
 **Promotional text** [170]
 
 ```
-Now on iPad, with Split View and more than one window. Find papers, read PDFs beside your notes, group them into collections and export BibTeX. In English and Arabic.
+New: cite any paper in APA 7, IEEE or BibTeX, and export reference lists for Word, Pages or LaTeX. Find papers and read PDFs beside your notes, in English and Arabic.
 ```
 
 **Keywords** [100]
 
 ```
-research,papers,thesis,phd,masters,scholar,citations,doi,arxiv,bibtex,pdf,notes,literature,academic
+research,papers,thesis,phd,masters,scholar,citation,apa,ieee,doi,arxiv,bibtex,pdf,notes,literature
 ```
 
 **Description** [4000]
@@ -60,9 +60,10 @@ READ AND TAKE NOTES
 • Download a paper's open-access PDF or attach one from Files, then read it offline with search, zoom and your notes beside the page.
 • Notes for every paper: summary, research question, method, key findings, limitations and your own thoughts. They save as you type.
 
-COLLECTIONS AND BIBTEX
+COLLECTIONS AND CITATIONS
 • Group papers for a chapter, a course or a project.
-• Export a collection or your whole library as a .bib file for Overleaf or LaTeX, or copy one paper's entry.
+• Copy a paper's citation in APA 7, IEEE or BibTeX. APA and IEEE paste with their italics into Word, Pages or Google Docs.
+• Export a collection or your whole library as an APA 7 or IEEE reference list (.rtf), or as a .bib file for Overleaf or LaTeX.
 
 YOUR LIBRARY, OFFLINE
 • Saved papers stay on your device and work without a connection.
@@ -86,12 +87,21 @@ PRIVATE BY DESIGN
 • No account, no ads and no tracking. Your library, notes and searches stay on your device.
 • Crash reports and usage statistics help fix problems and decide what to improve. They are tied to a random identifier, not your name or account, and you can turn them off in Settings → Privacy.
 
+QUESTIONS OR IDEAS?
+• Settings → About sends the developer an email, with the app version filled in and nothing from your library.
+
 Paper data comes from OpenAlex (openalex.org), a free and open catalog of scholarly works.
 ```
 
 **What's New** [4000]
 
 ```
+New in 0.4.0:
+
+• Citations in APA 7 and IEEE: a paper's ⋯ menu copies its citation in APA 7, IEEE or BibTeX, and APA and IEEE paste with their italics into Word, Pages or Google Docs. Export a collection or your whole library as an APA 7 or IEEE reference list (.rtf) as well as BibTeX. The style you used last comes first.
+• Settings → About: email the developer (the app version and device are filled in, nothing from your library), rate Hashiya, and see the version.
+• Fix: the app opens on a Mac with Apple silicon.
+
 New in 0.3.0:
 
 • iPad: full screen, Split View, Stage Manager and resizable windows. The Library and Search show a paper beside the list, and the reader shows your notes beside the PDF.
@@ -130,13 +140,13 @@ New in 0.2.0:
 **النص الترويجي** [170]
 
 ```
-الآن على iPad مع Split View وأكثر من نافذة. ابحث عن الأوراق، واقرأ ملفات PDF بجانب ملاحظاتك، ونظّمها في مجموعات، وصدّرها بصيغة BibTeX، بالعربية والإنجليزية.
+جديد: استشهد بأي ورقة بنمط APA 7 أو IEEE أو BibTeX، وصدّر قوائم المراجع إلى Word أو Pages أو LaTeX. ابحث عن الأوراق واقرأ ملفات PDF بجانب ملاحظاتك، بالعربية والإنجليزية.
 ```
 
 **الكلمات المفتاحية** [100]
 
 ```
-بحث,أبحاث,رسالة,ماجستير,دكتوراه,أوراق,علمية,مراجع,استشهادات,دراسات,مكتبة,أكاديمي,ملاحظات,pdf,bibtex
+بحث,أبحاث,رسالة,ماجستير,دكتوراه,أوراق,علمية,مراجع,استشهادات,أكاديمي,ملاحظات,pdf,bibtex,apa,ieee
 ```
 
 **الوصف** [4000]
@@ -158,9 +168,10 @@ New in 0.2.0:
 • نزّل ملف PDF المفتوح للورقة أو أرفق ملفًا من «الملفات»، ثم اقرأه دون اتصال مع البحث والتكبير وملاحظاتك بجانب الصفحة.
 • ملاحظات لكل ورقة: الخلاصة، وسؤال البحث، والمنهجية، وأهم النتائج، والقيود، وأفكارك. تُحفظ أثناء الكتابة.
 
-المجموعات وBibTeX
+المجموعات والاستشهادات
 • اجمع الأوراق لفصل أو مقرر أو مشروع.
-• صدّر مجموعة أو مكتبتك كاملة في ملف ‎.bib لاستخدامه في Overleaf أو LaTeX، أو انسخ مدخل ورقة واحدة.
+• انسخ استشهاد الورقة بنمط APA 7 أو IEEE أو BibTeX. ويُلصق نمطا APA وIEEE بخطهما المائل في Word أو Pages أو مستندات Google.
+• صدّر مجموعة أو مكتبتك كاملة قائمةَ مراجع بنمط APA 7 أو IEEE ‏(‎.rtf)، أو ملفًا بصيغة ‎.bib لاستخدامه في Overleaf أو LaTeX.
 
 مكتبتك معك دائمًا
 • تبقى الأوراق المحفوظة على جهازك وتعمل دون اتصال.
@@ -184,12 +195,21 @@ New in 0.2.0:
 • بلا حساب ولا إعلانات ولا تتبّع، وتبقى مكتبتك وملاحظاتك وعمليات بحثك على جهازك.
 • تساعد تقارير الأعطال وإحصاءات الاستخدام على إصلاح المشكلات وتحديد ما يجب تحسينه. وهي مرتبطة بمعرّف عشوائي، لا باسمك أو حسابك، ويمكنك إيقافها من الإعدادات ← الخصوصية.
 
+أسئلة أو أفكار؟
+• يرسل قسم «حول التطبيق» في الإعدادات رسالة بريد إلى المطوّر، مع إصدار التطبيق ودون أي شيء من مكتبتك.
+
 بيانات الأوراق من OpenAlex ‏(openalex.org)، وهو فهرس مجاني ومفتوح للأعمال العلمية.
 ```
 
 **ما الجديد** [4000]
 
 ```
+الجديد في 0.4.0:
+
+• الاستشهاد بنمطي APA 7 وIEEE: تنسخ قائمة ⋯ في الورقة استشهادها بنمط APA 7 أو IEEE أو BibTeX، ويُلصق نمطا APA وIEEE بخطهما المائل في Word أو Pages أو مستندات Google. وصدّر مجموعة أو مكتبتك كاملة قائمةَ مراجع بنمط APA 7 أو IEEE ‏(‎.rtf) إلى جانب BibTeX. ويظهر النمط الذي استخدمته آخر مرة أولًا.
+• قسم «حول التطبيق» في الإعدادات: راسل المطوّر بالبريد (مع إصدار التطبيق والجهاز، ودون أي شيء من مكتبتك)، وقيّم حاشية، واعرف رقم الإصدار.
+• إصلاح: يفتح التطبيق على أجهزة Mac بمعالج Apple.
+
 الجديد في 0.3.0:
 
 • iPad: ملء الشاشة وSplit View وStage Manager ونوافذ يتغيّر حجمها. تعرض المكتبة والبحث الورقة بجانب القائمة، ويعرض القارئ ملاحظاتك بجانب ملف PDF.
@@ -246,9 +266,10 @@ READ AND TAKE NOTES
 • Download a paper's open-access PDF or attach one from your files, then read it offline with search, zoom and your notes beside the page.
 • Notes for every paper: summary, research question, method, key findings, limitations and your own thoughts. They save as you type.
 
-COLLECTIONS AND BIBTEX
+COLLECTIONS AND CITATIONS
 • Group papers for a chapter, a course or a project.
-• Export a collection or your whole library as a .bib file for Overleaf or LaTeX, or copy one paper's entry.
+• Copy a paper's citation in APA 7, IEEE or BibTeX. APA and IEEE paste with their italics into Word, Pages or Google Docs.
+• Export a collection or your whole library as an APA 7 or IEEE reference list (.rtf), or as a .bib file for Overleaf or LaTeX.
 
 YOUR LIBRARY, OFFLINE
 • Saved papers stay on your device and work without a connection.
@@ -272,13 +293,16 @@ PRIVATE BY DESIGN
 • No account, no ads and no tracking. Your library, notes and searches stay on your device.
 • Crash reports and usage statistics help fix problems and decide what to improve. They are tied to a random identifier, not your name or account, and you can turn them off in Settings → Privacy.
 
+QUESTIONS OR IDEAS?
+• Settings → About sends the developer an email, with the app version filled in and nothing from your library.
+
 Paper data comes from OpenAlex (openalex.org), a free and open catalog of scholarly works.
 ```
 
 **Release notes** [500]
 
 ```
-New in 0.3.0: tablet, foldable and Chromebook layouts; keyboard shortcuts; back up and restore your library to a file; search keeps working when the shared OpenAlex budget runs out; and a simpler Details screen. Crash reports and usage statistics, tied to a random identifier and never your searches, papers or notes, can be turned off in Settings → Privacy.
+New in 0.4.0: copy a paper's citation in APA 7, IEEE or BibTeX, and export reference lists (.rtf) that keep their italics in Word or Google Docs. Settings → About emails the developer and rates the app. Also: tablet, foldable and Chromebook layouts, keyboard shortcuts, backup and restore, and search that keeps working on busy days. Crash reports and usage statistics, tied to a random identifier, can be turned off in Settings → Privacy.
 ```
 
 <!-- /lang -->
@@ -315,9 +339,10 @@ New in 0.3.0: tablet, foldable and Chromebook layouts; keyboard shortcuts; back 
 • نزّل ملف PDF المفتوح للورقة أو أرفق ملفًا من ملفاتك، ثم اقرأه دون اتصال مع البحث والتكبير وملاحظاتك بجانب الصفحة.
 • ملاحظات لكل ورقة: الخلاصة، وسؤال البحث، والمنهجية، وأهم النتائج، والقيود، وأفكارك. تُحفظ أثناء الكتابة.
 
-المجموعات وBibTeX
+المجموعات والاستشهادات
 • اجمع الأوراق لفصل أو مقرر أو مشروع.
-• صدّر مجموعة أو مكتبتك كاملة في ملف ‎.bib لاستخدامه في Overleaf أو LaTeX، أو انسخ مدخل ورقة واحدة.
+• انسخ استشهاد الورقة بنمط APA 7 أو IEEE أو BibTeX. ويُلصق نمطا APA وIEEE بخطهما المائل في Word أو Pages أو مستندات Google.
+• صدّر مجموعة أو مكتبتك كاملة قائمةَ مراجع بنمط APA 7 أو IEEE ‏(‎.rtf)، أو ملفًا بصيغة ‎.bib لاستخدامه في Overleaf أو LaTeX.
 
 مكتبتك معك دائمًا
 • تبقى الأوراق المحفوظة على جهازك وتعمل دون اتصال.
@@ -341,13 +366,16 @@ New in 0.3.0: tablet, foldable and Chromebook layouts; keyboard shortcuts; back 
 • بلا حساب ولا إعلانات ولا تتبّع، وتبقى مكتبتك وملاحظاتك وعمليات بحثك على جهازك.
 • تساعد تقارير الأعطال وإحصاءات الاستخدام على إصلاح المشكلات وتحديد ما يجب تحسينه. وهي مرتبطة بمعرّف عشوائي، لا باسمك أو حسابك، ويمكنك إيقافها من الإعدادات ← الخصوصية.
 
+أسئلة أو أفكار؟
+• يرسل قسم «حول التطبيق» في الإعدادات رسالة بريد إلى المطوّر، مع إصدار التطبيق ودون أي شيء من مكتبتك.
+
 بيانات الأوراق من OpenAlex ‏(openalex.org)، وهو فهرس مجاني ومفتوح للأعمال العلمية.
 ```
 
 **ملاحظات الإصدار** [500]
 
 ```
-الجديد في 0.3.0: تخطيط للأجهزة اللوحية والقابلة للطي وChromebook، واختصارات لوحة المفاتيح، ونسخ مكتبتك احتياطيًا في ملف واستعادتها، واستمرار البحث عند نفاد رصيد OpenAlex المشترك، وصفحة تفاصيل أبسط. ويمكن إيقاف تقارير الأعطال وإحصاءات الاستخدام، المرتبطة بمعرّف عشوائي ودون عمليات بحثك أو أوراقك أو ملاحظاتك، من الإعدادات ← الخصوصية.
+الجديد في 0.4.0: انسخ استشهاد الورقة بنمط APA 7 أو IEEE أو BibTeX، وصدّر قوائم مراجع ‏(‎.rtf) تحتفظ بخطها المائل في Word أو مستندات Google. ويراسل قسم «حول التطبيق» المطوّر ويقيّم التطبيق. وأيضًا: تخطيط للأجهزة اللوحية والقابلة للطي وChromebook، واختصارات لوحة المفاتيح، والنسخ الاحتياطي والاستعادة، وبحث يستمر في الأيام المزدحمة. ويمكن إيقاف تقارير الأعطال وإحصاءات الاستخدام، المرتبطة بمعرّف عشوائي، من الإعدادات ← الخصوصية.
 ```
 
 <!-- /lang -->
@@ -387,22 +415,29 @@ iPad: the app supports Split View, Stage Manager and more than one window; long-
 Crash reports (Firebase Crashlytics) and usage statistics (Firebase Analytics) are on by default and can be turned off in Settings → Privacy. They are tied to a random identifier, not to a name or account, and contain no search text, papers or notes. The app has no advertising identifier and does no tracking.
 ```
 
-### App Store Connect: before submitting 0.3.0
+### App Store Connect: before submitting 0.4.0
 
-- **Privacy policy:** the URL stays the same, but the page must describe crash reports and usage statistics first. Merge the policy repository's "Usage statistics" PR, with its effective date set to the merge day, before inviting external TestFlight testers or submitting for review.
-- **App Privacy:** 0.3.0 is the first iOS build that collects data. If App Store Connect still says "Data Not Collected", replace that with the five types under *App Store Connect: App Privacy* above, then publish the answers. They apply to the whole app, not to a single version.
-- **What's New** and **Promotional text:** paste the 0.3.0 text in both languages. Promotional text can change at any time without a review.
-- **Screenshots:** 0.3.0 runs natively on iPad, so App Store Connect asks for 13-inch iPad screenshots in both languages.
+- **Privacy policy:** the page must name the new exports ("BibTeX, APA, IEEE or backup") before external testers or review. Merge the policy repository's citation-styles PR, with its effective date set to the merge day.
+- **App Privacy:** no change from 0.3.0. Feedback is an email the user sends, and the rating prompt is Apple's own.
+- **What's New** and **Promotional text:** paste the 0.4.0 text in both languages. Promotional text can change at any time without a review.
+- **Screenshots:** the app runs natively on iPad, so App Store Connect asks for 13-inch iPad screenshots in both languages.
 - **TestFlight → What to Test** [4000]
 
 ```
-New in 0.3.0: iPad (Split View, Stage Manager, more than one window), keyboard shortcuts, backup and restore, and a grouped Details screen.
+New in 0.4.0: APA 7 and IEEE citations, and Settings → About (feedback, rating, version). Also in this build: the 0.3.0 iPad, backup and privacy features, and the Mac launch fix.
 Please try:
-• On iPad, open a paper in a new window from its menu, and resize the windows.
-• Settings → Backup: back up with PDFs, delete a paper, then restore.
-• Settings → Privacy: both switches are on by default. Turning them off stops crash reports and usage statistics.
-Searches with no personal OpenAlex key share a daily budget; when it runs out, Search should keep working or say when it works again.
+• In a paper's ⋯ menu, copy an APA 7 and an IEEE citation, then paste them into Pages, Word or Google Docs: the journal or book title should be in italics.
+• In the Library, export a collection as APA 7 (.rtf) and as IEEE (.rtf), and open the files in Pages or Word. Next time, the style you used last should come first.
+• Settings → About → Send feedback should open an email with the version and device filled in.
+• On a Mac with Apple silicon, the app should open, with a Go menu in the menu bar.
 ```
+
+### Play Console: before releasing 0.4.0
+
+- **Privacy policy:** as for the App Store, the citation-styles policy PR must be merged first.
+- **Data safety:** no change from 0.3.0.
+- **Release notes:** paste the 0.4.0 text in both languages. This is the first Play release, so the notes also name the 0.3.0 features.
+- **Upload:** the signed `app-release.aab` (versionCode 4) to Internal testing first, then promote it to the closed test.
 
 ### Play Console: Data safety
 

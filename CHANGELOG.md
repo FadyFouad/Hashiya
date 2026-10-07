@@ -4,6 +4,8 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 
 ## [Unreleased]
 
+## [0.4.0] — iOS build 4, Android versionCode 4, 2026-10-07
+
 ### Added
 - **Android: tablets, foldables and resizable windows.** A navigation rail from 600 dp that stays on every screen; its menu button expands it to show the labels beside the icons, and collapses it again. From 840 dp, or at a book-posture hinge, the Library opens a paper beside the list, Search shows the preview beside the results, and the reader shows your notes beside the PDF. Details and Settings become a centered column. An open paper and the reader's zoom survive folding, rotating and resizing. (#28)
 - **Android: keyboard and mouse.** Ctrl+F finds, Ctrl+N adds a paper, Ctrl+, opens Settings, and Esc goes back. Right-click a Library row or a Search result for its menu, and Ctrl+scroll zooms the reader. (#28)

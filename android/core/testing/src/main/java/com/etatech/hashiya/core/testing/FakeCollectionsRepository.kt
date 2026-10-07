@@ -6,6 +6,7 @@ import com.etatech.hashiya.core.model.PaperCollection
 import com.etatech.hashiya.core.model.collectionNameKey
 import com.etatech.hashiya.core.model.isValidCollectionName
 import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -17,6 +18,9 @@ class FakeCollectionsRepository(private val library: FakeLibraryRepository) : Co
 
     /** When true, every write throws like a failing disk would. */
     var failOnChange = false
+
+    /** When set, [setMembership] waits for it, like a slow disk would. */
+    var membershipGate: CompletableDeferred<Unit>? = null
 
     override fun observeCollections(): Flow<List<PaperCollection>> =
         combine(library.collectionNames, library.memberships, library.observeSavedIds()) { names, members, saved ->
@@ -52,6 +56,7 @@ class FakeCollectionsRepository(private val library: FakeLibraryRepository) : Co
     }
 
     override suspend fun setMembership(collectionId: Long, openAlexId: String, member: Boolean) {
+        membershipGate?.await()
         failIfAsked()
         val exists = collectionId in library.collectionNames.value
         if (member) {

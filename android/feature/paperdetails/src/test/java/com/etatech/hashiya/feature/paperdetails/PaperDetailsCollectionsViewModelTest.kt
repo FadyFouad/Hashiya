@@ -1,5 +1,6 @@
 package com.etatech.hashiya.feature.paperdetails
 
+import androidx.lifecycle.viewModelScope
 import com.etatech.hashiya.core.data.repository.CollectionResult
 import com.etatech.hashiya.core.model.CitationStyle
 import com.etatech.hashiya.core.model.PaperCollection
@@ -12,12 +13,15 @@ import com.etatech.hashiya.core.testing.FakeUserPreferencesRepository
 import com.etatech.hashiya.core.testing.MainDispatcherRule
 import com.etatech.hashiya.core.testing.SamplePapers
 import java.io.IOException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -56,6 +60,43 @@ class PaperDetailsCollectionsViewModelTest {
 
         assertEquals(listOf(PaperCollection(a, "A", 0), PaperCollection(b, "B", 1)), viewModel.loaded().collections)
         assertEquals(setOf(b), viewModel.loaded().memberOf)
+    }
+
+    @Test
+    fun aNewCollectionStillGetsThePaperWhenDetailsClosesFirst() = runTest {
+        library.save(paper)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        val gate = CompletableDeferred<Unit>()
+        collections.membershipGate = gate
+
+        viewModel.onNewCollectionConfirm("Thesis")
+        runCurrent()
+        // The collection exists but the paper isn't in it yet, and the person leaves Details.
+        viewModel.viewModelScope.cancel()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        val thesis = collections.observeCollections().first().single { it.name == "Thesis" }
+        assertEquals(setOf(thesis.id), collections.observeCollectionIds(id).first())
+    }
+
+    @Test
+    fun aTickStillAppliesWhenDetailsClosesFirst() = runTest {
+        library.save(paper)
+        val a = (collections.create("A") as CollectionResult.Done).id
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        val gate = CompletableDeferred<Unit>()
+        collections.membershipGate = gate
+
+        viewModel.onToggleCollection(a, member = true)
+        runCurrent()
+        viewModel.viewModelScope.cancel()
+        gate.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(setOf(a), collections.observeCollectionIds(id).first())
     }
 
     @Test

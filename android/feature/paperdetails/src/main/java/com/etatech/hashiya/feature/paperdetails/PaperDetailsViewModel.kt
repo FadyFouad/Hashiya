@@ -25,6 +25,7 @@ import dagger.assisted.AssistedInject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -35,6 +36,7 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal const val NOTES_SAVE_DEBOUNCE_MS = NotesEditor.SAVE_DEBOUNCE_MS
 
@@ -277,10 +279,14 @@ class PaperDetailsViewModel @AssistedInject constructor(
         flushNotes()
     }
 
+    /**
+     * Once started, a change runs to the end even if Details closes meanwhile: leaving right after Create or a tick must
+     * not cancel the write halfway, which would leave a new collection without this paper.
+     */
     private fun collectionChange(closeDialogOnFailure: Boolean = false, change: suspend () -> Unit) {
         viewModelScope.launch {
             try {
-                change()
+                withContext(NonCancellable) { change() }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

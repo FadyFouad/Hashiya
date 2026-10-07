@@ -20,6 +20,7 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 - **Android: Details groups Collections, PDF and DOI in one list.** The PDF row's main action is a button that follows its state: Download PDF, Read PDF or Attach PDF; Replace and Remove stay in its ⋮ menu. The DOI is a row that opens the paper's DOI page, and is hidden when there is none.
 
 ### Fixed
+- **Android: a collection made from a paper's Details keeps the paper** even when you leave Details right after Create, and a tick in the collection list is kept when you leave at once. Before, leaving quickly could cancel the second write and leave an empty collection.
 - **iOS: the app opens on a Mac.** On a Mac with Apple silicon, 0.3.0 closed at launch while macOS built its menu bar. Its commands now sit in a Go menu there: Add Paper ⌘N, Library ⌘1, Search ⌘2 and Settings ⌘,.
 - **Android: the Save button on search results** no longer breaks into letters with the largest font size. (#28)
 

@@ -1,0 +1,24 @@
+TY  - CPAPER
+AU  - Kingma, Diederik P.
+AU  - Ba, Jimmy
+PY  - 2015
+DA  - 2015
+TI  - Adam: A method for stochastic optimization
+T2  - 3rd International Conference on Learning Representations, ICLR 2015 - Conference Track Proceedings
+UR  - http://arxiv.org/abs/1412.6980
+ER  - 
+
+TY  - JOUR
+AU  - Silver, David
+AU  - Huang, Aja
+AU  - Hassabis, Demis
+PY  - 2016
+DA  - 2016
+TI  - Mastering the game of Go with deep neural networks and tree search
+JF  - Nature
+VL  - 529
+IS  - 7587
+SP  - 484
+EP  - 489
+DO  - 10.1038/nature16961
+ER  - 

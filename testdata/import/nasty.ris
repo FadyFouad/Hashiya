@@ -1,0 +1,43 @@
+﻿TY  - JOUR
+TI  - أثر التعلم العميق في معالجة اللغة العربية
+AU  - العتيبي, محمد
+AU  - Al-Khalifa, Hend S.
+T2  - مجلة جامعة الملك سعود - علوم الحاسب والمعلومات
+PY  - 2021
+VL  - 33
+IS  - 4
+SP  - 401
+EP  - 412
+AB  - تتناول هذه الدراسة
+  نماذج التعلم العميق.
+UR  - https://doi.org/10.1016/j.jksuci.2019.02.006
+ER  - 
+
+AU  - Orphan, Author
+TI  - This record has no TY line
+ER  - 
+
+TY  - EDBOOK
+A2  - Smith, John, Jr.
+A2  - O'Neil, Cathy
+TI  - Collected Essays on Data
+PY  - 2018
+PB  - Example Press
+DO  - doi: 10.5555/EXAMPLE.2018
+ER  - 
+
+TY  - GEN
+TI  - 
+ER  - 
+
+TY  - ELEC
+TI  - A web page with no DOI
+AU  - Doe, Jane
+Y1  - 2020///
+UR  - https://example.org/page.pdf
+ER  - 
+
+TY  - JOUR
+TI  - Last record without an end tag
+AU  - Lovelace, Ada
+PY  - 1843

@@ -1,0 +1,42 @@
+TY  - JOUR
+AU  - Jumper, John
+AU  - Evans, Richard
+AU  - Pritzel, Alexander
+AU  - Hassabis, Demis
+T1  - Highly accurate protein structure prediction with AlphaFold
+JO  - Nature
+JA  - Nature
+Y1  - 2021/08/01
+VL  - 596
+IS  - 7873
+SP  - 583
+EP  - 589
+N2  - Proteins are essential to life, and understanding their structure can facilitate a mechanistic understanding
+of their function.
+SN  - 1476-4687
+UR  - https://doi.org/10.1038/s41586-021-03819-2
+DO  - 10.1038/s41586-021-03819-2
+ID  - Jumper2021
+ER  - 
+
+TY  - CONF
+AU  - He, Kaiming
+AU  - Zhang, Xiangyu
+AU  - Ren, Shaoqing
+AU  - Sun, Jian
+T1  - Deep Residual Learning for Image Recognition
+T2  - 2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)
+Y1  - 2016
+SP  - 770-778
+M3  - 10.1109/CVPR.2016.90
+PB  - IEEE
+ER  - 
+
+TY  - RPRT
+AU  - World Health Organization
+T1  - World health statistics 2023: monitoring health for the SDGs
+PY  - 2023
+CY  - Geneva
+PB  - World Health Organization
+UR  - https://www.who.int/publications/i/item/9789240074323
+ER  - 

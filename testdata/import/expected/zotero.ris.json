@@ -1,0 +1,73 @@
+{
+  "format": "ris",
+  "entries": [
+    {
+      "line": 1,
+      "entryType": "JOUR",
+      "citeKey": null,
+      "title": "Deep learning",
+      "authors": [
+        "Yann LeCun",
+        "Yoshua Bengio",
+        "Geoffrey Hinton"
+      ],
+      "year": 2015,
+      "venue": "Nature",
+      "doi": "10.1038/nature14539",
+      "url": "https://www.nature.com/articles/nature14539",
+      "abstract": "Deep learning allows computational models that are composed of multiple processing layers to learn representations of data with multiple levels of abstraction.",
+      "volume": "521",
+      "issue": "7553",
+      "firstPage": "436",
+      "lastPage": "444",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 25,
+      "entryType": "CHAP",
+      "citeKey": null,
+      "title": "U-Net: Convolutional Networks for Biomedical Image Segmentation",
+      "authors": [
+        "Olaf Ronneberger",
+        "Philipp Fischer",
+        "Thomas Brox"
+      ],
+      "year": 2015,
+      "venue": "Medical Image Computing and Computer-Assisted Intervention – MICCAI 2015",
+      "doi": "10.1007/978-3-319-24574-4_28",
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": "234",
+      "lastPage": "241",
+      "publisher": "Springer International Publishing",
+      "workType": "book-chapter",
+      "sourceType": null
+    },
+    {
+      "line": 43,
+      "entryType": "THES",
+      "citeKey": null,
+      "title": "Relaxation and its role in vision",
+      "authors": [
+        "Geoffrey E. Hinton"
+      ],
+      "year": 1977,
+      "venue": "University of Edinburgh",
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": "University of Edinburgh",
+      "workType": "dissertation",
+      "sourceType": null
+    }
+  ],
+  "issues": []
+}

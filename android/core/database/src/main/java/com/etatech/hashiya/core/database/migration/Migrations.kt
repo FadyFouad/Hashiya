@@ -103,3 +103,24 @@ internal val MIGRATION_4_5: Migration = object : Migration(4, 5) {
         db.execSQL("ALTER TABLE papers ADD COLUMN `pdf_last_page` INTEGER")
     }
 }
+
+/** Adds the import tables. Nothing existing is touched. */
+internal val MIGRATION_5_6: Migration = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        // The CREATE statements are exactly what Room generates (schemas/…/6.json), so the schema validates.
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `import_jobs` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `file_name` TEXT NOT NULL, " +
+                "`created_at` INTEGER NOT NULL, `state` TEXT NOT NULL, `failure` TEXT, `add_to_collection` INTEGER NOT NULL, " +
+                "`collection_name` TEXT NOT NULL, `collection_id` INTEGER, `found` INTEGER NOT NULL, `matched` INTEGER NOT NULL, " +
+                "`local` INTEGER NOT NULL, `in_library` INTEGER NOT NULL, `repeated` INTEGER NOT NULL, `unreadable` INTEGER NOT NULL, " +
+                "`not_checked` INTEGER NOT NULL, `processed` INTEGER NOT NULL, `imported` INTEGER NOT NULL)"
+        )
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `import_job_papers` (`job_id` INTEGER NOT NULL, `paper_id` TEXT NOT NULL, " +
+                "PRIMARY KEY(`job_id`, `paper_id`), " +
+                "FOREIGN KEY(`job_id`) REFERENCES `import_jobs`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , " +
+                "FOREIGN KEY(`paper_id`) REFERENCES `papers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+        )
+        db.execSQL("CREATE INDEX IF NOT EXISTS `index_import_job_papers_paper_id` ON `import_job_papers` (`paper_id`)")
+    }
+}

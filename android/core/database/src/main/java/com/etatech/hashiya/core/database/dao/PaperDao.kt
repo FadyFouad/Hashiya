@@ -8,6 +8,8 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import com.etatech.hashiya.core.database.model.CollectionPaperEntity
 import com.etatech.hashiya.core.database.model.DeletedPaper
+import com.etatech.hashiya.core.database.model.ImportJobPaperEntity
+import com.etatech.hashiya.core.database.model.ImportedPaperRows
 import com.etatech.hashiya.core.database.model.PaperAuthorEntity
 import com.etatech.hashiya.core.database.model.PaperEntity
 import com.etatech.hashiya.core.database.model.PaperNotesEntity
@@ -205,6 +207,52 @@ abstract class PaperDao {
         notes?.let { upsertNotes(it) }
         collectionLinks.forEach { insertLinkIfCollectionExists(it.collectionId, it.paperId, it.addedAt) }
         return true
+    }
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    protected abstract suspend fun insertImportLink(link: ImportJobPaperEntity)
+
+    /** Puts every paper the job saved into the collection, skipping papers already in it and a collection deleted meanwhile. */
+    @Query(
+        """
+        INSERT OR IGNORE INTO collection_papers (collection_id, paper_id, added_at)
+        SELECT :collectionId, paper_id, :addedAt FROM import_job_papers
+        WHERE job_id = :jobId AND EXISTS(SELECT 1 FROM collections WHERE id = :collectionId)
+        """
+    )
+    abstract suspend fun linkImportedPapers(jobId: Long, collectionId: Long, addedAt: Long)
+
+    @Query(
+        """
+        UPDATE import_jobs SET processed = :processed, imported = (SELECT COUNT(*) FROM import_job_papers WHERE job_id = :jobId)
+        WHERE id = :jobId
+        """
+    )
+    protected abstract suspend fun setImportProgress(jobId: Long, processed: Int)
+
+    /**
+     * Saves one batch of an import atomically: each paper with its authors and search row (a paper already saved, or a cite key
+     * another paper holds, is handled as in [insertPaperWithAuthors]), its import_job_papers row, the collection links when
+     * [collectionId] is set, and the job's progress. Returns how many papers were saved.
+     */
+    @Transaction
+    open suspend fun insertImportBatch(
+        jobId: Long,
+        papers: List<ImportedPaperRows>,
+        collectionId: Long?,
+        addedAt: Long,
+        processed: Int
+    ): Int {
+        var saved = 0
+        papers.forEach { rows ->
+            if (insertPaperWithAuthors(rows.paper, rows.authors, rows.search)) {
+                insertImportLink(ImportJobPaperEntity(jobId, rows.paper.id))
+                saved++
+            }
+        }
+        collectionId?.let { linkImportedPapers(jobId, it, addedAt) }
+        setImportProgress(jobId, processed)
+        return saved
     }
 
     /**

@@ -6,6 +6,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import com.etatech.hashiya.core.database.HashiyaDatabase
+import com.etatech.hashiya.core.database.model.ImportJobEntity
 import com.etatech.hashiya.core.database.model.PDF_SOURCE_DOWNLOADED
 import com.etatech.hashiya.core.database.model.PdfColumns
 import com.etatech.hashiya.core.model.PaperNotes
@@ -141,7 +142,7 @@ class MigrationTest {
 
     private fun openWithRoom(): HashiyaDatabase =
         Room.databaseBuilder(ApplicationProvider.getApplicationContext(), HashiyaDatabase::class.java, DB_NAME)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .allowMainThreadQueries()
             .build()
 
@@ -352,6 +353,61 @@ class MigrationTest {
                     "SELECT id || ':' || reading_status || ':' || details_fetched || ':' || (pdf_source IS NULL) FROM papers ORDER BY id"
                 )
             )
+        }
+    }
+
+    /** A version 5 library as the PDFs work left it: version 4's papers, one with a downloaded PDF. */
+    private fun createVersion5() {
+        createVersion4()
+        helper.runMigrationsAndValidate(DB_NAME, 5, true, MIGRATION_4_5).use { db ->
+            db.execSQL(
+                "UPDATE papers SET pdf_source = 'downloaded', pdf_size = 2400000, pdf_added_at = 9, pdf_last_page = 3 WHERE id = 'a'"
+            )
+        }
+    }
+
+    @Test
+    fun migration5To6KeepsEverythingAndValidatesAgainstVersion6Schema() {
+        createVersion5()
+
+        // Validates every table and index, including import_jobs and import_job_papers, against 6.json.
+        helper.runMigrationsAndValidate(DB_NAME, 6, true, MIGRATION_5_6).use { db ->
+            assertEquals(
+                listOf("a:reading:vaswani2017attention:downloaded:3", "b:to_read:-:-:-"),
+                db.strings(
+                    "SELECT id || ':' || reading_status || ':' || COALESCE(cite_key, '-') || ':' || COALESCE(pdf_source, '-') || ':' || " +
+                        "COALESCE(pdf_last_page, '-') FROM papers ORDER BY id"
+                )
+            )
+            assertEquals(listOf("1:a"), db.strings("SELECT collection_id || ':' || paper_id FROM collection_papers"))
+            assertEquals(listOf("Ablation study"), db.strings("SELECT method FROM paper_notes"))
+            assertEquals(listOf("0"), db.strings("SELECT COUNT(*) FROM import_jobs"))
+            assertEquals(listOf("0"), db.strings("SELECT COUNT(*) FROM import_job_papers"))
+        }
+    }
+
+    @Test
+    fun libraryMigratedFromVersion5TakesImportJobs() = runTest {
+        createVersion5()
+        helper.runMigrationsAndValidate(DB_NAME, 6, true, MIGRATION_5_6).close()
+
+        val database = openWithRoom()
+        try {
+            val jobs = database.importJobDao()
+            val id = jobs.insert(ImportJobEntity(fileName = "thesis.bib", createdAt = 1, state = "analyzing"))
+            assertEquals("thesis.bib", jobs.get(id)?.fileName)
+            assertEquals(listOf("a"), database.paperDao().observeLibrary("\"ablation*\"", null, 1L).first().map { it.paper.id })
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun version1LibraryMigratesAllTheWayToVersion6() {
+        createVersion1()
+
+        helper.runMigrationsAndValidate(DB_NAME, 6, true, MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6).use {
+            assertEquals(listOf("a:to_read", "b:to_read"), it.strings("SELECT id || ':' || reading_status FROM papers ORDER BY id"))
         }
     }
 }

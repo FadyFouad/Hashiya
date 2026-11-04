@@ -6,11 +6,13 @@ import com.etatech.hashiya.core.database.HashiyaDatabase
 import com.etatech.hashiya.core.database.dao.BackupDao
 import com.etatech.hashiya.core.database.dao.CitationDao
 import com.etatech.hashiya.core.database.dao.CollectionDao
+import com.etatech.hashiya.core.database.dao.ImportJobDao
 import com.etatech.hashiya.core.database.dao.PaperDao
 import com.etatech.hashiya.core.database.migration.MIGRATION_1_2
 import com.etatech.hashiya.core.database.migration.MIGRATION_2_3
 import com.etatech.hashiya.core.database.migration.MIGRATION_3_4
 import com.etatech.hashiya.core.database.migration.MIGRATION_4_5
+import com.etatech.hashiya.core.database.migration.MIGRATION_5_6
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -26,7 +28,7 @@ internal object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): HashiyaDatabase =
         Room.databaseBuilder(context, HashiyaDatabase::class.java, "hashiya.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
             .build()
 
     @Provides
@@ -40,4 +42,7 @@ internal object DatabaseModule {
 
     @Provides
     fun provideBackupDao(database: HashiyaDatabase): BackupDao = database.backupDao()
+
+    @Provides
+    fun provideImportJobDao(database: HashiyaDatabase): ImportJobDao = database.importJobDao()
 }

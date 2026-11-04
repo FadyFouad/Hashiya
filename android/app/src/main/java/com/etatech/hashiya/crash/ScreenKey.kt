@@ -12,6 +12,7 @@ import com.etatech.hashiya.core.analytics.AnalyticsEvent
 import com.etatech.hashiya.core.analytics.Screen
 import com.etatech.hashiya.core.crash.CrashKey
 import com.etatech.hashiya.core.crash.CrashReporter
+import com.etatech.hashiya.feature.importer.navigation.ImportRoute
 import com.etatech.hashiya.feature.library.navigation.LibraryRoute
 import com.etatech.hashiya.feature.paperdetails.navigation.PaperDetailsRoute
 import com.etatech.hashiya.feature.reader.navigation.ReaderRoute
@@ -27,6 +28,7 @@ fun screenFor(destination: NavDestination): Screen? = when {
     destination.hasRoute<ReaderRoute>() -> Screen.Reader
     destination.hasRoute<SettingsRoute>() -> Screen.Settings
     destination.hasRoute<RestoreRoute>() -> Screen.Restore
+    destination.hasRoute<ImportRoute>() -> Screen.Import
     else -> null
 }
 

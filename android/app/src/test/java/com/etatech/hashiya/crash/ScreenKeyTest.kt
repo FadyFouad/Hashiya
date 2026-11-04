@@ -13,6 +13,7 @@ import com.etatech.hashiya.core.analytics.Screen
 import com.etatech.hashiya.core.crash.CrashKey
 import com.etatech.hashiya.core.testing.FakeAnalytics
 import com.etatech.hashiya.core.testing.FakeCrashReporter
+import com.etatech.hashiya.feature.importer.navigation.ImportRoute
 import com.etatech.hashiya.feature.library.navigation.LibraryRoute
 import com.etatech.hashiya.feature.paperdetails.navigation.PaperDetailsRoute
 import com.etatech.hashiya.feature.reader.navigation.ReaderRoute
@@ -50,6 +51,7 @@ class ScreenKeyTest {
                 composable<ReaderRoute> { Text("Reader") }
                 composable<SettingsRoute> { Text("Settings") }
                 composable<RestoreRoute> { Text("Restore") }
+                composable<ImportRoute> { Text("Import") }
             }
         }
         composeRule.waitForIdle()
@@ -77,8 +79,9 @@ class ScreenKeyTest {
         go(SearchRoute())
         go(ReaderRoute("W1"))
         go(RestoreRoute("content://docs/backup.hashiya"))
+        go(ImportRoute())
 
-        assertEquals(listOf("library", "search", "reader", "restore"), screens())
+        assertEquals(listOf("library", "search", "reader", "restore", "import"), screens())
     }
 
     @Test

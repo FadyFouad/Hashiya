@@ -30,4 +30,9 @@ class ShareIntentFilterTest {
     fun imageSharesAreNotHandled() {
         assertTrue(activitiesFor("image/png").isEmpty())
     }
+
+    @Test
+    fun bibAndRisFilesSharedToHashiyaOpenMainActivity() {
+        IMPORT_MIME_TYPES.forEach { type -> assertEquals(listOf(MainActivity::class.java.name), activitiesFor(type)) }
+    }
 }

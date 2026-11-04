@@ -1,6 +1,7 @@
 package com.etatech.hashiya
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.KeyboardShortcutGroup
@@ -15,6 +16,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.content.IntentCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -32,6 +34,7 @@ import com.etatech.hashiya.navigation.AppShortcut
 import com.etatech.hashiya.navigation.HashiyaApp
 import com.etatech.hashiya.review.ReviewRequests
 import com.etatech.hashiya.review.launchPlayReview
+import com.etatech.hashiya.share.importUri
 import com.etatech.hashiya.share.shareToSearchRoute
 import com.etatech.hashiya.update.AppUpdateViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -43,6 +46,9 @@ import kotlinx.coroutines.launch
 class MainActivity : AppCompatActivity() {
     /** A shared page waiting to be opened in Search; cleared once navigation has happened. */
     private var pendingSearch by mutableStateOf<SearchRoute?>(null)
+
+    /** A .bib or .ris file shared or opened from another app, waiting to be opened in Import. */
+    private var pendingImport by mutableStateOf<String?>(null)
 
     /** A `.hashiya` file opened from another app, waiting to be shown in Restore; cleared once navigation has happened. */
     private var pendingRestore by mutableStateOf<String?>(null)
@@ -76,8 +82,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
         enableEdgeToEdge()
-        if (isFreshLaunch(savedInstanceState)) pendingSearch = intent.sharedSearchRoute()
-        if (isFreshLaunch(savedInstanceState)) pendingRestore = intent.openedBackup()
+        if (isFreshLaunch(savedInstanceState)) {
+            // A .bib or .ris file first: the backup check takes any other content: file opened with Hashiya.
+            pendingImport = intent.importFileUri()
+            if (pendingImport == null) {
+                pendingSearch = intent.sharedSearchRoute()
+                pendingRestore = intent.openedBackup()
+            }
+        }
         setContent {
             val requiredUpdate by appUpdate.requiredUpdate.collectAsState()
             HashiyaTheme {
@@ -88,6 +100,8 @@ class MainActivity : AppCompatActivity() {
                     onPendingSearchHandled = { pendingSearch = null },
                     pendingRestore = pendingRestore,
                     onPendingRestoreHandled = { pendingRestore = null },
+                    pendingImport = pendingImport,
+                    onPendingImportHandled = { pendingImport = null },
                     requiredUpdate = requiredUpdate,
                     onOpenStore = ::openStore,
                     shortcut = pendingShortcut,
@@ -106,6 +120,10 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        intent.importFileUri()?.let {
+            pendingImport = it
+            return
+        }
         intent.sharedSearchRoute()?.let { pendingSearch = it }
         intent.openedBackup()?.let { pendingRestore = it }
     }
@@ -150,6 +168,14 @@ class MainActivity : AppCompatActivity() {
     private fun openStore(url: String) {
         runCatching { startActivity(Intent(Intent.ACTION_VIEW, url.toUri())) }
     }
+
+    private fun Intent.importFileUri(): String? = importUri(
+        action = action,
+        type = type,
+        data = data?.toString(),
+        stream = IntentCompat.getParcelableExtra(this, Intent.EXTRA_STREAM, Uri::class.java)?.toString(),
+        hasText = !getCharSequenceExtra(Intent.EXTRA_TEXT).isNullOrBlank()
+    )
 
     private fun Intent.sharedSearchRoute(): SearchRoute? {
         if (action != Intent.ACTION_SEND || type?.startsWith("text/") != true) return null

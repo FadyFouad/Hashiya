@@ -94,6 +94,24 @@ class LibraryContentTest {
     private fun show(state: LibraryUiState, pendingUndo: () -> RemovedPaper? = { null }) = show({ state }, pendingUndo)
 
     @Test
+    fun importIsOfferedOnAnEmptyLibraryAndOnAFullOne() {
+        var state by mutableStateOf<LibraryUiState>(LibraryUiState.Empty)
+        show({ state }, actions = actions.copy(onImport = { events += "import" }))
+
+        composeRule.onNodeWithContentDescription("Import .bib or .ris").performClick()
+        state = toRead(SamplePapers.bert)
+        composeRule.onNodeWithContentDescription("Import .bib or .ris").performClick()
+        assertEquals(listOf("import", "import"), events)
+    }
+
+    @Test
+    fun withoutAnImportActionThereIsNoImportButton() {
+        show(LibraryUiState.Empty)
+
+        composeRule.onNodeWithContentDescription("Import .bib or .ris").assertDoesNotExist()
+    }
+
+    @Test
     fun emptyStateLeadsToSearchWithoutSearchFieldOrChips() {
         show(LibraryUiState.Empty)
 

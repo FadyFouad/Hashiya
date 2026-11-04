@@ -59,6 +59,18 @@ class HashiyaAppNavigationTest {
     }
 
     @Test
+    fun importOpensFromTheLibraryAndBackReturns() {
+        waitForText("No saved papers yet")
+
+        composeRule.onNodeWithContentDescription("Import .bib or .ris").performClick()
+        waitForText("Import from BibTeX or RIS")
+        composeRule.onNodeWithText("Choose file").assertIsDisplayed()
+
+        composeRule.onNodeWithContentDescription("Back").performClick()
+        waitForText("No saved papers yet")
+    }
+
+    @Test
     fun settingsOpensFromGearAndBackReturns() {
         waitForText("No saved papers yet")
 

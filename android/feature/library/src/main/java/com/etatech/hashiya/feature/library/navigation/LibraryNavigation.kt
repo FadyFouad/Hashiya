@@ -30,7 +30,8 @@ fun NavGraphBuilder.libraryScreen(
     onAddPaper: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPaper: (openAlexId: String) -> Unit,
-    detailPane: LibraryDetailPane? = null
+    detailPane: LibraryDetailPane? = null,
+    onImport: (() -> Unit)? = null
 ) {
     composable<LibraryRoute> { entry ->
         // Written by Details through requestLibraryRemove; the entry's handle survives process death, so no request is lost.
@@ -41,6 +42,7 @@ fun NavGraphBuilder.libraryScreen(
             onGoToSearch = onGoToSearch,
             onAddPaper = onAddPaper,
             onOpenSettings = onOpenSettings,
+            onImport = onImport,
             onOpenPaper = onOpenPaper,
             removeRequest = removeRequest,
             onRemoveRequestHandled = { entry.savedStateHandle[LIBRARY_REMOVE_REQUEST] = null },

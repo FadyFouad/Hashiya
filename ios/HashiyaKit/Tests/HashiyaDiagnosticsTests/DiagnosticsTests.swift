@@ -63,11 +63,24 @@ struct DiagnosticsTests {
             (.pdfOpened(source: .attached), "pdf_opened", ["source": "attached"]),
             (.pdfDownloaded(succeeded: true), "pdf_downloaded", ["result": "ok"]),
             (.screenView(.reader), "screen_view", ["screen": "reader"]),
+            (.screenView(.importFile), "screen_view", ["screen": "import"]),
+            (.importFile(format: .ris, result: .ok, entries: .upTo500, matched: .most, toCollection: true), "import",
+             ["format": "ris", "result": "ok", "entries_bucket": "51-500", "matched": "most", "to_collection": "yes"]),
+            (.importFile(format: nil, result: .tooLarge, entries: .zero, matched: .none, toCollection: false), "import",
+             ["result": "too_large", "entries_bucket": "0", "matched": "none", "to_collection": "no"]),
         ]
         for (event, name, parameters) in cases {
             #expect(event.name == name)
             #expect(event.parameters == parameters)
         }
+    }
+
+    @Test func theMatchedShareIsCoarse() {
+        #expect(MatchedShare(matched: 0, toImport: 10) == .none)
+        #expect(MatchedShare(matched: 3, toImport: 0) == .none)
+        #expect(MatchedShare(matched: 4, toImport: 10) == .some)
+        #expect(MatchedShare(matched: 5, toImport: 10) == .most)
+        #expect(MatchedShare(matched: 10, toImport: 10) == .all)
     }
 
     @Test func privacySettingsDefaultOnAndPersist() {

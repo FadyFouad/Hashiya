@@ -418,3 +418,105 @@ public struct PdfColumns: Equatable, Sendable, FetchableRecord, Decodable {
         case lastPage = "last_page"
     }
 }
+
+/// A row of `import_jobs`: an import of a .bib or .ris file. `HashiyaData` maps it to `ImportJob`; the file's text lives in
+/// Application Support/Imports, not here. Android's `ImportJobEntity`.
+public struct ImportJobRecord: Codable, Equatable, Sendable, FetchableRecord, MutablePersistableRecord {
+    public static let databaseTableName = "import_jobs"
+
+    public var id: Int64?
+    public var fileName: String
+    /// Epoch milliseconds.
+    public var createdAt: Int64
+    /// One of "analyzing", "ready", "importing", "done", "failed", "cancelled".
+    public var state: String
+    /// One of "unsupported", "too_large", "unreadable", "nothing_to_import" when `state` is "failed".
+    public var failure: String?
+    public var addToCollection: Bool
+    /// The new collection's name, made unique when the import phase creates it.
+    public var collectionName: String
+    /// Set once the collection exists. Not a foreign key: a collection deleted meanwhile only means its links are skipped.
+    public var collectionID: Int64?
+    public var found: Int
+    public var matched: Int
+    public var local: Int
+    public var inLibrary: Int
+    public var repeated: Int
+    public var unreadable: Int
+    public var notChecked: Int
+    public var processed: Int
+    public var imported: Int
+
+    public init(
+        id: Int64? = nil,
+        fileName: String,
+        createdAt: Int64,
+        state: String,
+        failure: String? = nil,
+        addToCollection: Bool = true,
+        collectionName: String = "",
+        collectionID: Int64? = nil,
+        found: Int = 0,
+        matched: Int = 0,
+        local: Int = 0,
+        inLibrary: Int = 0,
+        repeated: Int = 0,
+        unreadable: Int = 0,
+        notChecked: Int = 0,
+        processed: Int = 0,
+        imported: Int = 0
+    ) {
+        self.id = id
+        self.fileName = fileName
+        self.createdAt = createdAt
+        self.state = state
+        self.failure = failure
+        self.addToCollection = addToCollection
+        self.collectionName = collectionName
+        self.collectionID = collectionID
+        self.found = found
+        self.matched = matched
+        self.local = local
+        self.inLibrary = inLibrary
+        self.repeated = repeated
+        self.unreadable = unreadable
+        self.notChecked = notChecked
+        self.processed = processed
+        self.imported = imported
+    }
+
+    public mutating func didInsert(_ inserted: InsertionSuccess) {
+        id = inserted.rowID
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id, state, failure, found, matched, local, repeated, unreadable, processed, imported
+        case fileName = "file_name"
+        case createdAt = "created_at"
+        case addToCollection = "add_to_collection"
+        case collectionName = "collection_name"
+        case collectionID = "collection_id"
+        case inLibrary = "in_library"
+        case notChecked = "not_checked"
+    }
+}
+
+/// A saved paper's identity, for planning an import against the library.
+public struct LibraryKeyRow: Equatable, Sendable {
+    public var openAlexID: String?
+    public var doi: String?
+    public var title: String
+    public var year: Int?
+    public var citeKey: String?
+    /// True when the import being asked about saved it.
+    public var importedByJob: Bool
+
+    public init(openAlexID: String?, doi: String?, title: String, year: Int?, citeKey: String?, importedByJob: Bool) {
+        self.openAlexID = openAlexID
+        self.doi = doi
+        self.title = title
+        self.year = year
+        self.citeKey = citeKey
+        self.importedByJob = importedByJob
+    }
+}

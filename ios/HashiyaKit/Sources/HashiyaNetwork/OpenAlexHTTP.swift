@@ -22,13 +22,16 @@ struct OpenAlexHTTP: Sendable {
     }
 
     /// Like `get(_:path:query:)`, and says how the response was obtained (`.cached` for a cache hit).
-    func getRouted<T: Decodable>(_ type: T.Type, path: String, query: [(name: String, value: String)]) async throws -> (T, RequestRoute) {
+    /// `forImport` sends a metered call on the quota's import route (`OpenAlexQuota.importRoute()`).
+    func getRouted<T: Decodable>(
+        _ type: T.Type, path: String, query: [(name: String, value: String)], forImport: Bool = false
+    ) async throws -> (T, RequestRoute) {
         let metered = path == "/works"
         let cacheKey = metered ? SearchCache.key(path: path, query: query) : nil
         if let cacheKey, let cached = cache?.data(for: cacheKey), let value = try? Self.decode(type, from: cached) {
             return (value, .cached)
         }
-        let (data, route) = try await send(path: path, query: query, metered: metered)
+        let (data, route) = try await send(path: path, query: query, metered: metered, forImport: forImport)
         let value = try Self.decode(type, from: data)
         if let cacheKey { cache?.store(data, for: cacheKey) }
         return (value, route)
@@ -49,7 +52,9 @@ struct OpenAlexHTTP: Sendable {
         }
     }
 
-    private func send(path: String, query: [(name: String, value: String)], metered: Bool) async throws -> (Data, RequestRoute) {
+    private func send(
+        path: String, query: [(name: String, value: String)], metered: Bool, forImport: Bool = false
+    ) async throws -> (Data, RequestRoute) {
         if let userKey = userKeySource.userKey.flatMap(nonBlank) {
             return (try await perform(base: baseURL, key: userKey, path: path, query: query).body(usedUserKey: true), .user)
         }
@@ -57,7 +62,8 @@ struct OpenAlexHTTP: Sendable {
             return (try await perform(base: baseURL, key: builtInKey.flatMap(nonBlank), path: path, query: query).body(usedUserKey: false), .shared)
         }
 
-        var route: OpenAlexRoute? = metered ? quota.meteredRoute() : quota.lookupRoute()
+        let meteredRoute = { forImport ? quota.importRoute() : quota.meteredRoute() }
+        var route: OpenAlexRoute? = metered ? meteredRoute() : quota.lookupRoute()
         var waitedOnThisRoute = false
         while let current = route {
             let proxy = current == .shared ? quota.limits.baseURL : nil
@@ -92,7 +98,7 @@ struct OpenAlexHTTP: Sendable {
         }
         if metered {
             // Out of routes but not out for the day: the proxy failed and keyless is used up.
-            guard quota.meteredRoute() == nil else { throw NetworkFailure.http(code: 503, usedUserKey: false) }
+            guard meteredRoute() == nil else { throw NetworkFailure.http(code: 503, usedUserKey: false) }
             throw NetworkFailure.dailyLimit(resetAt: quota.nextAvailable())
         }
         throw NetworkFailure.http(code: 429, usedUserKey: false)

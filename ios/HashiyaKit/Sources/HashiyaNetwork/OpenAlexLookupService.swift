@@ -3,6 +3,15 @@ public protocol OpenAlexLookupService: Sendable {
     /// The work OpenAlex resolves `id` to (e.g. "doi:10.1038/nature14539"), or nil on HTTP 404 or 400.
     func work(id: String) async throws -> NetworkWork?
     func works(filter: String, perPage: Int) async throws -> NetworkWorksResponse
+    /// `works(filter:perPage:)` for an import's DOI batch: metered on the quota's import route, which leaves at least
+    /// half of the day's shared calls to searches. Android's `findWorksForImport`.
+    func importWorks(filter: String, perPage: Int) async throws -> NetworkWorksResponse
+}
+
+extension OpenAlexLookupService {
+    public func importWorks(filter: String, perPage: Int) async throws -> NetworkWorksResponse {
+        try await works(filter: filter, perPage: perPage)
+    }
 }
 
 /// Where else a saved paper's PDF may be, for when its stored link no longer gives it. Throws `NetworkFailure` or

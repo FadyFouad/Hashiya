@@ -40,6 +40,30 @@ struct OpenAlexQuotaTests {
         #expect(quota.lookupRoute() == .shared)
     }
 
+    @Test func anImportUsesTheSharedRouteForHalfTheCapThenKeyless() {
+        let quota = quota(limits: OpenAlexLimits(dailyDeviceCalls: 4, maxPagesPerQuery: 8, baseURL: nil))
+        quota.recordSharedCall()
+        #expect(quota.importRoute() == .shared)
+        quota.recordSharedCall()
+        #expect(quota.importRoute() == .keyless)
+        // Searches keep the other half.
+        #expect(quota.meteredRoute() == .shared)
+    }
+
+    @Test func anImportIsOutWhenKeylessIsUsedUpPastItsShare() {
+        let quota = quota(limits: OpenAlexLimits(dailyDeviceCalls: 2, maxPagesPerQuery: 8, baseURL: nil))
+        quota.recordSharedCall()
+        quota.markUsedUp(.keyless, resetIn: 600)
+        #expect(quota.importRoute() == nil)
+        #expect(quota.meteredRoute() == .shared)
+    }
+
+    @Test func aCapOfOneLeavesImportsNoSharedCalls() {
+        let quota = quota(limits: OpenAlexLimits(dailyDeviceCalls: 1, maxPagesPerQuery: 8, baseURL: nil))
+        #expect(quota.importRoute() == .keyless)
+        #expect(quota.meteredRoute() == .shared)
+    }
+
     @Test func aZeroCapTurnsTheSharedRouteOffForMeteredCalls() {
         let quota = quota(limits: OpenAlexLimits(dailyDeviceCalls: 0, maxPagesPerQuery: 8, baseURL: nil))
         #expect(quota.meteredRoute() == .keyless)

@@ -10,6 +10,11 @@ public enum ImportFileTypes {
     public static let bibTeX = UTType(importedAs: "com.etatech.hashiya.bibtex", conformingTo: .plainText)
     public static let ris = UTType(importedAs: "com.etatech.hashiya.ris", conformingTo: .plainText)
     public static let all: [UTType] = [bibTeX, ris, .plainText, .data]
+
+    /// Whether a file another app handed over goes to Import: a `.bib` or `.ris` file. `.hashiya` backups go to Restore.
+    public static func opens(_ url: URL) -> Bool {
+        ["bib", "ris"].contains(url.pathExtension.lowercased())
+    }
 }
 
 /// Import from BibTeX or RIS (spec §8.2), presented as a sheet. `openedURL` is a file opened in Hashiya from another app.

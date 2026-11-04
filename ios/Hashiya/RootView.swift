@@ -1,3 +1,4 @@
+import FeatureImport
 import FeatureLibrary
 import FeaturePaperDetails
 import FeatureReader
@@ -44,6 +45,11 @@ struct RootView: View {
     @State private var libraryViewModel: LibraryViewModel
     @State private var searchViewModel: SearchViewModel
     @State private var appUpdate: AppUpdateModel
+    /// Nil when this build has no import repository.
+    @State private var importViewModel: ImportViewModel?
+    @State private var showsImport = false
+    /// A .bib or .ris file opened in Hashiya from another app ("Open in Hashiya").
+    @State private var openedImportURL: URL?
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.openURL) private var openURL
     @Environment(\.openWindow) private var openWindow
@@ -55,6 +61,7 @@ struct RootView: View {
         _libraryViewModel = State(initialValue: container.makeLibraryViewModel())
         _searchViewModel = State(initialValue: container.makeSearchViewModel())
         _appUpdate = State(initialValue: container.makeAppUpdateModel())
+        _importViewModel = State(initialValue: container.makeImportViewModel())
     }
 
     var body: some View {
@@ -76,6 +83,38 @@ struct RootView: View {
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active { Task { await appUpdate.check() } }
         }
+    }
+
+    /// A file the system handed over: a `.hashiya` backup goes to Restore, a `.bib` or `.ris` file to Import.
+    private func openFile(_ url: URL) {
+        if ImportFileTypes.opens(url) {
+            openImport(url)
+        } else {
+            openBackup(url)
+        }
+    }
+
+    /// Shows Import for the file, over the Library. Settings closes first: one sheet at a time. A Restore on screen stays,
+    /// and the file waits until it closes.
+    private func openImport(_ url: URL) {
+        guard importViewModel != nil else { return }
+        openedImportURL = url
+        selectedTab = .library
+        if openedBackup != nil || presentedBackup != nil { return }
+        // Settings' `onDismiss` shows Import once it has gone.
+        if showsSettings {
+            showsSettings = false
+            return
+        }
+        showsImport = true
+    }
+
+    private func importSheetDismissed() {
+        reportSelectedScreen()
+        // The system's copy in Documents/Inbox was read when the job started.
+        if let url = openedImportURL, url.pathComponents.contains("Inbox") { try? FileManager.default.removeItem(at: url) }
+        openedImportURL = nil
+        showNextBackup()
     }
 
     /// Queues a `.hashiya` file the system handed over (a copy in Documents/Inbox).
@@ -111,11 +150,15 @@ struct RootView: View {
         presentedBackup = nil
         openedBackup = nil
         showNextBackup()
+        // A .bib or .ris file opened while Restore was on screen.
+        if openedImportURL != nil, openedBackup == nil { showsImport = true }
     }
 
     private func settingsDismissed() {
         reportSelectedScreen()
         showNextBackup()
+        // A .bib or .ris file opened while Settings was up.
+        if openedImportURL != nil, openedBackup == nil { showsImport = true }
     }
 
     /// A sheet closing doesn't make the tab's screen appear again, so say which one is back in view.
@@ -226,7 +269,8 @@ struct RootView: View {
             onOpenSettings: { showsSettings = true },
             onOpenPaper: { libraryRoutes = [.details(PaperDetailsRoute(openAlexID: $0))] },
             onOpenInNewWindow: openPaperWindow,
-            selectedID: selectedID
+            selectedID: selectedID,
+            onImport: importViewModel == nil ? nil : { showsImport = true }
         )
     }
 
@@ -301,8 +345,13 @@ struct RootView: View {
         .sheet(isPresented: $showsSettings, onDismiss: settingsDismissed) {
             SettingsSheet(container: container, onRestoreApplyingChange: restoreApplyingChanged)
         }
-        // The system activates one window for the file, so only that window shows Restore.
-        .onOpenURL(perform: openBackup)
+        // The system activates one window for the file, so only that window shows Restore or Import.
+        .onOpenURL(perform: openFile)
+        .sheet(isPresented: $showsImport, onDismiss: importSheetDismissed) {
+            if let importViewModel {
+                ImportView(viewModel: importViewModel, openedURL: openedImportURL) { showsImport = false }
+            }
+        }
         .sheet(item: $openedBackup, onDismiss: restoreSheetDismissed) { opened in
             NavigationStack {
                 OpenedBackupRestore(

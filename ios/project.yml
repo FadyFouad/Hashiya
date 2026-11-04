@@ -56,6 +56,7 @@ targets:
           - FeaturePaperDetails
           - FeatureReader
           - FeatureSettings
+          - FeatureImport
       - target: HashiyaShare
     postBuildScripts:
       - name: Upload Crashlytics symbols (Release)
@@ -137,6 +138,7 @@ targets:
           - FeaturePaperDetails
           - FeatureReader
           - FeatureSettings
+          - FeatureImport
 schemes:
   Hashiya:
     build:

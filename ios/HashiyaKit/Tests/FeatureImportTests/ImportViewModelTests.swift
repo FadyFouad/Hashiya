@@ -79,6 +79,13 @@ struct ImportViewModelTests {
         #expect(viewModel.addToCollection)
     }
 
+    @Test func onlyBibAndRisFilesOpenImport() {
+        #expect(ImportFileTypes.opens(URL(fileURLWithPath: "/Inbox/My thesis.BIB")))
+        #expect(ImportFileTypes.opens(URL(fileURLWithPath: "/tmp/export.ris")))
+        #expect(!ImportFileTypes.opens(URL(fileURLWithPath: "/Inbox/library.hashiya")))
+        #expect(!ImportFileTypes.opens(URL(fileURLWithPath: "/tmp/notes.txt")))
+    }
+
     @Test func eachFailureHasItsMessage() {
         #expect(ImportView.messageKey(.unsupported) == "import.failedUnsupported")
         #expect(ImportView.messageKey(.tooLarge) == "import.failedTooLarge")

@@ -429,4 +429,29 @@ class QuotaRoutingTest {
         apiReplies { if (it.key() == null) ok(page) else usedUp() }
         assertEquals(RequestRoute.Keyless, search(quota()).searchWorks(request).route)
     }
+
+    @Test
+    fun anImportCallUsesSharedBelowHalfTheCapThenKeylessAndCounts() = runTest {
+        val quota = quota(limits(cap = 4))
+        val lookup = lookup(quota)
+        lookup.findWorksForImport("doi:10.1/a", perPage = 50)
+        lookup.findWorksForImport("doi:10.1/b", perPage = 50)
+        lookup.findWorksForImport("doi:10.1/c", perPage = 50)
+        assertEquals(listOf("built-in", "built-in", null), apiRequests.map { it.key() })
+        // The two shared import calls count toward the same cap searches use.
+        search(quota).searchWorks(request)
+        search(quota).searchWorks(request)
+        assertEquals(OpenAlexRoute.Keyless, quota.meteredRoute())
+    }
+
+    @Test
+    fun anImportCallWithNoRouteLeftIsTheDailyLimitWhileSearchesStillHaveShared() = runTest {
+        val quota = quota(limits(cap = 2))
+        quota.recordSharedCall()
+        quota.markUsedUp(OpenAlexRoute.Keyless, 600.0)
+        val failure = failureOf { lookup(quota).findWorksForImport("doi:10.1/a", perPage = 50) }
+        assertTrue(failure is NetworkFailure.DailyLimit)
+        assertTrue(apiRequests.isEmpty())
+        assertEquals(OpenAlexRoute.Shared, quota.meteredRoute())
+    }
 }

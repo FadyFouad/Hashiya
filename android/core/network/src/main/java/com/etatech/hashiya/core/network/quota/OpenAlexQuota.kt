@@ -24,6 +24,18 @@ class OpenAlexQuota(
         return if (prefs.keylessUsedUpUntil <= time) OpenAlexRoute.Keyless else null
     }
 
+    /**
+     * The route for an import's batched DOI lookup: like [meteredRoute], but Shared only while the device has made fewer than
+     * half of today's capped calls, so a large import never takes the half searches rely on. Its shared calls count
+     * toward the same cap.
+     */
+    @Synchronized
+    fun importRoute(): OpenAlexRoute? {
+        val time = now()
+        if (sharedOpensForMetered(time, prefs.limits.dailyDeviceCalls / IMPORT_SHARE_DIVISOR) <= time) return OpenAlexRoute.Shared
+        return if (prefs.keylessUsedUpUntil <= time) OpenAlexRoute.Keyless else null
+    }
+
     /** The route for a free lookup: Shared unless it is used up (the cap counts metered calls only), else Keyless. */
     @Synchronized
     fun lookupRoute(): OpenAlexRoute =
@@ -71,8 +83,7 @@ class OpenAlexQuota(
     private val sharedConfigured get() = hasBuiltInKey || prefs.limits.baseUrl != null
 
     /** [Long.MAX_VALUE] when the shared route is off for metered calls. */
-    private fun sharedOpensForMetered(time: Long): Long {
-        val cap = prefs.limits.dailyDeviceCalls
+    private fun sharedOpensForMetered(time: Long, cap: Int = prefs.limits.dailyDeviceCalls): Long {
         if (!sharedConfigured || cap <= 0) return Long.MAX_VALUE
         val calls = if (prefs.sharedCallsDay == utcDay(time)) prefs.sharedCalls else 0
         val capOpens = if (calls >= cap) nextUtcMidnight(time) else time
@@ -82,6 +93,9 @@ class OpenAlexQuota(
     private companion object {
         const val DAY_SECONDS = 86_400.0
         const val DAY_MILLIS = 86_400_000L
+
+        /** Imports may use 1/2 of the day's capped shared calls. */
+        const val IMPORT_SHARE_DIVISOR = 2
 
         fun utcDay(time: Long) = Math.floorDiv(time, DAY_MILLIS)
 

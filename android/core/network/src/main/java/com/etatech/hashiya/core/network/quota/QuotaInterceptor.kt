@@ -14,6 +14,12 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
 
+/**
+ * What a metered request is for, as a Retrofit `@Tag`. An [Import] call gets [OpenAlexQuota.importRoute]; any request
+ * without the tag is treated as a search.
+ */
+enum class MeteredUse { Search, Import }
+
 /** Set on the response the interceptor returns, to say which route answered; never sent to a server. */
 internal const val ROUTE_HEADER = "X-Hashiya-Route"
 
@@ -37,7 +43,12 @@ internal class QuotaInterceptor(
         }
 
         val metered = original.isMetered()
-        var route: OpenAlexRoute? = if (metered) quota.meteredRoute() else quota.lookupRoute()
+        val forImport = original.tag(MeteredUse::class.java) == MeteredUse.Import
+        var route: OpenAlexRoute? = when {
+            !metered -> quota.lookupRoute()
+            forImport -> quota.importRoute()
+            else -> quota.meteredRoute()
+        }
         var waitedOnThisRoute = false
         while (route != null) {
             val current = route
@@ -91,7 +102,8 @@ internal class QuotaInterceptor(
         }
         if (metered) {
             // Out of routes but not out for the day: the proxy failed and keyless is used up.
-            if (quota.meteredRoute() != null) return original.failed(SERVICE_UNAVAILABLE, "Service Unavailable")
+            val stillOpen = if (forImport) quota.importRoute() else quota.meteredRoute()
+            if (stillOpen != null) return original.failed(SERVICE_UNAVAILABLE, "Service Unavailable")
             throw DailyLimitException(resetAtMillis = quota.nextAvailable())
         }
         return original.failed(TOO_MANY_REQUESTS, "Too Many Requests")

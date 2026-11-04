@@ -135,4 +135,38 @@ class OpenAlexQuotaTest {
         prefs.limits = limits(1)
         assertEquals(OpenAlexRoute.Keyless, quota.meteredRoute())
     }
+
+    @Test
+    fun anImportGetsTheSharedRouteOnlyBelowHalfTheCap() {
+        val quota = quota(limits = limits(6))
+        repeat(2) { quota.recordSharedCall() }
+        assertEquals(OpenAlexRoute.Shared, quota.importRoute())
+        quota.recordSharedCall()
+        assertEquals(OpenAlexRoute.Keyless, quota.importRoute())
+        // Searches keep the other half.
+        assertEquals(OpenAlexRoute.Shared, quota.meteredRoute())
+        repeat(3) { quota.recordSharedCall() }
+        assertEquals(OpenAlexRoute.Keyless, quota.meteredRoute())
+    }
+
+    @Test
+    fun anImportIsOutWhenKeylessIsUsedUpEvenWhileSearchesStillHaveShared() {
+        val quota = quota(limits = limits(4))
+        repeat(2) { quota.recordSharedCall() }
+        quota.markUsedUp(OpenAlexRoute.Keyless, 600.0)
+        assertNull(quota.importRoute())
+        assertEquals(OpenAlexRoute.Shared, quota.meteredRoute())
+    }
+
+    @Test
+    fun aCapOfOneLeavesImportsNoSharedCalls() {
+        assertEquals(OpenAlexRoute.Keyless, quota(limits = limits(1)).importRoute())
+    }
+
+    @Test
+    fun anImportFollowsAUsedUpSharedBudget() {
+        val quota = quota()
+        quota.markUsedUp(OpenAlexRoute.Shared, 600.0)
+        assertEquals(OpenAlexRoute.Keyless, quota.importRoute())
+    }
 }

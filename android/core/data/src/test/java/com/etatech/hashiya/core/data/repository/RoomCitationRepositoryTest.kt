@@ -314,4 +314,16 @@ class RoomCitationRepositoryTest {
         assertNull(result.html)
         assertNull(result.rtf)
     }
+
+    @Test
+    fun aLocalPaperIsNeverSentToOpenAlexAndCountsAsComplete() = runTest {
+        saveUnfetched(paper("local-1f3a", "Smith"))
+
+        val entry = checkNotNull(repository().entry("local-1f3a"))
+        val export = repository().export(null)
+
+        assertTrue(entry.complete)
+        assertTrue(export.complete)
+        assertEquals(emptyList<String>(), openAlex.workRequests)
+    }
 }

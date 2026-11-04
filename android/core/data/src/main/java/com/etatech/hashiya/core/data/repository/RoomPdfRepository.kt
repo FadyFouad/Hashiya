@@ -21,6 +21,7 @@ import com.etatech.hashiya.core.database.model.storedValue
 import com.etatech.hashiya.core.model.PaperPdf
 import com.etatech.hashiya.core.model.PdfSource
 import com.etatech.hashiya.core.model.PdfStorage
+import com.etatech.hashiya.core.model.isLocalPaperId
 import com.etatech.hashiya.core.network.NetworkException
 import com.etatech.hashiya.core.network.NetworkFailure
 import com.etatech.hashiya.core.network.OpenAlexPdfLinksDataSource
@@ -164,9 +165,10 @@ internal class RoomPdfRepository(
         }
     }
 
-    /** OpenAlex's other open-access PDF links for the paper, best first; none when the lookup fails. */
+    /** OpenAlex's other open-access PDF links for the paper, best first; none when the lookup fails or the paper is local. */
     private suspend fun otherLinks(openAlexId: String, tried: String): List<String> = try {
-        fallbackPdfLinks(pdfLinks.pdfLocations(openAlexId), tried)
+        // A paper imported from a file without an OpenAlex match has no OpenAlex locations to ask for.
+        if (isLocalPaperId(openAlexId)) emptyList() else fallbackPdfLinks(pdfLinks.pdfLocations(openAlexId), tried)
     } catch (e: NetworkException) {
         emptyList()
     }

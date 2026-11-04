@@ -165,6 +165,7 @@ schemes:
         - package: HashiyaKit/FeaturePaperDetailsTests
         - package: HashiyaKit/FeatureReaderTests
         - package: HashiyaKit/FeatureSettingsTests
+        - package: HashiyaKit/FeatureImportTests
         - name: HashiyaSnapshotTests
           parallelizable: false
         - HashiyaUITests

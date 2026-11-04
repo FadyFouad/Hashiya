@@ -25,6 +25,7 @@ let package = Package(
         .library(name: "FeaturePaperDetails", targets: ["FeaturePaperDetails"]),
         .library(name: "FeatureReader", targets: ["FeatureReader"]),
         .library(name: "FeatureSettings", targets: ["FeatureSettings"]),
+        .library(name: "FeatureImport", targets: ["FeatureImport"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1"),
@@ -64,6 +65,11 @@ let package = Package(
         ),
         .target(
             name: "FeatureSettings",
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem", "HashiyaDiagnostics"],
+            resources: [.process("Resources")]
+        ),
+        .target(
+            name: "FeatureImport",
             dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem", "HashiyaDiagnostics"],
             resources: [.process("Resources")]
         ),
@@ -109,6 +115,10 @@ let package = Package(
         .testTarget(
             name: "FeatureSettingsTests",
             dependencies: ["FeatureSettings", "HashiyaData", "HashiyaDesignSystem", "HashiyaDiagnostics", "HashiyaModel", "HashiyaTesting"]
+        ),
+        .testTarget(
+            name: "FeatureImportTests",
+            dependencies: ["FeatureImport", "HashiyaData", "HashiyaDesignSystem", "HashiyaDiagnostics", "HashiyaModel", "HashiyaTesting"]
         ),
     ]
 )

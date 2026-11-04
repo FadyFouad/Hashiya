@@ -119,3 +119,10 @@ extension PaperStore {
         }
     }
 }
+
+extension PaperStore {
+    /// The newest job, or nil.
+    public func latestImportJob() async throws -> ImportJobRecord? {
+        try await writer.read { db in try ImportJobRecord.order(Column("id").desc).fetchOne(db) }
+    }
+}

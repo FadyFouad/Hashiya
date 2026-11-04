@@ -145,9 +145,10 @@ extension PaperWithAuthors {
         paper.citeKey.map { CitablePaper(paper: asPaper(), citeKey: $0) }
     }
 
-    /// Whether the stored details are as complete as they will get. A paper with no OpenAlex ID has nothing to refetch.
+    /// Whether the stored details are as complete as they will get. A paper with no OpenAlex ID, or one imported from a file
+    /// that OpenAlex didn't match, has nothing to refetch.
     fileprivate var hasDetails: Bool {
-        paper.detailsFetched || paper.openAlexID == nil
+        paper.detailsFetched || paper.openAlexID.map(isLocalPaperID) ?? true
     }
 }
 

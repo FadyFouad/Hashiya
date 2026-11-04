@@ -301,7 +301,8 @@ public final class GRDBPdfRepository: PdfRepository {
         case .stopped: return .stopped
         case let .failed(failure, tries, _): (reason, triesOtherLinks) = (failure, tries)
         }
-        guard triesOtherLinks else { return .failed(reason) }
+        // A paper imported from a file and unknown to OpenAlex has no other copies to ask about.
+        guard triesOtherLinks, !isLocalPaperID(openAlexID) else { return .failed(reason) }
 
         // The stored link may have gone stale while OpenAlex knows other copies (e.g. arXiv): try those in turn, and keep
         // the first that gives the PDF as the paper's link. A failed lookup reports the first failure.

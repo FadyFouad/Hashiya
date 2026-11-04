@@ -40,7 +40,7 @@ let package = Package(
         .target(name: "HashiyaNetwork"),
         .target(name: "HashiyaDiagnostics"),
         .target(name: "HashiyaDatabase", dependencies: ["HashiyaModel", grdb]),
-        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX", "HashiyaCitation", "HashiyaDiagnostics", zip]),
+        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX", "HashiyaCitation", "HashiyaDiagnostics", "HashiyaImport", zip]),
         .target(name: "HashiyaDesignSystem", dependencies: ["HashiyaModel"], resources: [.process("Resources")]),
         .target(
             name: "FeatureSearch",
@@ -82,7 +82,9 @@ let package = Package(
         .testTarget(name: "HashiyaDatabaseTests", dependencies: ["HashiyaDatabase", "HashiyaModel", grdb]),
         .testTarget(
             name: "HashiyaDataTests",
-            dependencies: ["HashiyaData", "HashiyaDatabase", "HashiyaDiagnostics", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting", grdb, zip]
+            dependencies: [
+                "HashiyaData", "HashiyaDatabase", "HashiyaDiagnostics", "HashiyaImport", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting", grdb, zip,
+            ]
         ),
         .testTarget(
             name: "HashiyaDesignSystemTests",

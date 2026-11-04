@@ -14,6 +14,9 @@ public struct LiveDependencies: Sendable {
     public let exportFiles: ExportFiles
     public let pdfs: any PdfRepository
     public let backup: any LibraryBackup
+    /// Nil where importing isn't wired (the UI-test stubs); the Library then shows no Import button. The Share Extension
+    /// never uses it.
+    public let imports: (any ImportRepository)?
 
     public init(
         libraryRepository: any LibraryRepository,
@@ -24,7 +27,8 @@ public struct LiveDependencies: Sendable {
         citations: any CitationRepository,
         exportFiles: ExportFiles,
         pdfs: any PdfRepository,
-        backup: any LibraryBackup
+        backup: any LibraryBackup,
+        imports: (any ImportRepository)? = nil
     ) {
         self.libraryRepository = libraryRepository
         self.searchRepository = searchRepository
@@ -35,6 +39,7 @@ public struct LiveDependencies: Sendable {
         self.exportFiles = exportFiles
         self.pdfs = pdfs
         self.backup = backup
+        self.imports = imports
     }
 
     /// The real graph: the App Group database (one store for the library, collections, citations and PDFs), the Keychain,
@@ -72,7 +77,8 @@ public struct LiveDependencies: Sendable {
             citations: repositories.citations,
             exportFiles: .live,
             pdfs: repositories.pdfs,
-            backup: repositories.backup
+            backup: repositories.backup,
+            imports: repositories.imports
         )
     }
 

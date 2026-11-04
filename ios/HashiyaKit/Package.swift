@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "HashiyaModel", targets: ["HashiyaModel"]),
         .library(name: "HashiyaBibTeX", targets: ["HashiyaBibTeX"]),
         .library(name: "HashiyaCitation", targets: ["HashiyaCitation"]),
+        .library(name: "HashiyaImport", targets: ["HashiyaImport"]),
         .library(name: "HashiyaNetwork", targets: ["HashiyaNetwork"]),
         .library(name: "HashiyaDatabase", targets: ["HashiyaDatabase"]),
         .library(name: "HashiyaDiagnostics", targets: ["HashiyaDiagnostics"]),
@@ -34,6 +35,8 @@ let package = Package(
         .target(name: "HashiyaModel"),
         .target(name: "HashiyaBibTeX", dependencies: ["HashiyaModel"]),
         .target(name: "HashiyaCitation", dependencies: ["HashiyaModel"]),
+        // BibTeX and RIS parsing and import planning: pure, like Android's core/importer.
+        .target(name: "HashiyaImport", dependencies: ["HashiyaModel"]),
         .target(name: "HashiyaNetwork"),
         .target(name: "HashiyaDiagnostics"),
         .target(name: "HashiyaDatabase", dependencies: ["HashiyaModel", grdb]),
@@ -73,6 +76,8 @@ let package = Package(
         .testTarget(name: "HashiyaDiagnosticsTests", dependencies: ["HashiyaDiagnostics", "HashiyaTesting"]),
         .testTarget(name: "HashiyaBibTeXTests", dependencies: ["HashiyaBibTeX", "HashiyaModel"]),
         .testTarget(name: "HashiyaCitationTests", dependencies: ["HashiyaCitation", "HashiyaModel"]),
+        // Fixtures is a copy of the repository's testdata/import (a package can't reach outside its directory).
+        .testTarget(name: "HashiyaImportTests", dependencies: ["HashiyaImport", "HashiyaModel"], resources: [.copy("Fixtures")]),
         .testTarget(name: "HashiyaNetworkTests", dependencies: ["HashiyaNetwork", "HashiyaTesting"]),
         .testTarget(name: "HashiyaDatabaseTests", dependencies: ["HashiyaDatabase", "HashiyaModel", grdb]),
         .testTarget(

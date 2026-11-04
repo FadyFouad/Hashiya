@@ -1,0 +1,191 @@
+{
+  "format": "bibtex",
+  "entries": [
+    {
+      "line": 8,
+      "entryType": "article",
+      "citeKey": "almutairi2020",
+      "title": "تحليل المشاعر في التغريدات العربية باستخدام BERT",
+      "authors": [
+        "سارة المطيري",
+        "Nizar Habash"
+      ],
+      "year": 2020,
+      "venue": "مجلة العلوم الحاسوبية",
+      "doi": "10.1145/3394486.3403111",
+      "url": null,
+      "abstract": null,
+      "volume": "12",
+      "issue": "3",
+      "firstPage": "45",
+      "lastPage": "60",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 19,
+      "entryType": "article",
+      "citeKey": "escapes2018",
+      "title": "On the “Naïve” Approach to α-Stability — a Review of 50% & More",
+      "authors": [
+        "Kurt Gödel",
+        "Paul Erdős",
+        "René François",
+        "Åsa Straße",
+        "Jiří Škoda",
+        "Ole Sørensen",
+        "Jan Łukasiewicz"
+      ],
+      "year": 2018,
+      "venue": "Journal of Machine Learning",
+      "doi": "10.1000/abc_def.2018",
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": "1",
+      "lastPage": "10",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 29,
+      "entryType": "inproceedings",
+      "citeKey": "transformer_dup",
+      "title": "Attention Is All You Need",
+      "authors": [
+        "Ashish Vaswani"
+      ],
+      "year": 2017,
+      "venue": "Advances in Neural Information Processing Systems 30",
+      "doi": "10.48550/arxiv.1706.03762",
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "conference"
+    },
+    {
+      "line": 43,
+      "entryType": "article",
+      "citeKey": "knuth1984",
+      "title": "Literate Programming",
+      "authors": [
+        "Donald E. Knuth"
+      ],
+      "year": 1984,
+      "venue": "Communications of the ACM",
+      "doi": "10.1093/comjnl/27.2.97",
+      "url": "https://doi.org/10.1093/comjnl/27.2.97",
+      "abstract": null,
+      "volume": "27",
+      "issue": "2",
+      "firstPage": "97",
+      "lastPage": "111",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 53,
+      "entryType": "misc",
+      "citeKey": "who2020",
+      "title": "Coronavirus disease (COVID-19) pandemic",
+      "authors": [
+        "World Health Organization"
+      ],
+      "year": 2020,
+      "venue": null,
+      "doi": null,
+      "url": "https://www.who.int/emergencies/diseases/novel-coronavirus-2019",
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": null,
+      "sourceType": null
+    },
+    {
+      "line": 61,
+      "entryType": "book",
+      "citeKey": "edited2010",
+      "title": "Edited Volume Without Authors",
+      "authors": [
+        "Jan van der Berg",
+        "John Smith Jr."
+      ],
+      "year": 2010,
+      "venue": null,
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": "Example & Sons",
+      "workType": "book",
+      "sourceType": null
+    },
+    {
+      "line": 68,
+      "entryType": "techreport",
+      "citeKey": "nodoi2005",
+      "title": "A Technical Report With No Identifier",
+      "authors": [
+        "Jane Doe"
+      ],
+      "year": 2005,
+      "venue": "Example University",
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": "TR-2005-01",
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": "report",
+      "sourceType": null
+    },
+    {
+      "line": 80,
+      "entryType": "article",
+      "citeKey": "vaswani_again",
+      "title": "Attention is all you need",
+      "authors": [
+        "Ashish Vaswani"
+      ],
+      "year": 2017,
+      "venue": "arXiv preprint arXiv:1706.03762",
+      "doi": "10.48550/arxiv.1706.03762",
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": "preprint",
+      "sourceType": "repository"
+    }
+  ],
+  "issues": [
+    {
+      "line": 38,
+      "kind": "malformed"
+    },
+    {
+      "line": 76,
+      "kind": "empty"
+    }
+  ]
+}

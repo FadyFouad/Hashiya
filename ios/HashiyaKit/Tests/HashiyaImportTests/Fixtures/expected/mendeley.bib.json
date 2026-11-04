@@ -1,0 +1,78 @@
+{
+  "format": "bibtex",
+  "entries": [
+    {
+      "line": 6,
+      "entryType": "inproceedings",
+      "citeKey": "Ronneberger2015",
+      "title": "U-net: Convolutional networks for biomedical image segmentation",
+      "authors": [
+        "Olaf Ronneberger",
+        "Philipp Fischer",
+        "Thomas Brox"
+      ],
+      "year": 2015,
+      "venue": "Lecture Notes in Computer Science",
+      "doi": "10.1007/978-3-319-24574-4_28",
+      "url": null,
+      "abstract": "There is large consent that successful training of deep networks requires many thousand annotated training samples.",
+      "volume": "9351",
+      "issue": null,
+      "firstPage": "234",
+      "lastPage": "241",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "conference"
+    },
+    {
+      "line": 23,
+      "entryType": "article",
+      "citeKey": "Devlin2019",
+      "title": "BERT: Pre-training of deep bidirectional transformers for language understanding",
+      "authors": [
+        "Jacob Devlin",
+        "Ming Wei Chang",
+        "Kenton Lee",
+        "Kristina Toutanova"
+      ],
+      "year": 2019,
+      "venue": "NAACL HLT 2019 - 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies - Proceedings of the Conference",
+      "doi": "10.48550/arxiv.1810.04805",
+      "url": "http://arxiv.org/abs/1810.04805",
+      "abstract": "We introduce a new language representation model called BERT.",
+      "volume": "1",
+      "issue": null,
+      "firstPage": "4171",
+      "lastPage": "4186",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 38,
+      "entryType": "article",
+      "citeKey": "Jumper2021",
+      "title": "Highly accurate protein structure prediction with AlphaFold",
+      "authors": [
+        "John Jumper",
+        "Richard Evans",
+        "Alexander Pritzel",
+        "Tim Green",
+        "Demis Hassabis"
+      ],
+      "year": 2021,
+      "venue": "Nature",
+      "doi": "10.1038/s41586-021-03819-2",
+      "url": "http://dx.doi.org/10.1038/s41586-021-03819-2",
+      "abstract": null,
+      "volume": "596",
+      "issue": "7873",
+      "firstPage": "583",
+      "lastPage": "589",
+      "publisher": "Springer US",
+      "workType": "article",
+      "sourceType": "journal"
+    }
+  ],
+  "issues": []
+}

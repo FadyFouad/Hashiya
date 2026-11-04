@@ -155,6 +155,7 @@ schemes:
         - package: HashiyaKit/HashiyaDiagnosticsTests
         - package: HashiyaKit/HashiyaBibTeXTests
         - package: HashiyaKit/HashiyaCitationTests
+        - package: HashiyaKit/HashiyaImportTests
         - package: HashiyaKit/HashiyaNetworkTests
         - package: HashiyaKit/HashiyaDatabaseTests
         - package: HashiyaKit/HashiyaDataTests

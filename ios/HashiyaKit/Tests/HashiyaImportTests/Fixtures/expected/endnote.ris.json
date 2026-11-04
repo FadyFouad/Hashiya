@@ -1,0 +1,75 @@
+{
+  "format": "ris",
+  "entries": [
+    {
+      "line": 1,
+      "entryType": "JOUR",
+      "citeKey": null,
+      "title": "Highly accurate protein structure prediction with AlphaFold",
+      "authors": [
+        "John Jumper",
+        "Richard Evans",
+        "Alexander Pritzel",
+        "Demis Hassabis"
+      ],
+      "year": 2021,
+      "venue": "Nature",
+      "doi": "10.1038/s41586-021-03819-2",
+      "url": "https://doi.org/10.1038/s41586-021-03819-2",
+      "abstract": "Proteins are essential to life, and understanding their structure can facilitate a mechanistic understanding of their function.",
+      "volume": "596",
+      "issue": "7873",
+      "firstPage": "583",
+      "lastPage": "589",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 22,
+      "entryType": "CONF",
+      "citeKey": null,
+      "title": "Deep Residual Learning for Image Recognition",
+      "authors": [
+        "Kaiming He",
+        "Xiangyu Zhang",
+        "Shaoqing Ren",
+        "Jian Sun"
+      ],
+      "year": 2016,
+      "venue": "2016 IEEE Conference on Computer Vision and Pattern Recognition (CVPR)",
+      "doi": "10.1109/cvpr.2016.90",
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": "770",
+      "lastPage": "778",
+      "publisher": "IEEE",
+      "workType": "article",
+      "sourceType": "conference"
+    },
+    {
+      "line": 35,
+      "entryType": "RPRT",
+      "citeKey": null,
+      "title": "World health statistics 2023: monitoring health for the SDGs",
+      "authors": [
+        "World Health Organization"
+      ],
+      "year": 2023,
+      "venue": "World Health Organization",
+      "doi": null,
+      "url": "https://www.who.int/publications/i/item/9789240074323",
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": "World Health Organization",
+      "workType": "report",
+      "sourceType": null
+    }
+  ],
+  "issues": []
+}

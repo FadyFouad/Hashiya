@@ -1,0 +1,74 @@
+{
+  "format": "bibtex",
+  "entries": [
+    {
+      "line": 1,
+      "entryType": "article",
+      "citeKey": "lecunDeepLearning2015",
+      "title": "Deep Learning",
+      "authors": [
+        "Yann LeCun",
+        "Yoshua Bengio",
+        "Geoffrey Hinton"
+      ],
+      "year": 2015,
+      "venue": "Nature",
+      "doi": "10.1038/nature14539",
+      "url": null,
+      "abstract": null,
+      "volume": "521",
+      "issue": "7553",
+      "firstPage": "436",
+      "lastPage": "444",
+      "publisher": "Nature Publishing Group",
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 18,
+      "entryType": "article",
+      "citeKey": "schmidhuberDeepLearningNeural2015",
+      "title": "Deep Learning in Neural Networks: An Overview",
+      "authors": [
+        "Jürgen Schmidhuber"
+      ],
+      "year": 2015,
+      "venue": "Neural Networks",
+      "doi": "10.1016/j.neunet.2014.09.003",
+      "url": null,
+      "abstract": null,
+      "volume": "61",
+      "issue": null,
+      "firstPage": "85",
+      "lastPage": "117",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 30,
+      "entryType": "inproceedings",
+      "citeKey": "mikolovEfficientEstimationWord2013",
+      "title": "Efficient Estimation of Word Representations in Vector Space",
+      "authors": [
+        "Tomáš Mikolov",
+        "Kai Chen",
+        "Greg Corrado",
+        "Jeffrey Dean"
+      ],
+      "year": 2013,
+      "venue": "1st International Conference on Learning Representations, ICLR 2013",
+      "doi": "10.48550/arxiv.1301.3781",
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "conference"
+    }
+  ],
+  "issues": []
+}

@@ -1,0 +1,41 @@
+<resources>
+    <string name="import_title">Import</string>
+    <string name="import_back">Back</string>
+    <string name="import_start_title">Import from BibTeX or RIS</string>
+    <string name="import_start_message">Export your library from Zotero, Mendeley, EndNote or Overleaf as a .bib or .ris file, then choose it here.</string>
+    <string name="import_choose_file">Choose file</string>
+    <string name="import_choose_another">Choose another file</string>
+    <string name="import_reading">Reading the file…</string>
+    <string name="import_analyzing">Checking %1$s with OpenAlex…</string>
+    <string name="import_count">%1$d</string>
+    <string name="import_found">Found</string>
+    <string name="import_matched">Matched on OpenAlex</string>
+    <string name="import_local">Kept from the file</string>
+    <string name="import_in_library">Already in your library</string>
+    <string name="import_repeated">Repeated in the file</string>
+    <string name="import_unreadable">Couldn\'t be read</string>
+    <plurals name="import_not_checked">
+        <item quantity="one">%1$d entry couldn\'t be checked online and will be kept from the file.</item>
+        <item quantity="other">%1$d entries couldn\'t be checked online and will be kept from the file.</item>
+    </plurals>
+    <string name="import_add_to_collection">Add to a new collection</string>
+    <plurals name="import_confirm">
+        <item quantity="one">Import %1$d paper</item>
+        <item quantity="other">Import %1$d papers</item>
+    </plurals>
+    <string name="import_cancel">Cancel</string>
+    <string name="import_progress">Importing %1$d of %2$d…</string>
+    <string name="import_continues">You can leave the app; the import continues.</string>
+    <plurals name="import_done">
+        <item quantity="one">Imported %1$d paper</item>
+        <item quantity="other">Imported %1$d papers</item>
+    </plurals>
+    <string name="import_done_collection">Added to %1$s</string>
+    <string name="import_show_library">Show in library</string>
+    <string name="import_another">Import another file</string>
+    <string name="import_failed_unsupported">This file isn\'t BibTeX or RIS.</string>
+    <string name="import_failed_too_large">This file is too large to import (over 10 MB).</string>
+    <string name="import_failed_unreadable">Couldn\'t read this file.</string>
+    <string name="import_failed_nothing">Everything in this file is already in your library.</string>
+    <string name="import_cancelled">Import cancelled. Papers already imported stay in your library.</string>
+</resources>

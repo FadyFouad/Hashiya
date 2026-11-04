@@ -1,0 +1,53 @@
+<resources>
+    <string name="import_title">استيراد</string>
+    <string name="import_back">رجوع</string>
+    <string name="import_start_title">الاستيراد من BibTeX أو RIS</string>
+    <string name="import_start_message">صدّر مكتبتك من Zotero أو Mendeley أو EndNote أو Overleaf كملف &#x200E;.bib أو &#x200E;.ris، ثم اختره هنا.</string>
+    <string name="import_choose_file">اختيار ملف</string>
+    <string name="import_choose_another">اختيار ملف آخر</string>
+    <string name="import_reading">جارٍ قراءة الملف…</string>
+    <string name="import_analyzing">جارٍ فحص %1$s في OpenAlex…</string>
+    <string name="import_count">%1$d</string>
+    <string name="import_found">عُثر عليها</string>
+    <string name="import_matched">مطابقة في OpenAlex</string>
+    <string name="import_local">محفوظة من الملف</string>
+    <string name="import_in_library">موجودة في مكتبتك</string>
+    <string name="import_repeated">مكررة في الملف</string>
+    <string name="import_unreadable">تعذّرت قراءتها</string>
+    <plurals name="import_not_checked">
+        <item quantity="zero">تعذّر فحص %1$d مدخل عبر الإنترنت، وستُحفظ من الملف.</item>
+        <item quantity="one">تعذّر فحص مدخل واحد عبر الإنترنت، وسيُحفظ من الملف.</item>
+        <item quantity="two">تعذّر فحص مدخلين عبر الإنترنت، وسيُحفظان من الملف.</item>
+        <item quantity="few">تعذّر فحص %1$d مدخلات عبر الإنترنت، وستُحفظ من الملف.</item>
+        <item quantity="many">تعذّر فحص %1$d مدخلًا عبر الإنترنت، وستُحفظ من الملف.</item>
+        <item quantity="other">تعذّر فحص %1$d مدخل عبر الإنترنت، وستُحفظ من الملف.</item>
+    </plurals>
+    <string name="import_add_to_collection">إضافة إلى مجموعة جديدة</string>
+    <plurals name="import_confirm">
+        <item quantity="zero">استيراد %1$d ورقة</item>
+        <item quantity="one">استيراد ورقة واحدة</item>
+        <item quantity="two">استيراد ورقتين</item>
+        <item quantity="few">استيراد %1$d أوراق</item>
+        <item quantity="many">استيراد %1$d ورقة</item>
+        <item quantity="other">استيراد %1$d ورقة</item>
+    </plurals>
+    <string name="import_cancel">إلغاء</string>
+    <string name="import_progress">جارٍ استيراد %1$d من %2$d…</string>
+    <string name="import_continues">يمكنك مغادرة التطبيق؛ سيستمر الاستيراد.</string>
+    <plurals name="import_done">
+        <item quantity="zero">لم تُستورد أي ورقة</item>
+        <item quantity="one">تم استيراد ورقة واحدة</item>
+        <item quantity="two">تم استيراد ورقتين</item>
+        <item quantity="few">تم استيراد %1$d أوراق</item>
+        <item quantity="many">تم استيراد %1$d ورقة</item>
+        <item quantity="other">تم استيراد %1$d ورقة</item>
+    </plurals>
+    <string name="import_done_collection">أُضيفت إلى %1$s</string>
+    <string name="import_show_library">عرض في المكتبة</string>
+    <string name="import_another">استيراد ملف آخر</string>
+    <string name="import_failed_unsupported">هذا الملف ليس بصيغة BibTeX أو RIS.</string>
+    <string name="import_failed_too_large">هذا الملف أكبر من أن يُستورد (أكثر من 10 ميغابايت).</string>
+    <string name="import_failed_unreadable">تعذّرت قراءة هذا الملف.</string>
+    <string name="import_failed_nothing">كل ما في هذا الملف موجود في مكتبتك بالفعل.</string>
+    <string name="import_cancelled">أُلغي الاستيراد. تبقى الأوراق المستوردة في مكتبتك.</string>
+</resources>

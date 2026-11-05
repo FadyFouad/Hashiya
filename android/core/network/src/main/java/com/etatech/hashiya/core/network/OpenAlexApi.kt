@@ -2,11 +2,13 @@ package com.etatech.hashiya.core.network
 
 import com.etatech.hashiya.core.network.model.NetworkWork
 import com.etatech.hashiya.core.network.model.NetworkWorkLocations
+import com.etatech.hashiya.core.network.quota.MeteredUse
 import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.GET
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Tag
 
 internal const val OPENALEX_BASE_URL = "https://api.openalex.org/"
 
@@ -43,6 +45,15 @@ internal interface OpenAlexApi {
     suspend fun findWorks(
         @Query("filter") filter: String,
         @Query("per_page") perPage: Int,
+        @Query("select") select: String = WORK_FIELDS
+    ): Response<ResponseBody>
+
+    /** [findWorks] for an import's batched DOI lookup: the tag gives it the quota's import share. */
+    @GET("works")
+    suspend fun findWorksForImport(
+        @Query("filter") filter: String,
+        @Query("per_page") perPage: Int,
+        @Tag use: MeteredUse,
         @Query("select") select: String = WORK_FIELDS
     ): Response<ResponseBody>
 }

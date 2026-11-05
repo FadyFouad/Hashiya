@@ -1,0 +1,50 @@
+TY  - JOUR
+TI  - Deep learning
+AU  - LeCun, Yann
+AU  - Bengio, Yoshua
+AU  - Hinton, Geoffrey
+T2  - Nature
+AB  - Deep learning allows computational models that are composed of multiple processing layers to learn representations of data with multiple levels of abstraction.
+DA  - 2015/05//
+PY  - 2015
+DO  - 10.1038/nature14539
+DP  - www.nature.com
+VL  - 521
+IS  - 7553
+SP  - 436
+EP  - 444
+J2  - Nature
+LA  - en
+SN  - 1476-4687
+UR  - https://www.nature.com/articles/nature14539
+Y2  - 2024/03/02/12:00:00
+KW  - Computer science
+KW  - Mathematics and computing
+ER  - 
+
+TY  - CHAP
+TI  - U-Net: Convolutional Networks for Biomedical Image Segmentation
+AU  - Ronneberger, Olaf
+AU  - Fischer, Philipp
+AU  - Brox, Thomas
+A2  - Navab, Nassir
+A2  - Hornegger, Joachim
+T2  - Medical Image Computing and Computer-Assisted Intervention – MICCAI 2015
+CY  - Cham
+DA  - 2015///
+PY  - 2015
+DO  - 10.1007/978-3-319-24574-4_28
+SP  - 234
+EP  - 241
+PB  - Springer International Publishing
+SN  - 978-3-319-24574-4
+ER  - 
+
+TY  - THES
+TI  - Relaxation and its role in vision
+AU  - Hinton, Geoffrey E.
+DA  - 1977///
+PY  - 1977
+PB  - University of Edinburgh
+M3  - PhD Thesis
+ER  - 

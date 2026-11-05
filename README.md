@@ -22,6 +22,7 @@ These images are the app's screenshot-test baselines, so they always match the c
 - Open a saved paper's details (every author, the full abstract and the DOI link) and write structured notes: Summary, Research question, Method, Key findings, Limitations and My thoughts. Notes save as you type and are searchable from the Library.
 - Download a paper's open-access PDF, or attach your own from the device or a cloud drive, and read it in the app offline: smooth scrolling and zoom, the paper's notes in a sheet over the page, and the last page remembered. Settings shows the space PDFs use and can delete downloaded ones.
 - Group saved papers into collections and filter the Library by collection. Export a collection, or the whole library, as a `.bib` file for Overleaf or LaTeX, with entry types and cite keys that stay the same from one export to the next, or copy one paper's BibTeX from its details.
+- Import a `.bib` or `.ris` file from Zotero, Mendeley, EndNote or Google Scholar: preview what it holds, match papers to OpenAlex by DOI, keep the rest from the file with their cite keys, skip papers already saved, and optionally put them in a new collection. The import runs in the background and resumes if the app is closed.
 - Swipe to remove from the library, with Undo.
 - Full English and Arabic support, including right-to-left layouts and per-app language.
 - Light and dark themes; navigation rail on tablets and foldables.
@@ -32,19 +33,20 @@ The Android project lives in `android/`; the modules below are under it.
 
 ```mermaid
 graph TD
-    app --> feature/search & feature/library & feature/paperdetails & feature/reader & feature/settings
-    feature/search & feature/library & feature/paperdetails & feature/reader & feature/settings --> core/data & core/designsystem & core/model
+    app --> feature/search & feature/library & feature/paperdetails & feature/reader & feature/settings & feature/importer
+    feature/search & feature/library & feature/paperdetails & feature/reader & feature/settings & feature/importer --> core/data & core/designsystem & core/model
     core/designsystem --> core/model
     core/database --> core/model
-    core/data --> core/network & core/database & core/datastore & core/bibtex & core/model
+    core/data --> core/network & core/database & core/datastore & core/bibtex & core/importer & core/model
     core/bibtex --> core/model
+    core/importer --> core/model
 ```
 
 - **Features** see only repository interfaces from `core/data`, so every ViewModel is tested with fakes.
 - **Leaf modules** (`network`, `database`, `datastore`) never see each other; `core/data` maps their types to `core/model`.
 - **Convention plugins** in `build-logic` keep each module's build file to a few lines.
 
-Kotlin · Jetpack Compose · Material 3 · Navigation (type-safe) · Hilt · Room · Paging 3 · DataStore · Retrofit + kotlinx.serialization · Coroutines/Flow
+Kotlin · Jetpack Compose · Material 3 · Navigation (type-safe) · Hilt · Room · Paging 3 · DataStore · WorkManager · Retrofit + kotlinx.serialization · Coroutines/Flow
 
 ## Getting started
 
@@ -60,7 +62,7 @@ Kotlin · Jetpack Compose · Material 3 · Navigation (type-safe) · Hilt · Roo
 
 ```bash
 cd android
-./gradlew testDebugUnitTest :core:model:test :core:bibtex:test   # unit, Robolectric UI and screenshot tests
+./gradlew testDebugUnitTest :core:model:test :core:bibtex:test :core:importer:test   # unit, Robolectric UI and screenshot tests
 ./gradlew spotlessCheck lintDebug                                 # formatting and lint
 bash ../scripts/record-screenshots-on-linux.sh                    # re-record screenshot baselines after an intended UI change
 ```

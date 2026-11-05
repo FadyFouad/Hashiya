@@ -3,6 +3,7 @@ package com.etatech.hashiya.core.network
 import com.etatech.hashiya.core.network.model.NetworkLocation
 import com.etatech.hashiya.core.network.model.NetworkWork
 import com.etatech.hashiya.core.network.model.NetworkWorksResponse
+import com.etatech.hashiya.core.network.quota.MeteredUse
 import com.etatech.hashiya.core.network.quota.SearchCache
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
@@ -18,6 +19,13 @@ interface OpenAlexLookupDataSource {
 
     /** @throws NetworkException on any failure. */
     suspend fun findWorks(filter: String, perPage: Int): NetworkWorksResponse
+
+    /**
+     * [findWorks] for an import's batched DOI lookup, sent on the quota's import share (at most half the day's shared calls).
+     * Answered from the search cache like [findWorks].
+     * @throws NetworkException on any failure; `DailyLimit` when no route is left for imports.
+     */
+    suspend fun findWorksForImport(filter: String, perPage: Int): NetworkWorksResponse = findWorks(filter, perPage)
 }
 
 /** Where else a saved paper's PDF may be, for when its stored link no longer gives it. */
@@ -58,6 +66,15 @@ internal class RetrofitOpenAlexLookupDataSource @Inject constructor(private val 
     override suspend fun findWorks(filter: String, perPage: Int): NetworkWorksResponse = try {
         val query = listOf("filter" to filter, "per_page" to perPage.toString(), "select" to WORK_FIELDS)
         cache.worksPage(query) { api.findWorks(filter = filter, perPage = perPage) }
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Throwable) {
+        throw e.toNetworkException()
+    }
+
+    override suspend fun findWorksForImport(filter: String, perPage: Int): NetworkWorksResponse = try {
+        val query = listOf("filter" to filter, "per_page" to perPage.toString(), "select" to WORK_FIELDS)
+        cache.worksPage(query) { api.findWorksForImport(filter = filter, perPage = perPage, use = MeteredUse.Import) }
     } catch (e: CancellationException) {
         throw e
     } catch (e: Throwable) {

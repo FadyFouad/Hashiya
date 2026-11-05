@@ -1,0 +1,101 @@
+{
+  "format": "ris",
+  "entries": [
+    {
+      "line": 1,
+      "entryType": "JOUR",
+      "citeKey": null,
+      "title": "أثر التعلم العميق في معالجة اللغة العربية",
+      "authors": [
+        "محمد العتيبي",
+        "Hend S. Al-Khalifa"
+      ],
+      "year": 2021,
+      "venue": "مجلة جامعة الملك سعود - علوم الحاسب والمعلومات",
+      "doi": "10.1016/j.jksuci.2019.02.006",
+      "url": "https://doi.org/10.1016/j.jksuci.2019.02.006",
+      "abstract": "تتناول هذه الدراسة نماذج التعلم العميق.",
+      "volume": "33",
+      "issue": "4",
+      "firstPage": "401",
+      "lastPage": "412",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 20,
+      "entryType": "EDBOOK",
+      "citeKey": null,
+      "title": "Collected Essays on Data",
+      "authors": [
+        "John Smith Jr.",
+        "Cathy O'Neil"
+      ],
+      "year": 2018,
+      "venue": null,
+      "doi": "10.5555/example.2018",
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": "Example Press",
+      "workType": "book",
+      "sourceType": null
+    },
+    {
+      "line": 33,
+      "entryType": "ELEC",
+      "citeKey": null,
+      "title": "A web page with no DOI",
+      "authors": [
+        "Jane Doe"
+      ],
+      "year": 2020,
+      "venue": null,
+      "doi": null,
+      "url": "https://example.org/page.pdf",
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": null,
+      "sourceType": null
+    },
+    {
+      "line": 40,
+      "entryType": "JOUR",
+      "citeKey": null,
+      "title": "Last record without an end tag",
+      "authors": [
+        "Ada Lovelace"
+      ],
+      "year": 1843,
+      "venue": null,
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    }
+  ],
+  "issues": [
+    {
+      "line": 16,
+      "kind": "missingType"
+    },
+    {
+      "line": 29,
+      "kind": "empty"
+    }
+  ]
+}

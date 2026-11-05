@@ -45,4 +45,20 @@ class BackupIntentFilterTest {
         assertNull(Intent(Intent.ACTION_VIEW, Uri.parse("https://example.org/backup.hashiya")).openedBackup())
         assertNull(Intent(Intent.ACTION_SEND, Uri.parse("content://docs/backup.hashiya")).openedBackup())
     }
+
+    @Test
+    fun openingABibOrRisFileIsAnImportNotABackup() {
+        IMPORT_MIME_TYPES.forEach { type ->
+            val view = Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse("content://docs/library.bib"), type)
+            assertEquals("content://docs/library.bib", importUri(view.action, view.type, view.data?.toString(), null, hasText = false))
+            assertEquals(listOf(MainActivity::class.java.name), activitiesFor(type))
+        }
+    }
+
+    @Test
+    fun openingATextFileIsAnImportNotABackup() {
+        val view = Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse("content://docs/library.bib"), "text/plain")
+        assertEquals("content://docs/library.bib", importUri(view.action, view.type, view.data?.toString(), null, hasText = false))
+        assertEquals(listOf(MainActivity::class.java.name), activitiesFor("text/plain"))
+    }
 }

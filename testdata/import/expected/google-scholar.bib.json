@@ -1,0 +1,125 @@
+{
+  "format": "bibtex",
+  "entries": [
+    {
+      "line": 1,
+      "entryType": "inproceedings",
+      "citeKey": "he2016deep",
+      "title": "Deep residual learning for image recognition",
+      "authors": [
+        "Kaiming He",
+        "Xiangyu Zhang",
+        "Shaoqing Ren",
+        "Jian Sun"
+      ],
+      "year": 2016,
+      "venue": "Proceedings of the IEEE conference on computer vision and pattern recognition",
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": "770",
+      "lastPage": "778",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "conference"
+    },
+    {
+      "line": 9,
+      "entryType": "article",
+      "citeKey": "vaswani2017attention",
+      "title": "Attention is all you need",
+      "authors": [
+        "Ashish Vaswani",
+        "Noam Shazeer",
+        "Niki Parmar",
+        "Jakob Uszkoreit",
+        "Llion Jones",
+        "Aidan N Gomez",
+        "Łukasz Kaiser",
+        "Illia Polosukhin"
+      ],
+      "year": 2017,
+      "venue": "Advances in neural information processing systems",
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "volume": "30",
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 17,
+      "entryType": "article",
+      "citeKey": "devlin2018bert",
+      "title": "Bert: Pre-training of deep bidirectional transformers for language understanding",
+      "authors": [
+        "Jacob Devlin",
+        "Ming-Wei Chang",
+        "Kenton Lee",
+        "Kristina Toutanova"
+      ],
+      "year": 2018,
+      "venue": "arXiv preprint arXiv:1810.04805",
+      "doi": "10.48550/arxiv.1810.04805",
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": "preprint",
+      "sourceType": "repository"
+    },
+    {
+      "line": 24,
+      "entryType": "book",
+      "citeKey": "bishop2006pattern",
+      "title": "Pattern recognition and machine learning",
+      "authors": [
+        "Christopher M Bishop",
+        "Nasser M Nasrabadi"
+      ],
+      "year": 2006,
+      "venue": null,
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "volume": "4",
+      "issue": "4",
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": "Springer",
+      "workType": "book",
+      "sourceType": null
+    },
+    {
+      "line": 33,
+      "entryType": "phdthesis",
+      "citeKey": "hinton1977relaxation",
+      "title": "Relaxation and its role in vision",
+      "authors": [
+        "Geoffrey E Hinton"
+      ],
+      "year": 1977,
+      "venue": "University of Edinburgh",
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": "dissertation",
+      "sourceType": null
+    }
+  ],
+  "issues": []
+}

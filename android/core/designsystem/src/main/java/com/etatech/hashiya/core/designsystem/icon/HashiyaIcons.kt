@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material.icons.outlined.UploadFile
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -51,6 +52,7 @@ object HashiyaIcons {
     val Export: ImageVector = Icons.Outlined.Share
     val Copy: ImageVector = Icons.Outlined.ContentCopy
     val Collection: ImageVector = Icons.Outlined.FolderOpen
+    val Import: ImageVector = Icons.Outlined.UploadFile
     val Pdf: ImageVector = Icons.Outlined.PictureAsPdf
     val Download: ImageVector = Icons.Outlined.Download
     val Attach: ImageVector = Icons.Outlined.AttachFile

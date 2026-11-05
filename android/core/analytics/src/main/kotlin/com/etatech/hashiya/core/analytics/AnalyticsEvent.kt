@@ -79,6 +79,28 @@ sealed interface AnalyticsEvent {
         override val parameters get() = mapOf("result" to if (succeeded) "ok" else "failed")
     }
 
+    /**
+     * An import ended (spec 2026-11-04 §8.4). [format] is null when the file was neither BibTeX nor RIS, or too large to read;
+     * [entries] uses the library-size buckets.
+     */
+    data class Import(
+        val format: ImportFileFormat?,
+        val result: ImportResult,
+        val entries: LibrarySize,
+        val matched: MatchedShare,
+        val toCollection: Boolean
+    ) : AnalyticsEvent {
+        override val name = "import"
+        override val parameters: Map<String, String>
+            get() = buildMap {
+                format?.let { put("format", it.id) }
+                put("result", result.id)
+                put("entries_bucket", this@Import.entries.id)
+                put("matched", matched.id)
+                put("to_collection", yesNo(toCollection))
+            }
+    }
+
     data class ScreenView(val screen: Screen) : AnalyticsEvent {
         override val name = "screen_view"
         override val parameters get() = mapOf("screen" to screen.id)

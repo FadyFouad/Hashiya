@@ -55,7 +55,8 @@ enum class Screen(override val id: String) : ClosedValue {
     Reader("reader"),
     Settings("settings"),
     Restore("restore"),
-    Export("export")
+    Export("export"),
+    Import("import")
 }
 
 enum class AnalyticsProperty(val id: String) {
@@ -88,6 +89,35 @@ enum class ResultsBucket(val id: String) {
             count <= 25 -> UpTo25
             count <= 200 -> UpTo200
             else -> Over200
+        }
+    }
+}
+
+enum class ImportFileFormat(val id: String) { Bibtex("bibtex"), Ris("ris") }
+
+/** How an import ended: [Ok] when it saved what it found; otherwise why not. */
+enum class ImportResult(val id: String) {
+    Ok("ok"),
+    Cancelled("cancelled"),
+    Unsupported("unsupported"),
+    TooLarge("too_large"),
+    Unreadable("unreadable"),
+    NothingNew("nothing_new")
+}
+
+/** Matched papers over papers to import: none, under half, half or more, all. */
+enum class MatchedShare(val id: String) {
+    None("none"),
+    Some("some"),
+    Most("most"),
+    All("all");
+
+    companion object {
+        fun of(matched: Int, toImport: Int): MatchedShare = when {
+            toImport <= 0 || matched <= 0 -> None
+            matched >= toImport -> All
+            matched * 2 >= toImport -> Most
+            else -> Some
         }
     }
 }

@@ -12,6 +12,7 @@ import com.etatech.hashiya.core.data.mapping.asPublicationDetails
 import com.etatech.hashiya.core.database.dao.CitationDao
 import com.etatech.hashiya.core.database.model.PaperWithAuthors
 import com.etatech.hashiya.core.model.CitationStyle
+import com.etatech.hashiya.core.model.isLocalPaperId
 import com.etatech.hashiya.core.network.NetworkException
 import com.etatech.hashiya.core.network.OpenAlexLookupDataSource
 import javax.inject.Inject
@@ -127,5 +128,6 @@ internal class RoomCitationRepository @Inject constructor(
     private fun PaperWithAuthors.citable(): CitablePaper? = paper.citeKey?.let { CitablePaper(asPaper(), it) }
 
     /** Whether the stored details are as complete as they will get. A paper with no OpenAlex id has nothing to refetch. */
-    private fun PaperWithAuthors.hasDetails(): Boolean = paper.detailsFetched || paper.openAlexId == null
+    private fun PaperWithAuthors.hasDetails(): Boolean =
+        paper.detailsFetched || paper.openAlexId == null || isLocalPaperId(paper.openAlexId)
 }

@@ -21,6 +21,8 @@ internal data class LibraryActions(
     val onGoToSearch: () -> Unit = {},
     val onAddPaper: () -> Unit = {},
     val onOpenSettings: () -> Unit = {},
+    /** Opens Import; null hides the button, so screens built without it (screenshot tests) are unchanged. */
+    val onImport: (() -> Unit)? = null,
     val onSelectCollection: (Long?) -> Unit = {},
     val onNewCollection: () -> Unit = {},
     val onRenameCollection: (PaperCollection) -> Unit = {},

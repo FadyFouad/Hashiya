@@ -1,0 +1,101 @@
+{
+  "format": "bibtex",
+  "entries": [
+    {
+      "line": 2,
+      "entryType": "article",
+      "citeKey": "lecun_deep_2015",
+      "title": "Deep learning",
+      "authors": [
+        "Yann LeCun",
+        "Yoshua Bengio",
+        "Geoffrey Hinton"
+      ],
+      "year": 2015,
+      "venue": "Nature",
+      "doi": "10.1038/nature14539",
+      "url": "https://www.nature.com/articles/nature14539",
+      "abstract": "Deep learning allows computational models that are composed of multiple processing layers to learn representations of data with multiple levels of abstraction.",
+      "volume": "521",
+      "issue": "7553",
+      "firstPage": "436",
+      "lastPage": "444",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    },
+    {
+      "line": 22,
+      "entryType": "misc",
+      "citeKey": "vaswani_attention_2023",
+      "title": "Attention Is All You Need",
+      "authors": [
+        "Ashish Vaswani",
+        "Noam Shazeer",
+        "Niki Parmar",
+        "Jakob Uszkoreit",
+        "Llion Jones",
+        "Aidan N. Gomez",
+        "Lukasz Kaiser",
+        "Illia Polosukhin"
+      ],
+      "year": 2023,
+      "venue": null,
+      "doi": "10.48550/arxiv.1706.03762",
+      "url": "http://arxiv.org/abs/1706.03762",
+      "abstract": "The dominant sequence transduction models are based on complex recurrent or convolutional neural networks in an encoder-decoder configuration.",
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": "arXiv",
+      "workType": "preprint",
+      "sourceType": "repository"
+    },
+    {
+      "line": 36,
+      "entryType": "inproceedings",
+      "citeKey": "ronneberger_u-net_2015",
+      "title": "U-Net: Convolutional Networks for Biomedical Image Segmentation",
+      "authors": [
+        "Olaf Ronneberger",
+        "Philipp Fischer",
+        "Thomas Brox"
+      ],
+      "year": 2015,
+      "venue": "Medical Image Computing and Computer-Assisted Intervention – MICCAI 2015",
+      "doi": "10.1007/978-3-319-24574-4_28",
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": "234",
+      "lastPage": "241",
+      "publisher": "Springer International Publishing",
+      "workType": "article",
+      "sourceType": "conference"
+    },
+    {
+      "line": 51,
+      "entryType": "phdthesis",
+      "citeKey": "muller_lernverfahren_2019",
+      "title": "Lernverfahren für große Sprachmodelle",
+      "authors": [
+        "Jörg Müller"
+      ],
+      "year": 2019,
+      "venue": "Technische Universität München",
+      "doi": null,
+      "url": null,
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": "dissertation",
+      "sourceType": null
+    }
+  ],
+  "issues": []
+}

@@ -51,6 +51,7 @@ android {
 
 dependencies {
     implementation(project(":core:designsystem"))
+    implementation(project(":feature:importer"))
     implementation(project(":feature:library"))
     implementation(project(":feature:paperdetails"))
     implementation(project(":feature:reader"))

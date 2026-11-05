@@ -1,0 +1,51 @@
+{
+  "format": "ris",
+  "entries": [
+    {
+      "line": 1,
+      "entryType": "CPAPER",
+      "citeKey": null,
+      "title": "Adam: A method for stochastic optimization",
+      "authors": [
+        "Diederik P. Kingma",
+        "Jimmy Ba"
+      ],
+      "year": 2015,
+      "venue": "3rd International Conference on Learning Representations, ICLR 2015 - Conference Track Proceedings",
+      "doi": "10.48550/arxiv.1412.6980",
+      "url": "http://arxiv.org/abs/1412.6980",
+      "abstract": null,
+      "volume": null,
+      "issue": null,
+      "firstPage": null,
+      "lastPage": null,
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "conference"
+    },
+    {
+      "line": 11,
+      "entryType": "JOUR",
+      "citeKey": null,
+      "title": "Mastering the game of Go with deep neural networks and tree search",
+      "authors": [
+        "David Silver",
+        "Aja Huang",
+        "Demis Hassabis"
+      ],
+      "year": 2016,
+      "venue": "Nature",
+      "doi": "10.1038/nature16961",
+      "url": null,
+      "abstract": null,
+      "volume": "529",
+      "issue": "7587",
+      "firstPage": "484",
+      "lastPage": "489",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    }
+  ],
+  "issues": []
+}

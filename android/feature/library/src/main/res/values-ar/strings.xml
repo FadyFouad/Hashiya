@@ -1,5 +1,6 @@
 <resources>
     <string name="library_title">المكتبة</string>
+    <string name="library_import">استيراد ملف &#x200E;.bib أو &#x200E;.ris</string>
     <string name="library_settings">الإعدادات</string>
     <plurals name="library_paper_count">
         <item quantity="zero">لا توجد أوراق</item>

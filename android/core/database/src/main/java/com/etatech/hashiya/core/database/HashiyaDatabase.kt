@@ -5,9 +5,12 @@ import androidx.room.RoomDatabase
 import com.etatech.hashiya.core.database.dao.BackupDao
 import com.etatech.hashiya.core.database.dao.CitationDao
 import com.etatech.hashiya.core.database.dao.CollectionDao
+import com.etatech.hashiya.core.database.dao.ImportJobDao
 import com.etatech.hashiya.core.database.dao.PaperDao
 import com.etatech.hashiya.core.database.model.CollectionEntity
 import com.etatech.hashiya.core.database.model.CollectionPaperEntity
+import com.etatech.hashiya.core.database.model.ImportJobEntity
+import com.etatech.hashiya.core.database.model.ImportJobPaperEntity
 import com.etatech.hashiya.core.database.model.PaperAuthorEntity
 import com.etatech.hashiya.core.database.model.PaperEntity
 import com.etatech.hashiya.core.database.model.PaperNotesEntity
@@ -20,9 +23,11 @@ import com.etatech.hashiya.core.database.model.PaperSearchEntity
         PaperSearchEntity::class,
         PaperNotesEntity::class,
         CollectionEntity::class,
-        CollectionPaperEntity::class
+        CollectionPaperEntity::class,
+        ImportJobEntity::class,
+        ImportJobPaperEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class HashiyaDatabase : RoomDatabase() {
@@ -33,4 +38,6 @@ abstract class HashiyaDatabase : RoomDatabase() {
     abstract fun citationDao(): CitationDao
 
     abstract fun backupDao(): BackupDao
+
+    abstract fun importJobDao(): ImportJobDao
 }

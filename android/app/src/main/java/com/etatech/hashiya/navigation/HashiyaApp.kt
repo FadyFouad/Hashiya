@@ -27,6 +27,8 @@ import com.etatech.hashiya.core.designsystem.icon.HashiyaIcons
 import com.etatech.hashiya.core.designsystem.layout.showsTwoPanes
 import com.etatech.hashiya.core.model.RequiredUpdate
 import com.etatech.hashiya.crash.ReportScreens
+import com.etatech.hashiya.feature.importer.navigation.importScreen
+import com.etatech.hashiya.feature.importer.navigation.navigateToImport
 import com.etatech.hashiya.feature.library.navigation.LibraryRoute
 import com.etatech.hashiya.feature.library.navigation.libraryScreen
 import com.etatech.hashiya.feature.library.navigation.navigateToLibrary
@@ -64,6 +66,8 @@ fun HashiyaApp(
     onPendingSearchHandled: () -> Unit = {},
     pendingRestore: String? = null,
     onPendingRestoreHandled: () -> Unit = {},
+    pendingImport: String? = null,
+    onPendingImportHandled: () -> Unit = {},
     requiredUpdate: RequiredUpdate? = null,
     onOpenStore: (String) -> Unit = {},
     shortcut: AppShortcut? = null,
@@ -102,7 +106,8 @@ fun HashiyaApp(
                         onRemove = onRemove,
                         onReadPdf = { navController.navigateToReader(it) }
                     )
-                }
+                },
+                onImport = { navController.navigateToImport() }
             )
             searchScreen(
                 onOpenSettings = { navController.navigateToSettings() },
@@ -121,6 +126,14 @@ fun HashiyaApp(
                 onOpenRestore = { uri -> navController.navigateToRestore(uri) }
             )
             restoreScreen(onDone = { navController.popBackStack() })
+            // Not top-level either; leaving it never stops the import, which runs in the background.
+            importScreen(
+                onBack = { navController.popBackStack() },
+                onShowLibrary = {
+                    navController.popBackStack()
+                    navController.navigateToTopLevel(TopLevelDestination.Library)
+                }
+            )
         }
 
         // Details opened from the Library on a narrow window moves into the Library's pane once the window is wide
@@ -141,6 +154,13 @@ fun HashiyaApp(
             pendingSearch?.let { route ->
                 navController.openSearch(route)
                 onPendingSearchHandled()
+            }
+        }
+
+        LaunchedEffect(pendingImport) {
+            pendingImport?.let { uri ->
+                navController.navigateToImport(uri)
+                onPendingImportHandled()
             }
         }
 

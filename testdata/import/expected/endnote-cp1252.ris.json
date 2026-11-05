@@ -1,0 +1,27 @@
+{
+  "format": "ris",
+  "entries": [
+    {
+      "line": 1,
+      "entryType": "JOUR",
+      "citeKey": null,
+      "title": "Über formal unentscheidbare Sätze der “Principia Mathematica”",
+      "authors": [
+        "Kurt Gödel"
+      ],
+      "year": 1931,
+      "venue": "Monatshefte für Mathematik und Physik",
+      "doi": "10.1007/bf01700692",
+      "url": null,
+      "abstract": null,
+      "volume": "38",
+      "issue": null,
+      "firstPage": "173",
+      "lastPage": "198",
+      "publisher": null,
+      "workType": "article",
+      "sourceType": "journal"
+    }
+  ],
+  "issues": []
+}

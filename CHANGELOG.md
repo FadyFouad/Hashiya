@@ -16,6 +16,8 @@ What changed in each version of Hashiya, for both the iOS and Android apps unles
 - **Android: APA 7 and IEEE citations.** A paper's ⋮ menu copies its citation in APA 7, IEEE or BibTeX — APA and IEEE paste with their italics into Word, Pages or Google Docs — and the Library's export saves a whole collection as an APA 7 or IEEE reference list (.rtf) as well as BibTeX. The style you used last comes first.
 - **iOS: APA 7 and IEEE citations.** A paper's ⋯ menu copies its citation in APA 7, IEEE or BibTeX — APA and IEEE paste with their italics into Word, Pages or Google Docs — and the Library's export saves a whole collection as an APA 7 or IEEE reference list (.rtf) as well as BibTeX. The style you used last comes first.
 
+- **Android: import a library from BibTeX and RIS.** The Library's Import button, or opening or sharing a `.bib` or `.ris` file from Zotero, Mendeley, EndNote, Google Scholar or another app, shows what the file holds — papers found on OpenAlex by DOI, papers kept from the file, repeats and papers already saved — before anything is saved. The import then runs in the background, resumes if the app is closed, keeps each entry's cite key and can put the papers in a new collection named after the file. DOI lookups use at most half of the day's shared OpenAlex allowance.
+
 ### Changed
 - **Android: Details groups Collections, PDF and DOI in one list.** The PDF row's main action is a button that follows its state: Download PDF, Read PDF or Attach PDF; Replace and Remove stay in its ⋮ menu. The DOI is a row that opens the paper's DOI page, and is hidden when there is none.
 

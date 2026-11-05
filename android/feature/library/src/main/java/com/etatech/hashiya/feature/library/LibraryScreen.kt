@@ -100,6 +100,7 @@ internal fun LibraryScreen(
     onAddPaper: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenPaper: (openAlexId: String) -> Unit,
+    onImport: (() -> Unit)? = null,
     removeRequest: String? = null,
     onRemoveRequestHandled: () -> Unit = {},
     detailPane: LibraryDetailPane? = null,
@@ -186,6 +187,7 @@ internal fun LibraryScreen(
                 onGoToSearch = onGoToSearch,
                 onAddPaper = onAddPaper,
                 onOpenSettings = onOpenSettings,
+                onImport = onImport,
                 onSelectCollection = viewModel::onSelectCollection,
                 onNewCollection = viewModel::onNewCollection,
                 onRenameCollection = viewModel::onRenameCollection,
@@ -316,6 +318,12 @@ internal fun LibraryContent(
                     }
                 },
                 actions = {
+                    // On every Library state, so an empty library can be filled from a Zotero, Mendeley or EndNote export.
+                    actions.onImport?.let { onImport ->
+                        IconButton(onClick = onImport) {
+                            Icon(HashiyaIcons.Import, contentDescription = stringResource(R.string.library_import))
+                        }
+                    }
                     if (showsCollections && header.viewSize > 0) {
                         if (header.exporting) {
                             CircularProgressIndicator(

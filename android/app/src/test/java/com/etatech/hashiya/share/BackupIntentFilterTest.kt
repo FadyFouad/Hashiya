@@ -54,4 +54,11 @@ class BackupIntentFilterTest {
             assertEquals(listOf(MainActivity::class.java.name), activitiesFor(type))
         }
     }
+
+    @Test
+    fun openingATextFileIsAnImportNotABackup() {
+        val view = Intent(Intent.ACTION_VIEW).setDataAndType(Uri.parse("content://docs/library.bib"), "text/plain")
+        assertEquals("content://docs/library.bib", importUri(view.action, view.type, view.data?.toString(), null, hasText = false))
+        assertEquals(listOf(MainActivity::class.java.name), activitiesFor("text/plain"))
+    }
 }

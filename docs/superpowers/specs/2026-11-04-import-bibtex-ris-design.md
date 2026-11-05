@@ -388,7 +388,7 @@ Only one job runs at a time. Picking a new file while a job is analyzing or impo
 ### 8.1 Entry points
 
 - **Library:** an **Import** icon button in the top bar (content description "Import .bib or .ris"), before Export, on every Library state, including the empty Library. It opens the Import screen. `LibraryActions.onImport` is nullable and null by default, so screens built without it (the existing screenshot tests) are unchanged.
-- **Other apps:** `MainActivity` gains intent filters for `ACTION_VIEW` and `ACTION_SEND` with `application/x-bibtex`, `text/x-bibtex` and `application/x-research-info-systems`, and handles `ACTION_SEND` of `text/plain` that carries `EXTRA_STREAM` and no `EXTRA_TEXT` as an import too. These are recognised before the backup check, which opens any other `content:` VIEW as a `.hashiya` restore. The file's URI is passed to the Import screen, which reads it at once while the grant is valid.
+- **Other apps:** `MainActivity` gains intent filters for `ACTION_VIEW` and `ACTION_SEND` with `application/x-bibtex`, `text/x-bibtex` and `application/x-research-info-systems`, and handles `ACTION_SEND` of `text/plain` that carries `EXTRA_STREAM` and no `EXTRA_TEXT` as an import too. `ACTION_VIEW` of a `text/plain` `content:` file is an import as well, because file managers such as ColorOS My Files open a `.bib` or `.ris` as `text/plain` (§14 item 24). These are recognised before the backup check, which opens any other `content:` VIEW as a `.hashiya` restore. The file's URI is passed to the Import screen, which reads it at once while the grant is valid.
 - **Layout:** like Settings and Restore, Import is not a top-level destination: the bar hides on compact windows and the rail stays from medium width; the content is a centred column on wide windows.
 
 ### 8.2 The Import screen
@@ -581,6 +581,7 @@ Fady asked for this feature to be built end to end without stopping for approval
 21. **iOS "Show in library" closes the sheet**; on iOS the text under the progress bar says the import continues "while iOS allows it" and resumes later, because iOS gives background work only limited time.
 22. **`BGContinuedProcessingTask` is not used**: it is iOS 26 only and needs a Live Activity; `beginBackgroundTask` plus resume at launch and on activation covers iOS 17 to 26 the same way.
 23. **No store-answer or privacy-policy change**: the import sends nothing new beyond one closed-value analytics event, which the published "which features are used" already covers.
+24. **Plain-text files opened with Hashiya go to Import** (Android). Checked on a device: ColorOS My Files opens a `.bib` with `ACTION_VIEW` and type `text/plain`, so the original filters never offered Hashiya. `MainActivity` now also takes a `text/plain` `content:` VIEW as an import. The cost is that Hashiya appears under "Open with" for any text file; one that isn't BibTeX or RIS ends at "This file isn't BibTeX or RIS." `pathPattern` can't narrow a `content:` URI by extension (§3). `application/octet-stream` is still not claimed, since Hashiya would then be offered for every unknown file.
 
 ## 15. Changes from the first version
 

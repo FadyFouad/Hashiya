@@ -64,7 +64,9 @@
                 <data android:mimeType="text/plain" />
             </intent-filter>
 
-            <!-- Open with Hashiya: a .bib or .ris file from Files, Gmail or Drive goes to Import. -->
+            <!-- Open with Hashiya: a .bib or .ris file from Files, Gmail or Drive goes to Import. Many file managers
+                 (ColorOS My Files, for one) open them as text/plain, so plain text goes to Import too and the content
+                 decides; pathPattern can't match a content: URI's extension. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -74,6 +76,7 @@
                 <data android:mimeType="application/x-bibtex" />
                 <data android:mimeType="text/x-bibtex" />
                 <data android:mimeType="application/x-research-info-systems" />
+                <data android:mimeType="text/plain" />
             </intent-filter>
 
             <!-- Sharing a .bib or .ris file to Hashiya. Text files shared without text arrive through the text/plain filter above. -->

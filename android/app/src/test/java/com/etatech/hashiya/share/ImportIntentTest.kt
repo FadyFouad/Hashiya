@@ -14,6 +14,18 @@ class ImportIntentTest {
     }
 
     @Test
+    fun openWithATextFileImportsIt() {
+        // File managers such as ColorOS My Files open a .bib or .ris as text/plain; the content decides the format.
+        assertEquals("content://files/a.bib", importUri(Intent.ACTION_VIEW, "text/plain", "content://files/a.bib", null, hasText = false))
+    }
+
+    @Test
+    fun openWithATextLinkIsNotAnImport() {
+        assertNull(importUri(Intent.ACTION_VIEW, "text/plain", "https://example.org/a.bib", null, hasText = false))
+        assertNull(importUri(Intent.ACTION_VIEW, "text/plain", "file:///data/data/com.etatech.hashiya/a.bib", null, hasText = false))
+    }
+
+    @Test
     fun sharingABibOrRisFileImportsIt() {
         assertEquals("content://f/1", importUri(Intent.ACTION_SEND, "application/x-research-info-systems", null, "content://f/1", false))
     }

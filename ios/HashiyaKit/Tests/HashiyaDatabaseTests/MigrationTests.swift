@@ -434,15 +434,21 @@ struct MigrationTests {
     }
 
     @Test func v6AddsTheImportTablesAsAndroidsVersion6() throws {
-        try HashiyaDatabase.openInMemory().read { db in
-            #expect(try db.columns(in: "import_jobs").map(\.name) == [
-                "id", "file_name", "created_at", "state", "failure", "add_to_collection", "collection_name", "collection_id",
-                "found", "matched", "local", "in_library", "repeated", "unreadable", "not_checked", "processed", "imported",
-            ])
-            #expect(try db.columns(in: "import_job_papers").map(\.name) == ["job_id", "paper_id"])
-            #expect(try db.indexes(on: "import_job_papers").map(\.name).contains("index_import_job_papers_paper_id"))
-            #expect(try db.foreignKeys(on: "import_job_papers").map(\.destinationTable).sorted() == ["import_jobs", "papers"])
+        let (jobColumns, linkColumns, linkIndexes, linkParents) = try HashiyaDatabase.openInMemory().read { db in
+            (
+                try db.columns(in: "import_jobs").map(\.name),
+                try db.columns(in: "import_job_papers").map(\.name),
+                try db.indexes(on: "import_job_papers").map(\.name),
+                try db.foreignKeys(on: "import_job_papers").map(\.destinationTable).sorted()
+            )
         }
+        #expect(jobColumns == [
+            "id", "file_name", "created_at", "state", "failure", "add_to_collection", "collection_name", "collection_id",
+            "found", "matched", "local", "in_library", "repeated", "unreadable", "not_checked", "processed", "imported",
+        ])
+        #expect(linkColumns == ["job_id", "paper_id"])
+        #expect(linkIndexes.contains("index_import_job_papers_paper_id"))
+        #expect(linkParents == ["import_jobs", "papers"])
     }
 
     /// A sub-project 6 install (Android's `migration5To6KeepsEverything`): every paper, PDF and collection link is kept, and the

@@ -250,7 +250,7 @@ struct MigrationTests {
         let second = try HashiyaDatabase.openPool(at: url)
         let titles = try await second.read { db in try String.fetchAll(db, sql: "SELECT title FROM papers") }
         #expect(titles == ["Kept"])
-        #expect(try await second.read { db in try HashiyaDatabase.migrator.appliedMigrations(db) } == ["v1", "v2", "v3", "v4", "v5"])
+        #expect(try await second.read { db in try HashiyaDatabase.migrator.appliedMigrations(db) } == ["v1", "v2", "v3", "v4", "v5", "v6"])
         let journalMode = try await second.read { db in try String.fetchOne(db, sql: "PRAGMA journal_mode") }
         #expect(journalMode == "wal")
     }

@@ -46,6 +46,9 @@ public struct ImportView: View {
                     }
                 }
         }
+        // A sheet doesn't inherit the tint RootView sets on the tabs, so without this the buttons are system blue and
+        // the switch system green (the snapshots add the tint themselves, which hid it).
+        .tint(HashiyaColors.primary)
         .fileImporter(isPresented: $showsPicker, allowedContentTypes: ImportFileTypes.all) { result in
             if case let .success(url) = result { Task { await viewModel.open(url: url) } }
         }

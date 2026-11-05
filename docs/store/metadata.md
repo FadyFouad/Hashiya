@@ -98,6 +98,7 @@ Paper data comes from OpenAlex (openalex.org), a free and open catalog of schola
 ```
 New in 0.4.0:
 
+• Import your library from BibTeX or RIS: choose a .bib or .ris file from Zotero, Mendeley, EndNote, Google Scholar or another app with the Library's Import button, or open it in Hashiya from Files or Mail. Before anything is saved, Hashiya shows what the file holds: papers found on OpenAlex by their DOI, papers kept as they are in the file, repeats and papers you already have. Each paper keeps its cite key, and the papers can go into a new collection named after the file. A large import carries on when you open the app again.
 • Citations in APA 7 and IEEE: a paper's ⋯ menu copies its citation in APA 7, IEEE or BibTeX, and APA and IEEE paste with their italics into Word, Pages or Google Docs. Export a collection or your whole library as an APA 7 or IEEE reference list (.rtf) as well as BibTeX. The style you used last comes first.
 • Settings → About: email the developer (the app version and device are filled in, nothing from your library), rate Hashiya, and see the version.
 • Fix: the app opens on a Mac with Apple silicon.
@@ -206,6 +207,7 @@ New in 0.2.0:
 ```
 الجديد في 0.4.0:
 
+• استيراد مكتبتك من BibTeX أو RIS: اختر ملف ‎.bib أو ‎.ris من Zotero أو Mendeley أو EndNote أو Google Scholar أو تطبيق آخر بزر «استيراد ملف ‎.bib أو ‎.ris» في المكتبة، أو افتحه في حاشية من تطبيق الملفات أو البريد. وقبل حفظ أي شيء تعرض حاشية ما في الملف: الأوراق التي عُثر عليها في OpenAlex بمعرّف DOI، والأوراق المحفوظة كما هي في الملف، والمكررة، والأوراق الموجودة في مكتبتك. وتحتفظ كل ورقة بمفتاح الاستشهاد الخاص بها، ويمكن وضع الأوراق في مجموعة جديدة تحمل اسم الملف. ويُكمل الاستيراد الكبير عمله عندما تفتح التطبيق مرة أخرى.
 • الاستشهاد بنمطي APA 7 وIEEE: تنسخ قائمة ⋯ في الورقة استشهادها بنمط APA 7 أو IEEE أو BibTeX، ويُلصق نمطا APA وIEEE بخطهما المائل في Word أو Pages أو مستندات Google. وصدّر مجموعة أو مكتبتك كاملة قائمةَ مراجع بنمط APA 7 أو IEEE ‏(‎.rtf) إلى جانب BibTeX. ويظهر النمط الذي استخدمته آخر مرة أولًا.
 • قسم «حول التطبيق» في الإعدادات: راسل المطوّر بالبريد (مع إصدار التطبيق والجهاز، ودون أي شيء من مكتبتك)، وقيّم حاشية، واعرف رقم الإصدار.
 • إصلاح: يفتح التطبيق على أجهزة Mac بمعالج Apple.
@@ -302,7 +304,7 @@ Paper data comes from OpenAlex (openalex.org), a free and open catalog of schola
 **Release notes** [500]
 
 ```
-New in 0.4.0: copy a paper's citation in APA 7, IEEE or BibTeX, and export reference lists (.rtf) that keep their italics in Word or Google Docs. Settings → About emails the developer and rates the app. Also: tablet, foldable and Chromebook layouts, keyboard shortcuts, backup and restore, and search that keeps working on busy days. Crash reports and usage statistics, tied to a random identifier, can be turned off in Settings → Privacy.
+New in 0.4.0: import your library from a BibTeX or RIS file from Zotero, Mendeley or EndNote, into a new collection if you like. Copy citations in APA 7, IEEE or BibTeX, and export reference lists (.rtf). Settings → About emails the developer and rates the app. Also: tablet, foldable and Chromebook layouts, keyboard shortcuts, backup and restore, and search that keeps working on busy days. Crash reports and usage statistics, tied to a random identifier, can be turned off in Settings → Privacy.
 ```
 
 <!-- /lang -->
@@ -375,7 +377,7 @@ New in 0.4.0: copy a paper's citation in APA 7, IEEE or BibTeX, and export refer
 **ملاحظات الإصدار** [500]
 
 ```
-الجديد في 0.4.0: انسخ استشهاد الورقة بنمط APA 7 أو IEEE أو BibTeX، وصدّر قوائم مراجع ‏(‎.rtf) تحتفظ بخطها المائل في Word أو مستندات Google. ويراسل قسم «حول التطبيق» المطوّر ويقيّم التطبيق. وأيضًا: تخطيط للأجهزة اللوحية والقابلة للطي وChromebook، واختصارات لوحة المفاتيح، والنسخ الاحتياطي والاستعادة، وبحث يستمر في الأيام المزدحمة. ويمكن إيقاف تقارير الأعطال وإحصاءات الاستخدام، المرتبطة بمعرّف عشوائي، من الإعدادات ← الخصوصية.
+الجديد في 0.4.0: استورد مكتبتك من ملف BibTeX أو RIS من Zotero أو Mendeley أو EndNote، وفي مجموعة جديدة إن أردت. وانسخ الاستشهاد بنمط APA 7 أو IEEE أو BibTeX، وصدّر قوائم مراجع ‏(‎.rtf). ويراسل قسم «حول التطبيق» المطوّر ويقيّم التطبيق. وأيضًا: تخطيط للأجهزة اللوحية والقابلة للطي وChromebook، واختصارات لوحة المفاتيح، والنسخ الاحتياطي والاستعادة، وبحث يستمر في الأيام المزدحمة. ويمكن إيقاف تقارير الأعطال وإحصاءات الاستخدام، المرتبطة بمعرّف عشوائي، من الإعدادات ← الخصوصية.
 ```
 
 <!-- /lang -->
@@ -417,15 +419,16 @@ Crash reports (Firebase Crashlytics) and usage statistics (Firebase Analytics) a
 
 ### App Store Connect: before submitting 0.4.0
 
-- **Privacy policy:** the page must name the new exports ("BibTeX, APA, IEEE or backup") before external testers or review. Merge the policy repository's citation-styles PR, with its effective date set to the merge day.
+- **Privacy policy:** the page must name the new exports ("BibTeX, APA, IEEE or backup"), the `import` usage event and the DOI lookups for an imported file before external testers or review. Merge the policy repository's PR #4, with its effective date set to the merge day.
 - **App Privacy:** no change from 0.3.0. Feedback is an email the user sends, and the rating prompt is Apple's own.
 - **What's New** and **Promotional text:** paste the 0.4.0 text in both languages. Promotional text can change at any time without a review.
 - **Screenshots:** the app runs natively on iPad, so App Store Connect asks for 13-inch iPad screenshots in both languages.
 - **TestFlight → What to Test** [4000]
 
 ```
-New in 0.4.0: APA 7 and IEEE citations, and Settings → About (feedback, rating, version). Also in this build: the 0.3.0 iPad, backup and privacy features, and the Mac launch fix.
+New in 0.4.0: import from BibTeX and RIS, APA 7 and IEEE citations, and Settings → About (feedback, rating, version). Also in this build: the 0.3.0 iPad, backup and privacy features, and the Mac launch fix.
 Please try:
+• Export your library from Zotero, Mendeley or EndNote as .bib or .ris, then import it with the Library's Import button or by opening the file in Hashiya from Files. Check the counts before importing, and that the papers land in the new collection.
 • In a paper's ⋯ menu, copy an APA 7 and an IEEE citation, then paste them into Pages, Word or Google Docs: the journal or book title should be in italics.
 • In the Library, export a collection as APA 7 (.rtf) and as IEEE (.rtf), and open the files in Pages or Word. Next time, the style you used last should come first.
 • Settings → About → Send feedback should open an email with the version and device filled in.
@@ -434,7 +437,7 @@ Please try:
 
 ### Play Console: before releasing 0.4.0
 
-- **Privacy policy:** as for the App Store, the citation-styles policy PR must be merged first.
+- **Privacy policy:** as for the App Store, the policy repository's PR #4 must be merged first.
 - **Data safety:** no change from 0.3.0.
 - **Release notes:** paste the 0.4.0 text in both languages. This is the first Play release, so the notes also name the 0.3.0 features.
 - **Upload:** the signed `app-release.aab` (versionCode 4) to Internal testing first, then promote it to the closed test.

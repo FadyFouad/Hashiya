@@ -139,6 +139,30 @@ struct OpenAlexRoutingTests {
         #expect(quota.meteredRoute() == .keyless)
     }
 
+    @Test func importBatchesUseTheSharedRouteForHalfTheCapThenKeyless() async throws {
+        let server = URLProtocolStub.Server(always: .json(page))
+        let quota = quota(limits: OpenAlexLimits(dailyDeviceCalls: 4, maxPagesPerQuery: 8, baseURL: nil))
+        let client = lookup(server, quota)
+        for doi in ["10.1/a", "10.1/b", "10.1/c"] {
+            _ = try await client.importWorks(filter: "doi:\(doi)", perPage: 50)
+        }
+        #expect(server.requests.map { Self.query($0)["api_key"] } == ["built-in", "built-in", nil])
+        #expect(quota.meteredRoute() == .shared)
+    }
+
+    @Test func anImportPastItsShareWithKeylessUsedUpIsTheDailyLimitWhileSearchesGoOn() async throws {
+        let server = URLProtocolStub.Server(always: .json(page))
+        let quota = quota(limits: OpenAlexLimits(dailyDeviceCalls: 2, maxPagesPerQuery: 8, baseURL: nil))
+        quota.recordSharedCall()
+        quota.markUsedUp(.keyless, resetIn: 600)
+        await #expect(throws: NetworkFailure.self) {
+            try await lookup(server, quota).importWorks(filter: "doi:10.1/x", perPage: 50)
+        }
+        #expect(server.requests.isEmpty)
+        _ = try await search(server, quota).searchWorks(request)
+        #expect(server.requests.count == 1)
+    }
+
     @Test func aPerSecondLimitWaitsAndRetriesOnceOnTheSameRoute() async throws {
         let replies = Counter(0)
         let server = URLProtocolStub.Server { [page] _ in replies.next() == 0 ? .status(429, headers: ["X-RateLimit-Remaining": "50"]) : .json(page) }

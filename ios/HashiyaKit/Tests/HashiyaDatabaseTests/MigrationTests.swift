@@ -64,8 +64,8 @@ struct MigrationTests {
         return queue
     }
 
-    @Test func theMigrationsAreV1ThroughV5() {
-        #expect(HashiyaDatabase.migrator.migrations == ["v1", "v2", "v3", "v4", "v5"])
+    @Test func theMigrationsAreV1ThroughV6() {
+        #expect(HashiyaDatabase.migrator.migrations == ["v1", "v2", "v3", "v4", "v5", "v6"])
     }
 
     @Test func v1CreatesAndroidsVersion1Schema() throws {
@@ -250,7 +250,7 @@ struct MigrationTests {
         let second = try HashiyaDatabase.openPool(at: url)
         let titles = try await second.read { db in try String.fetchAll(db, sql: "SELECT title FROM papers") }
         #expect(titles == ["Kept"])
-        #expect(try await second.read { db in try HashiyaDatabase.migrator.appliedMigrations(db) } == ["v1", "v2", "v3", "v4", "v5"])
+        #expect(try await second.read { db in try HashiyaDatabase.migrator.appliedMigrations(db) } == ["v1", "v2", "v3", "v4", "v5", "v6"])
         let journalMode = try await second.read { db in try String.fetchOne(db, sql: "PRAGMA journal_mode") }
         #expect(journalMode == "wal")
     }
@@ -431,5 +431,69 @@ struct MigrationTests {
             try String.fetchAll(db, sql: "SELECT id || ':' || reading_status || ':' || (pdf_source IS NULL) FROM papers ORDER BY id")
         }
         #expect(rows == ["a:to_read:1", "b:to_read:1"])
+    }
+
+    @Test func v6AddsTheImportTablesAsAndroidsVersion6() throws {
+        let (jobColumns, linkColumns, linkIndexes, linkParents) = try HashiyaDatabase.openInMemory().read { db in
+            (
+                try db.columns(in: "import_jobs").map(\.name),
+                try db.columns(in: "import_job_papers").map(\.name),
+                try db.indexes(on: "import_job_papers").map(\.name),
+                try db.foreignKeys(on: "import_job_papers").map(\.destinationTable).sorted()
+            )
+        }
+        #expect(jobColumns == [
+            "id", "file_name", "created_at", "state", "failure", "add_to_collection", "collection_name", "collection_id",
+            "found", "matched", "local", "in_library", "repeated", "unreadable", "not_checked", "processed", "imported",
+        ])
+        #expect(linkColumns == ["job_id", "paper_id"])
+        #expect(linkIndexes.contains("index_import_job_papers_paper_id"))
+        #expect(linkParents == ["import_jobs", "papers"])
+    }
+
+    /// A sub-project 6 install (Android's `migration5To6KeepsEverything`): every paper, PDF and collection link is kept, and the
+    /// new tables are empty.
+    @Test func migratingFromV5KeepsEverythingAndStartsWithNoImports() throws {
+        let queue = try version3WithFixture()
+        try HashiyaDatabase.migrator.migrate(queue, upTo: "v5")
+        try queue.write { db in
+            try db.execute(sql: """
+                UPDATE papers SET cite_key = 'vaswani2017attention', details_fetched = 1, pdf_source = 'downloaded', pdf_size = 10,
+                    pdf_added_at = 3, pdf_last_page = 2 WHERE id = 'a';
+                INSERT INTO collections (id, name, name_key, created_at) VALUES (1, 'Thesis', 'thesis', 1);
+                INSERT INTO collection_papers (collection_id, paper_id, added_at) VALUES (1, 'a', 2);
+                """)
+        }
+
+        try HashiyaDatabase.migrator.migrate(queue)
+
+        let (rows, links, jobs, jobPapers) = try queue.read { db in
+            (
+                try String.fetchAll(
+                    db,
+                    sql: """
+                        SELECT id || ':' || COALESCE(cite_key, '-') || ':' || COALESCE(pdf_source, '-') || ':' || COALESCE(pdf_last_page, '-')
+                        FROM papers ORDER BY id
+                        """
+                ),
+                try String.fetchAll(db, sql: "SELECT collection_id || ':' || paper_id FROM collection_papers"),
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM import_jobs"),
+                try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM import_job_papers")
+            )
+        }
+        #expect(rows == ["a:vaswani2017attention:downloaded:2", "b:-:-:-"])
+        #expect(links == ["1:a"])
+        #expect(jobs == 0)
+        #expect(jobPapers == 0)
+    }
+
+    @Test func aV1LibraryMigratesAllTheWayToV6() throws {
+        let queue = try version1()
+        try insertVersion1Fixture(into: queue)
+
+        try HashiyaDatabase.migrator.migrate(queue)
+
+        let count = try queue.read { db in try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM papers") }
+        #expect(count == 2)
     }
 }

@@ -59,6 +59,7 @@ public enum AnalyticsProperty: String, CaseIterable, Sendable {
 
 public enum Screen: String, CaseIterable, Sendable, ClosedValue {
     case library, search, details, reader, settings, restore, export
+    case importFile = "import"
 }
 
 public enum SearchKind: String, Sendable { case keyword, doi, arxiv, link }
@@ -67,6 +68,29 @@ public enum LimitKind: String, Sendable { case daily, pageCap = "page_cap" }
 public enum SaveSource: String, Sendable { case search, lookup, share }
 public enum ExportFormat: String, Sendable { case bibtex, apa, ieee, backup }
 public enum PdfOrigin: String, Sendable { case downloaded, attached }
+public enum ImportFileFormat: String, Sendable { case bibtex, ris }
+
+/// How an import ended: `.ok` when it saved what it found; otherwise why not.
+public enum ImportResult: String, Sendable {
+    case ok, cancelled, unsupported, tooLarge = "too_large", unreadable, nothingNew = "nothing_new"
+}
+
+/// Matched papers over papers to import: none, under half, half or more, all.
+public enum MatchedShare: String, Sendable {
+    case none, some, most, all
+
+    public init(matched: Int, toImport: Int) {
+        if toImport <= 0 || matched <= 0 {
+            self = .none
+        } else if matched >= toImport {
+            self = .all
+        } else if matched * 2 >= toImport {
+            self = .most
+        } else {
+            self = .some
+        }
+    }
+}
 
 public enum ResultsBucket: String, Sendable {
     case zero = "0", upTo25 = "1-25", upTo200 = "26-200", over200 = "200+"
@@ -105,6 +129,9 @@ public enum AnalyticsEvent: Equatable, Sendable {
     case restore(succeeded: Bool)
     case pdfOpened(source: PdfOrigin)
     case pdfDownloaded(succeeded: Bool)
+    /// One per import job. `format` is nil when the file was too large or unreadable before it could be read;
+    /// `entries` buckets the entries found in the file.
+    case importFile(format: ImportFileFormat?, result: ImportResult, entries: LibrarySizeBucket, matched: MatchedShare, toCollection: Bool)
     case screenView(Screen)
 
     public var name: String {
@@ -121,6 +148,7 @@ public enum AnalyticsEvent: Equatable, Sendable {
         case .restore: "restore"
         case .pdfOpened: "pdf_opened"
         case .pdfDownloaded: "pdf_downloaded"
+        case .importFile: "import"
         case .screenView: "screen_view"
         }
     }
@@ -139,6 +167,13 @@ public enum AnalyticsEvent: Equatable, Sendable {
         case let .restore(succeeded): return ["result": succeeded ? "ok" : "failed"]
         case let .pdfOpened(source): return ["source": source.rawValue]
         case let .pdfDownloaded(succeeded): return ["result": succeeded ? "ok" : "failed"]
+        case let .importFile(format, result, entries, matched, toCollection):
+            var parameters = [
+                "result": result.rawValue, "entries_bucket": entries.rawValue, "matched": matched.rawValue,
+                "to_collection": yesNo(toCollection),
+            ]
+            if let format { parameters["format"] = format.rawValue }
+            return parameters
         case let .screenView(screen): return ["screen": screen.rawValue]
         }
     }

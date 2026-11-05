@@ -63,6 +63,8 @@ struct HashiyaApp: App {
             // Papers saved in the Share Extension appear in the Library and as "In library".
             SharedLibraryDatabase.resume()
             Task { await container.libraryRepository.refreshAfterExternalChanges() }
+            // An import the app was closed during, or whose writes the suspended database refused, carries on.
+            Task { await container.imports?.resumeIfNeeded() }
         case .background:
             // A suspended database refuses writes: let the notes Details just flushed land first, and let a PDF
             // download finish on its background time (iOS ends that time, which cancels it, if it runs too long).

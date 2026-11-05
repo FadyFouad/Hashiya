@@ -57,11 +57,19 @@ public final class OpenAlexLookupClient: OpenAlexLookupService, OpenAlexPdfLinks
     }
 
     public func works(filter: String, perPage: Int) async throws -> NetworkWorksResponse {
-        try await http.get(NetworkWorksResponse.self, path: "/works", query: [
+        try await http.get(NetworkWorksResponse.self, path: "/works", query: Self.filterQuery(filter, perPage))
+    }
+
+    public func importWorks(filter: String, perPage: Int) async throws -> NetworkWorksResponse {
+        try await http.getRouted(NetworkWorksResponse.self, path: "/works", query: Self.filterQuery(filter, perPage), forImport: true).0
+    }
+
+    private static func filterQuery(_ filter: String, _ perPage: Int) -> [(name: String, value: String)] {
+        [
             (name: "filter", value: filter),
             (name: "per_page", value: String(perPage)),
             (name: "select", value: OpenAlexSearchClient.selectFields),
-        ])
+        ]
     }
 
     /// One path segment: everything but unreserved characters and ":" is percent-encoded, so "/", "#", ";",

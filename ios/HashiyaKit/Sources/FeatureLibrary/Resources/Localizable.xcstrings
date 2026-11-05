@@ -358,6 +358,23 @@
         }
       }
     },
+    "library.import" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استيراد ملف ‎.bib أو ‎.ris"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import .bib or .ris"
+          }
+        }
+      }
+    },
     "library.newCollection" : {
       "extractionState" : "manual",
       "localizations" : {

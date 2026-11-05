@@ -1,3 +1,4 @@
+import FeatureImport
 import FeatureLibrary
 import FeaturePaperDetails
 import FeatureReader
@@ -25,6 +26,8 @@ final class AppContainer {
     let pdfRepository: any PdfRepository
     /// The app's one backup service: its lock is what allows one restore at a time across windows.
     let backup: any LibraryBackup
+    /// Nil where importing isn't wired (UI tests): the Library then shows no Import button.
+    let imports: (any ImportRepository)?
     /// Note writes the app waits for before it suspends the shared database in the background.
     let pendingWrites = PendingWrites()
     /// The remembered citation style, shared so Copy citation and Export reorder together.
@@ -43,6 +46,7 @@ final class AppContainer {
         exportFiles = dependencies.exportFiles
         pdfRepository = dependencies.pdfs
         backup = dependencies.backup
+        imports = dependencies.imports
         // Files whose paper is gone (an Undo window the app didn't outlive) and unfinished downloads.
         Task { [pdfs = dependencies.pdfs] in await pdfs.sweepOrphans() }
         self.appUpdateRepository = appUpdateRepository
@@ -138,6 +142,11 @@ final class AppContainer {
             pendingWrites: pendingWrites,
             diagnostics: diagnostics
         )
+    }
+
+    /// Nil when this build has no import repository.
+    func makeImportViewModel() -> ImportViewModel? {
+        imports.map { ImportViewModel(repository: $0) }
     }
 
     func makeSettingsViewModel() -> SettingsViewModel {

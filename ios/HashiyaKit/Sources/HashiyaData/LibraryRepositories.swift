@@ -2,14 +2,15 @@ import Foundation
 import HashiyaDatabase
 import HashiyaNetwork
 
-/// The library, collections, citations and PDFs on one database store, so they share one connection pool and see each
-/// other's writes at once.
+/// The library, collections, citations, PDFs and imports on one database store, so they share one connection pool and see
+/// each other's writes at once.
 public struct LibraryRepositories: Sendable {
     public let library: GRDBLibraryRepository
     public let collections: GRDBCollectionsRepository
     public let citations: GRDBCitationRepository
     public let pdfs: GRDBPdfRepository
     public let backup: ArchiveLibraryBackup
+    public let imports: LiveImportRepository
 
     init(store: PaperStore, lookup: any OpenAlexLookupService, pdf: PdfDependencies) {
         library = GRDBLibraryRepository(store: store)
@@ -33,6 +34,13 @@ public struct LibraryRepositories: Sendable {
             background: pdf.background,
             now: { Int64((Date().timeIntervalSince1970 * 1000).rounded()) },
             newID: { UUID().uuidString.lowercased() }
+        )
+        imports = LiveImportRepository(
+            store: store,
+            matcher: DOIMatcher(openAlex: lookup),
+            directory: LiveImportRepository.liveDirectory(),
+            background: pdf.background,
+            analytics: pdf.analytics
         )
     }
 

@@ -514,7 +514,7 @@ public struct PaperStore: Sendable {
         }
     }
 
-    private func stream<Value: Sendable>(_ observation: ValueObservation<ValueReducers.Fetch<Value>>) -> AsyncStream<Value> {
+    func stream<Value: Sendable>(_ observation: ValueObservation<ValueReducers.Fetch<Value>>) -> AsyncStream<Value> {
         let writer = self.writer
         return AsyncStream { continuation in
             let task = Task {

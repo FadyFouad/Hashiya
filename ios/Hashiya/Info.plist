@@ -20,6 +20,19 @@
 				<string>com.etatech.hashiya.backup</string>
 			</array>
 		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>BibTeX or RIS bibliography</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.etatech.hashiya.bibtex</string>
+				<string>com.etatech.hashiya.ris</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
@@ -62,6 +75,52 @@
 	<false/>
 	<key>OpenAlexAPIKey</key>
 	<string>$(OPENALEX_API_KEY)</string>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.plain-text</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>BibTeX bibliography</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.etatech.hashiya.bibtex</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>bib</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/x-bibtex</string>
+					<string>text/x-bibtex</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.plain-text</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>RIS bibliography</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.etatech.hashiya.ris</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>ris</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/x-research-info-systems</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>

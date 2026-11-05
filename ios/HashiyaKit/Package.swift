@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "HashiyaModel", targets: ["HashiyaModel"]),
         .library(name: "HashiyaBibTeX", targets: ["HashiyaBibTeX"]),
         .library(name: "HashiyaCitation", targets: ["HashiyaCitation"]),
+        .library(name: "HashiyaImport", targets: ["HashiyaImport"]),
         .library(name: "HashiyaNetwork", targets: ["HashiyaNetwork"]),
         .library(name: "HashiyaDatabase", targets: ["HashiyaDatabase"]),
         .library(name: "HashiyaDiagnostics", targets: ["HashiyaDiagnostics"]),
@@ -24,6 +25,7 @@ let package = Package(
         .library(name: "FeaturePaperDetails", targets: ["FeaturePaperDetails"]),
         .library(name: "FeatureReader", targets: ["FeatureReader"]),
         .library(name: "FeatureSettings", targets: ["FeatureSettings"]),
+        .library(name: "FeatureImport", targets: ["FeatureImport"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1"),
@@ -34,10 +36,12 @@ let package = Package(
         .target(name: "HashiyaModel"),
         .target(name: "HashiyaBibTeX", dependencies: ["HashiyaModel"]),
         .target(name: "HashiyaCitation", dependencies: ["HashiyaModel"]),
+        // BibTeX and RIS parsing and import planning: pure, like Android's core/importer.
+        .target(name: "HashiyaImport", dependencies: ["HashiyaModel"]),
         .target(name: "HashiyaNetwork"),
         .target(name: "HashiyaDiagnostics"),
         .target(name: "HashiyaDatabase", dependencies: ["HashiyaModel", grdb]),
-        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX", "HashiyaCitation", "HashiyaDiagnostics", zip]),
+        .target(name: "HashiyaData", dependencies: ["HashiyaModel", "HashiyaNetwork", "HashiyaDatabase", "HashiyaBibTeX", "HashiyaCitation", "HashiyaDiagnostics", "HashiyaImport", zip]),
         .target(name: "HashiyaDesignSystem", dependencies: ["HashiyaModel"], resources: [.process("Resources")]),
         .target(
             name: "FeatureSearch",
@@ -65,6 +69,11 @@ let package = Package(
             resources: [.process("Resources")]
         ),
         .target(
+            name: "FeatureImport",
+            dependencies: ["HashiyaData", "HashiyaModel", "HashiyaDesignSystem", "HashiyaDiagnostics"],
+            resources: [.process("Resources")]
+        ),
+        .target(
             name: "HashiyaTesting",
             dependencies: ["HashiyaData", "HashiyaModel", "HashiyaNetwork", "HashiyaDesignSystem", "HashiyaDiagnostics", snapshotTesting],
             resources: [.copy("Resources/Fixtures")]
@@ -73,11 +82,15 @@ let package = Package(
         .testTarget(name: "HashiyaDiagnosticsTests", dependencies: ["HashiyaDiagnostics", "HashiyaTesting"]),
         .testTarget(name: "HashiyaBibTeXTests", dependencies: ["HashiyaBibTeX", "HashiyaModel"]),
         .testTarget(name: "HashiyaCitationTests", dependencies: ["HashiyaCitation", "HashiyaModel"]),
+        // Fixtures is a copy of the repository's testdata/import (a package can't reach outside its directory).
+        .testTarget(name: "HashiyaImportTests", dependencies: ["HashiyaImport", "HashiyaModel"], resources: [.copy("Fixtures")]),
         .testTarget(name: "HashiyaNetworkTests", dependencies: ["HashiyaNetwork", "HashiyaTesting"]),
         .testTarget(name: "HashiyaDatabaseTests", dependencies: ["HashiyaDatabase", "HashiyaModel", grdb]),
         .testTarget(
             name: "HashiyaDataTests",
-            dependencies: ["HashiyaData", "HashiyaDatabase", "HashiyaDiagnostics", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting", grdb, zip]
+            dependencies: [
+                "HashiyaData", "HashiyaDatabase", "HashiyaDiagnostics", "HashiyaImport", "HashiyaModel", "HashiyaNetwork", "HashiyaTesting", grdb, zip,
+            ]
         ),
         .testTarget(
             name: "HashiyaDesignSystemTests",
@@ -102,6 +115,10 @@ let package = Package(
         .testTarget(
             name: "FeatureSettingsTests",
             dependencies: ["FeatureSettings", "HashiyaData", "HashiyaDesignSystem", "HashiyaDiagnostics", "HashiyaModel", "HashiyaTesting"]
+        ),
+        .testTarget(
+            name: "FeatureImportTests",
+            dependencies: ["FeatureImport", "HashiyaData", "HashiyaDesignSystem", "HashiyaDiagnostics", "HashiyaModel", "HashiyaTesting"]
         ),
     ]
 )

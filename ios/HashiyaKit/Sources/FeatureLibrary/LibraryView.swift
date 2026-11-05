@@ -13,6 +13,7 @@ public struct LibraryView: View {
     private let onOpenPaper: (String) -> Void
     private let onOpenInNewWindow: ((String) -> Void)?
     private let selectedID: String?
+    private let onImport: (() -> Void)?
 
     /// Space under the list's last row, so the Add paper button never covers it.
     static let addPaperClearance: CGFloat = 88
@@ -27,6 +28,7 @@ public struct LibraryView: View {
     ///   - onOpenInNewWindow: a row's Open in New Window, with the paper's OpenAlex ID; nil where the app can't open
     ///     windows (iPhone), which hides it.
     ///   - selectedID: the paper shown in the detail pane beside the list, highlighted; nil when Details is pushed.
+    ///   - onImport: the Import toolbar button (a .bib or .ris file); nil hides it.
     public init(
         viewModel: LibraryViewModel,
         onGoToSearch: @escaping () -> Void,
@@ -34,8 +36,10 @@ public struct LibraryView: View {
         onOpenSettings: @escaping () -> Void,
         onOpenPaper: @escaping (String) -> Void = { _ in },
         onOpenInNewWindow: ((String) -> Void)? = nil,
-        selectedID: String? = nil
+        selectedID: String? = nil,
+        onImport: (() -> Void)? = nil
     ) {
+        self.onImport = onImport
         self.onOpenInNewWindow = onOpenInNewWindow
         self.selectedID = selectedID
         self.viewModel = viewModel
@@ -97,6 +101,14 @@ public struct LibraryView: View {
             .navigationBarTitleDisplayMode(.inline)
             .modifier(TitleMenu(viewModel: viewModel, isEnabled: viewModel.allPapersTotal > 0))
             .toolbar {
+                if let onImport {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(action: onImport) {
+                            Image(systemName: "square.and.arrow.down")
+                        }
+                        .accessibilityLabel(Text(verbatim: L10n.string("library.import")))
+                    }
+                }
                 if viewModel.canExport {
                     ToolbarItem(placement: .topBarTrailing) {
                         ExportButton(viewModel: viewModel)

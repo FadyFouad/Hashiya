@@ -47,6 +47,19 @@ public final class OpenAlexQuota: @unchecked Sendable {
         }
     }
 
+    /// The route for an import's DOI batch: like `meteredRoute()`, but the shared route only while today's shared calls
+    /// are under half the cap, so an import never takes more than half of the day's searches.
+    public func importRoute() -> OpenAlexRoute? {
+        lock.withLock {
+            let date = now()
+            if sharedOpensForMetered(at: date, cap: limits.dailyDeviceCalls / Self.importShareDivisor) <= date { return .shared }
+            return keylessUntil <= date ? .keyless : nil
+        }
+    }
+
+    /// An import may use at most 1/n of the day's shared calls. Android's `OpenAlexQuota.IMPORT_SHARE_DIVISOR`.
+    static let importShareDivisor = 2
+
     /// The route for a free lookup: shared unless it is used up (the cap counts metered calls only), else keyless.
     public func lookupRoute() -> OpenAlexRoute {
         lock.withLock { sharedConfigured && sharedUntil <= now() ? .shared : .keyless }
@@ -95,8 +108,8 @@ public final class OpenAlexQuota: @unchecked Sendable {
     private var sharedConfigured: Bool { hasBuiltInKey || limits.baseURL != nil }
 
     /// `.distantFuture` when the shared route is off for metered calls.
-    private func sharedOpensForMetered(at date: Date) -> Date {
-        let cap = limits.dailyDeviceCalls
+    private func sharedOpensForMetered(at date: Date, cap: Int? = nil) -> Date {
+        let cap = cap ?? limits.dailyDeviceCalls
         guard sharedConfigured, cap > 0 else { return .distantFuture }
         let today = Self.utcDay(date)
         let calls = defaults.integer(forKey: Key.callsDay) == today ? defaults.integer(forKey: Key.calls) : 0
